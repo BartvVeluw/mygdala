@@ -3476,4 +3476,9 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'validation.product_specification_choose' => 'Choose a specification from the list.',
     'validation.product_specification_twice' => 'This specification is already on this product.',
     'validation.product_specification_value' => 'A value is at most :max characters, without line breaks.',
+    'shop.editor.tab_product' => 'Product',
+    'shop.editor.tab_seo' => 'SEO',
+    'shop.editor.tab_shipping' => 'Shipping',
+    'shop.editor.tabs_label' => 'Parts of this product',
+    'shop.editor.shipping_intro' => 'How this product is shipped. What shipping costs is set under Shop → Shipping settings.',
 ];

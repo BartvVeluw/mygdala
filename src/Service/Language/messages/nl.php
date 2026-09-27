@@ -3486,4 +3486,9 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'validation.product_specification_choose' => 'Kies een specificatie uit de lijst.',
     'validation.product_specification_twice' => 'Deze specificatie staat al bij dit product.',
     'validation.product_specification_value' => 'Een waarde is hooguit :max tekens, zonder regeleinden.',
+    'shop.editor.tab_product' => 'Product',
+    'shop.editor.tab_seo' => 'SEO',
+    'shop.editor.tab_shipping' => 'Verzending',
+    'shop.editor.tabs_label' => 'Onderdelen van dit product',
+    'shop.editor.shipping_intro' => 'Hoe dit product wordt verzonden. Wat verzenden kost, stel je in onder Shop → Verzendinstellingen.',
 ];

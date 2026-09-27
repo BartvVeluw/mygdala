@@ -9,6 +9,7 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_admin_editor.php';
 require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_product_inventory.php';
 require_once __DIR__ . '/_product_order_fields.php';
 require_once __DIR__ . '/_product_specifications.php';
@@ -330,6 +331,7 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-inventory.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-order-fields.js') ?>" defer></script>
 <?php admin_collapse_script(); ?>
+<?php admin_tabs_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -346,6 +348,28 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
 
   <?= admin_editor_summary($errors) ?>
 
+  <?php /* The screen's one language line, above the tabs so every tab has it
+           (admin/_localized_fields.php). */ ?>
+  <?php admin_localized_bar($editingLanguage); ?>
+
+  <?php /* THREE TABS, ONE FORM (Shop Product & Ordering 2.0, admin/_admin_tabs.php):
+           Product (the product itself, stock, pictures, variants,
+           specifications and order fields), SEO (title, description and the
+           share image, which belong together) and Verzending. A tab only
+           shows and hides cards: every field stays in the one form below,
+           Opslaan in the bar stores all three tabs from whichever is open,
+           and switching tabs is not a change. A refused save opens the tab
+           of its first message (admin/assets/admin-editor.js). Without the
+           script every tab is on screen, the long page it used to be. */ ?>
+  <?php admin_tabs_start('product-editor', [
+      'product' => admin_t('shop.editor.tab_product'),
+      'seo' => admin_t('shop.editor.tab_seo'),
+      'verzending' => admin_t('shop.editor.tab_shipping'),
+  ], [
+      'scope' => $isEdit ? (string) (int) $product['id'] : 'new',
+      'label' => admin_t('shop.editor.tabs_label'),
+  ]); ?>
+
   <?php /* ONE form for the whole product, stored by its one Opslaan in the
            bar at the bottom (admin/_admin_editor.php): the general fields,
            the pictures, the options and variants, the SEO card. The editor
@@ -358,10 +382,10 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
     <?php if ($isEdit): ?>
       <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
     <?php endif; ?>
+    <?= admin_localized_input($editingLanguage) ?>
 
+    <?php admin_tab_panel('product'); ?>
     <section class="admin-card admin-product-form" data-admin-editor-section="product">
-      <?= admin_localized_input($editingLanguage) ?>
-      <?php admin_localized_bar($editingLanguage); ?>
       <div class="admin-form-row">
         <label><?= admin_te('common.name') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
           <input type="text" name="name" maxlength="<?= ShopLocalization::NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= htmlspecialchars(productWord($old, $productId, ShopLocalization::NAME, $editingLanguage), ENT_QUOTES, 'UTF-8') ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
@@ -437,28 +461,6 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
             </label>
           <?php endforeach; ?>
         <?php endif; ?>
-      </div>
-
-      <h3><?= admin_te('shop.verzending') ?></h3>
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('shop.verzendprofiel') ?>*
-          <select name="shipping_profile" required>
-            <?php foreach (ShippingProfile::ALL as $profileValue): ?>
-              <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>" <?= $shippingProfileValue === $profileValue ? 'selected' : '' ?>>
-                <?= htmlspecialchars(ShippingProfile::label($profileValue, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <label><?= admin_te('shop.verzendgewicht_gram') ?>*
-          <input type="text" inputmode="numeric" name="shipping_weight_grams" required value="<?= htmlspecialchars($shippingWeightValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="0">
-        </label>
-      </div>
-      <div class="admin-form-row">
-        <label class="admin-checkbox-label">
-          <input type="checkbox" class="admin-checkbox" name="requires_parcel" value="1" <?= $requiresParcelChecked ? 'checked' : '' ?>>
-          <?= admin_te('shop.altijd_pakket_verzenden_negeert') ?>
-        </label>
       </div>
     </section>
 
@@ -588,6 +590,34 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
       </details>
     </section>
 
+    <?php if ($isEdit): ?>
+      <?php /* Personalisatie has its own CMS section (admin/personalization.php)
+               as of Phase 3: its overview, its per-product editor with dedicated
+               preview images and zones, and its shop-wide font library all live
+               there. This card is only a signpost — there is exactly ONE editor
+               for a configuration, and it is not this page. See MAIN.MD. */ ?>
+      <section class="admin-card">
+        <h2><?= admin_te('shop.personalisatie') ?></h2>
+        <?php if ($personalization === null): ?>
+          <p class="admin-text-muted">
+            <?= admin_t('shop.product_heeft_personalisatie_wil') ?>
+          </p>
+        <?php else: ?>
+          <p class="admin-text-muted">
+            <?= admin_t('shop.product_gepersonaliseerd_voorbeeldafbeelding', ['v1' => (int) $personalization['settings']['is_enabled'] === 1 ? 'ingeschakeld' : 'nog uitgeschakeld']) ?>
+          </p>
+          <p>
+            <a class="admin-btn-link" href="/admin/personalization-product.php?product_id=<?= (int) $product['id'] ?>">
+              <?= admin_te('shop.personalisatie_beheren') ?>
+            </a>
+          </p>
+        <?php endif; ?>
+      </section>
+    <?php endif; ?>
+
+    <?php admin_tab_panel_end(); ?>
+
+    <?php admin_tab_panel('seo'); ?>
     <section class="admin-card" data-admin-editor-section="seo">
       <h2><?= admin_te('shop.seo') ?></h2>
       <?php /* Secondary to the product's own content and therefore last in
@@ -637,36 +667,44 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
         </div>
       </div>
 
-      <?php /* For a browser without the editor script only: with it, the bar's
-               Opslaan is the one button (and Enter still saves). */ ?>
-      <button type="submit" data-admin-editor-fallback><?= $isEdit ? admin_te('common.save') : admin_te('shop.create_product') ?></button>
     </section>
-  </form>
+    <?php admin_tab_panel_end(); ?>
 
-  <?php if ($isEdit): ?>
-    <?php /* Personalisatie has its own CMS section (admin/personalization.php)
-             as of Phase 3: its overview, its per-product editor with dedicated
-             preview images and zones, and its shop-wide font library all live
-             there. This card is only a signpost — there is exactly ONE editor
-             for a configuration, and it is not this page. See MAIN.MD. */ ?>
-    <section class="admin-card">
-      <h2><?= admin_te('shop.personalisatie') ?></h2>
-      <?php if ($personalization === null): ?>
-        <p class="admin-text-muted">
-          <?= admin_t('shop.product_heeft_personalisatie_wil') ?>
-        </p>
-      <?php else: ?>
-        <p class="admin-text-muted">
-          <?= admin_t('shop.product_gepersonaliseerd_voorbeeldafbeelding', ['v1' => (int) $personalization['settings']['is_enabled'] === 1 ? 'ingeschakeld' : 'nog uitgeschakeld']) ?>
-        </p>
-        <p>
-          <a class="admin-btn-link" href="/admin/personalization-product.php?product_id=<?= (int) $product['id'] ?>">
-            <?= admin_te('shop.personalisatie_beheren') ?>
-          </a>
-        </p>
-      <?php endif; ?>
+    <?php admin_tab_panel('verzending'); ?>
+    <?php /* Everything about sending this product: its profile, its weight and
+             whether it always goes as a parcel. What that costs is the Shop's
+             shipping settings, not this product's. */ ?>
+    <section class="admin-card admin-product-form" data-admin-editor-section="shipping">
+      <h2><?= admin_te('shop.verzending') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('shop.editor.shipping_intro') ?></p>
+      <div class="admin-form-row admin-form-row--split">
+        <label><?= admin_te('shop.verzendprofiel') ?>*
+          <select name="shipping_profile" required>
+            <?php foreach (ShippingProfile::ALL as $profileValue): ?>
+              <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>" <?= $shippingProfileValue === $profileValue ? 'selected' : '' ?>>
+                <?= htmlspecialchars(ShippingProfile::label($profileValue, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label><?= admin_te('shop.verzendgewicht_gram') ?>*
+          <input type="text" inputmode="numeric" name="shipping_weight_grams" required value="<?= htmlspecialchars($shippingWeightValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="0">
+        </label>
+      </div>
+      <div class="admin-form-row">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-checkbox" name="requires_parcel" value="1" <?= $requiresParcelChecked ? 'checked' : '' ?>>
+          <?= admin_te('shop.altijd_pakket_verzenden_negeert') ?>
+        </label>
+      </div>
     </section>
-  <?php endif; ?>
+    <?php admin_tab_panel_end(); ?>
+
+    <?php /* For a browser without the editor script only: with it, the bar's
+             Opslaan is the one button (and Enter still saves). */ ?>
+    <button type="submit" data-admin-editor-fallback><?= $isEdit ? admin_te('common.save') : admin_te('shop.create_product') ?></button>
+  </form>
+  <?php admin_tabs_end(); ?>
 
 </main>
 <?php admin_editor_bar(); ?>

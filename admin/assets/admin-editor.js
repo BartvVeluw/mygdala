@@ -183,11 +183,22 @@
     return field.closest(".admin-field, label, .admin-richtext-field") || field;
   }
 
+  /* A screen with tabs (admin/_admin_tabs.php, the product editor): the tab
+     that holds a message is brought forward, or the message would be on a
+     hidden panel. Only the FIRST message's tab, so several messages in
+     several tabs never make the screen jump between them. */
+  function revealTab(node) {
+    if (node && window.AdminTabs && typeof window.AdminTabs.reveal === "function") {
+      window.AdminTabs.reveal(node);
+    }
+  }
+
   function showErrors(errors, message) {
     clearMessages();
 
     var all = [];
     var first = null;
+    var firstPlaced = null;
 
     Object.keys(errors || {}).forEach(function (key) {
       var messages = [].concat(errors[key]).filter(function (text) { return typeof text === "string" && text !== ""; });
@@ -203,6 +214,7 @@
         field.setAttribute("aria-describedby", ((field.getAttribute("aria-describedby") || "") + " " + p.id).trim());
         openSection(field);
         if (!first) first = field;
+        if (!firstPlaced) firstPlaced = field;
         return;
       }
 
@@ -211,6 +223,7 @@
         var q = messageElement(messages.join(" "));
         slot.insertAdjacentElement(slot.hasAttribute("data-admin-editor-error-for") ? "beforeend" : "afterend", q);
         openSection(slot);
+        if (!firstPlaced) firstPlaced = slot;
         return;
       }
 
@@ -224,8 +237,11 @@
         });
         box.hidden = false;
         openSection(box);
+        if (!firstPlaced) firstPlaced = box;
       }
     });
+
+    revealTab(firstPlaced);
 
     if (summary) {
       var title = summary.querySelector("[data-admin-editor-summary-title]");
@@ -257,6 +273,7 @@
     });
     if (invalid.length === 0) return true;
     openSection(invalid[0]);
+    revealTab(invalid[0]);
     try {
       return form.reportValidity();
     } catch (e) {
