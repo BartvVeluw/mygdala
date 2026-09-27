@@ -83,6 +83,10 @@ final class ShopScriptText
             'nl' => 'Controleer de postcode en het huisnummer van je factuuradres.',
             'en' => 'Please check the postal code and house number of your billing address.',
         ],
+        // Op aanvraag (App\Service\PurchaseMode): what a card shows instead
+        // of a price, and what a cart line of such a product says.
+        'on_request' => ['nl' => 'Op aanvraag', 'en' => 'On request'],
+        'line_inquiry' => ['nl' => 'Alleen op aanvraag te bestellen', 'en' => 'Available on request only'],
         // Stock (App\Service\CartAvailability, api/cart-check.php): what a
         // cart line, the product page and the checkout say when a unit is
         // sold out or has fewer left than asked.

@@ -158,6 +158,12 @@ $inPersonalizationChecked = $old !== null
     ? !empty($old['in_personalization_catalog'])
     : ($product !== null ? (int) $product['in_personalization_catalog'] === 1 : false);
 
+// How the product is sold (App\Service\PurchaseMode): a refused save's
+// choice, else the stored one; a new product is sold directly.
+$purchaseModeValue = $old !== null && array_key_exists('purchase_mode', $old)
+    ? \App\Service\PurchaseMode::normalise($old['purchase_mode'])
+    : \App\Service\PurchaseMode::normalise($product['purchase_mode'] ?? null);
+
 $priceValue = $old !== null
     ? (string) ($old['price_input'] ?? '')
     : ($product !== null ? number_format((float) $product['price'], 2, '.', '') : '');
@@ -320,6 +326,20 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
           <input type="checkbox" class="admin-checkbox" name="active" value="1" <?= $activeChecked ? 'checked' : '' ?>>
           <?= admin_te('shop.actief_publiek_zichtbaar') ?>
         </label>
+      </div>
+
+      <?php /* Direct bestellen or Op aanvraag (Shop Product & Ordering 2.0):
+               an "op aanvraag" product is shown without a price, a quantity
+               or a cart anywhere, and the server keeps it out of the cart. */ ?>
+      <div class="admin-form-row admin-form-row--split">
+        <div class="admin-field">
+          <?= admin_field_label('product-purchase-mode', admin_t('shop.purchase_mode.label'), admin_t('help.shop.purchase_mode')) ?>
+          <select class="admin-select" id="product-purchase-mode" name="purchase_mode">
+            <?php foreach (\App\Service\PurchaseMode::ALL as $modeOption): ?>
+              <option value="<?= htmlspecialchars($modeOption, ENT_QUOTES, 'UTF-8') ?>"<?= $purchaseModeValue === $modeOption ? ' selected' : '' ?>><?= admin_te('shop.purchase_mode.' . $modeOption) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
       </div>
 
       <h3><?= admin_te('shop.waar_product_koop') ?></h3>

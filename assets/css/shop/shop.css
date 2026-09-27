@@ -73,6 +73,9 @@ a.product-card:hover{ transform: translateY(-6px); box-shadow: var(--color-glow)
 }
 .product-card__footer{ display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--color-line); }
 .product-card__price{ font-family: var(--font-display); font-size: 1.2rem; color: var(--color-primary-bright); }
+/* Op aanvraag (App\Service\PurchaseMode): the card names the way to buy
+   instead of an amount, in the quieter body type. */
+.product-card__price--inquiry{ font-family: inherit; font-size: 0.85rem; letter-spacing: 0.02em; color: var(--color-text-muted); }
 .product-card__cta{ display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 700; color: var(--color-text); white-space: nowrap; }
 .product-card__cta svg{ width: 15px; height: 15px; transition: transform var(--dur-fast) var(--ease-out); }
 a.product-card:hover .product-card__cta{ color: var(--color-primary-bright); }
@@ -290,6 +293,12 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__sold-out{ margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
 .product-detail__stock-status{ margin: 0; font-size: 1rem; color: #F0897E; }
 .product-detail__add-message{ margin: var(--sp-2) 0 0; font-size: 0.88rem; color: #F0897E; }
+
+/* Op aanvraag on the product page: where price, quantity and the cart would
+   be, one line and a way to get in touch. */
+.product-detail__inquiry{ margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
+.product-detail__inquiry p{ margin: 0 0 var(--sp-2); }
+.product-detail__inquiry p:last-child{ margin-bottom: 0; }
 
 /* Terug op voorraad: one address, one button, one line of reassurance. The
    honeypot field is out of sight and out of the tab order. */

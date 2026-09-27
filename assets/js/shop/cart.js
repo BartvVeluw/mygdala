@@ -486,6 +486,7 @@
     if (!result || result.status === "ok") return "";
     if (result.status === "sold_out") return text("sold_out");
     if (result.status === "insufficient") return text("stock_left", { max: result.available });
+    if (result.status === "inquiry") return text("line_inquiry");
     return text("line_unavailable");
   }
 

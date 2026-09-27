@@ -3404,4 +3404,10 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'shop_settings.stock_waiting_sent' => ':sent notifications sent, :failed failed.',
     'shop_settings.stock_waiting_error' => 'The notifications could not be sent right now. Please try again later.',
     'validation.stock_mail_too_long' => ':field may be at most :max characters long.',
+    'shop.purchase_mode.label' => 'Sales mode',
+    'help.shop.purchase_mode' => 'Order directly: price, quantity and cart, as always. On request: the product is shown as usual, with photos, description, variants and specifications, but without a price (not on product cards or in search engines either) and without a cart; a visitor sees a button to get in touch. The price is kept for when you switch back to Order directly.',
+    'shop.purchase_mode.direct' => 'Order directly',
+    'shop.purchase_mode.inquiry' => 'On request',
+    'shop.purchase_mode.inquiry_badge' => 'On request',
+    'validation.purchase_mode_invalid' => 'Choose Order directly or On request.',
 ];

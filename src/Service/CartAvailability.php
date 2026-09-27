@@ -29,6 +29,8 @@ use App\Service\Inventory\Inventory;
  *   insufficient  some left, fewer than asked ('available' says how many)
  *   unavailable   the product or variant is gone, switched off, or a tracked
  *                 variant product was asked for without a variant
+ *   inquiry       the product is "op aanvraag" (App\Service\PurchaseMode):
+ *                 shown, never sold through the cart
  */
 final class CartAvailability
 {
@@ -36,6 +38,7 @@ final class CartAvailability
     public const SOLD_OUT = 'sold_out';
     public const INSUFFICIENT = 'insufficient';
     public const UNAVAILABLE = 'unavailable';
+    public const INQUIRY = 'inquiry';
 
     /**
      * @param list<array{id: int, variant_id: ?int, qty: int}> $lines
@@ -63,6 +66,11 @@ final class CartAvailability
             if (!isset($products[$productId])
                 || ($variantId !== null && $variants->findActiveForProduct($variantId, $productId) === null)) {
                 $results[$index] = ['status' => self::UNAVAILABLE, 'available' => null];
+                continue;
+            }
+
+            if (PurchaseMode::isInquiry($products[$productId]['purchase_mode'] ?? null)) {
+                $results[$index] = ['status' => self::INQUIRY, 'available' => null];
                 continue;
             }
 

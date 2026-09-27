@@ -125,6 +125,7 @@ try {
         'requires_parcel' => $fields['requires_parcel'],
         // NULL (follow the Shop) unless the editor chose one.
         'gallery_transition' => $fields['gallery_transition'],
+        'purchase_mode' => $fields['purchase_mode'],
     ]);
 
     ShopLocalization::saveProduct($productId, $fields['language_code'], [

@@ -126,7 +126,7 @@ $canManageProducts = AdminAuth::can('products.manage');
             </div>
             <div class="admin-product-card__body">
               <p class="admin-product-card__name"><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></p>
-              <p class="admin-product-card__price"><?= admin_t('shop.amount_with', ['v1' => htmlspecialchars(number_format((float) $product['price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8')]) ?></p>
+              <p class="admin-product-card__price"><?= admin_t('shop.amount_with', ['v1' => htmlspecialchars(number_format((float) $product['price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8')]) ?><?php if (\App\Service\PurchaseMode::isInquiry($product['purchase_mode'] ?? null)): ?> <span class="admin-badge admin-badge--info"><?= admin_te('shop.purchase_mode.inquiry_badge') ?></span><?php endif; ?></p>
             </div>
           <?php if (!$canManageProducts): ?>
           </div>

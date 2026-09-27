@@ -3414,4 +3414,10 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'shop_settings.stock_waiting_sent' => ':sent meldingen verstuurd, :failed mislukt.',
     'shop_settings.stock_waiting_error' => 'De meldingen konden nu niet worden verstuurd. Probeer het later opnieuw.',
     'validation.stock_mail_too_long' => ':field mag hooguit :max tekens lang zijn.',
+    'shop.purchase_mode.label' => 'Verkoopmodus',
+    'help.shop.purchase_mode' => 'Direct bestellen: prijs, aantal en winkelwagen, zoals altijd. Op aanvraag: het product is gewoon te zien, met foto\'s, beschrijving, varianten en specificaties, maar zonder prijs (ook niet op productkaarten en in zoekmachines) en zonder winkelwagen; een bezoeker ziet een knop om contact op te nemen. De prijs blijft bewaard voor als je later terugzet naar Direct bestellen.',
+    'shop.purchase_mode.direct' => 'Direct bestellen',
+    'shop.purchase_mode.inquiry' => 'Op aanvraag',
+    'shop.purchase_mode.inquiry_badge' => 'Op aanvraag',
+    'validation.purchase_mode_invalid' => 'Kies Direct bestellen of Op aanvraag.',
 ];

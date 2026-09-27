@@ -135,6 +135,15 @@ try {
         $product['name'] = ShopLocalization::product($id, ShopLocalization::NAME, $language);
         $product['description'] = ShopLocalization::productDescription($id, $language);
 
+        // Op aanvraag (App\Service\PurchaseMode): no price on the card either
+        // — hidden on the product page but shown on a card would make the
+        // setting pointless. The card says "Op aanvraag" instead.
+        $product['inquiry'] = \App\Service\PurchaseMode::isInquiry($product['purchase_mode'] ?? null);
+        unset($product['purchase_mode']);
+        if ($product['inquiry']) {
+            $product['price'] = null;
+        }
+
         $defaultVariant = $variantRepository->findDefaultForProduct((int) $product['id']);
         if ($defaultVariant === null) {
             continue;

@@ -775,6 +775,7 @@
             <file>tests/Service/InventoryContractTest.php</file>
             <file>tests/Service/StockNotificationTest.php</file>
             <file>tests/Service/StockNotificationHttpTest.php</file>
+            <file>tests/Service/PurchaseModeHttpTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

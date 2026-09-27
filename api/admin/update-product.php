@@ -172,6 +172,12 @@ try {
         'requires_parcel' => $fields['requires_parcel'],
     ]);
 
+    // Direct bestellen or Op aanvraag (App\Service\PurchaseMode), when the
+    // form carried it.
+    if ($fields['purchase_mode_submitted']) {
+        $productRepository->updatePurchaseMode($id, $fields['purchase_mode']);
+    }
+
     // The gallery's transition, in the Afbeeldingen section: NULL follows
     // the Shop's default (App\Service\ProductGalleryTransition). Only when
     // the form carried the field, like every other section here.

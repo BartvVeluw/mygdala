@@ -115,6 +115,21 @@ $shopPurchasable = $productId > 0 && $seo !== null
 $unorderable = !$shopPurchasable && $personalization === null;
 
 /**
+ * OP AANVRAAG (App\Service\PurchaseMode, Shop Product & Ordering 2.0): the
+ * product is shown — name, pictures, description, the variant picker, its
+ * specifications — but it has no price, no quantity and no cart here. The
+ * purchase area says so and offers contact instead, and a personalization
+ * configurator (a way to order) is not rendered. The server refuses such a
+ * product in the cart and the checkout whatever the browser sends; this is
+ * what the visitor sees.
+ */
+$inquiry = $productId > 0 && $seo !== null
+    && \App\Service\PurchaseMode::isInquiry((new \App\Repository\ProductRepository())->purchaseMode($productId));
+if ($inquiry) {
+    $personalization = null;
+}
+
+/**
  * How the gallery changes picture: this product's own choice, else the
  * Shop's default (App\Service\ProductGalleryTransition — the one place that
  * decides it). Always one of none/fade/slide, written into the gallery's
@@ -300,7 +315,13 @@ require __DIR__ . '/partials/header.php';
                    There is exactly one add-to-cart on the page either way —
                    renderProductAddRow() is called from exactly one of these
                    two places. */ ?>
-          <?php if ($unorderable): ?>
+          <?php if ($inquiry): ?>
+            <div class="product-detail__inquiry" data-product-inquiry>
+              <p><strong><?= \App\Service\Language\SiteText::escaped(['nl' => 'Prijs en bestellen op aanvraag', 'en' => 'Price and ordering on request']) ?></strong></p>
+              <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product maken we op aanvraag. Vertel ons wat je zoekt, dan hoor je van ons.', 'en' => 'We make this product on request. Tell us what you are looking for and we will get back to you.']) ?></p>
+              <p><a class="btn btn--ghost" href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/contact.php'), ENT_QUOTES, 'UTF-8') ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Neem contact op', 'en' => 'Get in touch']) ?></a></p>
+            </div>
+          <?php elseif ($unorderable): ?>
             <?php /* Personalization-only, but there is nothing to personalize
                      (switched off, or no preview image / no zone yet). There
                      is genuinely no way to order this right now, and saying

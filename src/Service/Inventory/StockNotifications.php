@@ -13,6 +13,7 @@ use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguages;
 use App\Service\Mailer;
 use App\Service\ProductSeo;
+use App\Service\PurchaseMode;
 use App\Service\ShopLocalization;
 use PDO;
 
@@ -221,12 +222,13 @@ final class StockNotifications
 
     /**
      * The unit this product (and variant) sells from, while it is for sale in
-     * the shop at all: active, in the shop, and — for a variant — an active
-     * variant of this product. Null otherwise.
+     * the shop at all: active, in the shop, not "op aanvraag", and — for a
+     * variant — an active variant of this product. Null otherwise.
      */
     private function saleableUnit(int $productId, ?int $variantId): ?StockUnit
     {
-        if (!(new ProductRepository($this->db))->isShopPurchasable($productId)) {
+        $products = new ProductRepository($this->db);
+        if (!$products->isShopPurchasable($productId) || PurchaseMode::isInquiry($products->purchaseMode($productId))) {
             return null;
         }
         if ($variantId !== null && (new ProductVariantRepository($this->db))->findActiveForProduct($variantId, $productId) === null) {

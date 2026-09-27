@@ -179,9 +179,47 @@ class ProductSeo
             'og_image_path' => $ogImagePath === '' ? null : $ogImagePath,
         ];
 
+        // Whether every unit a visitor could order is sold out right now
+        // (App\Service\Inventory): then the structured data says OutOfStock
+        // instead of promising stock the checkout would refuse.
+        $product['sold_out'] ??= self::soldOut($id);
+
         $resolved['json_ld'] = self::jsonLd($product, $imagePaths, $variantPrices, $resolved);
 
         return $resolved;
+    }
+
+    /**
+     * True when the product tracks stock and every unit a visitor can choose
+     * — the product itself, or each ACTIVE variant — is sold out. An
+     * untracked product is never sold out; a failed lookup says no, the
+     * reading this data had before stock existed.
+     */
+    public static function soldOut(int $productId): bool
+    {
+        try {
+            $stock = (new \App\Service\Inventory\Inventory())->forProduct($productId);
+            if (!$stock->tracked) {
+                return false;
+            }
+            if (!$stock->hasVariants()) {
+                return $stock->productUnit()->isSoldOut();
+            }
+
+            $units = $stock->variantUnits();
+            foreach ((new ProductVariantRepository())->findActiveByProductId($productId) as $variant) {
+                $unit = $units[(int) $variant['id']] ?? null;
+                if ($unit !== null && !$unit->isSoldOut()) {
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            error_log('[ProductSeo] stock lookup failed for product ' . $productId . ': ' . $e->getMessage());
+
+            return false;
+        }
     }
 
     /**
@@ -348,12 +386,15 @@ class ProductSeo
      *                  the URL slug is not one.
      *   brand          the site name: these products really are made by
      *                  Van Veluw Laserdesign, so it is truthful.
-     *   availability   InStock for an active product, because that is exactly
-     *                  what "active" means in this shop — an active product
-     *                  is orderable and checkout performs no stock check. The
-     *                  unused `stock` column is deliberately NOT published as
-     *                  an inventory level. An inactive product never reaches
-     *                  here at all (forPublicPage() returns null).
+     *   availability   InStock for an active product, OutOfStock when it
+     *                  tracks stock and every unit a visitor can choose is
+     *                  sold out (soldOut(), Shop Product & Ordering 2.0) — the
+     *                  one thing the checkout would refuse. The stock figure
+     *                  itself is deliberately NOT published as an inventory
+     *                  level. An inactive product never reaches here at all
+     *                  (forPublicPage() returns null).
+     *   offers for     none: an "op aanvraag" product (App\Service\PurchaseMode)
+     *   op aanvraag    shows no price anywhere, so no Offer names one.
      *   offers         one Offer when there is a single public price;
      *                  AggregateOffer with lowPrice/highPrice/offerCount only
      *                  when the active variants genuinely have DIFFERENT
@@ -410,7 +451,13 @@ class ProductSeo
             'name' => SiteSettings::get('site_name'),
         ];
 
-        $data['offers'] = self::offers($product, $variantPrices, $canonical);
+        // Op aanvraag (App\Service\PurchaseMode): the price is hidden
+        // everywhere a visitor looks, so the structured data publishes no
+        // Offer either — no price, no availability, nothing to buy. The rest
+        // of the Product stays.
+        if (!PurchaseMode::isInquiry($product['purchase_mode'] ?? null)) {
+            $data['offers'] = self::offers($product, $variantPrices, $canonical);
+        }
 
         return $data;
     }
@@ -436,7 +483,7 @@ class ProductSeo
         $common = [
             'url' => $canonical,
             'priceCurrency' => 'EUR',
-            'availability' => 'https://schema.org/InStock',
+            'availability' => !empty($product['sold_out']) ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
             'itemCondition' => 'https://schema.org/NewCondition',
         ];
 

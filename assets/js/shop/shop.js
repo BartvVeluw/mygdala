@@ -131,7 +131,11 @@
             "<h3>" + S.escapeHtml(cardName) + "</h3>" +
             description +
             '<div class="product-card__footer">' +
-            '<span class="product-card__price">' + S.formatPrice(product.price) + "</span>" +
+            // Op aanvraag: the API sends no price at all, and the card says
+            // so instead of showing an empty amount.
+            (product.inquiry ?
+              '<span class="product-card__price product-card__price--inquiry">' + S.escapeHtml(S.text("on_request")) + "</span>" :
+              '<span class="product-card__price">' + S.formatPrice(product.price) + "</span>") +
             "</div>" +
             "</div>" +
             "</a>"
@@ -216,6 +220,9 @@
 
       var priceEl = document.querySelector("[data-product-price]");
       if (priceEl) priceEl.innerHTML = S.formatPrice(product.price);
+      // Op aanvraag: the API sends no price, and the page shows none — the
+      // variant picker below still works (App\Service\PurchaseMode).
+      if (priceEl && product.inquiry) priceEl.hidden = true;
 
       var descEl = document.querySelector("[data-product-description]");
 
@@ -426,7 +433,7 @@
         selectedVariant = hasVariants ? findMatchingVariant() : null;
 
         var effectivePrice = selectedVariant && selectedVariant.price != null ? selectedVariant.price : product.price;
-        if (priceEl) priceEl.innerHTML = S.formatPrice(effectivePrice);
+        if (priceEl && !product.inquiry) priceEl.innerHTML = S.formatPrice(effectivePrice);
 
         /* Personalization surcharges are shown on top of whatever this
            product/variant currently costs, so the panel is handed that price

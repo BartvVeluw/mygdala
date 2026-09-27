@@ -25,6 +25,7 @@ use App\Repository\ProductRepository;
 use App\Service\CollectionService;
 use App\Service\DescriptionSanitizer;
 use App\Service\ProductGalleryTransition;
+use App\Service\PurchaseMode;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Shipping\ShippingProfile;
@@ -107,6 +108,19 @@ function validateProductInput(array $input, bool $isNew): array
 
     $requiresParcel = ($input['requires_parcel'] ?? null) === '1';
 
+    // How the product is sold (App\Service\PurchaseMode): Direct bestellen
+    // or Op aanvraag. Only when the form carried the field, like every other
+    // section; a value off the list is refused, never turned into a default.
+    $purchaseModeSubmitted = array_key_exists('purchase_mode', $input);
+    $purchaseMode = PurchaseMode::DIRECT;
+    if ($purchaseModeSubmitted) {
+        if (PurchaseMode::isValid($input['purchase_mode'])) {
+            $purchaseMode = (string) $input['purchase_mode'];
+        } else {
+            $errors['purchase_mode'] = AdminTranslator::trans('validation.purchase_mode_invalid');
+        }
+    }
+
     // How the product page's gallery changes picture
     // (App\Service\ProductGalleryTransition): '' follows the Shop's default
     // (NULL), or one of its three words. Anything else is refused rather
@@ -130,6 +144,8 @@ function validateProductInput(array $input, bool $isNew): array
         'shipping_weight_grams' => $shippingWeightGrams,
         'shipping_weight_grams_input' => $weightRaw,
         'requires_parcel' => $requiresParcel,
+        'purchase_mode' => $purchaseMode,
+        'purchase_mode_submitted' => $purchaseModeSubmitted,
         'gallery_transition' => $galleryTransition,
         'gallery_transition_submitted' => $galleryTransitionSubmitted,
         // Which collections the admin ticked. Normalised to a list of ints

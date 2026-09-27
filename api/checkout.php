@@ -144,6 +144,7 @@ function stockMessage(int $productId, string $status, ?int $available): string
     $name = ShopLocalization::product($productId, ShopLocalization::NAME, RequestLanguage::current());
 
     $sentence = match ($status) {
+        CartAvailability::INQUIRY => ['nl' => '{name} is alleen op aanvraag te bestellen. Neem contact met ons op.', 'en' => '{name} can only be ordered on request. Please get in touch.'],
         CartAvailability::SOLD_OUT => ['nl' => '{name} is uitverkocht.', 'en' => '{name} is out of stock.'],
         CartAvailability::INSUFFICIENT => ['nl' => 'Van {name} zijn er nog {max} op voorraad.', 'en' => 'Only {max} of {name} left in stock.'],
         default => ['nl' => '{name} is niet meer te bestellen.', 'en' => '{name} can no longer be ordered.'],
@@ -539,8 +540,9 @@ foreach ($requestedLines as $line) {
 /**
  * STOCK, BEFORE ANYTHING IS STORED (App\Service\CartAvailability): a line
  * whose unit is sold out, has fewer left than this order asks, or cannot be
- * sold at all (a tracked variant product without a variant) is said now, in
- * the customer's language, naming the product. Lines of the same unit count
+ * sold at all (a tracked variant product without a variant, or a product
+ * that is "op aanvraag", App\Service\PurchaseMode) is said now, in the
+ * customer's language, naming the product. Lines of the same unit count
  * together. Advice only: the units are really taken inside the transaction
  * below, where a customer who was a moment faster still wins.
  */

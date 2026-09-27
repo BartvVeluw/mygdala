@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Service\ProductGalleryTransition;
+use App\Service\PurchaseMode;
 
 /**
  * All product-related SQL lives here.
@@ -57,7 +58,7 @@ class ProductRepository extends Repository
             // from the database before building this list.
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
             $stmt = $this->db->prepare(
-                "SELECT id, slug, price, image_path
+                "SELECT id, slug, price, image_path, purchase_mode
                  FROM products
                  WHERE active = 1 AND id IN ({$placeholders})
                  ORDER BY FIELD(id, {$placeholders})"
@@ -69,7 +70,7 @@ class ProductRepository extends Repository
 
         if ($collectionId !== null) {
             $stmt = $this->db->prepare(
-                'SELECT p.id, p.slug, p.price, p.image_path
+                'SELECT p.id, p.slug, p.price, p.image_path, p.purchase_mode
                  FROM products p
                  INNER JOIN collection_products cp
                     ON cp.product_id = p.id AND cp.collection_id = :collection_id
@@ -82,7 +83,7 @@ class ProductRepository extends Repository
         }
 
         $stmt = $this->db->prepare(
-            'SELECT id, slug, price, image_path
+            'SELECT id, slug, price, image_path, purchase_mode
              FROM products
              WHERE active = 1 AND in_shop = 1
              ORDER BY id ASC'
@@ -140,7 +141,7 @@ class ProductRepository extends Repository
     public function findActiveById(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, slug, price, image_path
+            'SELECT id, slug, price, image_path, purchase_mode
              FROM products
              WHERE id = :id AND active = 1
              LIMIT 1'
@@ -150,6 +151,27 @@ class ProductRepository extends Repository
         $product = $stmt->fetch();
 
         return $product === false ? null : $product;
+    }
+
+    /**
+     * How a product is sold (App\Service\PurchaseMode), whatever its active
+     * state: 'direct', or 'inquiry' for a product shown without a price and
+     * kept out of the cart. An unknown product reads as direct; whether it is
+     * for sale at all is asked elsewhere.
+     */
+    public function purchaseMode(int $id): string
+    {
+        $stmt = $this->db->prepare('SELECT purchase_mode FROM products WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $id]);
+
+        return PurchaseMode::normalise($stmt->fetchColumn());
+    }
+
+    /** "Op aanvraag" or "Direct bestellen", from the product editor. */
+    public function updatePurchaseMode(int $id, string $mode): void
+    {
+        $stmt = $this->db->prepare('UPDATE products SET purchase_mode = :mode, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['mode' => PurchaseMode::normalise($mode), 'id' => $id]);
     }
 
     /**
@@ -180,7 +202,7 @@ class ProductRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'SELECT id, slug, price, image_path,
-                    og_image_path
+                    og_image_path, purchase_mode
              FROM products
              WHERE id = :id AND active = 1
              LIMIT 1'
@@ -224,7 +246,7 @@ class ProductRepository extends Repository
     public function findAllForAdmin(): array
     {
         $stmt = $this->db->query(
-            'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog, created_at
+            'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog, purchase_mode, created_at
              FROM products
              ORDER BY id DESC'
         );
@@ -240,6 +262,7 @@ class ProductRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog,
+                    purchase_mode,
                     shipping_profile, shipping_weight_grams, requires_parcel,
                     og_image_path, og_media_id, gallery_transition
              FROM products
@@ -302,13 +325,13 @@ class ProductRepository extends Repository
         $stmt = $this->db->prepare(
             'INSERT INTO products
                 (slug, price, image_path, active,
-                 in_shop, in_personalization_catalog,
+                 in_shop, in_personalization_catalog, purchase_mode,
                  shipping_profile, shipping_weight_grams, requires_parcel,
                  gallery_transition,
                  created_at, updated_at)
              VALUES
                 (:slug, :price, :image_path, :active,
-                 :in_shop, :in_personalization_catalog,
+                 :in_shop, :in_personalization_catalog, :purchase_mode,
                  :shipping_profile, :shipping_weight_grams, :requires_parcel,
                  :gallery_transition,
                  NOW(), NOW())'
@@ -318,6 +341,8 @@ class ProductRepository extends Repository
             // NULL unless the editor chose one: a new product follows the
             // Shop's default (App\Service\ProductGalleryTransition).
             'gallery_transition' => ProductGalleryTransition::normalise($data['gallery_transition'] ?? null),
+            // Direct bestellen unless the editor chose Op aanvraag.
+            'purchase_mode' => PurchaseMode::normalise($data['purchase_mode'] ?? null),
             'price' => number_format($data['price'], 2, '.', ''),
             'image_path' => $data['image_path'],
             'active' => $data['active'] ? 1 : 0,
@@ -486,7 +511,7 @@ class ProductRepository extends Repository
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->db->prepare(
-            "SELECT id, price, image_path
+            "SELECT id, price, image_path, purchase_mode
              FROM products
              WHERE active = 1 AND id IN ({$placeholders})"
         );

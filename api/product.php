@@ -22,6 +22,7 @@ use App\Repository\ProductVariantRepository;
 use App\Repository\ProductRepository;
 use App\Service\Inventory\Inventory;
 use App\Service\Inventory\StockUnit;
+use App\Service\PurchaseMode;
 use App\Service\Routing\ApiLanguage;
 use App\Service\ShopLocalization;
 
@@ -79,11 +80,24 @@ try {
     $product += shopAvailability($stock->hasVariants() ? null : $stock->productUnit());
     $variantUnits = $stock->variantUnits();
 
+    // Op aanvraag (App\Service\PurchaseMode): the product is shown, its
+    // variants can be chosen, but no price leaves the server — not the
+    // product's and not a variant's — and the page offers no cart.
+    $inquiry = PurchaseMode::isInquiry($product['purchase_mode'] ?? null);
+    unset($product['purchase_mode']);
+    $product['inquiry'] = $inquiry;
+    if ($inquiry) {
+        $product['price'] = null;
+    }
+
     ShopLocalization::preloadVariants(array_map(static fn (array $v): int => (int) $v['id'], $product['variants']));
     foreach ($product['variants'] as &$variant) {
         $variant['images'] = array_map('shopPicture', $variant['images']);
         $variant['description'] = ShopLocalization::variantDescription((int) $variant['id'], $id, $language);
         $variant += shopAvailability($variantUnits[(int) $variant['id']] ?? null);
+        if ($inquiry) {
+            $variant['price'] = null;
+        }
     }
     unset($variant);
 
