@@ -3246,6 +3246,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'payments.status.lead.test' => 'Your webshop is connected in test mode. Checkout works, but no real money is transferred. Use this to try everything out.',
     'payments.status.lead.live' => 'Your webshop takes real payments. The money arrives in your Mollie account.',
     'payments.status.lead.problem' => 'A key is set, but the connection to Mollie does not work. Customers cannot pay right now. What is wrong is shown below.',
+    'payments.status.lead.problem_url' => 'The live key works, but Mollie cannot handle real payments with the address of this site. Customers cannot pay right now. What is wrong is shown below.',
     'payments.status.provider' => 'Payment provider',
     'payments.status.mode' => 'Mode',
     'payments.status.mode_test' => 'Test mode (no real money)',

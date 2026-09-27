@@ -3256,6 +3256,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'payments.status.lead.test' => 'Je webshop is gekoppeld in testmodus. Afrekenen werkt, maar er wordt geen echt geld overgemaakt. Gebruik dit om alles uit te proberen.',
     'payments.status.lead.live' => 'Je webshop neemt echte betalingen aan. Het geld komt binnen op je Mollie-rekening.',
     'payments.status.lead.problem' => 'Er is een sleutel ingesteld, maar de verbinding met Mollie werkt niet. Klanten kunnen nu niet betalen. Hieronder staat wat er mis is.',
+    'payments.status.lead.problem_url' => 'De live-sleutel werkt, maar met het webadres van deze site kan Mollie geen echte betalingen afhandelen. Klanten kunnen nu niet betalen. Hieronder staat wat er mis is.',
     'payments.status.provider' => 'Betaalprovider',
     'payments.status.mode' => 'Modus',
     'payments.status.mode_test' => 'Testmodus (geen echt geld)',
