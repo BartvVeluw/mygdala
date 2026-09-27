@@ -167,7 +167,11 @@ De keuzelijst in de editor biedt precies de toegestane ouders
 niet in.
 
 **Verwijderen** van een pagina met onderliggende pagina's wordt geweigerd,
-met de melding *verplaats of verwijder eerst de onderliggende pagina's*.
+met de melding *verplaats of verwijder eerst de onderliggende pagina's*. De
+systeempagina van een module (de winkelpagina `/shop.php`, het
+Portfolio-overzicht `/portfolio`) is nooit te verwijderen, ook met de module
+uit; ze heeft een vaste URL en staat dus altijd op het hoogste niveau
+(`MODULES.md`, "Systeempagina's van modules").
 `PageService::delete()` zegt het, de foreign key dwingt het af. Geen cascade,
 en nooit kinderen die stil hoofdpagina worden.
 

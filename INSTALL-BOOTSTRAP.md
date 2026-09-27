@@ -108,8 +108,12 @@ nieuwe site beginnen".
 
 ## Wat modules aanmaken
 
-**Geen pagina's en geen menu-items.** Een module brengt tabellen mee, geen
-inhoud.
+**Geen inhoud en geen menu-items.** Een module brengt tabellen mee, geen
+inhoud. Eén ding staat er wel: sinds Shop Product & Ordering 2.0 heeft elke
+installatie de winkelpagina en het Portfolio-overzicht als **lege
+systeempagina** in Pagina's, ook met de module uit (migratie
+`20260928150000`, `MODULES.md`, "Systeempagina's van modules"). Zolang zo'n
+pagina leeg is, verandert ze niets op de website.
 
 Voor de Shop gold dat eerst niet. De bootstrap maakte ook de winkelpagina
 aan: een systeempagina `/shop.php` (`content_key = shop`) met het blok
@@ -117,7 +121,9 @@ aan: een systeempagina `/shop.php` (`content_key = shop`) met het blok
 menu-item *Shop*. Zo kreeg elke nieuwe site een pagina die hij niet kon
 verwijderen, voor een webshop die hij misschien niet heeft. Niet elke site
 verkoopt iets, en de Shop-module en een CMS-pagina zijn twee verschillende
-dingen.
+dingen. De lege systeempagina van nu is iets anders: geen blok, geen
+menu-item, niets applicatiekritisch, en zolang ze leeg is doet `/shop.php`
+precies wat de tabel hieronder zegt.
 
 **Een verse installatie heeft ook geen productoverzicht.** De Shop betekent
 winkelwagen, afrekenen en productpagina's, niet vanzelf een publieke pagina
@@ -130,7 +136,7 @@ heeft gezet; zie `MODULES.md`.
 |---|---|---|
 | leeg: *Geen overzichtspagina* (elke verse installatie) | 404, de eigen niet-gevonden-pagina van de site | nergens: geen terug-link, geen kruimelpadniveau, geen route `shop` in de linkkiezer |
 | een gewone CMS-pagina | 302 naar het adres van die pagina in de gelezen taal | naar die pagina, in de gelezen taal |
-| de pagina met `content_key = shop` (elke installatie die de bootstrap vóór de module-omslag draaide) | rendert die pagina, precies zoals altijd | naar `/shop.php` |
+| de pagina met `content_key = shop` (elke installatie die de bootstrap vóór de module-omslag draaide) | rendert die pagina, precies zoals altijd; als concept 404 | naar `/shop.php` |
 | `builtin`: het automatische overzicht | een kop en het blok `product_grid`, zoals vóór deze instelling | naar `/shop.php` |
 | De Shop staat uit | 404, via `ModuleGuard` | — |
 
@@ -168,13 +174,14 @@ krijgt via `20260914170000_pin_the_portfolio_module_where_it_is_in_use` een
 opgeslagen *aan* (`Tests\Install\PortfolioModulePinTest`), zodat een deploy
 niemands portfolio uit de lucht haalt.
 
-Een verse installatie krijgt **geen Portfolio-pagina**. Zet iemand Portfolio
-aan, dan werkt `/portfolio` toch meteen: zonder pagina met content key
-`portfolio` toont de module haar eigen overzicht, net als de Blog op `/blog`
-(`MODULES.md`, "Portfolio"). Er wordt daarvoor niets aangemaakt, dus aan- en
-uitzetten laat de database zoals hij is. Een bestaande installatie houdt haar
-Portfolio-pagina, sinds `20260925170000` op `/portfolio`
-(`Tests\Install\PortfolioRootInstallTest`).
+Een verse installatie krijgt de **lege Portfolio-pagina**: de systeempagina
+van de module, net als de lege winkelpagina. Zet iemand Portfolio aan, dan
+werkt `/portfolio` meteen: zolang die pagina leeg is, toont de module haar
+eigen overzicht, net als de Blog op `/blog` (`MODULES.md`, "Portfolio"). Aan-
+en uitzetten laat de database zoals hij is: het is steeds dezelfde rij. Een
+bestaande installatie houdt haar Portfolio-pagina, sinds `20260925170000` op
+`/portfolio` (`Tests\Install\PortfolioRootInstallTest`,
+`Tests\Install\ModuleSystemPagesMigrationTest`).
 
 **Meertaligheid** brengt geen tabellen en geen inhoud mee: het talenregister
 (`site_languages`, met `nl` als standaard en `en`) en de vertaaltabellen
@@ -321,7 +328,8 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite migration
 
 | Bestand | Wat het bewaakt |
 |---|---|
-| `tests/Install/FreshInstallTest.php` | Wat een lege database oplevert: alle migraties draaien, Homepage bestaat, is beschermd en is de enige systeempagina, géén Shop-pagina en geen `product_grid`, géén Diensten/Portfolio/Over mij/Contact/juridische pagina's, geen blokinhoud, geen formulier, géén bedrijfsgegeven in `site_settings`, een lege Mediabibliotheek, en een redacteur kan de weggelaten pagina's daarna alsnog uit een sjabloon maken |
+| `tests/Install/FreshInstallTest.php` | Wat een lege database oplevert: alle migraties draaien, Homepage bestaat en is beschermd, de enige andere systeempagina's zijn de lege van Shop en Portfolio (`module_default`, geen blok), geen `product_grid`, géén Diensten/Over mij/Contact/juridische pagina's, geen blokinhoud, geen formulier, géén bedrijfsgegeven in `site_settings`, een lege Mediabibliotheek, en een redacteur kan de weggelaten pagina's daarna alsnog uit een sjabloon maken |
+| `tests/Install/ModuleSystemPagesMigrationTest.php` | Wat `20260928150000` met een bestaande installatie doet: een eigen winkelpagina blijft precies zoals ze was, een ontbrekende Portfolio-pagina komt er leeg bij, een pagina die het woord al vasthoudt blijft ongemoeid en krijgt geen systeempagina naast zich, een legacy-installatie houdt haar eigen twee, en een tweede run maakt niets |
 | `tests/Install/FreshInstallRenderTest.php` | Wat een lege database *toont*: `/`, `/shop.php` (geen automatisch productoverzicht: de niet-gevonden-pagina), `robots.txt` en `sitemap.xml` (zonder `/shop.php`) gerenderd tegen diezelfde wegwerpdatabase, zonder de naam of het domein van deze site, zonder de oude hero-afbeelding, zonder leeg `<img>`-element, met een lege winkelwagen — en zonder ergens de hostname van het verzoek over te nemen |
 | `tests/Install/ExampleEnvironmentTest.php` | Dat `.env.example` geen levende waarde van deze site meer draagt: `APP_URL`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` en `SHOP_NOTIFICATION_EMAIL`, plus elke andere waarde die de buitenwereld bereikt. Leest het bestand per sleutel, niet als momentopname, zodat de toelichtingen erin vrij blijven veranderen |
 | `tests/Install/GenericDistributionTest.php` | De identiteit die dit programma hardop uitspreekt: de User-Agent naar buiten, het afhaallabel, de afzender van transactionele mail, de lege winkelwagen, en dat de twee verwijderde publieke bestanden weg blijven |

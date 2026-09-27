@@ -146,6 +146,7 @@ hij gebruikt.
 | Applicatieroutes | `routes()` | `App\Service\RouteRegistry` |
 | Gereserveerde slugs | `reservedSlugs()` | `App\Service\ReservedRoutes` |
 | Vaste publieke paden | `publicPaths()` | `App\Module\ModuleRegistry::disabledModuleForRoutePath()` |
+| Een eigen pagina in Pagina's (de winkelpagina, het Portfolio-overzicht) | `systemPages()` | `App\Service\ModuleSystemPages` (hieronder, "Systeempagina's van modules") |
 | Sitemap | `sitemapCollectors()` | `App\Service\Sitemap` |
 | Content-blokken | `blockDefinitions()` | `App\Service\Blocks\BlockDefinitions` |
 | Galerijbronnen | `itemGallerySources()` | `App\Service\ItemGallerySources` |
@@ -193,6 +194,51 @@ Een **redirect** naar zo'n route werkt op dezelfde manier: staat de module uit,
 dan wordt de redirect niet uitgevoerd (de bezoeker krijgt de 404 die hij toch
 al kreeg, in plaats van een andere), blijft de rij ongewijzigd staan, en werkt
 hij weer zodra de module aan gaat. Zie `REDIRECTS.md`.
+
+## Systeempagina's van modules
+
+Een module kan een eigen pagina hebben: de Shop zijn winkelpagina
+(`content_key = shop`, `/shop.php`), Portfolio zijn overzicht (`portfolio`,
+`/portfolio`). De module noemt haar in `ModuleDefinition::systemPages()`
+(content key → `route_path`); Core kent geen module bij naam en vraagt het
+aan élke geregistreerde module, aan of uit (`App\Service\ModuleSystemPages`).
+Sinds Shop Product & Ordering 2.0 (migratie `20260928150000`).
+
+- **Altijd in Pagina's.** Elke installatie heeft die pagina's, ook met de
+  module uit: de lijst zegt *Systeempagina Shop* en, zolang de module uit
+  staat, *Module staat uit*; de editor zegt hetzelfde in een melding. Met de
+  module uit antwoordt het adres 404 (`ModuleGuard`) en linkt niets ernaar
+  (`PageContent::isServedByAnEnabledModule()`). Gaat de module weer aan, dan is
+  het dezelfde rij: aan- en uitzetten maakt niets aan en haalt niets weg.
+- **Het woord is altijd gereserveerd** (`reservedSlugs()`, `ReservedRoutes`),
+  aan of uit, in elke taal: geen gewone pagina kan `shop` of `portfolio`
+  claimen.
+- **Niet te verwijderen.** `PageService::delete()` weigert met "Dit is de
+  systeempagina van Shop en kan niet worden verwijderd"; Pagina's en de editor
+  tonen geen *Verwijderen*. Wie haar niet op de website wil, zet haar op
+  concept (het adres antwoordt dan 404, ook waar `/shop.php` anders het
+  automatische overzicht zou tonen) of zet de module uit.
+- **Een lege pagina verandert niets op de website.** De migratie maakt een
+  ontbrekende pagina als gepubliceerde systeempagina (`is_system = 1`) zonder
+  blokken, met de naam van de module als titel in de standaardtaal en
+  `pages.module_default = 1`. Zolang zo'n pagina gepubliceerd is en geen
+  zichtbaar blok heeft, is ze een *plaatshouder*
+  (`ModuleSystemPages::isPlaceholder()`): `/portfolio` toont het eigen
+  overzicht van de module en `/shop.php` doet wat Productoverzicht zegt,
+  precies zoals voordat de pagina bestond; de sitemap, de linkkiezers van
+  menu en footer en het kruimelpad noemen de pagina zelf niet. Een verborgen
+  blok telt niet mee. Zodra een redacteur er een zichtbaar blok op zet, ís het
+  de pagina, met haar eigen blokken, titel en SEO. Een pagina die de
+  installatie al had (`module_default = 0`) is nooit een plaatshouder.
+- **De migratie hergebruikt, dupliceert niet en overschrijft niets.** Een
+  pagina met die content key blijft precies zoals ze was: status, adres,
+  woorden, SEO en blokken. Houdt een andere pagina het woord al vast (in
+  `pages.slug` of in een vertaling), dan maakt de migratie niets, hernoemt ze
+  niets en meldt ze het in haar uitvoer; Pagina's toont zolang een melding met
+  een link naar die pagina (`ModuleSystemPages::conflicts()`). Zonder eigen
+  pagina werkt de module zoals ervoor (Portfolio toont zijn eigen overzicht,
+  de Shop volgt Productoverzicht); alleen de regel in Pagina's ontbreekt. Een
+  tweede run maakt niets.
 
 ## De Core→Shop-koppelpunten van vóór stap 5
 
@@ -382,6 +428,13 @@ Alles wat er ook zou zijn zonder webshop.
   Een nieuw product is de enige aparte stap. `create-product.php` maakt de
   rij, want opties en varianten hebben het id nodig, en opent daarna direct
   de editor van dat product (`?created=1`).
+
+  **Drie tabbladen** (Shop Product & Ordering 2.0): *Product* (het product
+  zelf, Voorraad, Afbeeldingen, Varianten, Specificaties, Bestelvelden en de
+  Personalisatie-wegwijzer), *SEO* (titel, omschrijving en deelafbeelding
+  samen) en *Verzending* (profiel, gewicht, altijd als pakket). Nog steeds
+  één formulier en één *Opslaan*; een melding opent het tabblad van haar veld
+  (`ADMIN-UI.md`, "Tabbladen in een editor die zonder herladen opslaat").
 - **De productgalerij op de productpagina** (Product Gallery 2.0).
   - **De grote foto is altijd heel.** `object-fit: contain` in het vierkante
     vak, met wat binnenruimte zodat de afgeronde hoeken van het vak nooit een
@@ -429,6 +482,157 @@ Alles wat er ook zou zijn zonder webshop.
   dus nooit een kopie van de producttekst; een latere wijziging aan het product
   werkt door. De tekst van een variant valt niet terug op een andere taal:
   zonder eigen tekst in die taal toont hij de productbeschrijving van die taal.
+- **Voorraad** (Shop Product & Ordering 2.0, `App\Service\Inventory\*`,
+  migratie `20260928100000`). Per product optioneel: *Voorraad bijhouden*
+  (`products.track_stock`, uit voor elk bestaand product). Uit is
+  onbeperkt, precies zoals vóór deze functie.
+  - **De verkoopbare eenheid.** Een product zonder varianten houdt zijn
+    voorraad in `products.stock` (de kolom bestond al en werd nergens
+    gelezen); een product mét varianten per variant in
+    `product_variants.stock`, en dan telt de productvoorraad niet mee. De
+    twee concurreren nooit: `ProductStock::unitFor()` is de ene resolver, en
+    een regel voor een bijgehouden variantproduct zonder variant heeft geen
+    eenheid en wordt geweigerd. Voorraad is een heel getal van 0 of meer.
+  - **Reserveren gebeurt in de ordertransactie van `api/checkout.php`**,
+    vóór de order bestaat: één voorwaardelijke `UPDATE … SET stock = stock -
+    :q WHERE … stock >= :q` per eenheid (`InventoryRepository::take*()`),
+    op een vaste volgorde. Van twee klanten voor het laatste stuk krijgt er
+    precies één het; InnoDB's rijlock beslist, er is geen "eerst lezen, dan
+    schrijven". Te weinig over: de hele order rolt terug (409, in de taal
+    van de klant, met de productnaam). Wat een regel nam en van welke teller,
+    staat op de regel (`order_items.stock_reserved`, `stock_source`).
+  - **Teruggeven gebeurt precies één keer.** Bij `failed`, `canceled` en
+    `expired` claimt `Inventory::releaseForOrder()` de marker
+    `orders.stock_released_at` in één voorwaardelijke `UPDATE` en geeft in
+    dezelfde transactie elke eenheid terug aan de teller waar ze vandaan
+    kwam. `OrderPaymentSync` roept dat na elke statusschrijf aan; een
+    herhaalde webhook of twee syncs tegelijk vinden de marker al gezet.
+    `paid` maakt de reservering definitief. Een order die niets reserveerde
+    krijgt nooit een marker.
+  - **Een betaling die niet start**, na de commit (Mollie weigert, time-out,
+    het betaal-id kan niet worden opgeslagen): `OrderPaymentStartFailure`
+    zet de order op `failed` (alleen `pending` zonder betaal-id) en geeft de
+    voorraad meteen terug. Vroeger bleef zo'n order voorgoed op *in
+    afwachting* staan.
+  - **Controle vóór het afrekenen.** De winkelwagen staat in de browser, dus
+    `api/cart-check.php` (`App\Service\CartAvailability`) zegt per regel
+    `ok`, `sold_out`, `insufficient` (met hoeveel er nog zijn),
+    `unavailable`, `inquiry` of `order_fields`. De productpagina vraagt het
+    bij *Toevoegen aan winkelwagen* (met wat al in de wagen zit), de
+    winkelwagen bij elke weergave en elke aantalwijziging (*Afrekenen*
+    wacht zolang een regel niet kan), het afrekenscherm bij het openen.
+    Beslissend blijft de checkout zelf.
+  - **Op de productpagina**: de gekozen eenheid bepaalt. Uitverkocht toont
+    *Uitverkocht* / *Out of stock* in plaats van aantal en knop; een andere
+    variant op voorraad blijft bestelbaar; het aantal gaat niet hoger dan
+    wat er is. `api/product.php` geeft `sold_out` en `max_quantity`, nooit
+    het getal zelf; de publieke productrijen selecteren `stock` niet meer.
+    De Product JSON-LD zegt `OutOfStock` als elke kiesbare eenheid
+    uitverkocht is.
+  - **In de producteditor**: de sectie *Voorraad* (switch en, zonder
+    varianten, het aantal) en een voorraadveld per variant, met de status
+    ernaast (*Voorraad niet bijgehouden*, *12 op voorraad*, *Uitverkocht*).
+    **Een beheerder maakt nooit een verkoop ongedaan**: een ongewijzigde
+    waarde wordt niet geschreven, een gewijzigde alleen over de waarde die
+    het scherm toonde (`stock_seen`); veranderde de voorraad intussen, dan
+    weigert de hele opslag met de huidige stand (`StockConflictException`).
+  - Geen magazijn, geen inkoop, geen waarschuwing bij weinig voorraad.
+    Zonder publiek bereikbare webhook (lokaal) komt voorraad van een
+    verlopen betaling pas terug als iemand de bestelstatuspagina opent.
+- **Terug op voorraad** (`App\Service\Inventory\StockNotifications`,
+  `stock_notifications`, migratie `20260928110000`). Op een uitverkochte
+  bijgehouden eenheid vraagt de productpagina *Mail mij als dit weer
+  beschikbaar is*. `api/stock-notification.php` bewaart product, variant,
+  adres (kleine letters), taal, status en tijden; één actieve aanvraag per
+  eenheid en adres dwingt de database af (unieke sleutel met
+  `active_marker`, een verstuurde aanvraag botst nooit). Geen account,
+  geen nieuwsbrief, geen lijst die iemand kan zien. Een bekend adres krijgt
+  hetzelfde antwoord als een nieuw; een honeypot en `ContactRateLimiter`
+  (20 per tien minuten per bezoeker) houden scripts buiten.
+  - **Wanneer er gemaild wordt**: zodra de eenheid weer te bestellen is —
+    voorraad van 0 naar meer, na een opslag in de editor
+    (`dispatchForProduct()`, ook als bijhouden uit gaat of het product weer
+    actief wordt) of doordat een mislukte, geannuleerde of verlopen betaling
+    voorraad teruggeeft (`OrderPaymentSync`, `OrderPaymentStartFailure`).
+    Van 5 naar 6 wacht er niemand. Elke mail wordt eerst geclaimd, dus twee
+    afzenders tegelijk schrijven hem niet dubbel; een verstuurde aanvraag
+    wordt nooit opnieuw geschreven. Hooguit 25 mails per eenheid per keer.
+  - **Een mislukte mail blijft actief** met zijn poging geteld en wordt
+    opnieuw geprobeerd door de volgende afzender: de volgende opslag van dat
+    product, of *Wachtende meldingen nu versturen* onder Shop-instellingen →
+    E-mails. Geen wachtrij en geen cron.
+  - **De mail** (`App\Mail\StockNotificationBuilder`) is in de taal waarin de
+    bezoeker het vroeg. Onderwerp en tekst stelt de eigenaar in onder
+    Shop-instellingen → E-mails → *Terug op voorraad*, per websitetaal
+    (`App\Service\ShopLocalizedSettings`, een Shop-catalogus in
+    `site_setting_translations`); leeg is de standaardtekst in die taal.
+    Platte tekst, geëscaped, met `{{product_name}}`, `{{variant}}`,
+    `{{product_url}}` en `{{site_name}}` (`EmailPlaceholders::STOCK`); de
+    knop naar het product staat er altijd onder.
+  - **Een aanvraag is een persoonsgegeven.** Het adres blijft na verzending
+    in `stock_notifications` staan (status `sent`, met `notified_at`), en er
+    is geen automatische opschoning; een product verwijderen haalt zijn
+    aanvragen mee (de sleutel cascadeert). Het CMS toont geen adressen,
+    alleen aantallen.
+- **Op aanvraag** (`App\Service\PurchaseMode`, `products.purchase_mode`,
+  migratie `20260928120000`): per product *Direct bestellen* (standaard,
+  elk bestaand product) of *Op aanvraag*. Zo'n product houdt naam,
+  afbeeldingen, beschrijving, variantkiezer en specificaties, maar heeft
+  nergens een prijs: niet op de productpagina, niet op een productkaart
+  (grid, collectie, gerelateerde producten, Personalisatie; de kaart zegt
+  *Op aanvraag*), niet in `api/product.php` en `api/products.php` (ook niet
+  per variant), en de JSON-LD heeft geen `Offer`. In plaats van aantal en
+  winkelwagen staat er een blok met een contactknop; bestelvelden en de
+  personalisatie-configurator worden niet getoond. De server weigert het
+  product in `api/cart-check.php` (`inquiry`) en `api/checkout.php`, en er
+  kan geen terug-op-voorraadmelding voor worden aangevraagd. De prijs
+  blijft bewaard voor als het product terug gaat naar Direct bestellen.
+- **Bestelvelden** (`App\Service\OrderFields\*`, migratie `20260928130000`).
+  Per product *Bestelgegevens vragen* (`products.order_fields_enabled`, uit
+  voor elk bestaand product) met vragen die de klant beantwoordt vóór het
+  product in de winkelwagen gaat, zoals "Naam op het bord". Los van
+  Personalisatie: dat plaatst tekst en beeld op een voorbeeldfoto en
+  verdwijnt met die module; bestelvelden zijn gewone antwoorden van de
+  Shop.
+  - **Vijf soorten** (`OrderFieldType`): kort tekstveld, lang tekstveld,
+    keuzerondjes, dropdown en selectievakje. Per vraag een label en
+    optionele uitleg (per websitetaal, `product_order_field_translations`
+    via `ShopLocalization`), verplicht of niet, een maximale lengte voor
+    tekst (standaard 100 en 1000, hooguit 255 en 2000) en keuzes voor
+    keuzerondjes en dropdown (`product_order_field_options`, met hun label
+    per taal). Geen upload, datum of voorwaarden.
+  - **In de producteditor** de sectie *Bestelvelden*: vragen en keuzes zijn
+    rijen op sleutel (id of `new<n>`), toevoegen, verplaatsen en verwijderen
+    zonder herladen, in de ene opslag (`ProductOrderFieldEditor`).
+  - **Controle**: de browser zegt wat ontbreekt; de server
+    (`OrderFields::validate()`) neemt alleen de eigen vragen van het
+    product, eist verplichte antwoorden, knipt stuurtekens weg, bewaakt de
+    lengte en accepteert alleen een keuze van déze vraag. Een melding noemt
+    de vraag, in de taal van de klant (422).
+  - **Winkelwagenidentiteit**: andere antwoorden zijn een andere regel, in de
+    browser (`sameOrderFields()`, een eigen `line_id`) en op de server
+    (`OrderFields::fingerprint()` in de regelsleutel): "Luna" en "Kyra"
+    blijven twee regels, twee keer "Luna" telt op. Aanpassen gaat in V1 door
+    de regel te verwijderen en opnieuw toe te voegen. De winkelwagen, de
+    mini-winkelwagen en het afrekenoverzicht tonen de antwoorden.
+  - **Snapshot**: bij het afrekenen legt `order_item_fields` per antwoord het
+    label, het type en de waarde vast in de standaardtaal (een keuze als haar
+    label, een vinkje als Ja/Nee), in de ordertransactie. Een vraag die later
+    verandert of verdwijnt, verandert geen bestelling. Het besteloverzicht en
+    beide bevestigingsmails tonen ze onder de regel; de factuur niet (zoals
+    personalisatie er ook niet op staat).
+- **Specificaties** (`App\Service\ProductSpecifications`, migratie
+  `20260928140000`). Shop → *Specificaties* (`admin/product-specifications.php`,
+  `products.manage`) is een bibliotheek van eigenschappen — Dikte, Hoogte,
+  Materiaal — met een naam per websitetaal en een optionele korte eenheid,
+  als één lijst met één opslag (`SpecificationLibraryEditor`). Elke rij zegt
+  bij hoeveel producten hij is ingevuld; verwijderen haalt de waarde daar
+  ook weg (de sleutels cascaderen). In de producteditor kiest de sectie
+  *Specificaties* eigenschappen uit de bibliotheek, elk één keer, in de
+  eigen volgorde van het product, met een waarde per taal (een getal typ je
+  één keer, het valt terug). De productpagina toont ze als lijst onder de
+  beschrijving, met eenheid, zonder lege rijen. Alleen presentatie: geen
+  filters, zoeken of vergelijken.
 - Collecties — `CollectionService`, `CollectionContent`,
   `CollectionRepository`, `collectie.php`, `CollectionGalleryItems`.
 - Productoverzicht — **geen vanzelfsprekende pagina.** De Shop betekent niet
@@ -442,13 +646,15 @@ Alles wat er ook zou zijn zonder webshop.
   op staat en laat alleen zo'n pagina kiezen (plus de huidige keuze); een
   pagina kiezen voegt nooit zelf een blok toe. Het blok **Collectie-tegels**
   (`shop_collections`) volgt hetzelfde contract: handmatig, op elke gewone
-  pagina, hooguit één per pagina, verwijderbaar. De historische winkelpagina
-  houdt haar eigen blokken en is een gewone pagina geworden. Elke Shop-link
+  pagina, hooguit één per pagina, verwijderbaar. De winkelpagina
+  (`content_key = shop`) is de systeempagina van de Shop ("Systeempagina's
+  van modules"): een installatie die haar al had houdt haar eigen blokken,
+  een andere kreeg haar leeg, en leeg verandert ze niets. Elke Shop-link
   naar "de shop" — productpagina, winkelwagen, afrekenen, collectie,
   bestelstatus, personaliseren en hun kruimelpaden — vraagt het adres aan
   `ShopOverview` en schrijft `/shop.php` niet zelf. `shop.php` volgt de keuze:
   404 zonder overzicht, 302 naar de gekozen pagina, de pagina met
-  `content_key = shop` op haar eigen adres, of — alleen voor een bestaande
+  `content_key = shop` op haar eigen adres (een concept: 404), of — alleen voor een bestaande
   installatie die dat al toonde (`builtin`, gepind door `20260923140000`) — het
   oude automatische overzicht. De route `shop` in de linkkiezer en de
   sitemapregel `storefront` bestaan alleen zolang er een overzicht is. Zie
@@ -971,8 +1177,8 @@ knoppen, houdt de focus vast, reageert op Escape, ← →, Tab en een veeg, en
 geeft de focus terug aan de opener.
 
 **De projectpagina** toont: kruimelpad *Home / Portfolio / project* (de
-Portfolio-pagina via content key `portfolio`; zonder die pagina valt dat niveau
-weg), categorieën, titel, korte tekst, hoofdafbeelding, inleiding,
+Portfolio-pagina via content key `portfolio`; zolang die leeg is, of als er
+geen is, de route *Portfolio*), categorieën, titel, korte tekst, hoofdafbeelding, inleiding,
 beschrijving, galerij en *Terug naar portfolio*. SEO gaat via
 `App\Service\PortfolioSeo`: titel `<project> | Portfolio — <site>`, als
 description de korte tekst, anders het begin van de inleiding of beschrijving,
@@ -1033,14 +1239,13 @@ Portfolio 2.0 noemt de weigering de eigenaar (`ReservedRoutes::moduleReserving()
 en een nieuwe pagina waarvan het automatische adres moest uitwijken, zegt op
 haar eigen scherm waarom.
 
-**Het overzicht op een installatie zonder Portfolio-pagina.** Het overzicht
-`/portfolio` is de CMS-pagina met content key `portfolio` als die bestaat. Een
-verse installatie heeft die niet, en krijgt hem ook niet: de pagina was een
-historische seed van de site waaruit dit CMS voortkwam, die `InstallState` op
-een verse database overslaat, en `Tests\Install\FreshInstallTest` houdt een
-verse installatie vrij van zulke pagina's. Portfolio volgt daarom het
-modulepatroon van `/blog` en van het ingebouwde overzicht van `shop.php`: **zonder
-pagina rendert `portfolio.php` het eigen overzicht van de module** — kruimelpad
+**Het overzicht zolang de Portfolio-pagina leeg is.** Het overzicht
+`/portfolio` is de CMS-pagina met content key `portfolio` zodra die iets
+toont. Elke installatie heeft die pagina, als systeempagina van Portfolio
+("Systeempagina's van modules"); een installatie die haar niet had, kreeg haar
+leeg van `20260928150000`. Zolang ze leeg is, volgt Portfolio het
+modulepatroon van `/blog` en van het ingebouwde overzicht van `shop.php`:
+**`portfolio.php` rendert het eigen overzicht van de module** — kruimelpad
 *Home / Portfolio*, de kop *Portfolio*, elk zichtbaar project in de galerij met
 filterbalk en lightbox (`PortfolioGalleryContent::builtinOverviewGallery()`),
 of een regel dat er nog geen projecten zijn. De metadata komen uit
@@ -1051,16 +1256,17 @@ aan als bestemming voor menu, footer en kruimelpad.
 
 | Situatie | `/portfolio` | Menu/footer | Sitemap |
 |---|---|---|---|
-| Geen pagina met content key `portfolio` | het eigen overzicht van de module | route *Portfolio* | Portfolio's collector |
-| Die pagina bestaat en is gepubliceerd | die pagina, met haar eigen blokken, titel en SEO | de pagina, als pagina | Core's paginacollector |
-| Die pagina bestaat en is een concept | 404, de keuze van de redacteur | — | — |
+| De pagina is leeg: door de migratie gemaakt, gepubliceerd, geen zichtbaar blok (elke verse installatie) | het eigen overzicht van de module | route *Portfolio* | Portfolio's collector |
+| Geen pagina (een andere pagina hield het woord vast toen de migratie draaide) | het eigen overzicht van de module | route *Portfolio* | Portfolio's collector |
+| De pagina heeft een zichtbaar blok, of de installatie had haar al, en ze is gepubliceerd | die pagina, met haar eigen blokken, titel en SEO | de pagina, als pagina | Core's paginacollector |
+| De pagina is een concept | 404, de keuze van de redacteur | — | — |
 | Portfolio uit | 404, ook `/portfolio.php` en `/portfolio/<slug>` | — | — |
 
-**Er wordt nooit iets aangemaakt**: niet bij de installatie, niet bij het
-aanzetten van de module (die heeft geen lifecycle, zie "Nog niet
-geïmplementeerd") en niet bij een request. Daardoor kan er geen tweede
-overzicht ontstaan, is een bootstrap die twee keer draait vanzelf idempotent,
-en wordt geen pagina op haar titel of slug als overzicht aangenomen: alleen de
+**Alleen de migratie maakt de pagina, één keer**: niet het aanzetten van de
+module (die heeft geen lifecycle, zie "Nog niet geïmplementeerd"), niet een
+request en niet een tweede run. Daardoor kan er geen tweede overzicht
+ontstaan, en wordt geen pagina op haar titel of slug als overzicht
+aangenomen: alleen de
 content key `portfolio` telt (`PortfolioUrls::overviewPage()`), en die kan een
 redacteur niet kiezen. Een keuze "welke pagina is het Portfolio-overzicht"
 (zoals `ShopOverview`) en een eigen titel of inleiding voor het ingebouwde

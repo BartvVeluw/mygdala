@@ -277,7 +277,7 @@ testserver is.
 
 | Waar | Wat | Bron |
 |---|---|---|
-| Productdetail | `Product` met `Offer`/`AggregateOffer` | `ProductSeo::jsonLd()` |
+| Productdetail | `Product` met `Offer`/`AggregateOffer`; `availability` is `OutOfStock` als elke kiesbare eenheid uitverkocht is, en een product *op aanvraag* krijgt geen `Offer` (het heeft geen publieke prijs) | `ProductSeo::jsonLd()` |
 | Homepage | `Organization` | `PageSeo` |
 | Blogbericht | `BlogPosting` | `Blog\BlogSeo` |
 | Alles daarbuiten | niets | — |

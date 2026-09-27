@@ -867,6 +867,41 @@ publieke Turnstile-testsleutels van Cloudflare en een echt Nederlands adres
 (PDOK) nodig, en een gepubliceerde voorwaardenpagina met een Rich
 text-blok.
 
+**Wijziging aan voorraad, terug-op-voorraad, op aanvraag, bestelvelden of
+specificaties** (Shop Product & Ordering 2.0, `MODULES.md`, "Shop")
+
+```
+--testsuite shop        InventoryTest (reserveren en teruggeven in de echte
+                        database, één keer teruggeven bij een herhaalde
+                        webhook, een mislukte betaalstart, en een echte race:
+                        twee PHP-processen tegelijk om het laatste stuk,
+                        tests/Support/stock-race.php), ProductInventoryHttpTest
+                        (winkelwagencheck, checkout 409, een vervalste
+                        toevoeging, de editor en een voorraad die intussen
+                        veranderde), StockNotificationTest en
+                        StockNotificationHttpTest (inschrijven zonder dubbel of
+                        verklappen, 0 → meer mailt één keer, 5 → 6 niet, een
+                        mislukte mail blijft actief), PurchaseModeHttpTest,
+                        OrderFieldsTest, OrderFieldsHttpTest en
+                        ProductSpecificationsTest
+--testsuite fast        InventoryContractTest en ProductEditorTabsTest (ook in
+                        shop): reserveren binnen de ordertransactie, elke
+                        mislukte betaalstart geeft terug, geen voorraadteller
+                        buiten InventoryRepository, geen voorraadgetal in een
+                        publieke productrij; drie tabbladen om één formulier
+--testsuite cms         ModuleSystemPagesTest; ModuleSystemPagesMigrationTest
+                        ook in --testsuite migration
+```
+
+`ShopStockFixture` (`tests/Support/`) maakt een product met of zonder
+varianten en een bestelling met gereserveerde regels, en ruimt ze in de juiste
+volgorde op (varianten vóór producten, anders weigert de sleutel van hun
+optiewaarden). Wie een terug-op-voorraadmail wil zien mislukken, start de
+`BuiltInServer` met `MAIL_HOST=127.0.0.1` en `MAIL_PORT=9`: PHPMailer krijgt
+geen verbinding, de melding blijft actief met haar poging geteld, en er gaat
+niets de deur uit. Een mail die wél slaagt, bewijst `StockNotificationTest`
+met een opnemende mailer in het testproces, niet over SMTP.
+
 Wat de overgang in een browser doet (vervagen, schuiven, vegen, verticaal
 scrollen, reduced motion), bewijst geen van deze tests. Na een wijziging aan
 `product-gallery.js` loop je het na in de Browser-pane. Een pane die niet
