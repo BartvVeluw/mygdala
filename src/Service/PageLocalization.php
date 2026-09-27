@@ -169,6 +169,24 @@ final class PageLocalization
     }
 
     /**
+     * The page that has this word as its address in any language, published
+     * or not: what App\Service\ModuleSystemPages::conflicts() asks when a
+     * module's page is missing, the same place the migration that makes
+     * those pages looked (db/migrations/20260928150000). A failed read is
+     * no answer, never a conflict.
+     */
+    public static function pageIdHoldingSlug(string $slug): ?int
+    {
+        try {
+            return (new PageTranslationRepository())->pageIdWithSlugInAnyLanguage($slug);
+        } catch (\Throwable $e) {
+            error_log('[PageLocalization] address lookup failed for "' . $slug . '": ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
      * Is this address already another page's, in this language?
      *
      * Asked by App\Service\PageService before it lets a save through; here

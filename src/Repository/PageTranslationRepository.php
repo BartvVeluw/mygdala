@@ -162,6 +162,19 @@ final class PageTranslationRepository extends Repository
         return $row === false ? null : $row;
     }
 
+    /**
+     * The page that has this address in ANY language, published or not, or
+     * null (App\Service\PageLocalization::pageIdHoldingSlug()).
+     */
+    public function pageIdWithSlugInAnyLanguage(string $slug): ?int
+    {
+        $stmt = $this->db->prepare('SELECT page_id FROM page_translations WHERE slug = :slug ORDER BY page_id LIMIT 1');
+        $stmt->execute(['slug' => $slug]);
+        $id = $stmt->fetchColumn();
+
+        return $id === false ? null : (int) $id;
+    }
+
     /** Is this address already taken IN THIS LANGUAGE by another page? */
     public function slugExists(string $slug, string $languageCode, ?int $excludePageId = null): bool
     {

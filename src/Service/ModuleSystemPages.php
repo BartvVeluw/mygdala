@@ -116,7 +116,7 @@ final class ModuleSystemPages
                 continue;
             }
 
-            $holder = $repository->idHoldingSlug($contentKey);
+            $holder = $repository->idHoldingSlug($contentKey) ?? PageLocalization::pageIdHoldingSlug($contentKey);
             if ($holder !== null) {
                 $conflicts[] = ['content_key' => $contentKey, 'module_label' => $system['module_label'], 'page_id' => $holder];
             }

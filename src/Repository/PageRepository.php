@@ -183,20 +183,14 @@ class PageRepository extends Repository
     }
 
     /**
-     * The page that has this word as its slug, in the neutral column or in
-     * any language, or null — what App\Service\ModuleSystemPages::conflicts()
-     * asks when a module's page is missing, the same two places the migration
-     * that makes those pages looked (db/migrations/20260928150000).
+     * The page that has this word as its neutral slug, or null — what
+     * App\Service\ModuleSystemPages::conflicts() asks when a module's page is
+     * missing (the slug in a language is App\Service\PageLocalization's).
      */
     public function idHoldingSlug(string $slug): ?int
     {
-        $stmt = $this->db->prepare(
-            'SELECT id FROM pages WHERE slug = :slug
-             UNION
-             SELECT page_id FROM page_translations WHERE slug = :translated_slug
-             LIMIT 1'
-        );
-        $stmt->execute(['slug' => $slug, 'translated_slug' => $slug]);
+        $stmt = $this->db->prepare('SELECT id FROM pages WHERE slug = :slug LIMIT 1');
+        $stmt->execute(['slug' => $slug]);
         $id = $stmt->fetchColumn();
 
         return $id === false ? null : (int) $id;
