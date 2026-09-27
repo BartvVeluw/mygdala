@@ -28,6 +28,9 @@ De Shop is een uitschakelbare first-party module. Domeindocument:
   een op uit het id en het prefix. Alleen `OrderRepository::create()` maakt
   een nummer; `Tests\Repository\OrderNumberSnapshotContractTest` faalt op
   elke andere plek.
+- **Betalen loopt via `PaymentProviders::active()`**, nooit rechtstreeks via
+  de Mollie-SDK, en een API-sleutel komt nooit terug in HTML, JSON, flash of
+  log (`MODULES.md`, "Betalingen").
 - **Onderzoek geen Blog-, Formulier- of Mediacode** tenzij deze wijziging daar
   aantoonbaar van afhangt.
 - **Raak geen Core-bestand aan om iets van de Shop te regelen.** Core mag geen

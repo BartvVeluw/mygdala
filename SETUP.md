@@ -312,11 +312,69 @@ dingen dubbel doet.
 | Menu, headerknoppen en footer | Header & navigatie en Footer (`HEADER-FOOTER.md`) |
 | Afbeeldingen | Mediabibliotheek (`MEDIA.md`) |
 | Modules aan/uit | `.env`, of opnieuw via het CMS zodra daar een scherm voor komt |
+| Betalen met Mollie: sleutels, test of live, betaalmethoden | Shop → Betalingen (`MODULES.md`, "Betalingen") |
 
 `admin/setup.php` blijft bereikbaar en toont na afronding precies dat lijstje,
 plus wanneer de installatie is afgerond. Hij heeft daarom bewust **geen
 menu-item**: een scherm dat je één keer opent hoort niet permanent in de
 zijbalk.
+
+## Geheimen in het CMS
+
+Sommige instellingen zijn geheimen: wie ze heeft, kan namens de site handelen.
+De eerste die in het CMS wordt ingevuld, zijn de Mollie-sleutels op Shop →
+Betalingen. Zo'n waarde staat **nooit leesbaar in de database**:
+`App\Service\Secrets\SecretStore` versleutelt hem met libsodium
+(XChaCha20-Poly1305, geauthenticeerd) voordat hij in `secret_settings` komt,
+met een verse willekeurige nonce per waarde en de naam van het slot plus het
+id van de sleutel als extra gegevens. Een waarde opent daardoor alleen met
+dezelfde sleutel én in hetzelfde slot, en een veranderde byte wordt
+geweigerd. Een scherm krijgt nooit de waarde terug, alleen een `hint`
+(`test_••••••••abcd`).
+
+**De sleutel die dat doet, staat niet in de database** (`App\Service\Secrets\MasterKey`):
+
+1. `APP_KEY` in `.env`, als die er staat: `base64:` gevolgd door 32
+   willekeurige bytes in base64. Maken kan met
+   `php -r 'echo "base64:" . base64_encode(random_bytes(32)), PHP_EOL;'`.
+   Een waarde van een andere vorm wordt geweigerd, nooit stil vervangen door
+   het bestand hieronder.
+2. Anders het sleutelbestand `app.key` in de afgeschermde opslag, één map
+   boven de projectroot (`<boven de root>/storage/secrets/app.key`, naast de
+   facturen), of onder `SECRETS_STORAGE_PATH`. Mygdala maakt het zelf, **één
+   keer, bij de eerste opslag van een geheim**: nooit bij het bekijken van een
+   pagina, een webhook of een checkout. Atomisch (een lock, een tijdelijk
+   bestand met rechten 0600 dat volledig geschreven wordt, dan een rename;
+   de map krijgt 0700), en een bestaand bestand wordt nooit vervangen, ook
+   niet als het kapot is. Lukt schrijven niet, dan mislukt de opslag met een
+   uitleg: er is geen terugval die een geheim onversleuteld bewaart. Het
+   bestand heeft dezelfde vorm als `APP_KEY`, dus zijn regel kan zo naar
+   `.env`.
+3. Geen van beide: er kan niets worden opgeslagen of gelezen.
+
+In Docker is die opslag het volume op `/var/www/storage`, dus de sleutel
+overleeft het opnieuw maken van de container. `storage/` hoort bij de
+installatie: geen release levert of vervangt er iets in
+(`docs/updates/ARCHITECTURE.md`), en een kopie via
+`scripts/create_fresh_site_copy.php` neemt hem niet mee. `.gitignore` en
+`.htaccess` houden een `storage/` in de projectroot bovendien buiten git en
+buiten het web, voor het geval `SECRETS_STORAGE_PATH` daarheen wijst.
+
+**Fail closed.** Is de sleutel weg of anders (een verhuizing zonder het
+bestand, een nieuwe `APP_KEY`), dan zijn de opgeslagen geheimen onleesbaar.
+Ze worden dan nooit door iets anders vervangen: de checkout betaalt niet met
+een sleutel die hij niet kan openen, en Betalingen zegt *Probleem* en vraagt
+de sleutel opnieuw in te voeren. Een nieuwe opslag maakt zo nodig een nieuwe
+sleutel en repareert alleen het slot dat opnieuw is ingevuld.
+
+**Back-up en herstel.** Een databaseback-up zonder de sleutel is voor de
+geheimen waardeloos, en dat is de bedoeling: een gelekte dump geeft geen
+Mollie-sleutel prijs. Bewaar daarom het sleutelbestand (of `APP_KEY`)
+**apart** van de databaseback-ups, en neem het mee bij een verhuizing.
+Herstel je een database op een server met een andere sleutel, voer dan de
+Mollie-sleutels opnieuw in op Shop → Betalingen; bestellingen en betalingen
+zelf raakt dat niet. Delen twee installaties één map boven hun root, geef ze
+dan elk een eigen `SECRETS_STORAGE_PATH` of `APP_KEY`.
 
 ## Testen
 
@@ -367,7 +425,7 @@ blok, nooit een eigen versie van de code.
 |---|---|---|
 | Containers en netwerk | Docker Compose | Compose noemt alles naar de projectnaam, en dat is de mapnaam: `klant-a-php-1` |
 | Database en testdatabase | een eigen `mysql`-service, volume `klant-a_mysql_data` | elke installatie heeft een eigen MySQL-server |
-| Bijlagen en personalisatie-uploads | `/var/www/storage`, volume `klant-a_contact_attachments` | een named volume per project |
+| Bijlagen, personalisatie-uploads, facturen en het sleutelbestand van de geheimen | `/var/www/storage`, volume `klant-a_contact_attachments` | een named volume per project; zie "Geheimen in het CMS" |
 | Mediabibliotheek, merkbestanden, sectiebeelden, video's, graveerlettertypes | `assets/media/`, `assets/images/branding/`, `assets/images/sections/`, `assets/videos/sections/`, `assets/fonts/personalization/` | gitignored, dus ze horen bij de map en niet bij de commit |
 | `vendor/` | in de clone | gitignored |
 | Poorten op je machine | `APP_PORT`, `ADMINER_PORT`, `MAILPIT_WEB_PORT` in `.env` | de enige waarden die je zelf uniek maakt |
@@ -383,7 +441,9 @@ Welke waarden in `.env` per installatie verschillen:
 | `APP_ENV` | ja | `local` tijdens het bouwen, `production` zodra de site live gaat |
 | `APP_URL` | ja, of leeg | leeg laten en het in de wizard invullen mag |
 | `MODULE_*_ENABLED` | ja | zie "Welke modules aan" |
-| Mail, Mollie, Turnstile, DeepL | ja, zodra de site ze gebruikt | lokaal volstaan de plaatshouders |
+| Mail, Turnstile, DeepL | ja, zodra de site ze gebruikt | lokaal volstaan de plaatshouders |
+| `MOLLIE_API_KEY` | meestal leeg | de sleutels horen op Shop → Betalingen; een sleutel hier pint de shop eraan (`MODULES.md`, "Betalingen") |
+| `APP_KEY`, `SECRETS_STORAGE_PATH` | ja, als je ze zet | leeg is goed: Mygdala maakt zelf een sleutelbestand; zie "Geheimen in het CMS" |
 | `DB_DATABASE`, `DB_USERNAME`, `TEST_DB_DATABASE` | nee | elke installatie heeft een eigen MySQL-server, dus dezelfde naam botst niet |
 | `COMPOSE_PROJECT_NAME` | alleen bij twee clones met dezelfde mapnaam | verder is de mapnaam genoeg |
 

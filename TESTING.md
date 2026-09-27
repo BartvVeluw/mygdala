@@ -758,6 +758,78 @@ met twee regels, verzendkosten en een apart factuuradres. Hij ruimt ook de
 PDF's op en zet de factuurteller van het jaar terug, want een factuur uitgeven
 kost een nummer.
 
+Betalingen, de betaalprovider en de geheimenopslag (Mollie Setup 2.0,
+`MODULES.md`, "Betalingen"; `SETUP.md`, "Geheimen in het CMS"):
+
+```
+--testsuite fast        MasterKeyTest (APP_KEY wint en een verkeerde wordt
+                        geweigerd, lezen schrijft nooit, het sleutelbestand
+                        eenmalig 0600 in een 0700-map en nooit vervangen,
+                        onschrijfbare opslag geeft geen sleutel, een verse
+                        nonce per waarde, gebonden aan slot en sleutel) en
+                        ShopPaymentMethodsTest (zonder keuze iDEAL en
+                        creditcard met hun oude woorden, een keuze in
+                        volgorde, "kaart" is creditcard) — niets nodig
+--testsuite shop        voegt toe: MollieConfigurationTest (de keten
+                        omgeving → CMS → niets, de placeholder, maskering,
+                        onleesbaar is niet ingesteld), MolliePaymentProviderTest
+                        (de body uit de bestelling, adressen uit APP_URL ook in
+                        een submap, geen webhook naar localhost/.test/privé-IP,
+                        elke Mollie-status, refunds, de terugval naar de sleutel
+                        van de andere modus, elke fout één soort zonder sleutel
+                        erin), PaymentSettingsEditorTest (sleutels, live alleen
+                        na een geslaagde check, de bevestiging, de gepinde
+                        omgeving, methoden beschikbaar vóór aangeboden),
+                        PaymentSettingsHttpTest, MollieWebhookHttpTest en
+                        CheckoutPaymentMethodsHttpTest (over echt HTTP, zie
+                        hieronder), InvoicePrefixTest (het factuurprefix, een
+                        oude waarde, bestaande facturen en hun bestand
+                        onaangeroerd) en SecretSettingsMigrationTest (vers en
+                        upgrade, bestaande Mollie-bestellingen en refunds
+                        onaangeroerd, herhaling) — de laatste ook in
+                        --testsuite migration
+--testsuite cms         SecretStoreTest (versleuteld in de rij, fail closed
+                        zonder of met een andere sleutel, een rij werkt niet in
+                        een ander slot) en MasterKeyTest: de opslag is Core
+```
+
+**Geen enkele test praat met Mollie.** `Tests\Support\FakeMollie` is een
+Mollie in een JSON-bestand achter de enige testnaad,
+`App\Service\MollieClientFactory::useFactoryForTests()`: de echte
+`MolliePaymentProvider` draait tegen de SDK van Mollie zelf (requestklassen,
+parsing, exceptions), zonder netwerk en zonder account. In een PHPUnit-proces
+zet `FakeMollie::install($scenario)` hem aan; voor `BuiltInServer` geeft een
+test `['auto_prepend_file' => …/tests/Support/fake-mollie.php]` als php.ini-
+waarde en `FAKE_MOLLIE_SCENARIO` als omgeving mee. Het scenario zegt per
+sleutel `ok`, `unauthorized`, `forbidden`, `down` (netwerkfout) of `error`
+(503), welke methoden er per modus zijn en welke betalingen bestaan (een
+betaling is alleen zichtbaar voor een sleutel van haar eigen modus, zoals bij
+Mollie). Elk verzoek komt als JSON-regel in `<scenario>.log`, met de modus en
+de laatste vier tekens van de sleutel, nooit de sleutel. Niets in de
+applicatie kan de nep aanzetten: het is een statische methode, geen
+omgevingsvariabele.
+
+De drie HTTP-klassen starten hun eigen `BuiltInServer` met een eigen
+sleutelmap (`SECRETS_STORAGE_PATH`), `MOLLIE_API_KEY` leeg of gepind,
+`APP_URL` en, voor de webhook, een eigen factuurmap en geen
+`SHOP_NOTIFICATION_EMAIL`, zodat een betaalde test-bestelling haar factuur
+krijgt maar er geen mail vertrekt. Ze ruimen hun sleutels, instellingen,
+bestellingen en facturen zelf op.
+
+Wat de browser met Betalingen doet (de dirty-status, de vertrekdialoog, *Test
+deze sleutel* zonder opslaan, de regio's na opslaan, een echte testbestelling
+van winkelwagen tot bestelstatus), bewijst geen van deze tests. Na een
+wijziging aan `admin/payments.php` of `payments.js` loop je het na in de
+Browser-pane, op een wegwerpkopie: een eigen database, een container met
+`auto_prepend_file` naar `fake-mollie.php`, een scenario met
+`created.checkoutUrl` naar een harnaspagina die Mollie's testpagina speelt
+(uitkomst kiezen, desgewenst de webhook afleveren, terug naar de
+`redirectUrl`), en `PHP_CLI_SERVER_WORKERS` groter dan 1, zodat die pagina de
+webhook op dezelfde server kan aanroepen. Voor de echte checkout zijn de
+publieke Turnstile-testsleutels van Cloudflare en een echt Nederlands adres
+(PDOK) nodig, en een gepubliceerde voorwaardenpagina met een Rich
+text-blok.
+
 Wat de overgang in een browser doet (vervagen, schuiven, vegen, verticaal
 scrollen, reduced motion), bewijst geen van deze tests. Na een wijziging aan
 `product-gallery.js` loop je het na in de Browser-pane. Een pane die niet

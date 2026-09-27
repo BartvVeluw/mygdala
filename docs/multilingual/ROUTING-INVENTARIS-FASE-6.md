@@ -185,9 +185,11 @@ expliciet.
 - `PageSeo` JSON-LD `Organization`/`WebSite` `url` = `AppUrl::canonical('/')`;
 - `CollectionGalleryItems` en `CollectionContent` (`url` in blokpayloads);
 - `Blog\BlogContent` (`url` en `canonical_url` in elke rij);
-- `MolliePaymentData` `redirectUrl` — **gebouwd uit `HTTP_HOST`** in
-  `api/checkout.php`, niet uit `AppUrl`. De enige publieke return-URL die de
-  request-host vertrouwt;
+- `MolliePaymentData` `redirectUrl` — bij deze inventaris **gebouwd uit
+  `HTTP_HOST`** in `api/checkout.php`, niet uit `AppUrl`. Sinds Mollie Setup
+  2.0 bouwt `App\Service\Payment\MolliePaymentProvider` hem, en de webhook,
+  uit `AppUrl::base()` (`MODULES.md`, "Betalingen"); geen publieke URL
+  vertrouwt de request-host meer;
 - `api/products.php` en `api/product.php` sturen **geen** URL mee: de
   productkaart-link wordt client-side gebouwd in `assets/js/shop/shop.js`.
 

@@ -123,7 +123,9 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Redirects** | Verhuisde publieke URL's: opslag, normalisatie, conflicten, automatische slugredirects | `Service\Redirects\*`, `RedirectRepository`, `404.php`, `admin/redirects.php` — zie `REDIRECTS.md` |
 | **Shop/catalogus** | Producten, varianten, opties, afbeeldingen, collecties, gerelateerde producten | `ProductRepository`, `ProductVariantRepository`, `ProductOptionRepository`, `ProductVariantEditor` (de Varianten-sectie in de ene opslag van de producteditor), `ProductGalleryTransition` (de overgang van de productgalerij: product ?? Shop ?? fade), `CollectionService`, `RelatedProductsContent`, `admin/products.php`, `admin/product-form.php`, `admin/collections.php` |
 | **Winkelwagen/afrekenen** | Winkelwagen (client-side), afrekenformulier, adres, verzendkeuze | `assets/js/shop/cart.js` (`vvl-cart` in `localStorage`), `assets/js/shop/shop.js`, `cart.php`, `checkout.php`, `api/checkout.php`, `Service\Address\*` |
-| **Bestellingen/betalingen** | Orders, Mollie, statussen, bevestiging, facturen, herroeping | `OrderRepository`, `OrderPaymentSync`, `MollieClientFactory`, `MolliePaymentData`, `OrderConfirmationService`, `InvoiceService`, `PdfInvoiceRenderer`, `api/mollie-webhook.php`, `admin/orders.php` |
+| **Bestellingen/betalingen** | Orders, statussen, bevestiging, facturen, factuur- en bestelprefix, herroeping | `OrderRepository`, `OrderPaymentSync`, `MolliePaymentData`, `OrderConfirmationService`, `InvoiceService`, `PdfInvoiceRenderer`, `DocumentNumberPrefix`, `api/mollie-webhook.php`, `admin/orders.php` |
+| **Betalingen (Mollie)** | De betaalprovider achter één contract, welke sleutel (omgeving of CMS, test of live), de verbindingstest, beschikbare en aangeboden betaalmethoden, het scherm Shop → Betalingen | `Service\Payment\*` (`PaymentProvider`, `MolliePaymentProvider`, `PaymentProviders`, `MollieConfiguration`, `MollieConnectionResult`, `MollieSetupStatus`, `PaymentSettingsEditor`, `ShopPaymentMethods`), `MollieClientFactory`, `admin/payments.php`, `api/admin/update-payment-settings.php`, `api/admin/test-payment-connection.php` — zie `MODULES.md`, "Betalingen" |
+| **Geheimen** | Waarden die een beheerder in het CMS invult en die niemand mag teruglezen: versleuteld in de database, met een applicatiesleutel erbuiten. Core | `Service\Secrets\*` (`SecretStore`, `MasterKey`), `SecretSettingRepository`, tabel `secret_settings` — zie `SETUP.md`, "Geheimen in het CMS" |
 | **Verzending** | Zones, tarieven, berekening, PostNL-synchronisatie | `Service\Shipping\*`, `ShippingRateRepository`, `ShippingZoneRepository`, `api/shipping-quote.php`, `admin/shipping.php` |
 | **Personalisatie** | Views/zones per product, fonts, uploads, preview, ordersnapshot | `Service\Personalization\*`, `ProductPersonalizationRepository`, `OrderItemPersonalizationRepository`, `personaliseren.php`, `admin/personalization*.php` |
 | **Blog** | Blogberichten, categorieën, tags, publicatie en inplannen, het publieke overzicht en de RSS-feed. Een uitschakelbare module die standaard **uit** staat | `Module\BlogModule`, `Service\Blog\*`, `BlogPostRepository`, `BlogCategoryRepository`, `BlogTagRepository`, `admin/blog*.php`, `blog.php`, `blog-post.php` — zie `BLOG.md` |
@@ -176,10 +178,10 @@ admin/page.php (page builder)      lijst, volgorde, toevoegen, verbergen, verwij
 ```text
 product.php / personaliseren.php  →  winkelwagen in localStorage (assets/js/shop/cart.js)
 checkout.php                      →  api/shipping-quote.php  (verzendkosten)
-                                  →  api/checkout.php        order + Mollie-betaling
-Mollie  →  api/mollie-webhook.php →  OrderPaymentSync  →  OrderConfirmationService
-                                                        →  InvoiceService (PDF + mail)
-bestelling-status.php             toont de status aan de klant
+                                  →  api/checkout.php        order + betaling via PaymentProviders::active()
+Mollie  →  api/mollie-webhook.php →  PaymentProvider::fetchPayment() → OrderPaymentSync  →  OrderConfirmationService
+                                                                                     →  InvoiceService (PDF + mail)
+bestelling-status.php             toont de status aan de klant (en synct zelf via de provider als de webhook nog niet kwam)
 ```
 
 ## Frontend-assets

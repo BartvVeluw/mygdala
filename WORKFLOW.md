@@ -116,7 +116,7 @@ de grenzen en de checklist van zijn domein klaar.
 
 | Skill | Roep aan bij | Wat hij klaarzet |
 |---|---|---|
-| `/shop` | Producten, varianten, opties, collecties, winkelwagen, afrekenen, bestellingen, Mollie, facturen, retourverzoeken, verzending | De twaalf padgroepen van de Shop, de regel dat een request nooit een prijs bepaalt, en dat een order een snapshot is |
+| `/shop` | Producten, varianten, opties, collecties, winkelwagen, afrekenen, bestellingen, Mollie, facturen, retourverzoeken, verzending | De dertien padgroepen van de Shop (Betalingen sinds Mollie Setup 2.0), de regel dat een request nooit een prijs bepaalt, dat een order een snapshot is, en dat betalen via het contract loopt zonder dat een sleutel ooit terugkomt |
 | `/blog` | Berichten, categorieën, tags, publiceren en inplannen, het overzicht, de feed | De Blog-paden, de grens met de Shop, en dat testen een container met `MODULE_BLOG_ENABLED=true` vraagt |
 | `/content-block` | Een bloktype toevoegen, wijzigen of verwijderen | De acht onderdelen van één blok, het inhoudscontract met zijn drie toestanden, en de valkuilen |
 | `/forms` | Formulierdefinities, velden, veldtypes, inzendingen, spam | De Forms-paden, dat validatie over de definitie loopt en niet over het request, en dat het zonder JavaScript moet werken |

@@ -458,12 +458,113 @@ Alles wat er ook zou zijn zonder webshop.
 - Winkelwagen — volledig client-side (`vvl-cart` in `localStorage`,
   `assets/js/shop/cart.js`), `cart.php`, `partials/header-cart.php`.
 - Afrekenen — `checkout.php`, `api/checkout.php`, `Service\Address\*`.
-- Bestellingen en betalingen — `OrderRepository`, `OrderPaymentSync`,
-  `MollieClientFactory`, `MolliePaymentData`, `api/mollie-webhook.php`,
-  `OrderConfirmationService`, `OrderCsvExport`, `admin/orders.php`. Een
-  bestelnummer wordt één keer gemaakt, bij het aanmaken van de bestelling, en
-  opgeslagen in `orders.order_number`; mail, Mollie, beheer, export en factuur
-  lezen het via `OrderRepository::orderNumber()`.
+- Bestellingen en betalingen — `OrderRepository`, `OrderPaymentSync`, de
+  betaalprovider in `Service\Payment\*` (hieronder, *Betalingen*),
+  `MolliePaymentData`, `api/mollie-webhook.php`, `OrderConfirmationService`,
+  `OrderCsvExport`, `admin/orders.php`. Een bestelnummer wordt één keer
+  gemaakt, bij het aanmaken van de bestelling, en opgeslagen in
+  `orders.order_number`; mail, Mollie, beheer, export en factuur lezen het via
+  `OrderRepository::orderNumber()`.
+- **Betalingen** (Mollie Setup 2.0). Mollie is de enige betaalprovider; de
+  architectuur laat later een tweede toe zonder checkout of bestellingen
+  opnieuw te ontwerpen, maar er is er nu geen.
+  - **Eén contract, één provider.** `App\Service\Payment\PaymentProvider` heeft
+    vier methoden, elk met een aanroeper: `isConfigured()` en
+    `createPayment()` (`api/checkout.php`), `fetchPayment()` (webhook en
+    `api/order-status.php`) en `availableMethods()` (Betalingen).
+    `MolliePaymentProvider` is de enige implementatie en de enige klasse
+    buiten het scherm die de Mollie-SDK aanroept; `PaymentProviders::active()`
+    is de enige regel die hem noemt. `OrderPaymentSync` past een
+    `PaymentSnapshot` toe: de vijf woorden van `orders.status`, en het eigen
+    woord van Mollie in `mollie_status`. Er is **geen `refund()`**: Mygdala
+    maakt geen terugbetaling, die gebeurt in het Mollie-dashboard en komt met
+    het volgende `fetchPayment()` binnen. De kolommen heten nog
+    `mollie_payment_id` en `mollie_status`, en er is geen
+    `payment_provider`-kolom: met één provider zou die niets zeggen. Elke fout
+    wordt één `PaymentProviderException` van vijf soorten (niet ingesteld,
+    sleutel geweigerd, niet gevonden, tijdelijk, geweigerd) met een bericht
+    dat Mygdala zelf schrijft en waarin alles wat op een sleutel lijkt
+    `[redacted]` is.
+  - **Welke sleutel** (`MollieConfiguration`), één keten, zoals bij `AppUrl`:
+    1. `MOLLIE_API_KEY` in de serveromgeving. Die pint de shop: de modus is het
+       voorvoegsel van de sleutel (`test_` of `live_`), Betalingen zegt
+       *Geconfigureerd via serveromgeving*, toont geen sleutelvelden en
+       weigert een sleutel of modus uit een verzoek. Zo blijft een installatie
+       van vóór dit scherm betalen zonder dat iemand iets instelt. De
+       placeholder uit `.env.example` (`test_xxxx…`) telt niet als sleutel.
+    2. De *Test API-sleutel* en *Live API-sleutel* van Shop → Betalingen,
+       versleuteld in `App\Service\Secrets\SecretStore` (`SETUP.md`,
+       "Geheimen in het CMS"), en de gekozen modus
+       (`site_settings.shop_payment_mode`, `test` tot iemand bewust live
+       kiest).
+    3. Niets. Dan weigert `api/checkout.php` meteen (503), vóór een
+       adrescontrole of een bestelling.
+
+    Een opgeslagen sleutel die niet meer te ontsleutelen is, telt als geen
+    sleutel: er wordt nooit met iets anders betaald, en het scherm vraagt hem
+    opnieuw.
+  - **Live alleen na een werkende verbinding.** Live kiezen, of een live shop
+    een nieuwe live-sleutel geven, voert in diezelfde opslag de
+    verbindingstest uit op díe sleutel; weigert Mollie, dan wordt niets
+    geschreven, ook de sleutel niet. Er is geen onthouden "geverifieerd" dat
+    na een sleutelwissel zou blijven staan. Een opgeslagen live-sleutel zet
+    nooit zelf live. De live-sleutel vervangen van een shop die live is en al
+    betalingen had, vraagt een bevestigingsvinkje.
+  - **De verbindingstest** (`MollieConnectionResult`) is één alleen-lezende
+    aanroep, `methods->allEnabled`: geen bestelling, geen betaling, geen
+    terugbetaling, geen webhook. Hij houdt drie soorten problemen uit elkaar:
+    verkeerd ingesteld (geen sleutel, geen sleutelvorm, onleesbaar), sleutel
+    geweigerd (401/403) en Mollie niet bereikbaar (netwerk, time-out, 429,
+    5xx). De statuskaart doet hem bij elke weergave, *Test deze sleutel* ook
+    met een sleutel die nog niet is opgeslagen. Voor wat een beheerder
+    afwacht probeert de SDK één keer opnieuw in plaats van vijf keer.
+  - **Een sleutel komt nooit terug.** Na opslaan toont het scherm alleen
+    `test_••••••••abcd` (voorvoegsel en laatste vier tekens); het veld is
+    leeg, en een leeg veld houdt de opgeslagen sleutel. Geen JSON-antwoord,
+    flash, logregel of redirect bevat een sleutel.
+  - **Betaalmethoden: beschikbaar en aangeboden** (`ShopPaymentMethods`).
+    Beschikbaar is wat Mollie voor de actieve sleutel aan heeft staan, live
+    gevraagd: het enige dat bepaalt wat kán. Aangeboden is de keuze van de
+    eigenaar, opgeslagen als method-id's (`shop_payment_methods`) met de namen
+    die Mollie ze op dat moment in elke ingeschakelde websitetaal gaf
+    (`shop_payment_method_names`), zodat de checkout Mollie bij een
+    paginaweergave niets vraagt. Zonder keuze biedt de checkout precies wat
+    hij altijd bood: iDEAL en creditcard, met hun oude woorden; een update zet
+    dus niets nieuws aan. Een methode gaat alleen aan als Mollie hem nú
+    aanbiedt voor de sleutel die na de opslag actief is; een aangeboden
+    methode die Mollie niet meer aanbiedt mag blijven, gemarkeerd; er blijft
+    er altijd minstens één. `checkout.php` toont de aangeboden methoden in
+    volgorde (de eerste gekozen), `api/checkout.php` accepteert alleen een
+    aangeboden methode (het oude `kaart` blijft creditcard) en geeft hem mee
+    als `method`.
+  - **De webhook** hoeft niemand in Mollie in te stellen: elke betaling geeft
+    `<AppUrl::base()>/api/mollie-webhook.php` mee, nooit de Host-header van het
+    verzoek. Voor een adres dat Mollie niet kan bereiken (localhost,
+    `*.localhost`, `.test`, `.local`, `.internal`, een privé-IP of een naam
+    zonder punt) gaat er geen mee; dan werkt de bestelstatuspagina de
+    bestelling bij, zoals lokaal altijd. Het webhook-antwoord zegt of Mollie
+    opnieuw moet afleveren: **400** voor iets dat geen Mollie-betaal-id is
+    (vóór er iets gevraagd wordt), **200** als het klaar is en ook voor een
+    betaling die niemand kent of die Mollie definitief weigert, **503** met
+    `Retry-After` als Mollie niet bereikbaar is, de sleutel niet werkt of het
+    opslaan faalt. Kent de actieve sleutel een betaling niet, dan vraagt de
+    provider het één keer met de opgeslagen sleutel van de andere modus: een
+    testbetaling van vóór de overstap naar live vindt zo nog steeds haar
+    bestelling.
+  - **Een testbetaling** is de echte checkout in testmodus; Mollie toont dan
+    zijn testpagina waarop je de uitkomst kiest. Er is geen nepcheckout in het
+    CMS. Betalingen legt de acht stappen uit en linkt in testmodus naar de
+    winkel.
+  - **Geen auditlog.** De Shop heeft er geen; het serverlog krijgt
+    `[payments] test API key replaced by admin user #3` en dergelijke, nooit
+    met de sleutel.
+  - Scherm en endpoints: `admin/payments.php` (menu Shop, `settings.manage`
+    plus `ModuleGuard`, zoals Shop-instellingen),
+    `api/admin/update-payment-settings.php` (`PaymentSettingsEditor`,
+    `AdminEditorResponse`), `api/admin/test-payment-connection.php`,
+    `admin/assets/payments.js`. De teksten voor de beheerder, het stappenplan
+    in het Nederlands en het Engels inbegrepen, staan in de catalogus onder
+    `payments.*` en `help.payments.*`.
 - Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`. Een
   factuur wordt één keer uitgegeven, zodra een bestelling betaald is
   (`OrderPaymentSync` → `InvoiceService::issueForOrderIfNeeded()`): een
@@ -505,8 +606,21 @@ Alles wat er ook zou zijn zonder webshop.
   Instellingen, omdat de footer en de mailvoetregel ze ook lezen. Het
   scherm vraagt `settings.manage`, dezelfde permissie als die tabbladen. Dat
   is een Core-permissie die met de Shop uit gewoon houdbaar blijft, dus
-  scherm en endpoint hebben als enige Shop-adminbestanden wél een
-  `ModuleGuard`.
+  scherm en endpoint hebben (samen met Betalingen) wél een `ModuleGuard`.
+
+  **De prefixen van bestel- en factuurnummer** staan in één klasse,
+  `App\Service\DocumentNumberPrefix`, die ook het `pattern` van de velden
+  levert. Het bestelnummerprefix is letters en cijfers (hooguit 10): de
+  formatter zet de streepjes zelf. Het factuurprefix begint met een letter of
+  cijfer, gevolgd door letters, cijfers, `-` en `_` (hooguit 20), zodat
+  `INV-` kan; nooit `/`, `\`, `:`, een punt, aanhalingstekens of spaties,
+  want het factuurnummer is ook de naam van het PDF-bestand. Een gewijzigd
+  ongeldig prefix wordt geweigerd. Een prefix van vóór deze regel wordt niet
+  herschreven en blokkeert geen opslag van de andere factuurteksten: het
+  tabblad Facturen waarschuwt en noemt wat nieuwe facturen gebruiken, namelijk
+  alleen de toegestane tekens (of `INV`). Bestaande facturen, hun nummer en hun
+  `pdf_path` blijven zoals ze zijn; het opslagpad van een nieuwe factuur is
+  altijd `<jaar>/<nummer>.pdf`, met alles buiten `[A-Za-z0-9_-]` als `-`.
 - Retourverzoeken (herroepingsrecht) — `WithdrawalRequestRepository`,
   `herroeping.php`, `api/withdrawal-request.php`,
   `admin/withdrawal-requests.php`, `admin/withdrawal-request.php`,

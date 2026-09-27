@@ -23,7 +23,8 @@ je aan de modulegrens zelf werkt.
 | Module | `src/Module/ShopModule.php` |
 | Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ProductGalleryTransition.php` (de overgang van de productgalerij), `ProductVariantEditor.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php` |
 | Collecties | `src/Service/Collection*.php`, `src/Repository/CollectionRepository.php` |
-| Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `MollieClientFactory.php`, `MolliePaymentData.php` |
+| Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `DocumentNumberPrefix.php` (bestel- en factuurprefix) |
+| Betalingen | `src/Service/Payment/` (het contract `PaymentProvider`, `MolliePaymentProvider`, `MollieConfiguration`, `ShopPaymentMethods`, …), `MollieClientFactory.php`, `MolliePaymentData.php`, `admin/payments.php` + `admin/assets/payments.js`, `api/admin/{update-payment-settings,test-payment-connection}.php`; de testnaad `tests/Support/FakeMollie.php` |
 | Verzending | `src/Service/Shipping/`, `src/Service/Address/`, `src/Repository/{Shipping,Carrier}*.php` |
 | Dashboard | `src/Service/Dashboard*.php`, `src/Repository/DashboardRepository.php`, `admin/_dashboard_shop.php` |
 | Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php`, `admin/_product_{gallery,variants}.php` + `admin/assets/product-{gallery,variants}.js` (de producteditor) |
@@ -34,7 +35,9 @@ je aan de modulegrens zelf werkt.
 | Blokken | `ShopModule::blockDefinitions()` — `product_grid`, `shop_collections` |
 
 **Niet van de Shop**, ook al lijkt het erop: `ProductPersonalizationRepository`
-en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module.
+en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
+`src/Service/Secrets/` (waar de Mollie-sleutels versleuteld staan) is Core
+(`SETUP.md`, "Geheimen in het CMS").
 
 ## De regels die hier gelden
 
@@ -61,6 +64,17 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module.
   reserveren, een bestand schrijven of mailen, en bouw geen tweede
   factuursjabloon: `PdfInvoiceRenderer` is het enige
   (`Tests\Service\InvoicePreviewTest`).
+- **Betalen loopt via het contract.** Checkout, webhook en bestelstatus
+  vragen `PaymentProviders::active()`; alleen `MolliePaymentProvider` en het
+  scherm Betalingen raken de Mollie-SDK. Voeg geen methode aan
+  `PaymentProvider` toe zonder aanroeper, en geen `refund()`
+  (`MODULES.md`, "Betalingen").
+- **Een sleutel komt nooit terug.** Niet in HTML, JSON, flash, log of
+  redirect: alleen de gemaskeerde vorm uit `MollieConfiguration::mask()`.
+  Een leeg sleutelveld houdt de opgeslagen sleutel, en een sleutel in de
+  serveromgeving is door niets in het CMS te vervangen.
+- **Geen test praat met Mollie.** Gebruik `Tests\Support\FakeMollie`
+  (`TESTING.md`).
 - **Raak geen Core-bestand aan om iets van de Shop te regelen.** Core mag
   geen Shop-klasse en geen Shop-assetpad noemen:
   `Tests\Module\ShopDisabledTest` faalt daarop. Moet Core iets weten, voeg

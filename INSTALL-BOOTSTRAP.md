@@ -134,6 +134,17 @@ heeft gezet; zie `MODULES.md`.
 | `builtin`: het automatische overzicht | een kop en het blok `product_grid`, zoals vóór deze instelling | naar `/shop.php` |
 | De Shop staat uit | 404, via `ModuleGuard` | — |
 
+**Een verse installatie kan nog niet betalen, en dat zegt ze.** Migratie
+`20260927140000` maakt de lege tabel `secret_settings`; er wordt geen
+sleutel en geen sleutelbestand gemaakt. Zonder `MOLLIE_API_KEY` in `.env`
+(de placeholder uit `.env.example` telt niet) staat Shop → Betalingen op
+*Niet ingesteld* en weigert de checkout vóór er een bestelling ontstaat. De
+modus is testmodus en de aangeboden betaalmethoden zijn iDEAL en creditcard,
+allebei als code-standaard zonder rij in `site_settings`. Een bestaande
+installatie met een sleutel in `.env` betaalt na de update gewoon door; er
+wordt niets verplaatst. Zie `MODULES.md`, "Betalingen", en `SETUP.md`,
+"Geheimen in het CMS".
+
 `builtin` krijgt alleen een bestaande installatie: de pin-migratie
 `20260923140000` legt vast wat die installatie al toonde (de shoppagina als
 die er is, anders `builtin`), zodat geen live winkeloverzicht verdwijnt bij het
