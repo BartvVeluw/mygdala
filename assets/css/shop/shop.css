@@ -185,10 +185,19 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   background: radial-gradient(circle at 50% 35%, var(--color-surface-hover), var(--color-surface-2));
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow-lift);
+  /* The gallery's stage (assets/js/shop/product-gallery.js): a sliding
+     picture is clipped here, so it never widens the page, and a vertical
+     drag still scrolls the page while a sideways one is a swipe. */
+  overflow: hidden;
+  isolation: isolate;
+  touch-action: pan-y pinch-zoom;
 }
 .product-detail__media svg{ width: 28%; height: 28%; color: var(--color-primary); }
 .product-detail__badge{ position: absolute; top: var(--sp-3); left: var(--sp-3); background: var(--color-primary); color: var(--color-on-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.35rem 0.8rem; border-radius: 999px; }
-.product-detail__gallery{ display: flex; flex-direction: column; gap: var(--sp-3); }
+/* min-width: 0 lets the grid column shrink below the width of the
+   thumbnail row, so five or more thumbnails scroll sideways inside it
+   instead of widening the whole page on a phone. */
+.product-detail__gallery{ display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 
 /* Thumbnails always sit below the main image, in a horizontal row — never
    beside it — and scroll horizontally on narrow screens instead of
@@ -225,21 +234,40 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 }
 .product-detail__thumb:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 3px; }
 
-/* The big picture fits its square frame, so a tall photo never changes the
-   height of the page. Changing it is a short fade with a hint of scale
-   (assets/js/shop/shop.js), never a slide or a resize. */
+/* The big picture is ALWAYS shown whole: `contain` inside the square
+   frame, never cropped and never stretched, so a tall or a wide photo
+   leaves the frame's own themed surface around it and never changes the
+   height of the page. The padding keeps it clear of the frame's rounded
+   corners, which would otherwise cut the corners off a square photo; it
+   grows with --radius-lg, so a rounder theme stays clear too. The
+   thumbnails below deliberately `cover` their small squares instead.
+
+   Changing picture (assets/js/shop/product-gallery.js) puts the next
+   picture on top of the current one inside the same frame; the stage's
+   data-gallery-transition, one of none/fade/slide, picks the rule below.
+   .is-transitioning is only on the stage while a change runs, so settling
+   a change early never animates. */
 .product-detail__main-img{
   position: absolute; inset: 0;
   width: 100%; height: 100%;
+  box-sizing: border-box;
+  padding: max(var(--sp-1), calc(var(--radius-lg) * 0.3));
   object-fit: contain;
-  border-radius: inherit;
-  transition: opacity 160ms var(--ease-out), transform 220ms var(--ease-out);
+  object-position: center;
 }
-.product-detail__main-img.is-leaving{ opacity: 0; transform: scale(0.985); }
-.product-detail__main-img.is-entering{ opacity: 0; transform: scale(1.015); }
+.product-detail__media.is-transitioning .product-detail__main-img{
+  transition: opacity 260ms var(--ease-out), transform 340ms var(--ease-out);
+}
+[data-gallery-transition="fade"] .product-detail__main-img.is-entering,
+[data-gallery-transition="fade"] .product-detail__main-img.is-leaving{ opacity: 0; }
+[data-gallery-transition="slide"] .product-detail__main-img.is-entering[data-direction="next"],
+[data-gallery-transition="slide"] .product-detail__main-img.is-leaving[data-direction="prev"]{ transform: translateX(100%); }
+[data-gallery-transition="slide"] .product-detail__main-img.is-entering[data-direction="prev"],
+[data-gallery-transition="slide"] .product-detail__main-img.is-leaving[data-direction="next"]{ transform: translateX(-100%); }
 @media (prefers-reduced-motion: reduce){
   .product-detail__thumb,
-  .product-detail__main-img{ transition: none; }
+  .product-detail__main-img,
+  .product-detail__media.is-transitioning .product-detail__main-img{ transition: none; }
   .product-detail__thumb:hover,
   .product-detail__thumb:focus-visible{ transform: none; }
 }

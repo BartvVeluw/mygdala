@@ -115,6 +115,15 @@ $shopPurchasable = $productId > 0 && $seo !== null
 $unorderable = !$shopPurchasable && $personalization === null;
 
 /**
+ * How the gallery changes picture: this product's own choice, else the
+ * Shop's default (App\Service\ProductGalleryTransition — the one place that
+ * decides it). Always one of none/fade/slide, written into the gallery's
+ * data-gallery-transition for assets/js/shop/product-gallery.js, which checks
+ * it against the same three words again.
+ */
+$galleryTransition = \App\Service\ProductGalleryTransition::forProduct($seo !== null ? $productId : 0);
+
+/**
  * The quantity stepper plus the add-to-cart button. Rendered exactly once per
  * page — that is the whole point of it being a function.
  */
@@ -192,6 +201,9 @@ if ($personalization !== null) {
     \App\Service\PageAssets::requireScript('assets/js/personalization.js');
 }
 \App\Service\PageAssets::requireStyle('assets/css/shop/shop.css');
+// The gallery controller first: shop.js hands it the pictures once the
+// product has loaded.
+\App\Service\PageAssets::requireScript('assets/js/shop/product-gallery.js');
 \App\Service\PageAssets::requireScript('assets/js/shop/shop.js');
 require __DIR__ . '/partials/page-assets.php';
 ?>
@@ -234,7 +246,12 @@ require __DIR__ . '/partials/header.php';
 
       <div class="product-detail" data-product-content hidden>
 
-        <div class="product-detail__gallery">
+        <?php /* The big picture's frame is the gallery's STAGE: it keeps its
+                 square whatever picture is on show, holds the outgoing and
+                 the incoming picture during a transition, and is where a
+                 swipe is read (assets/js/shop/product-gallery.js). The
+                 thumbnails are real buttons and always work too. */ ?>
+        <div class="product-detail__gallery" data-product-gallery data-gallery-transition="<?= htmlspecialchars($galleryTransition, ENT_QUOTES, 'UTF-8') ?>">
           <div class="product-detail__media" data-product-media></div>
           <div class="product-detail__thumbs" data-product-thumbs hidden></div>
         </div>
