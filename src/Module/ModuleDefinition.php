@@ -125,6 +125,20 @@ abstract class ModuleDefinition
     }
 
     /**
+     * This module's permissions that only a Super Admin may hand out or take
+     * away, next to Core's own (App\Service\AdminPermissions::superAdminGrantableOnly()).
+     * For a permission whose holder could do the owner real harm — the Shop's
+     * payments.manage decides which Mollie account the money goes to. Every
+     * name must be one of this module's permissionGroups().
+     *
+     * @return list<string>
+     */
+    public function superAdminGrantablePermissions(): array
+    {
+        return [];
+    }
+
+    /**
      * Permissions that imply other permissions, e.g. "manage" implying
      * "view" — App\Service\AdminPermissions::IMPLIES for this module.
      *

@@ -20,10 +20,9 @@
  * key: a refused save keeps nothing typed in the session, the messages come
  * from the catalog, and the log says only WHAT changed and by whom.
  *
- * The guards first, in their order (api/admin/CLAUDE.md). settings.manage
- * is Core's permission and stays holdable with the Shop switched off, so
- * like api/admin/update-shop-settings.php this Shop endpoint also carries a
- * ModuleGuard.
+ * The guards first, in their order (api/admin/CLAUDE.md): payments.manage,
+ * which only a Super Admin can grant (ShopModule::PAYMENTS_MANAGE), and a
+ * ModuleGuard in front of it.
  */
 
 declare(strict_types=1);
@@ -48,7 +47,7 @@ use App\Service\SiteSettings;
 ModuleGuard::requireApi('shop');
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('settings.manage');
+AdminAuth::requirePermissionForApi('payments.manage');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');

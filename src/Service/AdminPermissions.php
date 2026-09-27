@@ -94,15 +94,38 @@ class AdminPermissions
     public const MEDIA_MANAGE = 'media.manage';
 
     /**
-     * Permissions only a Super Admin may hand out or take away. A user with
-     * users.manage can create colleagues and adjust their content
+     * Core's permissions only a Super Admin may hand out or take away. A user
+     * with users.manage can create colleagues and adjust their content
      * permissions, but can never widen the circle of people who manage users
      * — that stays the owner's decision. See App\Service\AdminUserService.
+     * A module adds its own through
+     * ModuleDefinition::superAdminGrantablePermissions(); the full list is
+     * superAdminGrantableOnly().
      */
     public const SUPER_ADMIN_GRANTABLE_ONLY = [
         self::USERS_MANAGE,
         self::UPDATES_MANAGE,
     ];
+
+    /**
+     * Every permission only a Super Admin may hand out or take away: Core's
+     * plus those of every registered module, switched on or off, so a grant
+     * cannot slip through while its module happens to be off.
+     *
+     * @return list<string>
+     */
+    public static function superAdminGrantableOnly(): array
+    {
+        $restricted = self::SUPER_ADMIN_GRANTABLE_ONLY;
+
+        foreach (ModuleRegistry::all() as $module) {
+            foreach ($module->superAdminGrantablePermissions() as $permission) {
+                $restricted[] = $permission;
+            }
+        }
+
+        return array_values(array_unique($restricted));
+    }
 
     /**
      * The permission checkboxes Core itself has, in the order and grouping

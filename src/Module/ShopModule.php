@@ -51,6 +51,16 @@ final class ShopModule extends ModuleDefinition
     public const ORDERS_VIEW = 'orders.view';
     public const ORDERS_MANAGE = 'orders.manage';
 
+    /**
+     * Shop → Betalingen: the Mollie API keys, test or live, and the payment
+     * methods (MODULES.md, "Betalingen"). Whoever holds it decides which
+     * Mollie account customers pay into, so it is its own grant rather than
+     * part of settings.manage, and only a Super Admin can hand it out
+     * (superAdminGrantablePermissions()). Nobody holds it after an update
+     * except the Super Admins, who hold everything.
+     */
+    public const PAYMENTS_MANAGE = 'payments.manage';
+
     /** The item-gallery source key this module contributes. */
     public const GALLERY_SOURCE_COLLECTION = 'collection';
 
@@ -169,14 +179,14 @@ final class ShopModule extends ModuleDefinition
             ],
             [
                 // Mollie: the keys, test or live, and the setup guide
-                // (MODULES.md, "Betalingen"). settings.manage like
-                // Shop-instellingen, so no new permission; the screen and
-                // its endpoints carry a ModuleGuard for the same reason.
+                // (MODULES.md, "Betalingen"). Its own permission, which only
+                // a Super Admin can grant: whoever holds it decides where
+                // the money goes.
                 'key' => 'payments',
                 'label' => 'Betalingen',
                 'url' => '/admin/payments.php',
                 'icon' => 'payments',
-                'permission' => AdminPermissions::SETTINGS_MANAGE,
+                'permission' => self::PAYMENTS_MANAGE,
                 'order' => 365,
                 'scripts' => ['payments.php'],
                 'menu' => self::ADMIN_MENU,
@@ -227,6 +237,10 @@ final class ShopModule extends ModuleDefinition
                         'label' => 'Verzending beheren',
                         'description' => 'Verzendzones, verzendtarieven en de PostNL-carriertarieven.',
                     ],
+                    self::PAYMENTS_MANAGE => [
+                        'label' => 'Betalingen beheren',
+                        'description' => 'De Mollie-sleutels, test of live en de betaalmethoden. Bepaalt op welk Mollie-account klanten betalen; alleen een Super Admin kan dit toekennen.',
+                    ],
                 ],
             ],
             [
@@ -244,6 +258,11 @@ final class ShopModule extends ModuleDefinition
                 ],
             ],
         ];
+    }
+
+    public function superAdminGrantablePermissions(): array
+    {
+        return [self::PAYMENTS_MANAGE];
     }
 
     public function permissionImplications(): array

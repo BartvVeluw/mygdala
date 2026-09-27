@@ -3366,4 +3366,6 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'validation.factuurprefix_ongeldig' => 'The invoice number prefix may only contain letters, digits, - and _, must start with a letter or digit and is at most 20 characters long.',
     'shop_settings.invoice_prefix_legacy' => 'The current prefix ":prefix" contains characters an invoice number must not have, such as / or :. New invoices therefore use ":used". Existing invoices stay exactly as they are. Choose a prefix with only letters, digits, - and _ to resolve this.',
     'payments.testpay.note' => 'Good to know: a test order is an ordinary order in your webshop. It then appears under Shop → Orders and, once "paid", gets an invoice with a number from your normal sequence and a confirmation email. So make as few test orders as you need, preferably before you go live, and recognise them by your own name and email address.',
+    'perm.payments.manage.label' => 'Manage payments',
+    'perm.payments.manage.description' => 'The Mollie keys, test or live, and the payment methods. Decides which Mollie account customers pay into; only a Super Admin can grant this.',
 ];

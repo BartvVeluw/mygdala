@@ -198,12 +198,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php foreach (AdminPermissions::groupsForDisplay() as $group): ?>
           <?php
             $groupPermissions = $group['permissions'];
-            // Only a Super Admin may hand out users.manage, so a
-            // users.manage holder never even sees the checkbox.
+            // Only a Super Admin may hand out users.manage, updates.manage
+            // and payments.manage, so anybody else never even sees their
+            // checkboxes (AdminPermissions::superAdminGrantableOnly()).
             if (!$actorIsSuperAdmin) {
+                $superAdminOnly = AdminPermissions::superAdminGrantableOnly();
                 $groupPermissions = array_filter(
                     $groupPermissions,
-                    static fn (string $permission): bool => !in_array($permission, AdminPermissions::SUPER_ADMIN_GRANTABLE_ONLY, true),
+                    static fn (string $permission): bool => !in_array($permission, $superAdminOnly, true),
                     ARRAY_FILTER_USE_KEY
                 );
             }

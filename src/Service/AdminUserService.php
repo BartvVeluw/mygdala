@@ -19,7 +19,7 @@ use App\Repository\AdminUserRepository;
  *
  *  - Only a Super Admin may create or edit another Super Admin.
  *  - Only a Super Admin may set is_super_admin, or grant/revoke the
- *    permissions in AdminPermissions::SUPER_ADMIN_GRANTABLE_ONLY. Anyone
+ *    permissions in AdminPermissions::superAdminGrantableOnly(). Anyone
  *    else's attempt is ignored (the stored value stays what it was) and
  *    logged — a crafted POST can therefore never widen its own author's
  *    reach.
@@ -339,14 +339,16 @@ class AdminUserService
             return AdminPermissions::sanitize(array_merge($requested, $disabledModuleGrants));
         }
 
+        $superAdminOnly = AdminPermissions::superAdminGrantableOnly();
+
         $resolved = array_values(array_filter(
             $requested,
-            static fn (string $permission): bool => !in_array($permission, AdminPermissions::SUPER_ADMIN_GRANTABLE_ONLY, true)
+            static fn (string $permission): bool => !in_array($permission, $superAdminOnly, true)
         ));
 
         $resolved = array_merge($resolved, $disabledModuleGrants);
 
-        foreach (AdminPermissions::SUPER_ADMIN_GRANTABLE_ONLY as $restricted) {
+        foreach ($superAdminOnly as $restricted) {
             $held = in_array($restricted, $current, true);
 
             if ($held) {

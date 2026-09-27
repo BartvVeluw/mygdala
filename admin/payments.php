@@ -50,13 +50,15 @@ use App\Service\ShopOverview;
  * and shows the answer, and without the script the same buttons post the
  * form there (`formaction`). A typed key travels in a POST body only.
  *
- * THE GUARD is settings.manage, like Shop-instellingen, plus a ModuleGuard
- * because that permission is Core's and survives the Shop being switched off.
+ * THE GUARD is payments.manage (ShopModule::PAYMENTS_MANAGE), not
+ * settings.manage: whoever holds it decides which Mollie account customers
+ * pay into, so only a Super Admin can grant it. The ModuleGuard stays in
+ * front, as on every Shop screen that was reachable with a Core permission.
  */
 
 ModuleGuard::requireAdmin('shop');
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('settings.manage');
+AdminAuth::requirePermission('payments.manage');
 
 $errors = $_SESSION['admin_payments_errors'] ?? [];
 $testFlash = $_SESSION['admin_payments_test_result'] ?? null;

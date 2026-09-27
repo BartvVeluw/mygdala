@@ -3376,4 +3376,6 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'validation.factuurprefix_ongeldig' => 'Het voorvoegsel van het factuurnummer mag alleen letters, cijfers, - en _ bevatten, moet met een letter of cijfer beginnen en is maximaal 20 tekens lang.',
     'shop_settings.invoice_prefix_legacy' => 'Het huidige voorvoegsel ":prefix" bevat tekens die niet in een factuurnummer mogen, zoals / of :. Nieuwe facturen gebruiken daarom ":used". Bestaande facturen blijven precies zoals ze zijn. Kies een voorvoegsel met alleen letters, cijfers, - en _ om dit op te lossen.',
     'payments.testpay.note' => 'Goed om te weten: een testbestelling is een gewone bestelling in je webshop. Hij staat daarna in Shop → Bestellingen, en krijgt bij "betaald" een factuur met een nummer uit je gewone reeks en een bevestigingsmail. Doe daarom zo weinig testbestellingen als nodig, het liefst vóórdat je live gaat, en herken ze aan je eigen naam en e-mailadres.',
+    'perm.payments.manage.label' => 'Betalingen beheren',
+    'perm.payments.manage.description' => 'De Mollie-sleutels, test of live en de betaalmethoden. Bepaalt op welk Mollie-account klanten betalen; alleen een Super Admin kan dit toekennen.',
 ];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Database;
+use App\Module\ShopModule;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminPermissions;
 use App\Service\Payment\MollieConfiguration;
@@ -21,7 +22,7 @@ use Tests\Support\FakeMollie;
  * server): admin/payments.php, api/admin/update-payment-settings.php and
  * api/admin/test-payment-connection.php.
  *
- *  - the guards: signed out, without settings.manage, with the Shop off,
+ *  - the guards: signed out, without payments.manage, with the Shop off,
  *    without the CSRF token, and a GET;
  *  - the editor contract: 422 with messages keyed by field, 200 when saved,
  *    and the redirect with a flash for a form posted without the script;
@@ -191,7 +192,7 @@ final class PaymentSettingsHttpTest extends TestCase
 
     public function testTheTokenAndThePostAreRequired(): void
     {
-        [$session] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+        [$session] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);
 
         $this->assertSame(403, self::$shop->request('POST', '/api/admin/update-payment-settings.php', $session, ['test_api_key' => self::TEST_KEY], [], ['Accept: application/json'])['status']);
         $this->assertSame(403, self::$shop->request('POST', '/api/admin/test-payment-connection.php', $session, ['test_mode' => 'test', 'test_api_key' => self::TEST_KEY], [], ['Accept: application/json'])['status']);
@@ -202,7 +203,7 @@ final class PaymentSettingsHttpTest extends TestCase
 
     public function testASavedKeyIsStoredAndNeverShownAgain(): void
     {
-        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+        [$session, $csrf] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);
 
         $saved = $this->save($session, $csrf, ['test_api_key' => self::TEST_KEY, 'payment_mode' => 'test']);
         $this->assertSame(200, $saved['status']);
@@ -226,7 +227,7 @@ final class PaymentSettingsHttpTest extends TestCase
 
     public function testARefusedSaveNamesTheFieldAndNeverRepeatsTheKey(): void
     {
-        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+        [$session, $csrf] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);
 
         $refused = $this->save($session, $csrf, ['test_api_key' => 'live_' . substr(self::TEST_KEY, 5)]);
         $this->assertSame(422, $refused['status']);
@@ -250,7 +251,7 @@ final class PaymentSettingsHttpTest extends TestCase
 
     public function testTheConnectionTestIsReadOnlyAndNeverEchoesTheKey(): void
     {
-        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+        [$session, $csrf] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);
         $settingsBefore = Database::connection()->query('SELECT setting_key, setting_value, updated_at FROM site_settings ORDER BY setting_key')->fetchAll();
 
         $cases = [
@@ -280,7 +281,7 @@ final class PaymentSettingsHttpTest extends TestCase
 
     public function testAKeyInTheEnvironmentIsShownAsSuchAndCannotBeReplaced(): void
     {
-        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+        [$session, $csrf] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);
 
         $page = self::$pinned->request('GET', '/admin/payments.php', $session);
         $this->assertSame(200, $page['status']);
@@ -301,7 +302,7 @@ final class PaymentSettingsHttpTest extends TestCase
 
     public function testMethodsAreSavedFromWhatMollieOffers(): void
     {
-        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+        [$session, $csrf] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);
         $this->save($session, $csrf, ['test_api_key' => self::TEST_KEY]);
 
         $page = self::$shop->request('GET', '/admin/payments.php', $session)['body'];

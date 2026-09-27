@@ -25,7 +25,9 @@
  * outcome comes back as a session flash on the screen; what was typed is not
  * kept.
  *
- * The four guards first; the ModuleGuard as on update-payment-settings.php.
+ * The four guards first, with payments.manage: a typed key is a credential
+ * even when it is only tested. The ModuleGuard as on
+ * update-payment-settings.php.
  */
 
 declare(strict_types=1);
@@ -44,7 +46,7 @@ use App\Service\Payment\MolliePaymentProvider;
 ModuleGuard::requireApi('shop');
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('settings.manage');
+AdminAuth::requirePermissionForApi('payments.manage');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
