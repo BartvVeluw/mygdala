@@ -722,6 +722,7 @@
             <file>tests/Service/InvoiceAdminSecurityTest.php</file>
             <file>tests/Service/InvoicePreviewHttpTest.php</file>
             <file>tests/Service/InvoicePreviewTest.php</file>
+            <file>tests/Service/InvoicePrefixTest.php</file>
             <file>tests/Service/InvoiceServiceTest.php</file>
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/OrderConfirmationInvoiceTest.php</file>

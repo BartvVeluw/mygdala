@@ -104,7 +104,7 @@ class InvoiceService
             // below never runs (nothing committed, no number "spent").
             $pdfBytes = $this->renderer->render($order, $customer, $items, $sellerSnapshot, $invoiceNumber, $invoiceDate, $orderNumber);
 
-            $relativePath = $year . '/' . $invoiceNumber . '.pdf';
+            $relativePath = self::storagePath($year, $invoiceNumber);
             $invoiceId = $this->invoices->create(
                 $orderId,
                 $invoiceNumber,
@@ -249,8 +249,24 @@ class InvoiceService
             'tax_note' => $settings['invoice_tax_note'],
             'footer_text' => $settings['invoice_footer_text'],
             'payment_note' => $settings['invoice_payment_note'],
-            'invoice_number_prefix' => $settings['invoice_number_prefix'],
+            // What this invoice is numbered with: the setting, or — for a
+            // prefix stored before App\Service\DocumentNumberPrefix existed
+            // — only its allowed characters, so no new number (and no file
+            // name) carries a "/" or ":". An issued invoice keeps its own.
+            'invoice_number_prefix' => DocumentNumberPrefix::invoicePrefixForNewInvoice($settings['invoice_number_prefix']),
         ];
+    }
+
+    /**
+     * The file a NEW invoice's PDF is stored under, relative to
+     * InvoiceStorage: "<year>/<number>.pdf". Anything outside
+     * [A-Za-z0-9_-] in the number becomes "-", a second line behind
+     * DocumentNumberPrefix: a number is a file name here, never a path. An
+     * issued invoice's stored `pdf_path` stays what it is.
+     */
+    public static function storagePath(int $year, string $invoiceNumber): string
+    {
+        return $year . '/' . preg_replace('/[^A-Za-z0-9_-]/', '-', $invoiceNumber) . '.pdf';
     }
 
     /**

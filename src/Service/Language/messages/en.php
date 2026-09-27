@@ -986,7 +986,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'help.shop_settings.vat_id' => "Your VAT identification number, if you have one, for example NL123456789B01.\n\nIf you do not charge VAT, for instance because you use the small-business scheme, leave it empty.",
     'help.shop_settings.website' => "The web address shown on the invoice, for example www.yourshop.com. Leave it empty if you do not want one.",
     'help.shop_settings.invoices' => "The webshop makes an invoice itself as soon as an order is paid. Here you choose how the invoice number begins and a few fixed texts on the invoice.",
-    'help.shop_settings.invoice_prefix' => "The letters before every invoice number. With <strong>INV</strong> an invoice number looks like INV2026-000001: the webshop adds the year and the sequence number itself.\n\nIf you leave it empty, INV is used. A change only applies to new invoices.",
+    'help.shop_settings.invoice_prefix' => "The letters before every invoice number. With <strong>INV</strong> an invoice number looks like INV2026-000001: the webshop adds the year and the sequence number itself. Want a dash between the letters and the year? Type <strong>INV-</strong>.\n\nUse letters, digits, - and _ (at most 20 characters, starting with a letter or digit); a / or : is not possible, because the invoice number is also the name of the PDF file. If you leave it empty, INV is used. A change only applies to new invoices.",
     'help.shop_settings.invoice_tax_note' => "A fixed sentence about VAT or other rules that must be on every invoice, for example that you use the small-business scheme (KOR).\n\nOnly fill this in if you are sure what belongs there. If you leave it empty, nothing is shown.",
     'help.shop_settings.invoice_payment_note' => "A short sentence about the payment, for example <em>Paid with iDEAL.</em> If you leave it empty, nothing is shown.",
     'help.shop_settings.invoice_footer_text' => "Small text at the very bottom of the invoice, a thank-you for example. If you leave it empty, nothing is shown.",
@@ -3363,4 +3363,6 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'payments.error.methods_invalid' => 'An unknown payment method was sent. Reload the page and try again.',
     'payments.error.methods_unverifiable' => 'Mollie cannot be reached right now, so new payment methods cannot be checked. You can switch methods off; switching them on is possible once the connection works.',
     'payments.error.method_unavailable' => 'The payment method :method is not switched on in your Mollie account. Switch it on in your Mollie dashboard first.',
+    'validation.factuurprefix_ongeldig' => 'The invoice number prefix may only contain letters, digits, - and _, must start with a letter or digit and is at most 20 characters long.',
+    'shop_settings.invoice_prefix_legacy' => 'The current prefix ":prefix" contains characters an invoice number must not have, such as / or :. New invoices therefore use ":used". Existing invoices stay exactly as they are. Choose a prefix with only letters, digits, - and _ to resolve this.',
 ];

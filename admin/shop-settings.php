@@ -9,6 +9,7 @@ require_once __DIR__ . '/_save_bar.php';
 
 use App\Mail\EmailPlaceholders;
 use App\Mail\OrderConfirmationBuilder;
+use App\Service\DocumentNumberPrefix;
 use App\Module\ModuleGuard;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -77,6 +78,16 @@ $fromSiteSettings = [
     'common.email_address' => $stored['email'],
     'settings.telefoonnummer' => $stored['company_phone'],
 ];
+
+/*
+ * An invoice prefix stored before App\Service\DocumentNumberPrefix existed
+ * may hold a character a number must not ("/", ":"). It is not rewritten:
+ * the Facturen tab says so and names what new invoices use, and the browser
+ * check is left off while it is the stored value, so saving the other
+ * invoice texts is not blocked by it.
+ */
+$storedInvoicePrefix = (string) ($stored['invoice_number_prefix'] ?? '');
+$invoicePrefixIsLegacy = $storedInvoicePrefix !== '' && !DocumentNumberPrefix::isValidInvoicePrefix($storedInvoicePrefix);
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -179,9 +190,12 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       <div class="admin-form-row admin-form-row--split">
         <div class="admin-field">
           <?= admin_field_label('shop-invoice-prefix', admin_t('shop_settings.invoice_prefix'), admin_t('help.shop_settings.invoice_prefix')) ?>
-          <input type="text" id="shop-invoice-prefix" name="invoice_number_prefix" maxlength="20" value="<?= $v('invoice_number_prefix') ?>">
+          <input type="text" id="shop-invoice-prefix" name="invoice_number_prefix" maxlength="20"<?= $invoicePrefixIsLegacy ? '' : ' pattern="' . $h(DocumentNumberPrefix::INVOICE) . '"' ?> value="<?= $v('invoice_number_prefix') ?>">
         </div>
       </div>
+      <?php if ($invoicePrefixIsLegacy): ?>
+        <p class="admin-alert admin-alert--warning"><?= admin_te('shop_settings.invoice_prefix_legacy', ['prefix' => $storedInvoicePrefix, 'used' => DocumentNumberPrefix::invoicePrefixForNewInvoice($storedInvoicePrefix)]) ?></p>
+      <?php endif; ?>
 
       <div class="admin-form-row">
         <div class="admin-field">
@@ -219,7 +233,7 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       <div class="admin-form-row admin-form-row--split">
         <div class="admin-field">
           <?= admin_field_label('shop-order-prefix', admin_t('shop_settings.order_prefix'), admin_t('help.shop_settings.order_prefix')) ?>
-          <input type="text" id="shop-order-prefix" name="order_number_prefix" maxlength="10" pattern="[A-Za-z0-9]{1,10}" value="<?= $v('order_number_prefix') ?>">
+          <input type="text" id="shop-order-prefix" name="order_number_prefix" maxlength="10" pattern="<?= $h(DocumentNumberPrefix::ORDER) ?>" value="<?= $v('order_number_prefix') ?>">
         </div>
       </div>
 

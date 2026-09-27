@@ -122,9 +122,25 @@ final class ShopSettings
          */
         if (
             ($values['order_number_prefix'] ?? '') !== ''
-            && preg_match('/^[A-Za-z0-9]{1,10}$/', $values['order_number_prefix']) !== 1
+            && !DocumentNumberPrefix::isValidOrderPrefix($values['order_number_prefix'])
         ) {
             $errors[] = AdminTranslator::trans('validation.bestelnummerprefix_ongeldig');
+        }
+
+        /*
+         * The invoice-number prefix (App\Service\DocumentNumberPrefix): it
+         * names the invoice's PDF in private storage and the mail attachment,
+         * so no "/", ":", dot, quote or space. On a CHANGED value only, for
+         * the reason above: a prefix stored before this rule must not make an
+         * unrelated save of the Facturen tab fail. The screen warns about
+         * such a value instead, and says what new invoices use.
+         */
+        if (
+            ($values['invoice_number_prefix'] ?? '') !== ''
+            && $values['invoice_number_prefix'] !== ($current['invoice_number_prefix'] ?? '')
+            && !DocumentNumberPrefix::isValidInvoicePrefix($values['invoice_number_prefix'])
+        ) {
+            $errors[] = AdminTranslator::trans('validation.factuurprefix_ongeldig');
         }
 
         /*
