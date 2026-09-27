@@ -110,6 +110,8 @@
             <file>tests/Update/ReleaseManifestTest.php</file>
             <file>tests/Service/AdminEditorResponseTest.php</file>
             <file>tests/Service/ProductGalleryTransitionTest.php</file>
+            <file>tests/Service/Secrets/MasterKeyTest.php</file>
+            <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -327,6 +329,8 @@
             <file>tests/Service/AdminEditorContractTest.php</file>
             <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Module/AdminSidebarMenuTest.php</file>
+            <file>tests/Service/Secrets/MasterKeyTest.php</file>
+            <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test
@@ -395,6 +399,7 @@
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
+            <file>tests/Install/SecretSettingsMigrationTest.php</file>
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
             <file>tests/Install/CtaBandMigrationTest.php</file>
@@ -686,6 +691,8 @@
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Service/AdminEditorResponseTest.php</file>
             <file>tests/Service/AdminEditorContractTest.php</file>
+            <file>tests/Service/Secrets/MasterKeyTest.php</file>
+            <file>tests/Service/Secrets/SecretStoreTest.php</file>
         </testsuite>
 
         <testsuite name="shop">
@@ -703,6 +710,7 @@
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
+            <file>tests/Install/SecretSettingsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <directory>tests/Service/Address</directory>
             <file>tests/Service/CollectionAddressEditorTest.php</file>
@@ -749,6 +757,13 @@
             <file>tests/Service/ProductGalleryTransitionHttpTest.php</file>
             <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Service/AdminSidebarMenuHttpTest.php</file>
+            <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
+            <file>tests/Service/Payment/MollieConfigurationTest.php</file>
+            <file>tests/Service/Payment/MolliePaymentProviderTest.php</file>
+            <file>tests/Service/Payment/PaymentSettingsEditorTest.php</file>
+            <file>tests/Service/PaymentSettingsHttpTest.php</file>
+            <file>tests/Service/MollieWebhookHttpTest.php</file>
+            <file>tests/Service/CheckoutPaymentMethodsHttpTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">
