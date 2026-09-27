@@ -102,6 +102,7 @@ final class ShopDisabledTest extends TestCase
                 'forms',
                 'content_blocks',
                 'catalog',
+                'specifications',
                 'collections',
                 'related_products',
                 'personalization',

@@ -778,6 +778,7 @@
             <file>tests/Service/PurchaseModeHttpTest.php</file>
             <file>tests/Service/OrderFieldsTest.php</file>
             <file>tests/Service/OrderFieldsHttpTest.php</file>
+            <file>tests/Service/ProductSpecificationsTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

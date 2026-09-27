@@ -332,6 +332,19 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .cart-order-fields{ margin: 0.25rem 0 0; display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.8rem; color: var(--color-text-muted); }
 .cart-order-fields b{ font-weight: 600; color: var(--color-text); }
 .cart-order-fields--compact{ font-size: 0.75rem; }
+
+/* Specificaties on the product page (App\Service\ProductSpecifications):
+   a quiet two-column list, name and value on one line, that stacks on a
+   narrow phone. Only rows with a value are ever printed. */
+.product-specs{ margin: var(--sp-4) 0 var(--sp-3); }
+.product-specs__heading{ font-size: 1rem; margin: 0 0 var(--sp-2); }
+.product-specs__list{ margin: 0; border-top: 1px solid var(--color-line); }
+.product-specs__row{ display: grid; grid-template-columns: minmax(8rem, 40%) 1fr; gap: var(--sp-3); padding: 0.5rem 0; border-bottom: 1px solid var(--color-line); font-size: 0.9rem; }
+.product-specs__row dt{ color: var(--color-text-muted); }
+.product-specs__row dd{ margin: 0; color: var(--color-text); overflow-wrap: anywhere; }
+@media (max-width: 420px){
+  .product-specs__row{ grid-template-columns: 1fr; gap: 0.1rem; }
+}
 .cart-row__problem,
 .checkout-summary-item__problem{ display: block; margin: 0.25rem 0 0; font-size: 0.8rem; font-weight: 600; color: #F0897E; }
 .cart-row--problem .cart-row__media{ opacity: 0.6; }

@@ -11,6 +11,7 @@ require_once __DIR__ . '/_admin_editor.php';
 require_once __DIR__ . '/_admin_collapse.php';
 require_once __DIR__ . '/_product_inventory.php';
 require_once __DIR__ . '/_product_order_fields.php';
+require_once __DIR__ . '/_product_specifications.php';
 
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
@@ -259,6 +260,29 @@ if ($isEdit) {
                 'id' => $option['id'],
                 'label' => ShopLocalization::rawOrderFieldOption($option['id'], $editingLanguage),
             ], $storedField['options']),
+        ];
+    }
+}
+
+// The product's specifications (Shop Product & Ordering 2.0): the library's
+// properties it has, in its order, each value in the language being edited,
+// and the library itself for the picker of a new row.
+$specificationLibrary = [];
+$specificationRows = [];
+if ($isEdit) {
+    $specificationRepository = new \App\Repository\ProductSpecificationRepository();
+    $specificationLibrary = $specificationRepository->all();
+    ShopLocalization::preloadSpecifications(array_column($specificationLibrary, 'id'));
+    $storedSpecificationValues = $specificationRepository->valuesForProduct((int) $product['id']);
+    ShopLocalization::preloadSpecificationValues(array_column($storedSpecificationValues, 'id'));
+    foreach ($storedSpecificationValues as $storedValue) {
+        $specificationRows[] = [
+            'id' => $storedValue['id'],
+            'specification_id' => $storedValue['specification_id'],
+            'name' => ShopLocalization::specificationAdminName($storedValue['specification_id']),
+            'unit' => $storedValue['unit'],
+            'value' => ShopLocalization::rawSpecificationValue($storedValue['id'], $editingLanguage),
+            'placeholder' => ShopLocalization::specificationValue($storedValue['id'], $editingLanguage),
         ];
     }
 }
@@ -512,6 +536,29 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
                      hang off it: saving this form creates it and opens its
                      own editor, where this section is complete. */ ?>
             <p class="admin-text-muted"><?= admin_te('shop.editor.variants_after_create') ?></p>
+          <?php endif; ?>
+        </div>
+      </details>
+    </section>
+
+    <?php /* Specificaties (Shop Product & Ordering 2.0): properties from the
+             library (Shop → Specificaties) with this product's values. */ ?>
+    <section class="admin-card admin-editor-section" data-admin-editor-section="specifications">
+      <details class="admin-collapse admin-collapse--card" id="product-specifications-section" data-admin-collapse-id="specifications" open<?= $sectionForcedOpen ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h2 class="admin-collapse__title"><?= admin_te('shop.specifications.heading') ?></h2>
+          <span class="admin-collapse__badges">
+            <span class="admin-badge" title="<?= admin_te('shop.specifications.count') ?>"><?= count($specificationRows) ?><span class="admin-visually-hidden"> <?= admin_te('shop.specifications.count') ?></span></span>
+          </span>
+        </summary>
+        <div class="admin-collapse__body">
+          <?php if ($isEdit): ?>
+            <div data-admin-editor-region="specifications">
+              <?php product_specifications_section($specificationRows, $specificationLibrary); ?>
+            </div>
+          <?php else: ?>
+            <p class="admin-text-muted"><?= admin_te('shop.specifications.after_create') ?></p>
           <?php endif; ?>
         </div>
       </details>

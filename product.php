@@ -143,6 +143,16 @@ $productOrderQuestions = ($productId > 0 && $seo !== null && !$inquiry)
     : [];
 
 /**
+ * SPECIFICATIES (App\Service\ProductSpecifications, Shop Product & Ordering
+ * 2.0): "Dikte: 3 mm", in the product's own order and the language of the
+ * page — only properties with a value, never an empty row. Shown for every
+ * product, "op aanvraag" included.
+ */
+$productSpecifications = ($productId > 0 && $seo !== null)
+    ? (new \App\Service\ProductSpecifications())->forProduct($productId, \App\Service\Routing\RequestLanguage::current())
+    : [];
+
+/**
  * How the gallery changes picture: this product's own choice, else the
  * Shop's default (App\Service\ProductGalleryTransition — the one place that
  * decides it). Always one of none/fade/slide, written into the gallery's
@@ -323,6 +333,20 @@ require __DIR__ . '/partials/header.php';
                    and lists of its own, and .rich-content gives its links,
                    lists and headings the site's one rich-text styling. */ ?>
           <div class="product-detail__desc rich-content" data-product-description hidden></div>
+
+          <?php if ($productSpecifications !== []): ?>
+            <div class="product-specs">
+              <h2 class="product-specs__heading"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Specificaties', 'en' => 'Specifications']) ?></h2>
+              <dl class="product-specs__list">
+                <?php foreach ($productSpecifications as $specification): ?>
+                  <div class="product-specs__row">
+                    <dt><?= htmlspecialchars($specification['name'], ENT_QUOTES, 'UTF-8') ?></dt>
+                    <dd><?= htmlspecialchars($specification['value'], ENT_QUOTES, 'UTF-8') ?><?= $specification['unit'] !== '' ? ' ' . htmlspecialchars($specification['unit'], ENT_QUOTES, 'UTF-8') : '' ?></dd>
+                  </div>
+                <?php endforeach; ?>
+              </dl>
+            </div>
+          <?php endif; ?>
 
           <?php /* THE purchase action lives at the BOTTOM of the
                    personalization section whenever this product has one, so

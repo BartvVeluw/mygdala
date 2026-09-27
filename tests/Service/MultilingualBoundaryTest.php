@@ -1580,6 +1580,9 @@ final class MultilingualBoundaryTest extends TestCase
         // Shop Product & Ordering 2.0: the order questions and their choices.
         'product_order_field_translations',
         'product_order_field_option_translations',
+        // ... and the specification library with its values.
+        'product_specification_translations',
+        'product_specification_value_translations',
     ];
 
     /** The domain APIs that may declare a typed translation table and hold its store. */

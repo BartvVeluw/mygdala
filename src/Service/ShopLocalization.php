@@ -135,6 +135,22 @@ final class ShopLocalization
     private static ?EntityTranslations $orderFields = null;
     private static ?EntityTranslations $orderFieldOptions = null;
 
+    /**
+     * The specification library's words (Shop Product & Ordering 2.0,
+     * MODULES.md "Specificaties"): a property's name ("Dikte") and a
+     * product's value for it ("3", "Berken multiplex"), per language. A
+     * number typed once falls back to every other language; a word can be
+     * translated.
+     */
+    public const SPECIFICATION_NAME = 'name';
+    public const SPECIFICATION_VALUE = 'value';
+
+    public const SPECIFICATION_FIELDS = [self::SPECIFICATION_NAME => 100];
+    public const SPECIFICATION_VALUE_FIELDS = [self::SPECIFICATION_VALUE => 255];
+
+    private static ?EntityTranslations $specifications = null;
+    private static ?EntityTranslations $specificationValues = null;
+
     public static function products(): EntityTranslations
     {
         return self::$products ??= new EntityTranslations(
@@ -175,6 +191,78 @@ final class ShopLocalization
         return self::$orderFieldOptions ??= new EntityTranslations(
             new TranslationTable('product_order_field_option_translations', 'option_id', self::ORDER_FIELD_OPTION_FIELDS)
         );
+    }
+
+    public static function specifications(): EntityTranslations
+    {
+        return self::$specifications ??= new EntityTranslations(
+            new TranslationTable('product_specification_translations', 'specification_id', self::SPECIFICATION_FIELDS)
+        );
+    }
+
+    public static function specificationValues(): EntityTranslations
+    {
+        return self::$specificationValues ??= new EntityTranslations(
+            new TranslationTable('product_specification_value_translations', 'value_id', self::SPECIFICATION_VALUE_FIELDS)
+        );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Specifications                                                      */
+    /* ------------------------------------------------------------------ */
+
+    /** A property's name for a visitor: this language, the default language, else any. */
+    public static function specificationName(int $specificationId, string $languageCode): string
+    {
+        $value = self::specifications()->value($specificationId, self::SPECIFICATION_NAME, $languageCode);
+
+        return $value !== '' ? $value : self::specifications()->name($specificationId, self::SPECIFICATION_NAME);
+    }
+
+    /** What the CMS calls a property in its lists and pickers. */
+    public static function specificationAdminName(int $specificationId): string
+    {
+        return self::specifications()->name($specificationId, self::SPECIFICATION_NAME);
+    }
+
+    public static function rawSpecification(int $specificationId, string $languageCode): string
+    {
+        return self::specifications()->raw($specificationId, self::SPECIFICATION_NAME, $languageCode);
+    }
+
+    public static function saveSpecification(int $specificationId, string $languageCode, ?string $name): void
+    {
+        self::specifications()->save($specificationId, $languageCode, [self::SPECIFICATION_NAME => $name]);
+    }
+
+    /** @param list<int> $specificationIds */
+    public static function preloadSpecifications(array $specificationIds): void
+    {
+        self::specifications()->preload($specificationIds);
+    }
+
+    /** A product's value for a property, for a visitor, with the same fallback as a name. */
+    public static function specificationValue(int $valueId, string $languageCode): string
+    {
+        $value = self::specificationValues()->value($valueId, self::SPECIFICATION_VALUE, $languageCode);
+
+        return $value !== '' ? $value : self::specificationValues()->name($valueId, self::SPECIFICATION_VALUE);
+    }
+
+    public static function rawSpecificationValue(int $valueId, string $languageCode): string
+    {
+        return self::specificationValues()->raw($valueId, self::SPECIFICATION_VALUE, $languageCode);
+    }
+
+    public static function saveSpecificationValue(int $valueId, string $languageCode, ?string $value): void
+    {
+        self::specificationValues()->save($valueId, $languageCode, [self::SPECIFICATION_VALUE => $value]);
+    }
+
+    /** @param list<int> $valueIds */
+    public static function preloadSpecificationValues(array $valueIds): void
+    {
+        self::specificationValues()->preload($valueIds);
     }
 
     /* ------------------------------------------------------------------ */
@@ -416,6 +504,8 @@ final class ShopLocalization
         self::variants()->clearCache();
         self::orderFields()->clearCache();
         self::orderFieldOptions()->clearCache();
+        self::specifications()->clearCache();
+        self::specificationValues()->clearCache();
     }
 
     /**

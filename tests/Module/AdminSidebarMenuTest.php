@@ -23,7 +23,7 @@ final class AdminSidebarMenuTest extends TestCase
 {
     /** Every screen of a webshop, in the order they have always had; Betalingen after Shop-instellingen. */
     private const SHOP_ENTRIES = [
-        'catalog', 'collections', 'related_products', 'personalization', 'shipping',
+        'catalog', 'specifications', 'collections', 'related_products', 'personalization', 'shipping',
         'carrier_rates', 'shop_settings', 'payments', 'orders', 'withdrawal_requests',
     ];
 

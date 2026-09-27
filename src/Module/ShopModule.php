@@ -119,6 +119,19 @@ final class ShopModule extends ModuleDefinition
                 'menu' => self::ADMIN_MENU,
             ],
             [
+                // The library of reusable product properties (Dikte, Hoogte,
+                // Materiaal) whose values the product editor fills in — Shop
+                // Product & Ordering 2.0, App\Service\ProductSpecifications.
+                'key' => 'specifications',
+                'label' => 'Specificaties',
+                'url' => '/admin/product-specifications.php',
+                'icon' => 'specifications',
+                'permission' => self::PRODUCTS_MANAGE,
+                'order' => 305,
+                'scripts' => ['product-specifications.php'],
+                'menu' => self::ADMIN_MENU,
+            ],
+            [
                 'key' => 'collections',
                 'label' => 'Collecties',
                 'url' => '/admin/collections.php',

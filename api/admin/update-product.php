@@ -57,6 +57,7 @@ use App\Service\Inventory\StockConflictException;
 use App\Service\Inventory\StockNotifications;
 use App\Service\Language\AdminTranslator;
 use App\Service\OrderFields\ProductOrderFieldEditor;
+use App\Service\ProductSpecificationEditor;
 use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
 use App\Service\ProductSeo;
@@ -120,6 +121,13 @@ foreach ($variantEditor->validate() as $field => $message) {
 // their words in the one language being edited.
 $orderFieldEditor = ProductOrderFieldEditor::fromRequest($_POST, $id, $fields['language_code'] !== '' ? $fields['language_code'] : \App\Service\ShopLocalization::defaultLanguage(), $db);
 foreach ($orderFieldEditor->validate() as $field => $message) {
+    $errors[$field] = $message;
+}
+
+// The Specificaties section: properties from the library with their values,
+// in the one language being edited.
+$specificationEditor = ProductSpecificationEditor::fromRequest($_POST, $id, $fields['language_code'] !== '' ? $fields['language_code'] : \App\Service\ShopLocalization::defaultLanguage(), $db);
+foreach ($specificationEditor->validate() as $field => $message) {
     $errors[$field] = $message;
 }
 
@@ -221,6 +229,9 @@ try {
 
     // The order questions and their choices, in this request's one language.
     $orderFieldEditor->save();
+
+    // The specifications, in this request's one language.
+    $specificationEditor->save();
 
     // After the variants: whether the product has any decides where its
     // stock lives (App\Service\Inventory\ProductStock).
