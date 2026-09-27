@@ -33,6 +33,15 @@
  * visible entries from different groups, so a hidden section never leaves a
  * doubled or dangling divider behind.
  *
+ * A MENU (App\Service\AdminNavigation::sidebar(), the Shop's) is one line
+ * like any other, with a chevron: a real <button> with aria-expanded and
+ * aria-controls, so the keyboard, the focus ring and what a screen reader
+ * says are the browser's. Its entries stay real links. It is drawn open on
+ * the screens of its own entries and closed everywhere else, so the open
+ * state needs no storage; admin/assets/admin-sidebar.js only folds it on a
+ * click. Without that script every menu is drawn open (the <noscript> rule
+ * below), so no screen can end up out of reach.
+ *
  * The shell is also where help lives (ADMIN-UI.md): admin-ui.js is loaded
  * here, first thing in <body> and not deferred, so every screen that renders
  * the shell gets field help without asking for it, and a stored "help off"
@@ -53,7 +62,7 @@ $csrfToken = Csrf::token();
 
 $adminScriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 $adminActiveGroup = AdminNavigation::activeKeyForScript($adminScriptName);
-$adminVisibleNavItems = AdminNavigation::visibleItems();
+$adminSidebarLines = AdminNavigation::sidebar();
 $adminCurrentUserName = AdminAuth::userName();
 $adminCurrentUserIsSuperAdmin = AdminAuth::isSuperAdmin();
 
@@ -94,6 +103,7 @@ const ADMIN_NAV_ICONS = [
     'dashboard' => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
     'portfolio' => '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5.5-5.5L7 19"/>',
     'media' => '<rect x="2.5" y="6.5" width="15" height="13" rx="2"/><circle cx="7" cy="11" r="1.5"/><path d="M17.5 16L13 11.5 6.5 18"/><path d="M7 3.5h12a2 2 0 0 1 2 2v10"/>',
+    'shop' => '<path d="M5 7h14l-1.2 12.1a2 2 0 0 1-2 1.9H8.2a2 2 0 0 1-2-1.9z"/><path d="M9 10V6.5a3 3 0 0 1 6 0V10"/>',
     'products' => '<path d="M3 8l9-5 9 5-9 5-9-5z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/>',
     'collections' => '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/><path d="M13 17h8"/>',
     'related_products' => '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
@@ -126,6 +136,19 @@ function adminNavIcon(string $key): string
     $inner = ADMIN_NAV_ICONS[$key] ?? '';
 
     return '<svg class="admin-sidebar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $inner . '</svg>';
+}
+
+/**
+ * One sidebar link: a line of its own, or ($sub) an entry inside a menu,
+ * which carries no icon of its own and lines its text up under the menu's.
+ */
+function adminNavLink(array $item, bool $active, bool $sub = false): string
+{
+    return '<a href="' . htmlspecialchars((string) $item['url'], ENT_QUOTES, 'UTF-8') . '"'
+        . ' class="admin-sidebar__link' . ($sub ? ' admin-sidebar__sublink' : '') . ($active ? ' is-active' : '') . '"'
+        . ($active ? ' aria-current="page"' : '') . '>'
+        . ($sub ? '' : adminNavIcon((string) $item['icon']))
+        . '<span>' . htmlspecialchars((string) $item['label'], ENT_QUOTES, 'UTF-8') . '</span></a>';
 }
 ?>
 <?php admin_ui_script(); ?>
@@ -174,14 +197,33 @@ function adminNavIcon(string $key): string
 
   <nav class="admin-sidebar__nav" aria-label="<?= admin_te('shell.nav_label') ?>">
     <?php $previousNavGroup = null; ?>
-    <?php foreach ($adminVisibleNavItems as $navItem): ?>
-      <?php if ($previousNavGroup !== null && $navItem['group'] !== $previousNavGroup): ?>
+    <?php foreach ($adminSidebarLines as $navLine): ?>
+      <?php if ($previousNavGroup !== null && $navLine['group'] !== $previousNavGroup): ?>
         <div class="admin-sidebar__divider" role="separator"></div>
       <?php endif; ?>
-      <a href="<?= htmlspecialchars($navItem['url'], ENT_QUOTES, 'UTF-8') ?>" class="admin-sidebar__link<?= $adminActiveGroup === $navItem['key'] ? ' is-active' : '' ?>"><?= adminNavIcon($navItem['icon']) ?><span><?= htmlspecialchars($navItem['label'], ENT_QUOTES, 'UTF-8') ?></span></a>
-      <?php $previousNavGroup = $navItem['group']; ?>
+      <?php if ($navLine['type'] === 'link'): ?>
+        <?= adminNavLink($navLine['item'], $adminActiveGroup === $navLine['item']['key']) ?>
+      <?php else: ?>
+        <?php
+          $navMenu = $navLine['menu'];
+          $navMenuId = 'admin-sidebar-menu-' . preg_replace('/[^a-z0-9_-]/i', '-', (string) $navMenu['key']);
+          $navMenuCurrent = in_array($adminActiveGroup, array_column($navLine['items'], 'key'), true);
+        ?>
+        <div class="admin-sidebar__menu" data-admin-sidebar-menu>
+          <button type="button" class="admin-sidebar__link admin-sidebar__menu-toggle<?= $navMenuCurrent ? ' is-current' : '' ?>"
+                  aria-expanded="<?= $navMenuCurrent ? 'true' : 'false' ?>" aria-controls="<?= htmlspecialchars($navMenuId, ENT_QUOTES, 'UTF-8') ?>"
+                  data-admin-sidebar-menu-toggle><?= adminNavIcon((string) $navMenu['icon']) ?><span><?= htmlspecialchars((string) $navMenu['label'], ENT_QUOTES, 'UTF-8') ?></span><svg class="admin-sidebar__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="admin-sidebar__submenu" id="<?= htmlspecialchars($navMenuId, ENT_QUOTES, 'UTF-8') ?>"<?= $navMenuCurrent ? '' : ' hidden' ?>>
+            <?php foreach ($navLine['items'] as $navItem): ?>
+              <?= adminNavLink($navItem, $adminActiveGroup === $navItem['key'], true) ?>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+      <?php $previousNavGroup = $navLine['group']; ?>
     <?php endforeach; ?>
   </nav>
+  <noscript><style>.admin-sidebar__submenu[hidden]{ display: flex; } .admin-sidebar__chevron{ display: none; }</style></noscript>
 
   <div class="admin-sidebar__account">
     <p class="admin-sidebar__account-name"><?= htmlspecialchars($adminCurrentUserName, ENT_QUOTES, 'UTF-8') ?></p>
@@ -194,3 +236,4 @@ function adminNavIcon(string $key): string
     <button type="submit"><?= admin_te('shell.logout') ?></button>
   </form>
 </aside>
+<script src="<?= htmlspecialchars(\App\Service\AssetVersion::url('/admin/assets/admin-sidebar.js'), ENT_QUOTES, 'UTF-8') ?>" defer></script>

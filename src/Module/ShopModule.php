@@ -53,6 +53,13 @@ final class ShopModule extends ModuleDefinition
     /** The item-gallery source key this module contributes. */
     public const GALLERY_SOURCE_COLLECTION = 'collection';
 
+    /**
+     * The sidebar menu every Shop screen sits in (adminNavigationMenus()).
+     * A module that depends on the Shop may put its own screen in it too,
+     * as Personalisatie does.
+     */
+    public const ADMIN_MENU = 'shop';
+
     public function key(): string
     {
         return 'shop';
@@ -68,6 +75,24 @@ final class ShopModule extends ModuleDefinition
         return 'Producten, collecties, winkelwagen, afrekenen, bestellingen, facturen en verzending.';
     }
 
+    /**
+     * ONE line in the sidebar, "Shop", instead of a line per screen: the
+     * nine screens of a webshop crowded out everything else a site owner
+     * edits. Its order is where Producten used to stand, so the rest of the
+     * sidebar keeps its place; the screens keep their own orders inside it.
+     */
+    public function adminNavigationMenus(): array
+    {
+        return [
+            [
+                'key' => self::ADMIN_MENU,
+                'label' => 'Shop',
+                'icon' => 'shop',
+                'order' => 300,
+            ],
+        ];
+    }
+
     public function adminNavigationItems(): array
     {
         return [
@@ -79,6 +104,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::PRODUCTS_VIEW,
                 'order' => 300,
                 'scripts' => ['products.php', 'product-form.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 'key' => 'collections',
@@ -88,6 +114,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::COLLECTIONS_MANAGE,
                 'order' => 310,
                 'scripts' => ['collections.php', 'collection.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 // Configuration of the automatic related-products section on
@@ -101,6 +128,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::COLLECTIONS_MANAGE,
                 'order' => 320,
                 'scripts' => ['related-products.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 'key' => 'shipping',
@@ -110,6 +138,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::SHIPPING_MANAGE,
                 'order' => 340,
                 'scripts' => ['shipping.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 'key' => 'carrier_rates',
@@ -119,6 +148,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::SHIPPING_MANAGE,
                 'order' => 350,
                 'scripts' => ['carrier-rates.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 // Invoices, order numbers and the order confirmation e-mail:
@@ -133,6 +163,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => AdminPermissions::SETTINGS_MANAGE,
                 'order' => 360,
                 'scripts' => ['shop-settings.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 'key' => 'orders',
@@ -142,6 +173,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::ORDERS_VIEW,
                 'order' => 500,
                 'scripts' => ['orders.php', 'order.php', 'orders-export.php'],
+                'menu' => self::ADMIN_MENU,
             ],
             [
                 'key' => 'withdrawal_requests',
@@ -151,6 +183,7 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::ORDERS_VIEW,
                 'order' => 510,
                 'scripts' => ['withdrawal-requests.php', 'withdrawal-request.php'],
+                'menu' => self::ADMIN_MENU,
             ],
         ];
     }

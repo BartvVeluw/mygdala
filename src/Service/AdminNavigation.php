@@ -31,11 +31,21 @@ use App\Service\Language\LanguageRegistry;
  * about the other: App\Module\ModuleRegistry's enabled modules contribute
  * their own entries here, in exactly this shape, and Core no longer names a
  * single product, order or shipping screen.
+ *
+ * MENUS. A module may also contribute a menu (adminNavigationMenus()): one
+ * line that folds open, holding every entry that names it in its `menu` key
+ * — the Shop's nine screens are one "Shop" line. items() stays the flat list
+ * of every entry, because the guards, the highlight and the tests ask about
+ * entries; sidebar() is the shape the shell draws, and the only place a menu
+ * exists.
  */
 class AdminNavigation
 {
     /** @var list<array<string, mixed>>|null built once per request */
     private static ?array $items = null;
+
+    /** @var list<array{key: string, label: string, icon: string, order: int}>|null */
+    private static ?array $menus = null;
 
     /**
      * Every sidebar entry that exists right now: Core's own, plus one per
@@ -91,10 +101,36 @@ class AdminNavigation
         return AdminTranslator::trans($catalogKey);
     }
 
-    /** Forgets the merged list; App\Module\ModuleRegistry::reset() calls this. */
+    /**
+     * The sidebar's menus: one line that folds open to show the entries
+     * naming it in their `menu` key (App\Module\ModuleDefinition::
+     * adminNavigationMenus()). Core has none of its own; every menu belongs to
+     * an enabled module, so a module that is off leaves no empty line behind.
+     *
+     * @return list<array{key: string, label: string, icon: string, order: int}>
+     */
+    public static function menus(): array
+    {
+        if (self::$menus !== null) {
+            return self::$menus;
+        }
+
+        $menus = ModuleRegistry::collect('adminNavigationMenus');
+
+        usort($menus, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
+
+        foreach ($menus as $index => $menu) {
+            $menus[$index]['label'] = self::label('menu.' . $menu['key'], (string) $menu['label']);
+        }
+
+        return self::$menus = $menus;
+    }
+
+    /** Forgets the merged lists; App\Module\ModuleRegistry::reset() calls this. */
     public static function reset(): void
     {
         self::$items = null;
+        self::$menus = null;
     }
 
     /**
@@ -392,13 +428,66 @@ class AdminNavigation
     }
 
     /**
-     * First section the signed-in user may open; null when their permission
-     * set opens nothing at all.
+     * The sidebar as the signed-in user sees it, top to bottom: a line per
+     * entry of their own, and a menu wherever entries they may open name one.
+     * A menu takes the place of its `order`, and its entries keep theirs
+     * among each other, so an entry further down the list (Bestellingen) sits
+     * inside its menu rather than on a line far below it. A menu with no
+     * entry this user may open is left out altogether, never shown empty; an
+     * entry naming a menu that does not exist stands on its own line.
+     *
+     * `group` is the divider group, from the line's own order (see the
+     * docblock of this class).
+     *
+     * @return list<array{type: 'link', order: int, group: int, item: array<string, mixed>}|array{type: 'menu', order: int, group: int, menu: array{key: string, label: string, icon: string, order: int}, items: list<array<string, mixed>>}>
+     */
+    public static function sidebar(): array
+    {
+        $menus = [];
+        foreach (self::menus() as $menu) {
+            $menus[$menu['key']] = ['type' => 'menu', 'order' => (int) $menu['order'], 'menu' => $menu, 'items' => []];
+        }
+
+        $lines = [];
+        foreach (self::visibleItems() as $item) {
+            $menuKey = $item['menu'] ?? null;
+
+            if (is_string($menuKey) && isset($menus[$menuKey])) {
+                $menus[$menuKey]['items'][] = $item;
+                continue;
+            }
+
+            $lines[] = ['type' => 'link', 'order' => (int) $item['order'], 'item' => $item];
+        }
+
+        foreach ($menus as $menu) {
+            if ($menu['items'] !== []) {
+                $lines[] = $menu;
+            }
+        }
+
+        // usort is stable, so equal orders keep the entries before the menus.
+        usort($lines, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
+
+        foreach ($lines as $index => $line) {
+            $lines[$index]['group'] = intdiv($line['order'], 100);
+        }
+
+        return $lines;
+    }
+
+    /**
+     * First section the signed-in user may open, in the order the sidebar
+     * shows them; null when their permission set opens nothing at all.
      */
     public static function firstAccessibleUrl(): ?string
     {
-        $visible = self::visibleItems();
+        $first = self::sidebar()[0] ?? null;
 
-        return $visible === [] ? null : (string) $visible[0]['url'];
+        if ($first === null) {
+            return null;
+        }
+
+        return (string) ($first['type'] === 'menu' ? $first['items'][0]['url'] : $first['item']['url']);
     }
 }

@@ -225,6 +225,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'nav.shop_settings' => 'Shop settings',
     'nav.orders' => 'Orders',
     'nav.withdrawal_requests' => 'Return requests',
+    'nav.menu.shop' => 'Shop',
 
     // --- More words that appear on more than one screen --------------------
     'common.add' => 'Add',

@@ -70,6 +70,10 @@ final class PersonalizationModule extends ModuleDefinition
                     'personalization-product.php',
                     'personalization-fonts.php',
                 ],
+                // Inside the Shop's sidebar menu, where the products it
+                // configures are. This module depends on the Shop, so the
+                // menu is always there when this line is.
+                'menu' => ShopModule::ADMIN_MENU,
             ],
         ];
     }

@@ -230,6 +230,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'nav.shop_settings' => 'Shop-instellingen',
     'nav.orders' => 'Bestellingen',
     'nav.withdrawal_requests' => 'Retourverzoeken',
+    'nav.menu.shop' => 'Shop',
 
     // --- More words that appear on more than one screen --------------------
     'common.add' => 'Toevoegen',

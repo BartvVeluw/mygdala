@@ -83,11 +83,30 @@ abstract class ModuleDefinition
 
     /**
      * Admin sidebar entries, in App\Service\AdminNavigation's own shape plus
-     * `order` (see this class's docblock).
+     * `order` (see this class's docblock). An entry with a `menu` key is
+     * shown inside that sidebar menu instead of on a line of its own, when
+     * the menu exists (adminNavigationMenus()).
      *
-     * @return list<array{key: string, label: string, url: string, icon: string, permission: string, order: int, scripts: list<string>}>
+     * @return list<array{key: string, label: string, url: string, icon: string, permission: string, order: int, scripts: list<string>, menu?: string}>
      */
     public function adminNavigationItems(): array
+    {
+        return [];
+    }
+
+    /**
+     * Sidebar menus: one line with a name, an icon and a chevron that folds
+     * open to show the entries naming it in their `menu` key. The menu sits
+     * at its own `order` among the sidebar's lines; its entries keep theirs
+     * among each other. A menu nobody can open an entry of is not shown at
+     * all (App\Service\AdminNavigation::sidebar()).
+     *
+     * A module groups its own screens this way (the Shop's nine lines became
+     * one "Shop"); Core names no module's menu.
+     *
+     * @return list<array{key: string, label: string, icon: string, order: int}>
+     */
+    public function adminNavigationMenus(): array
     {
         return [];
     }

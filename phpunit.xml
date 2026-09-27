@@ -174,6 +174,7 @@
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
             <file>tests/Update/LineEndingsTest.php</file>
+            <file>tests/Module/AdminSidebarMenuTest.php</file>
         </testsuite>
 
         <!-- unit + contract: everything that needs nothing but PHP. The one
@@ -317,6 +318,7 @@
             <file>tests/Update/ReleaseManifestTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
             <file>tests/Update/LineEndingsTest.php</file>
+            <file>tests/Module/AdminSidebarMenuTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test
@@ -726,6 +728,7 @@
             <file>tests/Service/WithdrawalLanguageSwitchTest.php</file>
             <file>tests/Service/WithdrawalRequestLanguageTest.php</file>
             <file>tests/Service/PublicRouteLanguageTest.php</file>
+            <file>tests/Service/AdminSidebarMenuHttpTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">
