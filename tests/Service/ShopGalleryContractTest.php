@@ -162,7 +162,8 @@ final class ShopGalleryContractTest extends TestCase
         }
 
         $this->assertStringContainsString('product_gallery_pool($galleryPictures);', $form);
-        $this->assertStringContainsString('<?php save_bar(); ?>', $form);
+        // One save for the whole editor, pictures included (admin/_admin_editor.php).
+        $this->assertStringContainsString('<?php admin_editor_bar(); ?>', $form);
         $this->assertStringContainsString('<?php media_picker_modal(); ?>', $form);
     }
 

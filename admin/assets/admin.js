@@ -1,77 +1,16 @@
 /**
- * Drag-and-drop reordering for small thumbnail photo grids — variant photos
- * (admin/product-form.php, [data-variant-image-grid], POST field
- * "variant_id"). Plain HTML5 drag/drop — no library. On drop,
- * persists the new order server-side via fetch(), then reloads the page so
- * every other bit of server-rendered state (e.g. the "Standaard" badge on
- * the first image) stays authoritative. Every other admin interaction stays
- * a plain form POST, except the rich-text description editor further below.
+ * Small conveniences shared by the admin screens: the drag zones of the page
+ * builder, the navigation and the footer, the rich-text editor, the colour
+ * and range readouts, the slug and SEO counters. Each one only helps with a
+ * form that already works without it; the endpoints stay the judges.
  */
 (function () {
   "use strict";
 
-  function initDragReorderGrids(gridSelector, cardSelector, idField) {
-    var grids = document.querySelectorAll(gridSelector);
-
-    grids.forEach(function (grid) {
-      var dragged = null;
-
-      grid.querySelectorAll(cardSelector).forEach(function (card) {
-        card.addEventListener("dragstart", function () {
-          dragged = card;
-          card.classList.add("is-dragging");
-        });
-
-        card.addEventListener("dragend", function () {
-          card.classList.remove("is-dragging");
-          dragged = null;
-        });
-
-        card.addEventListener("dragover", function (event) {
-          event.preventDefault();
-          if (!dragged || dragged === card) return;
-
-          var rect = card.getBoundingClientRect();
-          var isAfter = event.clientX - rect.left > rect.width / 2;
-          grid.insertBefore(dragged, isAfter ? card.nextSibling : card);
-        });
-
-        card.addEventListener("drop", function (event) {
-          event.preventDefault();
-          persistOrder(grid, cardSelector, idField);
-        });
-      });
-    });
-  }
-
-  function persistOrder(grid, cardSelector, idField) {
-    var entityId = grid.getAttribute("data-entity-id");
-    var url = grid.getAttribute("data-reorder-url");
-    var csrfToken = grid.getAttribute("data-csrf-token");
-    var imageIds = Array.prototype.map
-      .call(grid.querySelectorAll(cardSelector), function (card) {
-        return card.getAttribute("data-image-id");
-      })
-      .join(",");
-
-    var body = new URLSearchParams();
-    body.set("csrf_token", csrfToken);
-    body.set(idField, entityId);
-    body.set("image_ids", imageIds);
-
-    fetch(url, { method: "POST", credentials: "same-origin", body: body })
-      .then(function () { window.location.reload(); })
-      .catch(function () { window.location.reload(); });
-  }
-
-  function initVariantImageGrids() {
-    initDragReorderGrids("[data-variant-image-grid]", ".admin-variant-image-card", "variant_id");
-  }
-
   /**
    * Page builder (admin/page.php, [data-page-section-zone]):
    * drag-and-drop reordering of the one ordered block list of a page.
-   * Unlike initDragReorderGrids() above, a row also contains Edit/Hide/
+   * A row also contains Edit/Hide/
    * Delete buttons that must stay normally clickable — so only the small
    * "&#8801;" handle (`.admin-drag-handle`) is draggable, never the row
    * itself, and dragging is initiated from the handle but moves its
@@ -477,28 +416,28 @@
 
   /**
    * Keeps a colour <input type="color"> and its editable hex text field
-   * ([data-color-sync-form] wrapping [data-color-picker] + [data-color-hex])
-   * in sync in both directions, for a "Color" display-type option's values
-   * (admin/product-form.php). Server-side hex validation in
-   * api/admin/create-product-option-value.php /
-   * update-product-option-value.php is the real enforcement point — this is
-   * only for a pleasant editing experience.
+   * ([data-color-sync] wrapping [data-color-picker] + [data-color-hex]) in
+   * step both ways, for a "Kleur" option's values in the product editor
+   * (admin/_product_variants.php). Delegated, so a value row added on the
+   * screen works the same. The hex field is what is sent, and
+   * App\Service\ProductVariantEditor checks its format again; this is only
+   * for a pleasant editing experience.
    */
   function initColorSync() {
-    document.querySelectorAll("[data-color-sync-form]").forEach(function (form) {
-      var picker = form.querySelector("[data-color-picker]");
-      var hexInput = form.querySelector("[data-color-hex]");
+    document.addEventListener("input", function (event) {
+      var target = event.target;
+      var pair = target && target.closest ? target.closest("[data-color-sync]") : null;
+      if (!pair) return;
+
+      var picker = pair.querySelector("[data-color-picker]");
+      var hexInput = pair.querySelector("[data-color-hex]");
       if (!picker || !hexInput) return;
 
-      picker.addEventListener("input", function () {
+      if (target === picker) {
         hexInput.value = picker.value.toUpperCase();
-      });
-
-      hexInput.addEventListener("input", function () {
-        if (/^#[0-9A-Fa-f]{6}$/.test(hexInput.value)) {
-          picker.value = hexInput.value;
-        }
-      });
+      } else if (target === hexInput && /^#[0-9A-Fa-f]{6}$/.test(hexInput.value)) {
+        picker.value = hexInput.value;
+      }
     });
   }
 
@@ -650,13 +589,14 @@
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
-      initVariantImageGrids();
       initPageSectionZones();
       initNavItemZones();
       initFooterZones();
       initRichTextEditors();
-      document.addEventListener("row-list:added", function (event) {
-        initRichTextEditors(event.target);
+      ["row-list:added", "admin-editor:replaced"].forEach(function (type) {
+        document.addEventListener(type, function (event) {
+          initRichTextEditors(event.target);
+        });
       });
       initColorSync();
       initRangeOutputs();
@@ -665,13 +605,14 @@
       initSeoCharCounters();
     });
   } else {
-    initVariantImageGrids();
     initPageSectionZones();
     initNavItemZones();
     initFooterZones();
     initRichTextEditors();
-    document.addEventListener("row-list:added", function (event) {
-      initRichTextEditors(event.target);
+    ["row-list:added", "admin-editor:replaced"].forEach(function (type) {
+      document.addEventListener(type, function (event) {
+        initRichTextEditors(event.target);
+      });
     });
     initColorSync();
     initRangeOutputs();

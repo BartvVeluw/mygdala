@@ -117,9 +117,11 @@ final class ShopEditingHttpTest extends TestCase
         ]);
 
         $this->assertSame(302, $response['status']);
-        $this->assertSame('/admin/products.php?created=1', $response['location']);
 
+        // Straight into the new product's own editor, where its options,
+        // variants and translations are added (api/admin/create-product.php).
         $productId = $this->newestProductId();
+        $this->assertSame('/admin/product-form.php?id=' . $productId . '&created=1', $response['location']);
         $stored = (new ProductRepository())->findByIdForAdmin($productId);
         $this->assertNotNull($stored);
 

@@ -28,8 +28,18 @@
  *   [data-row-list-add="<list id>"]  appends a copy of the list's
  *   <template data-row-list-template="<list id>">, with __KEY__ replaced by
  *                                    "new<n>" (a key no row has yet)
+ *     [data-row-list-key="__VKEY__"] on the template: another placeholder, for a
+ *                                    template inside a row of another list (a
+ *                                    product option's values: the option's
+ *                                    __KEY__ is filled in when the option is
+ *                                    added, the value's own when the value is)
  *   [data-row-list-max="<n>"]        on the list: the add button is disabled
  *                                    while n rows are not marked for removal
+ *
+ * A list that arrives later is wired as it comes: one inside a row that was
+ * just added (the "row-list:added" event below), and every list in a part of
+ * the page the dynamic editor drew again after a save
+ * ("admin-editor:replaced", admin/assets/admin-editor.js).
  *
  * Every change ends with a bubbling "change" event, which is how the save
  * bar (admin/assets/save-bar.js) hears that something is unsaved. An added
@@ -42,7 +52,10 @@
 (function () {
   "use strict";
 
-  Array.prototype.forEach.call(document.querySelectorAll("[data-row-list]"), function (list) {
+  function initList(list) {
+    if (list.hasAttribute("data-row-list-ready")) return;
+    list.setAttribute("data-row-list-ready", "");
+
     var id = list.getAttribute("data-row-list") || "";
     var template = id ? document.querySelector('template[data-row-list-template="' + id + '"]') : null;
     var add = id ? document.querySelector('[data-row-list-add="' + id + '"]') : null;
@@ -167,8 +180,9 @@
           key = "new" + String(counter++);
         } while (list.querySelector('[name*="[' + key + ']"]'));
 
+        var placeholder = template.getAttribute("data-row-list-key") || "__KEY__";
         var holder = document.createElement("div");
-        holder.innerHTML = template.innerHTML.replace(/__KEY__/g, key);
+        holder.innerHTML = template.innerHTML.split(placeholder).join(key);
         var row = holder.firstElementChild;
         if (!row) return;
 
@@ -183,5 +197,19 @@
     }
 
     refresh();
+  }
+
+  function initWithin(root) {
+    if (!root || !root.querySelectorAll) return;
+    if (root.hasAttribute && root.hasAttribute("data-row-list")) initList(root);
+    Array.prototype.forEach.call(root.querySelectorAll("[data-row-list]"), initList);
+  }
+
+  initWithin(document);
+
+  ["row-list:added", "admin-editor:replaced"].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      initWithin(event.target);
+    });
   });
 })();

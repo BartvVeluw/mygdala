@@ -7,7 +7,8 @@ require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_admin_editor.php';
+require_once __DIR__ . '/_admin_collapse.php';
 
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
@@ -31,6 +32,7 @@ $product = null;
 $images = [];
 $options = [];
 $variants = [];
+$lockedVariantIds = [];
 $productCollectionIds = [];
 $personalization = null;
 
@@ -40,6 +42,8 @@ if ($isEdit) {
         $images = (new ProductImageRepository())->findByProductId($id);
         $options = (new ProductOptionRepository())->findByProductId($id);
         $variants = (new ProductVariantRepository())->findByProductId($id);
+        // An order points at these, so they cannot be removed (only switched off).
+        $lockedVariantIds = (new ProductVariantRepository())->idsInOrders($id);
         $productCollectionIds = (new CollectionRepository())->collectionIdsForProduct($id);
         // null for every product that has never been configured — which is
         // every existing product, and reads as "personalization disabled".
@@ -80,14 +84,16 @@ try {
     $allCollections = [];
 }
 
+// What a save refused, when it was posted without the editor script (the
+// PRG path of api/admin/update-product.php). With the script, a refused save
+// never leaves this page: its messages come back in JSON and land next to
+// their fields (admin/assets/admin-editor.js).
 $errors = $_SESSION['admin_product_errors'] ?? [];
 $old = $_SESSION['admin_product_old'] ?? null;
 unset($_SESSION['admin_product_errors'], $_SESSION['admin_product_old']);
 
-$variantErrors = $_SESSION['admin_variant_errors'] ?? [];
-unset($_SESSION['admin_variant_errors']);
-
 $updated = isset($_GET['updated']);
+$created = isset($_GET['created']);
 
 // The pictures section (admin/_product_gallery.php): the product's own pool
 // in its order, and per variant the pictures it shows plus its own
@@ -203,7 +209,10 @@ $productId = $isEdit ? (int) $product['id'] : null;
 // 'simple' toolbar default (bold/italic/link/unlink/clear only) keeps this
 // call site's behaviour identical to before.
 require __DIR__ . '/_richtext_field.php';
+require_once __DIR__ . '/_product_variants.php';
 
+// Per variant, what its row in the Varianten section shows of the pictures
+// and its own description: a refused save's, else what is stored.
 $variantGallery = [];
 if ($isEdit) {
     \App\Service\ShopLocalization::preloadVariants(array_map(static fn (array $v): int => (int) $v['id'], $variants));
@@ -213,12 +222,7 @@ if ($isEdit) {
         $oldDescription = $old['variant_descriptions'][$variantId] ?? null;
         $ownDescription = \App\Service\ShopLocalization::variantOwnDescription($variantId, $editingLanguage);
 
-        $variantGallery[] = [
-            'id' => $variantId,
-            'label' => implode(', ', array_map(
-                static fn (array $v): string => $v['option_name'] . ': ' . $v['value'],
-                $variant['values']
-            )),
+        $variantGallery[$variantId] = [
             'tokens' => is_array($oldTokens)
                 ? $oldTokens
                 : array_map(static fn (array $image): string => 'image:' . (int) $image['id'], $variant['images']),
@@ -227,6 +231,11 @@ if ($isEdit) {
         ];
     }
 }
+
+// The two big sections fold, each on its own. They start open, the editor's
+// browser tab remembers how they were left (admin/assets/admin-collapse.js),
+// and a refused save opens them again, so no message can hide in a closed one.
+$sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -239,7 +248,10 @@ if ($isEdit) {
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 <?php media_picker_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-gallery.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-variants.js') ?>" defer></script>
+<?php admin_collapse_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -247,27 +259,29 @@ if ($isEdit) {
   <p><a href="/admin/products.php"><?= admin_t('shop.terug_producten') ?></a></p>
   <h1><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></h1>
 
+  <?php if ($created): ?>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_aangemaakt') ?> <?= admin_te('shop.editor.created_hint') ?></p>
+  <?php endif; ?>
   <?php if ($updated): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_opgeslagen') ?></p>
   <?php endif; ?>
 
-  <?php if ($errors !== []): ?>
-    <div class="admin-alert admin-alert--error">
-      <ul class="admin-error-list">
-        <?php foreach ($errors as $error): ?>
-          <li><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8') ?></li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
-  <?php endif; ?>
+  <?= admin_editor_summary($errors) ?>
 
-  <section class="admin-card">
-    <form method="post" action="/api/admin/<?= $isEdit ? 'update-product.php' : 'create-product.php' ?>" enctype="multipart/form-data" class="admin-product-form" id="product-form"<?= $errors !== [] ? ' data-save-bar-unsaved' : '' ?>>
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-      <?php if ($isEdit): ?>
-        <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
-      <?php endif; ?>
+  <?php /* ONE form for the whole product, stored by its one Opslaan in the
+           bar at the bottom (admin/_admin_editor.php): the general fields,
+           the pictures, the options and variants, the SEO card. The editor
+           script sends it without a page load and keeps what is typed when
+           the server refuses it; the endpoint says which field and which
+           section, and the section opens. Folding a section is not a change. */ ?>
+  <form method="post" action="/api/admin/<?= $isEdit ? 'update-product.php' : 'create-product.php' ?>" enctype="multipart/form-data" class="admin-product-editor" id="product-form"
+        data-admin-editor data-admin-collapse-group="product-editor" data-admin-collapse-scope="product" data-admin-collapse-no-return<?= $errors !== [] ? ' data-admin-editor-unsaved' : '' ?>>
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+    <?php if ($isEdit): ?>
+      <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
+    <?php endif; ?>
 
+    <section class="admin-card admin-product-form" data-admin-editor-section="product">
       <?= admin_localized_input($editingLanguage) ?>
       <?php admin_localized_bar($editingLanguage); ?>
       <div class="admin-form-row">
@@ -354,12 +368,54 @@ if ($isEdit) {
           <?= admin_te('shop.altijd_pakket_verzenden_negeert') ?>
         </label>
       </div>
+    </section>
 
-      <h3><?= admin_te('shop.gallery.heading') ?></h3>
-      <?php product_gallery_pool($galleryPictures); ?>
-      <?php product_gallery_variants($galleryPictures, $variantGallery); ?>
+    <?php /* The product's own pictures, and nothing else: which of them a
+             variant shows is part of that variant, in Varianten below. */ ?>
+    <section class="admin-card admin-editor-section" data-admin-editor-section="images">
+      <details class="admin-collapse admin-collapse--card" id="product-images-section" data-admin-collapse-id="images" open<?= $sectionForcedOpen ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h2 class="admin-collapse__title"><?= admin_te('shop.gallery.heading') ?></h2>
+          <span class="admin-collapse__badges">
+            <span class="admin-badge" title="<?= admin_te('shop.editor.images_count') ?>"><span data-product-gallery-count><?= count($galleryPictures) ?></span><span class="admin-visually-hidden"> <?= admin_te('shop.editor.images_count') ?></span></span>
+          </span>
+        </summary>
+        <div class="admin-collapse__body">
+          <div class="admin-alert admin-alert--error" data-admin-editor-errors="images" hidden></div>
+          <div data-admin-editor-region="images">
+            <?php product_gallery_pool($galleryPictures); ?>
+          </div>
+        </div>
+      </details>
+    </section>
 
-      <h3><?= admin_te('shop.seo') ?></h3>
+    <section class="admin-card admin-editor-section" data-admin-editor-section="variants">
+      <details class="admin-collapse admin-collapse--card" id="product-variants-section" data-admin-collapse-id="variants" open<?= $sectionForcedOpen ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h2 class="admin-collapse__title"><?= admin_te('shop.varianten') ?></h2>
+          <span class="admin-collapse__badges">
+            <span class="admin-badge" title="<?= admin_te('shop.editor.variants_count') ?>"><span data-product-variants-count><?= count($variants) ?></span><span class="admin-visually-hidden"> <?= admin_te('shop.editor.variants_count') ?></span></span>
+          </span>
+        </summary>
+        <div class="admin-collapse__body">
+          <?php if ($isEdit): ?>
+            <div data-admin-editor-region="variants">
+              <?php product_variants_section($options, $variants, $galleryPictures, $variantGallery, $lockedVariantIds); ?>
+            </div>
+          <?php else: ?>
+            <?php /* A product needs its id before an option or a variant can
+                     hang off it: saving this form creates it and opens its
+                     own editor, where this section is complete. */ ?>
+            <p class="admin-text-muted"><?= admin_te('shop.editor.variants_after_create') ?></p>
+          <?php endif; ?>
+        </div>
+      </details>
+    </section>
+
+    <section class="admin-card" data-admin-editor-section="seo">
+      <h2><?= admin_te('shop.seo') ?></h2>
       <?php /* Secondary to the product's own content and therefore last in
                the form: everything here is OPTIONAL. Leaving a field empty
                is not "no SEO" — it means the product's normal content is
@@ -407,9 +463,11 @@ if ($isEdit) {
         </div>
       </div>
 
-      <button type="submit"><?= $isEdit ? 'Opslaan' : admin_t('shop.create_product') ?></button>
-    </form>
-  </section>
+      <?php /* For a browser without the editor script only: with it, the bar's
+               Opslaan is the one button (and Enter still saves). */ ?>
+      <button type="submit" data-admin-editor-fallback><?= $isEdit ? admin_te('common.save') : admin_te('shop.create_product') ?></button>
+    </section>
+  </form>
 
   <?php if ($isEdit): ?>
     <?php /* Personalisatie has its own CMS section (admin/personalization.php)
@@ -436,219 +494,10 @@ if ($isEdit) {
     </section>
   <?php endif; ?>
 
-  <?php if ($isEdit): ?>
-    <section class="admin-card">
-      <h2><?= admin_te('shop.varianten') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('shop.optioneel_voeg_optie_toe') ?></p>
-
-      <?php if ($variantErrors !== []): ?>
-        <div class="admin-alert admin-alert--error">
-          <ul class="admin-error-list">
-            <?php foreach ($variantErrors as $error): ?>
-              <li><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8') ?></li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-      <?php endif; ?>
-
-      <h3><?= admin_te('shop.opties') ?></h3>
-      <?php if ($options === []): ?>
-        <p class="admin-text-muted"><?= admin_te('shop.opties_2') ?></p>
-      <?php else: ?>
-        <?php foreach ($options as $optIndex => $option): ?>
-          <?php $optionId = (int) $option['id']; $optionDisplayType = (string) ($option['display_type'] ?? 'standard'); ?>
-          <div class="admin-option-block">
-            <div class="admin-option-block__head">
-              <form method="post" action="/api/admin/update-product-option.php" class="admin-inline-form">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                <input type="hidden" name="option_id" value="<?= $optionId ?>">
-                <input type="text" name="name" maxlength="100" value="<?= htmlspecialchars((string) $option['name'], ENT_QUOTES, 'UTF-8') ?>">
-                <select name="display_type">
-                  <option value="standard" <?= $optionDisplayType === 'standard' ? 'selected' : '' ?>><?= admin_te('shop.standaard') ?></option>
-                  <option value="color" <?= $optionDisplayType === 'color' ? 'selected' : '' ?>><?= admin_te('shop.kleur') ?></option>
-                </select>
-                <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
-              </form>
-              <form method="post" action="/api/admin/move-product-option.php" class="admin-inline-form">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                <input type="hidden" name="option_id" value="<?= $optionId ?>">
-                <input type="hidden" name="direction" value="up">
-                <button type="submit" class="admin-btn-text" <?= $optIndex === 0 ? 'disabled' : '' ?>>&uarr;</button>
-              </form>
-              <form method="post" action="/api/admin/move-product-option.php" class="admin-inline-form">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                <input type="hidden" name="option_id" value="<?= $optionId ?>">
-                <input type="hidden" name="direction" value="down">
-                <button type="submit" class="admin-btn-text" <?= $optIndex === count($options) - 1 ? 'disabled' : '' ?>>&darr;</button>
-              </form>
-              <form method="post" action="/api/admin/delete-product-option.php" class="admin-inline-form" onsubmit="return confirm('Deze optie (met alle waardes) verwijderen?');">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                <input type="hidden" name="option_id" value="<?= $optionId ?>">
-                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('shop.optie_verwijderen') ?></button>
-              </form>
-            </div>
-
-            <ul class="admin-option-values">
-              <?php foreach ($option['values'] as $valIndex => $value): ?>
-                <?php $valueId = (int) $value['id']; $valueHex = (string) ($value['hex_color'] ?? '') ?: '#A77A49'; ?>
-                <li>
-                  <form method="post" action="/api/admin/update-product-option-value.php" class="admin-inline-form admin-option-value-form" data-color-sync-form>
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="value_id" value="<?= $valueId ?>">
-                    <input type="text" name="value" maxlength="100" value="<?= htmlspecialchars((string) $value['value'], ENT_QUOTES, 'UTF-8') ?>">
-                    <?php if ($optionDisplayType === 'color'): ?>
-                      <input type="color" value="<?= htmlspecialchars($valueHex, ENT_QUOTES, 'UTF-8') ?>" data-color-picker aria-label="Kleur">
-                      <input type="text" name="hex_color" maxlength="7" placeholder="#A77A49" pattern="^#[0-9A-Fa-f]{6}$" value="<?= htmlspecialchars((string) ($value['hex_color'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-color-hex class="admin-hex-input">
-                    <?php endif; ?>
-                    <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
-                  </form>
-                  <form method="post" action="/api/admin/move-product-option-value.php" class="admin-inline-form">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="value_id" value="<?= $valueId ?>">
-                    <input type="hidden" name="direction" value="up">
-                    <button type="submit" class="admin-btn-text" <?= $valIndex === 0 ? 'disabled' : '' ?>>&uarr;</button>
-                  </form>
-                  <form method="post" action="/api/admin/move-product-option-value.php" class="admin-inline-form">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="value_id" value="<?= $valueId ?>">
-                    <input type="hidden" name="direction" value="down">
-                    <button type="submit" class="admin-btn-text" <?= $valIndex === count($option['values']) - 1 ? 'disabled' : '' ?>>&darr;</button>
-                  </form>
-                  <form method="post" action="/api/admin/delete-product-option-value.php" class="admin-inline-form" onsubmit="return confirm('Deze waarde verwijderen?');">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="value_id" value="<?= $valueId ?>">
-                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-                  </form>
-                </li>
-              <?php endforeach; ?>
-            </ul>
-
-            <form method="post" action="/api/admin/create-product-option-value.php" class="admin-inline-form" data-color-sync-form>
-              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-              <input type="hidden" name="option_id" value="<?= $optionId ?>">
-              <input type="text" name="value" maxlength="100" placeholder="Nieuwe waarde, bijv. Berken">
-              <?php if ($optionDisplayType === 'color'): ?>
-                <input type="color" value="#A77A49" data-color-picker aria-label="Kleur">
-                <input type="text" name="hex_color" maxlength="7" placeholder="#A77A49" pattern="^#[0-9A-Fa-f]{6}$" data-color-hex class="admin-hex-input">
-              <?php endif; ?>
-              <button type="submit"><?= admin_te('shop.waarde_toevoegen') ?></button>
-            </form>
-          </div>
-        <?php endforeach; ?>
-      <?php endif; ?>
-
-      <form method="post" action="/api/admin/create-product-option.php" class="admin-form-row">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-        <label><?= admin_te('shop.nieuwe_optie_bijv_kleur') ?>
-          <input type="text" name="name" maxlength="100" placeholder="Kleur">
-        </label>
-        <label><?= admin_te('shop.weergave') ?>
-          <select name="display_type">
-            <option value="standard" selected><?= admin_te('shop.standaard_2') ?></option>
-            <option value="color"><?= admin_te('shop.kleur_2') ?></option>
-          </select>
-        </label>
-        <button type="submit"><?= admin_te('shop.optie_toevoegen') ?></button>
-      </form>
-
-      <h3><?= admin_te('shop.combinaties_varianten') ?></h3>
-      <?php if ($options === []): ?>
-        <p class="admin-text-muted"><?= admin_te('shop.voeg_eerst_optie_waardes') ?></p>
-      <?php else: ?>
-        <?php if ($variants === []): ?>
-          <p class="admin-text-muted"><?= admin_te('shop.varianten_2') ?></p>
-        <?php else: ?>
-          <div class="admin-variant-list">
-            <?php foreach ($variants as $varIndex => $variant): ?>
-              <?php
-                $variantId = (int) $variant['id'];
-                $variantActive = (int) $variant['active'] === 1;
-                $variantLabel = implode(', ', array_map(
-                    static fn (array $v): string => $v['option_name'] . ': ' . $v['value'],
-                    $variant['values']
-                ));
-              ?>
-              <article class="admin-variant-panel">
-                <div class="admin-variant-panel__head">
-                  <strong><?= htmlspecialchars($variantLabel, ENT_QUOTES, 'UTF-8') ?></strong>
-                  <span class="admin-badge admin-badge--<?= $variantActive ? 'paid' : 'canceled' ?>">
-                    <?= $variantActive ? admin_t('common.active') : 'Inactief' ?>
-                  </span>
-                </div>
-
-                <form method="post" action="/api/admin/update-product-variant.php" class="admin-inline-form admin-variant-panel__form">
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                  <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                  <label><?= admin_t('shop.prijs_override_leeg_productprijs') ?>
-                    <input type="text" inputmode="decimal" name="price" value="<?= $variant['price'] !== null ? htmlspecialchars(number_format((float) $variant['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8') : '' ?>" placeholder="0.00">
-                  </label>
-                  <label class="admin-checkbox-label">
-                    <input type="checkbox" class="admin-checkbox" name="active" value="1" <?= $variantActive ? 'checked' : '' ?>>
-                    <?= admin_te('common.active') ?>
-                  </label>
-                  <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
-                </form>
-
-                <div class="admin-variant-panel__order">
-                  <form method="post" action="/api/admin/move-product-variant.php" class="admin-inline-form">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                    <input type="hidden" name="direction" value="up">
-                    <button type="submit" class="admin-btn-text" <?= $varIndex === 0 ? 'disabled' : '' ?>><?= admin_t('shop.variant') ?></button>
-                  </form>
-                  <form method="post" action="/api/admin/move-product-variant.php" class="admin-inline-form">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                    <input type="hidden" name="direction" value="down">
-                    <button type="submit" class="admin-btn-text" <?= $varIndex === count($variants) - 1 ? 'disabled' : '' ?>><?= admin_t('shop.variant_2') ?></button>
-                  </form>
-
-                  <form method="post" action="/api/admin/delete-product-variant.php" class="admin-inline-form" onsubmit="return confirm('Deze variant verwijderen?');">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('shop.variant_verwijderen') ?></button>
-                  </form>
-                </div>
-
-              </article>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
-
-        <h4><?= admin_te('shop.nieuwe_variant') ?></h4>
-        <p class="admin-text-muted"><?= admin_te('shop.gallery.new_variant_note') ?></p>
-        <form method="post" action="/api/admin/create-product-variant.php" class="admin-form-row">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-          <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-          <?php foreach ($options as $option): ?>
-            <label><?= htmlspecialchars((string) $option['name'], ENT_QUOTES, 'UTF-8') ?>
-              <select name="value_ids[<?= (int) $option['id'] ?>]" <?= $option['values'] === [] ? 'disabled' : '' ?>>
-                <?php if ($option['values'] === []): ?>
-                  <option value=""><?= admin_te('shop.waardes') ?></option>
-                <?php else: ?>
-                  <?php foreach ($option['values'] as $value): ?>
-                    <option value="<?= (int) $value['id'] ?>"><?= htmlspecialchars((string) $value['value'], ENT_QUOTES, 'UTF-8') ?></option>
-                  <?php endforeach; ?>
-                <?php endif; ?>
-              </select>
-            </label>
-          <?php endforeach; ?>
-          <label><?= admin_t('shop.prijs_override_leeg_productprijs_2') ?>
-            <input type="text" inputmode="decimal" name="price" placeholder="0.00">
-          </label>
-          <label class="admin-checkbox-label">
-            <input type="checkbox" class="admin-checkbox" name="active" value="1" checked>
-            <?= admin_te('common.active') ?>
-          </label>
-          <button type="submit"><?= admin_te('shop.variant_aanmaken') ?></button>
-        </form>
-      <?php endif; ?>
-    </section>
-  <?php endif; ?>
 </main>
-<?php save_bar(); ?>
-<?php save_bar_script(); ?>
+<?php admin_editor_bar(); ?>
+<?= admin_editor_leave_dialog() ?>
 <?php media_picker_modal(); ?>
+<?php admin_editor_script(); ?>
 </body>
 </html>

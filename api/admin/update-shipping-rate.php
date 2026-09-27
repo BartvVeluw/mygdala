@@ -6,8 +6,8 @@
  * Updates an existing shipping rate's method/weight bracket/price/enabled/
  * sort order from the admin "Verzendinstellingen" page. Note: `enabled` is a
  * normal checkbox here (not a separate toggle endpoint) since it's edited
- * together with the other fields in one row-form — same pattern as
- * update-product-variant.php's "Actief" checkbox.
+ * together with the other fields in one row-form — the way a product
+ * variant's "Actief" switch is saved with its price (update-product.php).
  */
 
 declare(strict_types=1);

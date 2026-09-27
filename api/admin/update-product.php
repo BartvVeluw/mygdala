@@ -3,19 +3,30 @@
 /**
  * POST /api/admin/update-product.php
  *
- * Updates an existing product from the admin edit form: its fields, its
- * words in the one language being edited, its SEO fields, and — since the
- * pictures became part of this same form — its pool of pictures, each shown
- * variant's selection from that pool and each variant's own description
- * (App\Service\ProductGallery, validateVariantDescriptions()). Everything is
- * ONE transaction, and the pictures are only touched when the form carried
- * that section (`gallery_submitted`). Same PRG/session-flash pattern as
- * create-product.php.
+ * THE ONE SAVE of the product editor (admin/product-form.php): the product's
+ * fields, its words in the one language being edited, its SEO fields, its
+ * collections, its pool of pictures, and the whole Varianten section — the
+ * options with their values and the variants, each variant with its pictures
+ * from the pool and its own description (App\Service\ProductVariantEditor,
+ * App\Service\ProductGallery, validateVariantDescriptions()). Adding an
+ * option, removing a variant or moving a value is typing on the screen; this
+ * is where it is stored, and there is no other endpoint for any of it.
+ *
+ * EVERYTHING IS CHECKED, THEN EVERYTHING IS WRITTEN IN ONE TRANSACTION. A
+ * refused save writes nothing at all, and a failure halfway rolls all of it
+ * back: never half a product. A section the form did not carry is left alone
+ * (`gallery_submitted`, `options_present`, `variants_present`).
+ *
+ * TWO ANSWERS, ONE SET OF RULES. The editor script asks for JSON and gets
+ * App\Service\AdminEditorResponse: 200 when stored, 422 with every message
+ * keyed by the field or section it is about, 500 when the database failed;
+ * the screen stays as it is and nothing reloads. A form posted without the
+ * script gets the PRG redirect and session flash it always got.
  *
  * The SEO social image is the one image this endpoint does own, because it
  * lives in the SEO card of this same form — there is deliberately no
- * separate product-SEO save endpoint. It is written only when a file was
- * actually picked or the "remove" box was ticked; an ordinary save leaves it
+ * separate product-SEO save endpoint. It is written only when another library
+ * image was chosen or the "remove" box was ticked; an ordinary save leaves it
  * exactly as it was, like every other image on this page.
  */
 
@@ -27,12 +38,15 @@ require_once __DIR__ . '/_shop_share_image.php';
 
 use App\Database;
 use App\Service\AdminAuth;
+use App\Service\AdminEditorResponse;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
 use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
 use App\Service\ProductSeo;
+use App\Service\ProductVariantEditor;
 use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
@@ -67,18 +81,26 @@ if ($existing === null) {
     exit('Product not found.');
 }
 
+$json = AdminEditorResponse::wantsJson();
+
 // `false`: an existing product, so the words written are those of the one
 // language the form's hidden field names (Multilingual 2.0 phase 5 wave C).
 [$errors, $fields] = validateProductInput($_POST, false);
 
 // The pictures section (admin/_product_gallery.php): the product's own pool in
-// its new order, and each shown variant's selection from it. Only when the
-// form carried the section at all, so a request without it changes no
-// picture. Checked again, token by token, in App\Service\ProductGallery.
+// its new order, and each shown variant's selection from it, by the variant's
+// key. Only when the form carried the section at all, so a request without
+// it changes no picture. Checked again, token by token, in ProductGallery.
 $gallerySubmitted = ($_POST['gallery_submitted'] ?? null) === '1';
 $galleryTokens = ProductGallery::tokens($_POST['gallery'] ?? []);
 $variantTokens = ProductGallery::variantTokens($_POST['variants_submitted'] ?? [], $_POST['variant_images'] ?? []);
 [$variantDescriptions, $fields['variant_descriptions']] = validateVariantDescriptions($_POST, $errors);
+
+// The Varianten section: options, values and variants as they are on screen.
+$variantEditor = ProductVariantEditor::fromRequest($_POST, $id, $db);
+foreach ($variantEditor->validate() as $field => $message) {
+    $errors[$field] = $message;
+}
 
 // A refused save shows the same pictures and selections again.
 if ($gallerySubmitted) {
@@ -93,21 +115,26 @@ $share = shop_share_image_choice($_POST, $existing);
 $fields['og_media_id'] = array_key_exists('og_media_id', $_POST) ? (int) filter_var($_POST['og_media_id'], FILTER_VALIDATE_INT, ['options' => ['default' => 0]]) : null;
 
 if ($share['error'] !== null) {
-    $errors[] = $share['error'];
+    $errors['og_media_id'] = $share['error'];
 }
 
 if ($errors !== []) {
-    $_SESSION['admin_product_errors'] = $errors;
+    if ($json) {
+        AdminEditorResponse::invalid($errors, AdminTranslator::trans('editor.invalid'));
+    }
+
+    $_SESSION['admin_product_errors'] = AdminEditorResponse::messages($errors);
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php?id=' . $id);
     exit;
 }
 
 try {
-    // Row and words are ONE transaction, and the words are only this
-    // language's: every other translation of this product stays exactly as it
-    // is, so switching the editing language cannot overwrite a translation
-    // with a stale copy (Multilingual 2.0 phase 5 wave C).
+    // Row, words, variants, pictures and collections are ONE transaction, and
+    // the words are only this language's: every other translation of this
+    // product stays exactly as it is, so switching the editing language
+    // cannot overwrite a translation with a stale copy (Multilingual 2.0
+    // phase 5 wave C).
     $db->beginTransaction();
 
     $productRepository->update($id, [
@@ -141,20 +168,28 @@ try {
         $unreferencedOgImagePath = $share['old_path'];
     }
 
+    // Options and values first, then the variants; every variant that exists
+    // afterwards by the key the screen posted it under — a new one ("new0")
+    // has its id only now.
+    $variantIds = $variantEditor->save();
+
     if ($gallerySubmitted) {
-        (new ProductGallery($db))->save($id, $galleryTokens, $variantTokens);
+        $selections = [];
+        foreach ($variantTokens as $key => $tokens) {
+            if (isset($variantIds[(string) $key])) {
+                $selections[$variantIds[(string) $key]] = $tokens;
+            }
+        }
+
+        (new ProductGallery($db))->save($id, $galleryTokens, $selections);
     }
 
     // A variant's own description, in this request's one language. Only
-    // variants of THIS product: an id of another product's variant is
-    // skipped, whatever the request says.
-    $ownVariantIds = array_map(
-        static fn (array $variant): int => (int) $variant['id'],
-        (new \App\Repository\ProductVariantRepository($db))->findByProductId($id)
-    );
-    foreach ($variantDescriptions as $variantId => $html) {
-        if (in_array((int) $variantId, $ownVariantIds, true)) {
-            ShopLocalization::saveVariantDescription((int) $variantId, $fields['language_code'], $html);
+    // variants of THIS product: a key the section did not hand back an id for
+    // is skipped, whatever the request says.
+    foreach ($variantDescriptions as $key => $html) {
+        if (isset($variantIds[(string) $key])) {
+            ShopLocalization::saveVariantDescription($variantIds[(string) $key], $fields['language_code'], $html);
         }
     }
 
@@ -181,10 +216,18 @@ try {
 
     error_log('[api/admin/update-product.php] ' . $e->getMessage());
 
-    $_SESSION['admin_product_errors'] = ['Product kon niet worden opgeslagen. Probeer het opnieuw.'];
+    if ($json) {
+        AdminEditorResponse::failed(AdminTranslator::trans('editor.product_save_failed'));
+    }
+
+    $_SESSION['admin_product_errors'] = [AdminTranslator::trans('editor.product_save_failed')];
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php?id=' . $id);
     exit;
+}
+
+if ($json) {
+    AdminEditorResponse::saved(AdminTranslator::trans('common.saved'));
 }
 
 header('Location: /admin/product-form.php?id=' . $id . '&updated=1');

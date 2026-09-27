@@ -8,9 +8,12 @@ require_once __DIR__ . '/_translate.php';
 
 /**
  * The product editor's pictures (admin/product-form.php): the product's own
- * pool of pictures, chosen from the Media Library, and per variant the
- * subset of that pool it shows, with a description of its own if it needs
- * one (MODULES.md, "Shop").
+ * pool of pictures, chosen from the Media Library, in the Afbeeldingen
+ * section; and per variant the subset of that pool it shows, with a
+ * description of its own if it needs one, inside that variant's row in the
+ * Varianten section (admin/_product_variants.php) — a variant's pictures are
+ * part of the variant, not of the product's general pictures (MODULES.md,
+ * "Shop").
  *
  * EVERYTHING HERE IS PART OF THE PRODUCT FORM. No field posts on its own and
  * no picture is uploaded to a Shop folder: a picture is chosen (or uploaded
@@ -161,65 +164,63 @@ function product_gallery_pool(array $pictures): void
 }
 
 /**
- * Per variant: the pictures it shows (its own order, ← → × and drag), the
- * pool as tiles to tick, and "Eigen beschrijving voor deze variant".
+ * One variant's pictures and description, inside its row: the pictures it
+ * shows (its own order, ← → × and drag), the pool as tiles to tick, and
+ * "Eigen beschrijving voor deze variant".
+ *
+ * The variant is named by its row KEY: its id, or "new<n>" (or the
+ * template's __KEY__) for a row added on the screen, so a variant added in
+ * this visit can have its pictures and text before it has an id; the
+ * endpoint translates the key (App\Service\ProductVariantEditor). The tiles
+ * are drawn again by admin/assets/product-gallery.js from the pool as it is
+ * on screen, so a picture added to the pool a moment ago is there too.
  *
  * @param list<array{token: string, src: string, name: string, media_id: ?int}> $pictures the pool
- * @param list<array{id: int, label: string, tokens: list<string>, own: bool, html: string}> $variants
+ * @param array{key: string, label: string, tokens: list<string>, own: bool, html: string} $variant
  */
-function product_gallery_variants(array $pictures, array $variants): void
+function product_gallery_variant_block(array $pictures, array $variant): void
 {
-    if ($variants === []) {
-        return;
-    }
-
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $byToken = [];
     foreach ($pictures as $picture) {
         $byToken[$picture['token']] = $picture;
     }
+
+    $key = $variant['key'];
+    $chosen = array_values(array_filter($variant['tokens'], static fn (string $t): bool => isset($byToken[$t])));
+    $ownId = 'variant-description-own-' . $key;
     ?>
-    <h3><?= admin_te('shop.gallery.variants_heading') ?></h3>
-    <p class="admin-text-muted"><?= admin_te('shop.gallery.variants_intro') ?></p>
-    <?php foreach ($variants as $variant): ?>
-      <?php
-        $variantId = (int) $variant['id'];
-        $chosen = array_values(array_filter($variant['tokens'], static fn (string $t): bool => isset($byToken[$t])));
-        $ownId = 'variant-description-own-' . $variantId;
-      ?>
-      <fieldset class="admin-variant-gallery" data-variant-gallery data-variant-id="<?= $variantId ?>" data-variant-label="<?= $h($variant['label']) ?>">
-        <legend><?= $h($variant['label']) ?></legend>
-        <input type="hidden" name="variants_submitted[]" value="<?= $variantId ?>">
+    <div class="admin-variant-gallery" data-variant-gallery data-variant-id="<?= $h($key) ?>" data-variant-label="<?= $h($variant['label']) ?>">
+      <input type="hidden" name="variants_submitted[]" value="<?= $h($key) ?>">
 
-        <p class="admin-variant-gallery__label"><?= admin_te('shop.gallery.variant_pictures') ?></p>
-        <ol class="admin-gallery__grid admin-gallery__grid--small" data-variant-gallery-list aria-label="<?= admin_te('shop.gallery.variant_list_label', ['variant' => $variant['label']]) ?>">
-          <?php foreach ($chosen as $index => $token): ?>
-            <?php product_gallery_card($byToken[$token], $index, count($chosen), 'variant_images[' . $variantId . '][]', admin_t('shop.gallery.variant_first')); ?>
-          <?php endforeach; ?>
-        </ol>
-        <p class="admin-text-muted" data-variant-gallery-empty<?= $chosen !== [] ? ' hidden' : '' ?>><?= admin_te('shop.gallery.variant_all') ?></p>
+      <p class="admin-variant-gallery__label"><?= admin_te('shop.gallery.variant_pictures') ?></p>
+      <ol class="admin-gallery__grid admin-gallery__grid--small" data-variant-gallery-list aria-label="<?= admin_te('shop.gallery.variant_list_label', ['variant' => $variant['label']]) ?>">
+        <?php foreach ($chosen as $index => $token): ?>
+          <?php product_gallery_card($byToken[$token], $index, count($chosen), 'variant_images[' . $key . '][]', admin_t('shop.gallery.variant_first')); ?>
+        <?php endforeach; ?>
+      </ol>
+      <p class="admin-text-muted" data-variant-gallery-empty<?= $chosen !== [] ? ' hidden' : '' ?>><?= admin_te('shop.gallery.variant_all') ?></p>
 
-        <div class="admin-gallery-tiles" data-variant-gallery-tiles role="group" aria-label="<?= admin_te('shop.gallery.tiles_label', ['variant' => $variant['label']]) ?>">
-          <?php foreach ($pictures as $picture): ?>
-            <?php $isChosen = in_array($picture['token'], $chosen, true); ?>
-            <button type="button" class="admin-gallery-tile<?= $isChosen ? ' is-chosen' : '' ?>" data-token="<?= $h($picture['token']) ?>" aria-pressed="<?= $isChosen ? 'true' : 'false' ?>" aria-label="<?= admin_te('shop.gallery.tile', ['name' => $picture['name'], 'variant' => $variant['label']]) ?>">
-              <img src="<?= $h($picture['src']) ?>" alt="" loading="lazy">
-              <span class="admin-gallery-tile__mark" aria-hidden="true"><?= $isChosen ? '&#10003;' : '' ?></span>
-            </button>
-          <?php endforeach; ?>
+      <div class="admin-gallery-tiles" data-variant-gallery-tiles role="group" aria-label="<?= admin_te('shop.gallery.tiles_label', ['variant' => $variant['label']]) ?>">
+        <?php foreach ($pictures as $picture): ?>
+          <?php $isChosen = in_array($picture['token'], $chosen, true); ?>
+          <button type="button" class="admin-gallery-tile<?= $isChosen ? ' is-chosen' : '' ?>" data-token="<?= $h($picture['token']) ?>" aria-pressed="<?= $isChosen ? 'true' : 'false' ?>" aria-label="<?= admin_te('shop.gallery.tile', ['name' => $picture['name'], 'variant' => $variant['label']]) ?>">
+            <img src="<?= $h($picture['src']) ?>" alt="" loading="lazy">
+            <span class="admin-gallery-tile__mark" aria-hidden="true"><?= $isChosen ? '&#10003;' : '' ?></span>
+          </button>
+        <?php endforeach; ?>
+      </div>
+
+      <div class="admin-variant-description" data-variant-description>
+        <label class="admin-checkbox-label" for="<?= $h($ownId) ?>">
+          <input type="checkbox" class="admin-switch" role="switch" id="<?= $h($ownId) ?>" name="variant_description_own[<?= $h($key) ?>]" value="1"<?= $variant['own'] ? ' checked' : '' ?> data-variant-description-toggle>
+          <?= admin_te('shop.variant_description.own') ?>
+        </label>
+        <p class="admin-text-muted" data-variant-description-inherited<?= $variant['own'] ? ' hidden' : '' ?>><?= admin_te('shop.variant_description.inherited') ?></p>
+        <div data-variant-description-editor<?= $variant['own'] ? '' : ' hidden' ?>>
+          <?php renderRichTextField('variant_description[' . $key . ']', admin_t('shop.variant_description.label'), $variant['html']); ?>
         </div>
-
-        <div class="admin-variant-description" data-variant-description>
-          <label class="admin-checkbox-label" for="<?= $h($ownId) ?>">
-            <input type="checkbox" class="admin-switch" role="switch" id="<?= $h($ownId) ?>" name="variant_description_own[<?= $variantId ?>]" value="1"<?= $variant['own'] ? ' checked' : '' ?> data-variant-description-toggle>
-            <?= admin_te('shop.variant_description.own') ?>
-          </label>
-          <p class="admin-text-muted" data-variant-description-inherited<?= $variant['own'] ? ' hidden' : '' ?>><?= admin_te('shop.variant_description.inherited') ?></p>
-          <div data-variant-description-editor<?= $variant['own'] ? '' : ' hidden' ?>>
-            <?php renderRichTextField('variant_description[' . $variantId . ']', admin_t('shop.variant_description.label'), $variant['html']); ?>
-          </div>
-        </div>
-      </fieldset>
-    <?php endforeach; ?>
+      </div>
+    </div>
     <?php
 }

@@ -3,11 +3,19 @@
 /**
  * POST /api/admin/create-product.php
  *
- * Creates a new product from the admin "nieuw product" form
- * (multipart/form-data — plain HTML form post, no JS, same pattern as
- * api/admin/update-fulfilment-status.php). On validation failure, redirects
- * back to the form with a session-flashed error list + the submitted values
- * (PRG pattern) so nothing is lost and nothing is ever double-submitted.
+ * Creates a new product from the admin "nieuw product" form: the first step
+ * of a product, and the only one that is not the editor's own save. A
+ * product needs an id before it can have options, variants or translations
+ * of its own, so this makes the row and hands the editor over to it: the
+ * answer is the product's own editor (admin/product-form.php?id=…&created=1),
+ * where every later change is stored by api/admin/update-product.php without
+ * a page load. No invented ids on the new-product screen to get there.
+ *
+ * The same two answers as update-product.php: JSON for the editor script
+ * (App\Service\AdminEditorResponse, with `data.redirect` to that editor, or
+ * 422 with the messages by field), and for a form posted without it the PRG
+ * redirect with a session-flashed error list + the submitted values, so
+ * nothing is lost and nothing is ever double-submitted.
  *
  * Pictures: `gallery[]`, Media Library pictures chosen on the form
  * (`media:<id>` tokens), stored as the product's pool in that order, the
@@ -24,9 +32,11 @@ require_once __DIR__ . '/_shop_share_image.php';
 
 use App\Database;
 use App\Service\AdminAuth;
+use App\Service\AdminEditorResponse;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
 use App\Service\ProductGallery;
 use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
@@ -46,6 +56,8 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
+$json = AdminEditorResponse::wantsJson();
+
 // `true`: a new product is written in the DEFAULT website language, so its
 // slug comes from a name the shop will really show (Multilingual 2.0 phase 5
 // wave C). Translating it happens on the product itself afterwards.
@@ -64,11 +76,15 @@ $share = shop_share_image_choice($_POST, []);
 $fields['og_media_id'] = $share['media']?->id;
 
 if ($share['error'] !== null) {
-    $errors[] = $share['error'];
+    $errors['og_media_id'] = $share['error'];
 }
 
 if ($errors !== []) {
-    $_SESSION['admin_product_errors'] = $errors;
+    if ($json) {
+        AdminEditorResponse::invalid($errors, AdminTranslator::trans('editor.invalid'));
+    }
+
+    $_SESSION['admin_product_errors'] = AdminEditorResponse::messages($errors);
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php');
     exit;
@@ -126,11 +142,23 @@ try {
 
     error_log('[api/admin/create-product.php] ' . $e->getMessage());
 
-    $_SESSION['admin_product_errors'] = ['Product kon niet worden opgeslagen. Probeer het opnieuw.'];
+    if ($json) {
+        AdminEditorResponse::failed(AdminTranslator::trans('editor.product_save_failed'));
+    }
+
+    $_SESSION['admin_product_errors'] = [AdminTranslator::trans('editor.product_save_failed')];
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php');
     exit;
 }
 
-header('Location: /admin/products.php?created=1');
+// Straight into the new product's own editor, where options, variants and
+// translations can be added now that it exists.
+$editor = '/admin/product-form.php?id=' . $productId . '&created=1';
+
+if ($json) {
+    AdminEditorResponse::saved(AdminTranslator::trans('shop.editor.created_short'), ['redirect' => $editor]);
+}
+
+header('Location: ' . $editor);
 exit;

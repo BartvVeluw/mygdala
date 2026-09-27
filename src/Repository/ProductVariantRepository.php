@@ -165,35 +165,6 @@ class ProductVariantRepository extends Repository
     }
 
     /**
-     * True if a variant already exists for this product with exactly this
-     * set of option values — prevents creating duplicate combinations.
-     *
-     * @param array<int, int> $valueIds
-     */
-    public function comboExists(int $productId, array $valueIds, ?int $excludeVariantId = null): bool
-    {
-        $valueIds = array_values(array_unique(array_map('intval', $valueIds)));
-        if ($valueIds === []) {
-            return false;
-        }
-
-        foreach ($this->findByProductId($productId) as $variant) {
-            if ($excludeVariantId !== null && (int) $variant['id'] === $excludeVariantId) {
-                continue;
-            }
-            $existingIds = array_map(static fn (array $v): int => (int) $v['value_id'], $variant['values']);
-            sort($existingIds);
-            $compare = $valueIds;
-            sort($compare);
-            if ($existingIds === $compare) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * @param array<int, int> $valueIds exactly one value id per option group of the product
      */
     public function create(int $productId, array $valueIds, ?float $price, bool $active): int
@@ -254,6 +225,25 @@ class ProductVariantRepository extends Repository
         return $stmt->fetch() !== false;
     }
 
+    /**
+     * The variants of a product an order points at: they can be switched off,
+     * never removed, and the product editor says so beside each of them.
+     *
+     * @return list<int>
+     */
+    public function idsInOrders(int $productId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT DISTINCT v.id
+             FROM product_variants v
+             JOIN order_items oi ON oi.variant_id = v.id
+             WHERE v.product_id = :product_id'
+        );
+        $stmt->execute(['product_id' => $productId]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
     public function delete(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM product_variants WHERE id = :id');
@@ -262,33 +252,20 @@ class ProductVariantRepository extends Repository
         return $stmt->rowCount() > 0;
     }
 
-    public function move(int $productId, int $id, string $direction): void
+    /**
+     * Puts a product's variants in the given order: the order the product
+     * editor posted them in. Only that product's rows move.
+     *
+     * @param list<int> $orderedIds
+     */
+    public function applyOrder(int $productId, array $orderedIds): void
     {
-        $variants = $this->findByProductId($productId);
+        $stmt = $this->db->prepare(
+            'UPDATE product_variants SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND product_id = :product_id'
+        );
 
-        $index = null;
-        foreach ($variants as $i => $variant) {
-            if ((int) $variant['id'] === $id) {
-                $index = $i;
-                break;
-            }
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'product_id' => $productId]);
         }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($variants)) {
-            return;
-        }
-
-        $a = $variants[$index];
-        $b = $variants[$swapWith];
-
-        $stmt = $this->db->prepare('UPDATE product_variants SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['sort_order' => $b['sort_order'], 'id' => $a['id']]);
-        $stmt->execute(['sort_order' => $a['sort_order'], 'id' => $b['id']]);
     }
 }

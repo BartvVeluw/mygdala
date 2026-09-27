@@ -10,6 +10,12 @@ declare(strict_types=1);
  * The SEO block (SEO title / meta description per language, and the optional
  * social image) is normalised by api/admin/_seo_validation.php, shared with
  * the collection editor so both apply identical rules.
+ *
+ * A message is keyed by the NAME of the field it is about, so the product
+ * editor can put it next to that field (App\Service\AdminEditorResponse);
+ * one without a field of its own (the SEO block's) keeps an integer key and
+ * is shown above the form. A form posted without the editor script shows
+ * them all as one list, as before (AdminEditorResponse::messages()).
  */
 
 require_once __DIR__ . '/_seo_validation.php';
@@ -30,7 +36,7 @@ use App\Service\ShopLocalization;
  *                    name, and translating it happens on the product itself
  *                    afterwards. An existing product is edited in the
  *                    language the form's hidden field names.
- * @return array{0: array<int, string>, 1: array<string, mixed>} [errors, normalized fields]
+ * @return array{0: array<int|string, string>, 1: array<string, mixed>} [errors by field name, normalized fields]
  */
 function validateProductInput(array $input, bool $isNew): array
 {
@@ -54,15 +60,15 @@ function validateProductInput(array $input, bool $isNew): array
     $inPersonalizationCatalog = ($input['in_personalization_catalog'] ?? null) === '1';
 
     if ($language === '' || !SiteLanguages::isActive($language)) {
-        $errors[] = AdminTranslator::trans('validation.language_unknown');
+        $errors['language_code'] = AdminTranslator::trans('validation.language_unknown');
     }
 
     // A name is required only in the DEFAULT language: a translation is
     // optional by definition, because it falls back.
     if ($name === '' && $isDefaultLanguage) {
-        $errors[] = AdminTranslator::trans('validation.naam_verplicht');
+        $errors['name'] = AdminTranslator::trans('validation.naam_verplicht');
     } elseif (mb_strlen($name) > ShopLocalization::NAME_MAX_LENGTH) {
-        $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_150_tekens');
+        $errors['name'] = AdminTranslator::trans('validation.naam_mag_maximaal_150_tekens');
     }
 
     // The rich-text editor sends HTML (paragraphs/bold/italic/links/line
@@ -72,28 +78,28 @@ function validateProductInput(array $input, bool $isNew): array
     $description = DescriptionSanitizer::sanitize($descriptionRaw);
 
     if ($description !== null && strlen($description) > 20000) {
-        $errors[] = 'Beschrijving is te lang.';
+        $errors['description'] = 'Beschrijving is te lang.';
     }
 
     $price = 0.0;
     if ($priceRaw === '' || !is_numeric($priceRaw)) {
-        $errors[] = AdminTranslator::trans('validation.prijs_verplicht_geldig_bedrag');
+        $errors['price'] = AdminTranslator::trans('validation.prijs_verplicht_geldig_bedrag');
     } else {
         $price = (float) $priceRaw;
         if ($price <= 0 || $price > 99999.99) {
-            $errors[] = AdminTranslator::trans('validation.prijs_groter_0_maximaal_99');
+            $errors['price'] = AdminTranslator::trans('validation.prijs_groter_0_maximaal_99');
         }
     }
 
     $shippingProfile = is_string($input['shipping_profile'] ?? null) ? trim($input['shipping_profile']) : '';
     if (!ShippingProfile::isValid($shippingProfile)) {
-        $errors[] = AdminTranslator::trans('validation.kies_geldig_verzendprofiel');
+        $errors['shipping_profile'] = AdminTranslator::trans('validation.kies_geldig_verzendprofiel');
     }
 
     $weightRaw = is_string($input['shipping_weight_grams'] ?? null) ? trim($input['shipping_weight_grams']) : '';
     $shippingWeightGrams = 0;
     if ($weightRaw === '' || !is_numeric($weightRaw) || (float) $weightRaw < 0) {
-        $errors[] = AdminTranslator::trans('validation.verzendgewicht_verplicht_0_hoger');
+        $errors['shipping_weight_grams'] = AdminTranslator::trans('validation.verzendgewicht_verplicht_0_hoger');
     } else {
         $shippingWeightGrams = (int) round((float) $weightRaw);
     }
@@ -157,20 +163,22 @@ function generateUniqueSlug(ProductRepository $repository, string $name): string
 
 /**
  * The variants' own descriptions from the product editor, in the one language
- * the request is written in: variant id => sanitized HTML for a variant that
+ * the request is written in: variant key => sanitized HTML for a variant that
  * has "Eigen beschrijving" ticked, or null for one that follows the product's
- * description again. Only the variants the screen says it showed
- * (`variants_submitted[]`) are in the result, so a variant the screen did
- * not render is never touched.
+ * description again. The key is a stored variant's id, or "new<n>" for one
+ * added on the screen, which the endpoint translates to the id it made
+ * (App\Service\ProductVariantEditor::save()). Only the variants the screen
+ * says it showed (`variants_submitted[]`) are in the result, so a variant the
+ * screen did not render is never touched.
  *
  * Ticked with nothing in it is refused rather than stored as "no override":
  * the editor asked for text of this variant's own and should see that none
  * was given. Unticked never stores a copy of the product's text — the variant
  * keeps following it (App\Service\ShopLocalization::variantDescription()).
  *
- * @param array<int, string> $errors appended to
- * @return array{0: array<int, ?string>, 1: array<int, array{own: bool, html: string}>}
- *         [what to store, what a refused save shows again]
+ * @param array<int|string, string> $errors added to, under the field's name
+ * @return array{0: array<int|string, ?string>, 1: array<int|string, array{own: bool, html: string}>}
+ *         [what to store, what a refused save shows again]; an id key comes out as an int
  */
 function validateVariantDescriptions(array $input, array &$errors): array
 {
@@ -180,39 +188,35 @@ function validateVariantDescriptions(array $input, array &$errors): array
 
     $store = [];
     $old = [];
-    $emptyReported = false;
 
     foreach ($submitted as $raw) {
-        $variantId = filter_var($raw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        if ($variantId === false) {
+        $key = is_scalar($raw) ? trim((string) $raw) : '';
+        if (preg_match('/^(?:[1-9][0-9]{0,9}|new[0-9]{1,4})$/', $key) !== 1) {
             continue;
         }
 
-        $isOwn = ($own[$variantId] ?? null) === '1';
-        $html = is_string($texts[$variantId] ?? null) ? $texts[$variantId] : '';
-        $old[$variantId] = ['own' => $isOwn, 'html' => $html];
+        $isOwn = ($own[$key] ?? null) === '1';
+        $html = is_string($texts[$key] ?? null) ? $texts[$key] : '';
+        $old[$key] = ['own' => $isOwn, 'html' => $html];
 
         if (!$isOwn) {
-            $store[$variantId] = null;
+            $store[$key] = null;
             continue;
         }
 
         $sanitized = DescriptionSanitizer::sanitize($html);
 
         if ($sanitized === null || trim(strip_tags($sanitized)) === '') {
-            if (!$emptyReported) {
-                $errors[] = AdminTranslator::trans('validation.variant_description_empty');
-                $emptyReported = true;
-            }
+            $errors['variant_description[' . $key . ']'] = AdminTranslator::trans('validation.variant_description_empty');
             continue;
         }
 
         if (strlen($sanitized) > 20000) {
-            $errors[] = 'Beschrijving is te lang.';
+            $errors['variant_description[' . $key . ']'] = 'Beschrijving is te lang.';
             continue;
         }
 
-        $store[$variantId] = $sanitized;
+        $store[$key] = $sanitized;
     }
 
     return [$store, $old];

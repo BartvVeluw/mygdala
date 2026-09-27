@@ -44,6 +44,9 @@ final class ProductGallery
 
     private const TOKEN = '/^(image|media):([1-9][0-9]{0,9})$/';
 
+    /** A variant on the screen: its id, or "new<n>" for one added there (App\Service\ProductVariantEditor). */
+    private const VARIANT_KEY = '/^(?:[1-9][0-9]{0,9}|new[0-9]{1,4})$/';
+
     private PDO $db;
     private ProductImageRepository $images;
     private ProductVariantImageRepository $links;
@@ -85,12 +88,15 @@ final class ProductGallery
     }
 
     /**
-     * The variant selections a request carries: variant id => tokens, for the
-     * variants the screen says it showed (`variant_images_submitted[]`). A
-     * variant that was shown with nothing ticked arrives as an empty list,
-     * which means "all of the product's pictures".
+     * The variant selections a request carries: variant key => tokens, for
+     * the variants the screen says it showed (`variants_submitted[]`). The
+     * key is a stored variant's id, or "new<n>" for a variant added on the
+     * screen in this visit, whose id only exists once the endpoint has made
+     * it (App\Service\ProductVariantEditor::save()); the endpoint translates
+     * those before save(). A variant that was shown with nothing ticked
+     * arrives as an empty list, which means "all of the product's pictures".
      *
-     * @return array<int, list<string>>
+     * @return array<int|string, list<string>> an id key comes out as an int
      */
     public static function variantTokens(mixed $submitted, mixed $posted): array
     {
@@ -101,12 +107,12 @@ final class ProductGallery
         $posted = is_array($posted) ? $posted : [];
         $selections = [];
 
-        foreach ($submitted as $variantId) {
-            $id = filter_var($variantId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-            if ($id === false) {
+        foreach ($submitted as $key) {
+            $key = is_scalar($key) ? trim((string) $key) : '';
+            if (preg_match(self::VARIANT_KEY, $key) !== 1) {
                 continue;
             }
-            $selections[$id] = self::tokens($posted[$id] ?? $posted[(string) $id] ?? []);
+            $selections[$key] = self::tokens($posted[$key] ?? []);
         }
 
         return $selections;
@@ -118,7 +124,7 @@ final class ProductGallery
      * picture ids in their new order.
      *
      * @param list<string>             $tokens
-     * @param array<int, list<string>> $variantTokens
+     * @param array<int, list<string>> $variantTokens by variant id; any other key is skipped
      * @return list<int>
      */
     public function save(int $productId, array $tokens, array $variantTokens = []): array

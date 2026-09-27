@@ -108,6 +108,7 @@
             <file>tests/Service/TurnstileVerifierTest.php</file>
             <file>tests/Update/VersionAndPathTest.php</file>
             <file>tests/Update/ReleaseManifestTest.php</file>
+            <file>tests/Service/AdminEditorResponseTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -174,6 +175,8 @@
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
             <file>tests/Update/LineEndingsTest.php</file>
+            <file>tests/Service/AdminEditorContractTest.php</file>
+            <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Module/AdminSidebarMenuTest.php</file>
         </testsuite>
 
@@ -318,6 +321,9 @@
             <file>tests/Update/ReleaseManifestTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
             <file>tests/Update/LineEndingsTest.php</file>
+            <file>tests/Service/AdminEditorResponseTest.php</file>
+            <file>tests/Service/AdminEditorContractTest.php</file>
+            <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Module/AdminSidebarMenuTest.php</file>
         </testsuite>
 
@@ -674,6 +680,8 @@
             <file>tests/Service/ThemePersistenceTest.php</file>
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
+            <file>tests/Service/AdminEditorResponseTest.php</file>
+            <file>tests/Service/AdminEditorContractTest.php</file>
         </testsuite>
 
         <testsuite name="shop">
@@ -728,6 +736,9 @@
             <file>tests/Service/WithdrawalLanguageSwitchTest.php</file>
             <file>tests/Service/WithdrawalRequestLanguageTest.php</file>
             <file>tests/Service/PublicRouteLanguageTest.php</file>
+            <file>tests/Service/ProductVariantEditorTest.php</file>
+            <file>tests/Service/ProductEditorHttpTest.php</file>
+            <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Service/AdminSidebarMenuHttpTest.php</file>
         </testsuite>
 

@@ -532,7 +532,6 @@ a{ color: var(--admin-accent); }
   .admin-sidebar__chevron{ transition: none; }
 }
 
-
 /* Who am I signed in as — sits between the nav and the logout button so the
    answer is always visible, now that the CMS has more than one account. */
 .admin-sidebar__account{
@@ -2136,88 +2135,12 @@ body.admin-login-page{
 .admin-login__form label{ display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.88rem; color: var(--admin-text-muted); }
 .admin-login__form input{ width: 100%; }
 
-/* Product variants section (admin/product-form.php, edit mode): option
-   groups + their values, and the resulting variant combinations. */
-.admin-option-block{
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-md);
-  padding: 0.85rem 1rem;
-  margin-bottom: var(--admin-sp-4);
-  background: var(--admin-surface-sunken);
-}
-.admin-option-block__head{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
-.admin-option-block__head input[type="text"]{ width: auto; }
-
-.admin-option-values{ list-style: none; margin: 0 0 0.75rem; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-.admin-option-values li{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
-.admin-option-values li input[type="text"]{ width: auto; }
-.admin-hex-input{ width: 8em !important; font-family: monospace; text-transform: uppercase; }
-input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; border-radius: var(--admin-radius-sm); cursor: pointer; }
-
 .admin-image-card__actions .admin-inline-form{ display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
 
-/* Per-variant panel (admin/product-form.php, edit mode): price/active,
-   ordering, and its own compact photo manager — a product with variants
-   manages all of its photos here instead of the product-level section. */
-.admin-variant-list{ display: flex; flex-direction: column; gap: var(--admin-sp-5); margin: 0.75rem 0 var(--admin-sp-5); }
-
-.admin-variant-panel{
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-md);
-  padding: 0.9rem 1rem;
-  background: var(--admin-surface-sunken);
-}
-
-.admin-variant-panel__head{ display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+/* A row of small inline fields with their labels on top (the shipping and
+   carrier-rate tables use it for a rate's own form). */
 .admin-variant-panel__form{ display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin-bottom: 0.6rem; }
 .admin-variant-panel__form label{ display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--admin-text-muted); }
-.admin-variant-panel__order{ display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.9rem; }
-
-.admin-variant-panel h4{ margin: 0.75rem 0 0.5rem; font-size: 0.9rem; }
-
-/* Compact thumbnails — smaller than the product-level 200px cards, since a
-   variant panel can hold several of these plus its own form fields. */
-.admin-variant-image-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 120px);
-  gap: 0.75rem;
-  margin: 0 0 0.75rem;
-}
-
-.admin-variant-image-card{
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-sm);
-  overflow: hidden;
-  background: var(--admin-surface);
-  cursor: grab;
-}
-
-.admin-variant-image-card.is-dragging{ opacity: 0.4; }
-
-.admin-variant-image-card__media{
-  position: relative;
-  width: 120px;
-  height: 120px;
-}
-
-.admin-variant-image-card__media img{
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
-.admin-variant-image-card__meta{
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.4rem;
-  border-top: 1px solid var(--admin-border);
-}
-
-.admin-variant-image-card__meta input[type="text"]{ font-size: 0.75rem; padding: 0.3rem 0.4rem; }
-.admin-variant-image-card__meta .admin-btn-text{ align-self: flex-start; }
 
 /* Portfolio categorieën manager (admin/portfolio.php) — a compact list, not
    another giant form: each row is a small inline rename form + usage count
@@ -2567,38 +2490,79 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 /* A message that belongs to one field, right under it. */
 .admin-field-error{ margin: 0.3rem 0 0; font-size: 0.8rem; color: var(--admin-error); }
 
-/* The product variant photo grid (admin/product-form.php). */
-.admin-variant-image-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 120px);
-  gap: 0.75rem;
-  margin: 0 0 0.75rem;
+/* ====================================================================== *
+   The dynamic editor (admin/_admin_editor.php) and the product editor
+   built on it (admin/product-form.php, admin/_product_variants.php)
+ * ====================================================================== */
+
+/* Every message of a refused save, above the form; focused when it appears. */
+.admin-editor-summary:focus{ outline: 2px solid var(--admin-error); outline-offset: 2px; }
+.admin-editor-summary__title{ margin: 0 0 0.35rem; font-weight: 600; }
+.admin-editor-summary__title:empty{ display: none; }
+.admin-editor-summary .admin-error-list:empty{ display: none; }
+
+/* A section's own messages (rows rather than one field). */
+[data-admin-editor-errors] > p{ margin: 0; }
+[data-admin-editor-errors] > p + p{ margin-top: 0.35rem; }
+
+/* While the request is on its way nothing on the form can be changed (inert). */
+form[data-admin-editor][aria-busy="true"]{ opacity: 0.85; cursor: progress; transition: opacity var(--admin-transition); }
+
+/* The product editor is several cards of one form. */
+.admin-product-editor{ display: flex; flex-direction: column; gap: var(--admin-sp-5); }
+.admin-product-editor > .admin-card{ margin: 0; }
+.admin-editor-section .admin-collapse__badges .admin-badge{ font-variant-numeric: tabular-nums; }
+
+/* Varianten: the options, each a card with its values, and the variants,
+   each a card with its price, its switch, its pictures and its text. */
+.admin-product-variants{ display: flex; flex-direction: column; gap: var(--admin-sp-3); }
+.admin-product-variants > p{ margin: 0; }
+.admin-product-variants__heading{ margin: var(--admin-sp-3) 0 0; font-size: 1rem; }
+.admin-product-options,
+.admin-variant-list{ display: flex; flex-direction: column; gap: var(--admin-sp-3); margin: 0; }
+.admin-product-option,
+.admin-variant-panel{ background: var(--admin-surface-sunken); }
+
+.admin-product-option__head{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--admin-sp-3); }
+.admin-product-option__head .admin-field{ margin: 0; }
+.admin-product-option__name{ flex: 1 1 14rem; min-width: 0; }
+.admin-product-option__display{ flex: 0 1 10rem; }
+.admin-product-option__head .admin-row-card__tools{ margin-left: auto; min-height: 2.4rem; }
+
+/* Why a × is switched off: a variant uses it, or an order points at it. The
+   button itself stays a quiet text button, not the shared disabled fill. */
+.admin-row-card__note{ margin: 0.4rem 0 0; font-size: 0.8rem; color: var(--admin-text-muted); }
+.admin-row-card__tools .admin-btn-text:disabled{ background: transparent; color: var(--admin-text-faint); text-decoration: none; cursor: not-allowed; }
+
+.admin-option-values{ list-style: none; margin: var(--admin-sp-3) 0 var(--admin-sp-2); padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.admin-option-value{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.admin-option-value__text{ flex: 1 1 12rem; min-width: 0; margin: 0; }
+.admin-option-value__color{ display: inline-flex; align-items: center; gap: 0.4rem; }
+.admin-product-option[data-option-display-type="standard"] .admin-option-value__color{ display: none; }
+.admin-option-value .admin-row-card__note{ flex-basis: 100%; margin: 0; }
+.admin-hex-input{ width: 8em !important; font-family: monospace; text-transform: uppercase; }
+input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; border-radius: var(--admin-radius-sm); cursor: pointer; }
+
+.admin-variant-panel__head{ display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.admin-variant-panel__label{ overflow-wrap: anywhere; }
+.admin-variant-panel__label .admin-badge{ margin-left: 0.3rem; font-weight: 500; }
+.admin-variant-panel__choices{ margin-top: var(--admin-sp-3); }
+.admin-variant-panel__choices > p{ margin: 0; }
+.admin-variant-panel__choice-fields,
+.admin-variant-panel__fields{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--admin-sp-3); margin-top: var(--admin-sp-3); }
+.admin-variant-panel__choice-fields:empty{ display: none; }
+.admin-variant-panel__choice-fields .admin-field{ flex: 1 1 10rem; min-width: 0; margin: 0; }
+.admin-variant-panel__fields .admin-field{ flex: 0 1 16rem; min-width: 0; margin: 0; }
+.admin-variant-panel__fields .admin-checkbox-label{ min-height: 2.4rem; align-self: flex-end; align-items: center; }
+
+/* Three answers side by side where they fit (admin_editor_leave_dialog()). */
+.admin-editor-leave{ width: min(34rem, calc(100vw - 2rem)); }
+.admin-variant-panel .admin-variant-gallery{ margin: var(--admin-sp-3) 0 0; background: var(--admin-surface); }
+
+@media (max-width: 600px){
+  .admin-product-option__head .admin-row-card__tools{ margin-left: 0; width: 100%; justify-content: space-between; }
+  .admin-product-option__display{ flex: 1 1 10rem; }
 }
-
-.admin-variant-image-card{
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-sm);
-  overflow: hidden;
-  background: var(--admin-surface);
-  cursor: grab;
-}
-
-.admin-variant-image-card.is-dragging{ opacity: 0.4; }
-
-.admin-variant-image-card__media{
-  position: relative;
-  width: 120px;
-  height: 120px;
-}
-
-.admin-variant-image-card__media img{
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
 
 /* Shop collections (admin/collections.php, admin/collection.php).
    The overview reuses .admin-product-grid/.admin-product-card wholesale and
@@ -5048,7 +5012,8 @@ body.admin-block-picker-open{ overflow: hidden; }
 }
 
 /* ====================================================================== *
-   The save/status bar (admin/_save_bar.php)
+   The save/status bar (admin/_save_bar.php), also the dynamic editor's
+   bar (admin/_admin_editor.php): one look for both ways of saving
  * ====================================================================== */
 
 /* Reserves the height the fixed bar covers, in the normal flow at the end of

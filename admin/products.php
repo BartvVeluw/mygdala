@@ -50,7 +50,6 @@ try {
     $referencedIds = [];
 }
 
-$created = isset($_GET['created']);
 $deleted = isset($_GET['deleted']);
 $listError = $_SESSION['admin_product_list_error'] ?? null;
 unset($_SESSION['admin_product_list_error']);
@@ -83,9 +82,6 @@ $canManageProducts = AdminAuth::can('products.manage');
     <?php endif; ?>
   </div>
 
-  <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_aangemaakt') ?></p>
-  <?php endif; ?>
   <?php if ($deleted): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_verwijderd') ?></p>
   <?php endif; ?>

@@ -91,6 +91,15 @@ final class AdminAccessControlTest extends TestCase
         // products.manage check. It stores nothing; the product form's own
         // endpoint saves what it shows.
         '_product_gallery.php',
+        // The product editor's Varianten section: output functions
+        // admin/product-form.php calls behind its own products.manage
+        // check. It stores nothing; api/admin/update-product.php saves the
+        // options, values and variants with the rest of the product.
+        '_product_variants.php',
+        // The dynamic editor's bar, summary, leave dialog and one <script>
+        // tag (ADMIN-UI.md): no URL, no data, no decision. Every save goes
+        // through the screen's own guarded endpoint.
+        '_admin_editor.php',
         // The rows of a block editor's list (a FAQ's questions, a
         // Detailsectie's images): output functions the calling editor uses
         // behind its own pages.manage check. No URL and no data of its own;

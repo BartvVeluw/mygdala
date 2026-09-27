@@ -119,8 +119,9 @@ class ProductOptionRepository extends Repository
     /**
      * Deleting an option cascades to its values. If any of those values is
      * still used by a variant, the RESTRICT on product_variant_values makes
-     * the whole delete fail at the database level — isOptionInUse() below is
-     * the friendly pre-check so the admin UI can explain why up front.
+     * the whole delete fail at the database level — App\Service\
+     * ProductVariantEditor checks that first, against the variants that stay
+     * after the same save, so the editor can say which option and why.
      */
     public function deleteOption(int $id): bool
     {
@@ -130,32 +131,21 @@ class ProductOptionRepository extends Repository
         return $stmt->rowCount() > 0;
     }
 
-    public function isOptionInUse(int $optionId): bool
+    /**
+     * Puts a product's options in the given order: the order the product
+     * editor posted them in. Only that product's rows move.
+     *
+     * @param list<int> $orderedIds
+     */
+    public function applyOptionOrder(int $productId, array $orderedIds): void
     {
         $stmt = $this->db->prepare(
-            'SELECT 1
-             FROM product_variant_values vv
-             JOIN product_option_values v ON v.id = vv.product_option_value_id
-             WHERE v.product_option_id = :option_id
-             LIMIT 1'
+            'UPDATE product_options SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND product_id = :product_id'
         );
-        $stmt->execute(['option_id' => $optionId]);
 
-        return $stmt->fetch() !== false;
-    }
-
-    public function isValueInUse(int $valueId): bool
-    {
-        $stmt = $this->db->prepare('SELECT 1 FROM product_variant_values WHERE product_option_value_id = :id LIMIT 1');
-        $stmt->execute(['id' => $valueId]);
-
-        return $stmt->fetch() !== false;
-    }
-
-    public function moveOption(int $productId, int $id, string $direction): void
-    {
-        $options = $this->findByProductId($productId);
-        $this->swapSortOrder('product_options', $options, $id, $direction);
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'product_id' => $productId]);
+        }
     }
 
     public function createValue(int $optionId, string $value, ?string $hexColor = null): int
@@ -196,44 +186,19 @@ class ProductOptionRepository extends Repository
         return $stmt->rowCount() > 0;
     }
 
-    public function moveValue(int $optionId, int $id, string $direction): void
-    {
-        $values = $this->findValuesByOptionId($optionId);
-        $this->swapSortOrder('product_option_values', $values, $id, $direction);
-    }
-
     /**
-     * Shared "swap sort_order with the previous/next sibling" logic used by
-     * both moveOption() and moveValue() — same approach as
-     * ProductImageRepository::moveImage().
+     * Puts an option's values in the given order. Only that option's rows move.
      *
-     * @param array<int, array<string, mixed>> $orderedRows already sorted by sort_order ASC, id ASC
+     * @param list<int> $orderedIds
      */
-    private function swapSortOrder(string $table, array $orderedRows, int $id, string $direction): void
+    public function applyValueOrder(int $optionId, array $orderedIds): void
     {
-        $index = null;
-        foreach ($orderedRows as $i => $row) {
-            if ((int) $row['id'] === $id) {
-                $index = $i;
-                break;
-            }
+        $stmt = $this->db->prepare(
+            'UPDATE product_option_values SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND product_option_id = :option_id'
+        );
+
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'option_id' => $optionId]);
         }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($orderedRows)) {
-            return;
-        }
-
-        $a = $orderedRows[$index];
-        $b = $orderedRows[$swapWith];
-
-        $stmt = $this->db->prepare("UPDATE {$table} SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id");
-        $stmt->execute(['sort_order' => $b['sort_order'], 'id' => $a['id']]);
-        $stmt->execute(['sort_order' => $a['sort_order'], 'id' => $b['id']]);
     }
 }
