@@ -323,9 +323,11 @@ final class PaymentSettingsEditor
             return;
         }
 
-        // Every website language's names, while Mollie answers; a language
-        // Mollie does not answer for keeps the name stored before.
-        foreach (SiteLanguages::activeCodes() as $code) {
+        // The names in every website language that is switched on, published
+        // or not, so switching the Multilingual module on later finds them
+        // there; a language Mollie does not answer for keeps the name stored
+        // before.
+        foreach (array_map(static fn ($language): string => $language->code, SiteLanguages::switchedOn()) as $code) {
             $options = $code === SiteLanguages::defaultCode() ? $available : $this->fetch($code);
             foreach ($options ?? [] as $option) {
                 if (in_array($option->id, $this->methods, true)) {
