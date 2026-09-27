@@ -400,6 +400,7 @@
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
             <file>tests/Install/SecretSettingsMigrationTest.php</file>
+            <file>tests/Install/PaymentModeMigrationTest.php</file>
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
             <file>tests/Install/CtaBandMigrationTest.php</file>
@@ -711,6 +712,7 @@
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
             <file>tests/Install/SecretSettingsMigrationTest.php</file>
+            <file>tests/Install/PaymentModeMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <directory>tests/Service/Address</directory>
             <file>tests/Service/CollectionAddressEditorTest.php</file>
@@ -729,6 +731,7 @@
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/OrderPaymentSyncTest.php</file>
+            <file>tests/Service/TestOrderTest.php</file>
             <file>tests/Service/OrderStatusLanguageSwitchTest.php</file>
             <file>tests/Service/PdfInvoiceRendererTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>

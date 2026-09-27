@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Repository\OrderRepository;
+use App\Service\InvoiceService;
 use App\Service\OrderConfirmationService;
 use App\Service\OrderPaymentSync;
 use App\Service\Payment\MolliePaymentProvider;
@@ -40,6 +41,8 @@ use PHPUnit\Framework\TestCase;
  *    anything the browser itself asserts
  *  - refunds reported by Mollie are mirrored locally without altering the
  *    order's original total
+ *  - a slower sync with an older status never undoes a final one (paid,
+ *    failed, canceled, expired): what is stored decides
  *
  * OrderRepository/OrderConfirmationService are both real classes with a
  * database-backed default constructor, so — same approach as
@@ -207,6 +210,43 @@ final class OrderPaymentSyncTest extends TestCase
         // Same Mollie refund id upserted twice must still be exactly one row.
         $this->assertCount(1, $repo->refunds[10]);
         $this->assertSame('10.00', $repo->orders[10]['refunded_amount']);
+    }
+
+    public function testASlowerSyncWithAnOlderStatusNeverUndoesAFinalOne(): void
+    {
+        $repo = new InMemoryOrderRepository([
+            10 => ['id' => 10, 'status' => 'paid', 'mollie_status' => 'paid', 'mollie_payment_id' => 'tr_abc'],
+            11 => ['id' => 11, 'status' => 'expired', 'mollie_status' => 'expired', 'mollie_payment_id' => 'tr_def'],
+        ]);
+        $confirmations = $this->fakeConfirmations();
+        $invoices = new class extends InvoiceService {
+            /** @var list<int> */
+            public array $issuedFor = [];
+
+            public function __construct()
+            {
+            }
+
+            public function issueForOrderIfNeeded(int $orderId): ?array
+            {
+                $this->issuedFor[] = $orderId;
+
+                return null;
+            }
+        };
+        $sync = new OrderPaymentSync($repo, $confirmations, $invoices);
+
+        // The return page read "open" just before the webhook wrote "paid".
+        $result = $sync->sync($this->payment('tr_abc', 'open'));
+
+        $this->assertSame('paid', $result['status'], 'what is stored decides');
+        $this->assertSame(['paid', 'paid'], [$repo->orders[10]['status'], $repo->orders[10]['mollie_status']]);
+        $this->assertSame([10], $invoices->issuedFor, 'a paid order is still followed up');
+        $this->assertSame([10], $confirmations->sentFor);
+
+        $sync->sync($this->payment('tr_def', 'open'));
+        $this->assertSame('expired', $repo->orders[11]['status']);
+        $this->assertSame(0, $repo->statusUpdateCount, 'nothing was written');
     }
 }
 

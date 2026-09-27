@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Database;
+use App\Repository\DashboardRepository;
 use App\Repository\OrderRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\Payment\MollieConfiguration;
+use App\Service\Payment\MolliePaymentProvider;
+use App\Service\Payment\PaymentRequest;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\BuiltInServer;
@@ -30,7 +33,15 @@ use Tests\Support\InvoiceOrderFixture;
  *  - 503 with Retry-After when Mollie is down, refuses the key, or there is
  *    no key: the payment is real, so Mollie must deliver again — and the
  *    order is left as it was;
- *  - a payment made in the other mode is found with that mode's stored key.
+ *  - an order is looked up with the key of the mode its payment was made in
+ *    (orders.payment_mode), whatever mode the shop is in now, and with no
+ *    other key; without that mode's key: 503, and Mollie is not asked;
+ *  - the release regression: a test order started before the owner switches
+ *    the shop to Live is settled with the TEST key after the switch, is
+ *    paid, stays a test order, and touches neither the invoice counter, the
+ *    invoices nor the revenue; a live order is invoiced and counted as ever;
+ *  - an order from before the mode was recorded (NULL) is still found with
+ *    the other mode's stored key.
  *
  * A paid order gets its invoice as in production, in an invoice directory of
  * this test's own; no mail leaves (no notification address). Orders,
@@ -150,12 +161,52 @@ final class MollieWebhookHttpTest extends TestCase
         }
     }
 
-    private function pendingOrder(string $paymentId): int
+    private function pendingOrder(string $paymentId, ?string $mode = null): int
     {
         $orderId = $this->fixture->order('pending');
-        (new OrderRepository())->setMolliePaymentId($orderId, $paymentId);
+        (new OrderRepository())->setMolliePaymentId($orderId, $paymentId, $mode);
 
         return $orderId;
+    }
+
+    /** Both keys stored in the CMS, the shop in $mode: the stored-keys server's configuration. */
+    private function storedKeysIn(string $mode): MollieConfiguration
+    {
+        $configuration = new MollieConfiguration(['MOLLIE_API_KEY' => '', 'APP_KEY' => '', 'SECRETS_STORAGE_PATH' => self::$directory]);
+        $configuration->storeKey('test', self::TEST_KEY);
+        $configuration->storeKey('live', self::LIVE_KEY);
+        $this->switchShopTo($mode);
+
+        return $configuration;
+    }
+
+    private function switchShopTo(string $mode): void
+    {
+        (new SiteSettingRepository())->upsertMany([MollieConfiguration::MODE_SETTING => $mode]);
+        SiteSettings::clearCache();
+    }
+
+    private function invoiceCounter(): ?int
+    {
+        $statement = Database::connection()->prepare('SELECT last_number FROM invoice_number_counters WHERE year = :year');
+        $statement->execute(['year' => (int) date('Y')]);
+        $value = $statement->fetchColumn();
+
+        return $value === false ? null : (int) $value;
+    }
+
+    /** @return array{order_count: int, gross_total: string, refunded_total: string} today's paid orders, as the dashboard counts them */
+    private function revenue(): array
+    {
+        return (new DashboardRepository())->orderTotalsBetween(['paid'], date('Y-m-d 00:00:00'), date('Y-m-d 00:00:00', strtotime('+1 day')));
+    }
+
+    /** @param array<string, mixed> $changes */
+    private function atMollie(string $paymentId, array $changes): void
+    {
+        $scenario = json_decode((string) file_get_contents($this->scenario()), true);
+        $scenario['payments'][$paymentId] = $changes + (array) ($scenario['payments'][$paymentId] ?? []);
+        FakeMollie::write($this->scenario(), $scenario);
     }
 
     /** @return array<string, mixed> */
@@ -263,18 +314,110 @@ final class MollieWebhookHttpTest extends TestCase
         $this->assertSame('pending', $this->order($orderId)['status']);
     }
 
-    public function testAPaymentFromTheOtherModeIsFoundWithThatModesStoredKey(): void
+    public function testAnOrderFromBeforeTheModeWasRecordedIsFoundWithTheOtherModesStoredKey(): void
     {
-        $configuration = new MollieConfiguration(['MOLLIE_API_KEY' => '', 'APP_KEY' => '', 'SECRETS_STORAGE_PATH' => self::$directory]);
-        $configuration->storeKey('test', self::TEST_KEY);
-        $configuration->storeKey('live', self::LIVE_KEY);
-        (new SiteSettingRepository())->upsertMany([MollieConfiguration::MODE_SETTING => 'test']);
+        $this->storedKeysIn('test');
         $orderId = $this->pendingOrder('tr_whlive');
+        $this->assertNull($this->order($orderId)['payment_mode'], 'precondition: a legacy order');
 
         $this->assertSame(200, $this->deliver(['id' => 'tr_whlive'], self::$storedKeys)['status']);
 
         $this->assertSame('paid', $this->order($orderId)['status']);
         $this->assertSame(['test', 'live'], array_column(FakeMollie::requests($this->scenario()), 'mode'), 'the active key first, then the other one');
+    }
+
+    /**
+     * The release regression, step by step: a test order that is still open
+     * when the owner switches the shop to Live.
+     */
+    public function testATestOrderPaidAfterTheSwitchToLiveIsSettledWithTheTestKeyAndStaysATest(): void
+    {
+        // 1. The shop is in Test.
+        $configuration = $this->storedKeysIn('test');
+
+        // 2. An order, and 3. its payment started exactly as api/checkout.php
+        // starts it: the provider's answer names the mode, and that is stored.
+        $orderId = $this->fixture->order('pending');
+        FakeMollie::install($this->scenario());
+        try {
+            $payment = (new MolliePaymentProvider($configuration, 'https://winkel.example.nl', 'Winkel'))
+                ->createPayment(new PaymentRequest($this->order($orderId), 'ideal', 'nl'));
+        } finally {
+            FakeMollie::uninstall();
+        }
+        (new OrderRepository())->setMolliePaymentId($orderId, $payment->id, $payment->mode);
+
+        $this->assertSame('test', $payment->mode);
+        $this->assertSame('test', $this->order($orderId)['payment_mode']);
+
+        // 4. At Mollie the payment is still open; the order is pending.
+        $this->assertSame('pending', $this->order($orderId)['status']);
+
+        // 5. The owner switches the shop to Live.
+        $this->switchShopTo('live');
+        $counterBefore = $this->invoiceCounter();
+        $revenueBefore = $this->revenue();
+
+        // 6. The customer pays the test payment after all, and Mollie calls
+        // the webhook for it.
+        $this->atMollie($payment->id, ['status' => 'paid', 'paidAt' => '2026-09-27T11:00:00+00:00']);
+        @unlink($this->scenario() . '.log');
+        $this->assertSame(200, $this->deliver(['id' => $payment->id], self::$storedKeys)['status']);
+
+        // 7. Looked up with the test key, because of the order, and with no
+        // other key: not the live key the shop now uses.
+        $requests = FakeMollie::requests($this->scenario());
+        $this->assertSame(['GetPaymentRequest'], array_column($requests, 'request'));
+        $this->assertSame('test', $requests[0]['mode']);
+        $this->assertSame(substr(self::TEST_KEY, -4), $requests[0]['key_end']);
+
+        // 8. The order is paid, and 9. stays a test order.
+        $order = $this->order($orderId);
+        $this->assertSame('paid', $order['status']);
+        $this->assertSame('test', $order['payment_mode']);
+        $this->assertTrue(OrderRepository::isTestOrder($order));
+
+        // 10. The invoice counter did not move, 11. there is no invoice and
+        // no PDF, 12. and the revenue is what it was.
+        $this->assertSame($counterBefore, $this->invoiceCounter());
+        $this->assertSame(0, $this->invoiceCount($orderId));
+        $this->assertSame([], glob(self::$directory . '/invoices-base/invoices/*/*') ?: []);
+        $this->assertSame($revenueBefore, $this->revenue());
+    }
+
+    public function testALiveOrderIsSettledWithTheLiveKeyWhileTheShopIsInTestAndIsInvoicedAndCounted(): void
+    {
+        $this->storedKeysIn('test');
+        $orderId = $this->pendingOrder('tr_whlive', 'live');
+        $counterBefore = (int) $this->invoiceCounter();
+        $revenueBefore = $this->revenue();
+
+        $this->assertSame(200, $this->deliver(['id' => 'tr_whlive'], self::$storedKeys)['status']);
+
+        $this->assertSame(['live'], array_column(FakeMollie::requests($this->scenario()), 'mode'), 'the order\'s own key, not the active test key first');
+        $order = $this->order($orderId);
+        $this->assertSame('paid', $order['status']);
+        $this->assertSame('live', $order['payment_mode']);
+        $this->assertSame(1, $this->invoiceCount($orderId), 'a live order is invoiced as ever');
+        $this->assertSame($counterBefore + 1, $this->invoiceCounter());
+
+        $revenue = $this->revenue();
+        $this->assertSame($revenueBefore['order_count'] + 1, $revenue['order_count']);
+        $this->assertEqualsWithDelta((float) $revenueBefore['gross_total'] + 39.20, (float) $revenue['gross_total'], 0.001);
+    }
+
+    public function testWithoutAKeyForTheOrdersModeMollieMustDeliverAgainAndNoOtherKeyIsTried(): void
+    {
+        $configuration = new MollieConfiguration(['MOLLIE_API_KEY' => '', 'APP_KEY' => '', 'SECRETS_STORAGE_PATH' => self::$directory]);
+        $configuration->storeKey('live', self::LIVE_KEY);
+        $this->switchShopTo('live');
+        $orderId = $this->pendingOrder('tr_whpaid', 'test');
+
+        $answer = $this->deliver(['id' => 'tr_whpaid'], self::$storedKeys);
+
+        $this->assertSame(503, $answer['status'], 'the payment is real; the test key may come back');
+        $this->assertSame([], FakeMollie::requests($this->scenario()), 'the live key is never asked for a test payment');
+        $this->assertSame('pending', $this->order($orderId)['status']);
     }
 
     private static function remove(string $path): void

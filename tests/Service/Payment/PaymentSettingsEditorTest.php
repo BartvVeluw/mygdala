@@ -21,7 +21,8 @@ use Tests\Support\FakeMollie;
  *  - keys: stored sealed and masked; the wrong shape or the wrong field is
  *    refused; an empty field keeps what is stored;
  *  - live: never without a live key, never without Mollie accepting it at the
- *    moment of the save, and a refused check writes nothing at all;
+ *    moment of the save, never without a public https site address, and a
+ *    refused check writes nothing at all; test works on any address;
  *  - a live shop that took payments needs the confirmation to replace its
  *    live key;
  *  - the environment pins the key: no key or mode is saved, methods still are;
@@ -113,10 +114,10 @@ final class PaymentSettingsEditorTest extends TestCase
      * @param array<string, mixed> $post
      * @return array{0: array<string, string>, 1: list<string>} errors, and the events when it was saved
      */
-    private function save(array $post, string $environmentKey = '', bool $shopHasPayments = false): array
+    private function save(array $post, string $environmentKey = '', bool $shopHasPayments = false, string $baseUrl = 'https://winkel.example.nl'): array
     {
         $configuration = $this->configuration($environmentKey);
-        $editor = new PaymentSettingsEditor($post, $configuration, new MolliePaymentProvider($configuration, 'https://winkel.example.nl', 'Winkel'), 'nl', static fn (): bool => $shopHasPayments);
+        $editor = new PaymentSettingsEditor($post, $configuration, new MolliePaymentProvider($configuration, $baseUrl, 'Winkel'), 'nl', static fn (): bool => $shopHasPayments);
 
         $errors = $editor->validate();
         if ($errors !== []) {
@@ -191,6 +192,27 @@ final class PaymentSettingsEditorTest extends TestCase
         [$errors, $events] = $this->save(['payment_mode' => 'live']);
         $this->assertSame([], $errors);
         $this->assertSame([], $events, 'staying live with the same key needs no new check');
+    }
+
+    public function testLiveNeedsAPublicHttpsSiteAddressAndTestDoesNot(): void
+    {
+        $this->save(['test_api_key' => self::TEST_KEY]);
+        $requestsBefore = count(FakeMollie::requests($this->scenario));
+
+        foreach (['http://winkel.example.nl' => 'https://', 'https://mygdala.localhost' => 'lokaal', 'https://192.168.1.20' => 'lokaal'] as $baseUrl => $reason) {
+            [$errors] = $this->save(['live_api_key' => self::LIVE_KEY, 'payment_mode' => 'live'], '', false, $baseUrl);
+
+            $this->assertStringContainsString('Live kan pas aan als het webadres van de site klopt.', $errors['payment_mode'] ?? '', $baseUrl);
+            $this->assertStringContainsString($reason, $errors['payment_mode'], $baseUrl);
+            $this->assertNull($this->configuration()->storedKey('live'), $baseUrl . ': nothing is written');
+            $this->assertSame('test', $this->configuration()->storedMode(), $baseUrl);
+        }
+        $this->assertCount($requestsBefore, FakeMollie::requests($this->scenario), 'refused before Mollie is asked');
+
+        // Test mode keeps working on a local address.
+        [$errors, $events] = $this->save(['test_api_key' => self::OTHER_TEST_KEY, 'payment_mode' => 'test'], '', false, 'http://mygdala.localhost');
+        $this->assertSame([], $errors);
+        $this->assertSame(['test API key replaced'], $events);
     }
 
     public function testAStoredLiveKeyAloneNeverSwitchesToLive(): void

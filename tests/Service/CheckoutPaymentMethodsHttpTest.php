@@ -23,15 +23,20 @@ use Tests\Support\FakeMollie;
  *  - a choice is offered in its order, one method as the one chosen, and the
  *    cart names the real methods;
  *  - api/checkout.php refuses up front, with nothing stored, when there is no
- *    payment key; with one, it refuses a method the shop does not offer and
- *    lets an offered one (and the old "kaart") through to the next check.
+ *    payment key, and when the key is live but the site address is not a
+ *    public https one (Mollie could not call back, the customer could not
+ *    come back); with a test key it works on any address; it refuses a
+ *    method the shop does not offer and lets an offered one (and the old
+ *    "kaart") through to the next check.
  */
 final class CheckoutPaymentMethodsHttpTest extends TestCase
 {
     private const TEST_KEY = 'test_checkoutcheckoutcheckout123456';
+    private const LIVE_KEY = 'live_checkoutcheckoutcheckout654321';
 
     private static ?BuiltInServer $configured = null;
     private static ?BuiltInServer $unconfigured = null;
+    private static ?BuiltInServer $liveOnALocalAddress = null;
     private static string $directory = '';
 
     /** @var array<string, string|null> */
@@ -52,13 +57,15 @@ final class CheckoutPaymentMethodsHttpTest extends TestCase
 
         self::$configured = BuiltInServer::start(['MOLLIE_API_KEY' => self::TEST_KEY] + $environment, null, $ini);
         self::$unconfigured = BuiltInServer::start(['MOLLIE_API_KEY' => 'test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'] + $environment, null, $ini);
+        self::$liveOnALocalAddress = BuiltInServer::start(['MOLLIE_API_KEY' => self::LIVE_KEY, 'APP_URL' => 'http://mygdala.localhost'] + $environment, null, $ini);
     }
 
     public static function tearDownAfterClass(): void
     {
         self::$configured?->stop();
         self::$unconfigured?->stop();
-        self::$configured = self::$unconfigured = null;
+        self::$liveOnALocalAddress?->stop();
+        self::$configured = self::$unconfigured = self::$liveOnALocalAddress = null;
 
         foreach (glob(self::$directory . '/{,.}*', GLOB_BRACE) ?: [] as $file) {
             if (is_file($file)) {
@@ -70,11 +77,12 @@ final class CheckoutPaymentMethodsHttpTest extends TestCase
 
     protected function setUp(): void
     {
-        if (self::$configured === null || !self::$configured->answers() || self::$unconfigured === null || !self::$unconfigured->answers()) {
+        if (self::$configured === null || !self::$configured->answers() || self::$unconfigured === null || !self::$unconfigured->answers()
+            || self::$liveOnALocalAddress === null || !self::$liveOnALocalAddress->answers()) {
             $this->markTestSkipped("could not start PHP's built-in web server for this test");
         }
 
-        FakeMollie::write(self::$directory . '/scenario.json', ['keys' => [self::TEST_KEY => 'ok']]);
+        FakeMollie::write(self::$directory . '/scenario.json', ['keys' => [self::TEST_KEY => 'ok', self::LIVE_KEY => 'ok']]);
         @unlink(self::$directory . '/scenario.json.log');
 
         $db = Database::connection();
@@ -170,6 +178,16 @@ final class CheckoutPaymentMethodsHttpTest extends TestCase
         $this->assertSame(503, $status);
         $this->assertStringContainsString('not available', (string) ($body['error'] ?? ''));
         $this->assertSame(0, $this->orderCount());
+    }
+
+    public function testALiveKeyOnALocalAddressIsRefusedBeforeAnythingIsStored(): void
+    {
+        [$status, $body] = $this->checkout(self::$liveOnALocalAddress, ['terms_accepted' => true]);
+
+        $this->assertSame(503, $status);
+        $this->assertStringContainsString('not available', (string) ($body['error'] ?? ''));
+        $this->assertSame(0, $this->orderCount());
+        $this->assertSame([], FakeMollie::requests(self::$directory . '/scenario.json'), 'no live payment was started');
     }
 
     public function testOnlyAnOfferedMethodGetsThrough(): void

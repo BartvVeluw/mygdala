@@ -190,6 +190,42 @@ final class PaymentSettingsHttpTest extends TestCase
         $this->assertSame([], FakeMollie::requests($this->scenario()), 'nobody reached Mollie');
     }
 
+    public function testSettingsManageAloneReachesNoPaymentKeyButKeepsTheShopSettings(): void
+    {
+        [$settingsOnly, $csrf] = $this->accounts->signIn([AdminPermissions::SETTINGS_MANAGE]);
+
+        $shopSettings = self::$shop->request('GET', '/admin/shop-settings.php', $settingsOnly);
+        $this->assertSame(200, $shopSettings['status'], 'Shop-instellingen keeps its own permission');
+        $this->assertStringNotContainsString('href="/admin/payments.php"', $shopSettings['body'], 'no Betalingen in the menu');
+
+        // The screen, and every forged post straight at the endpoints: a new
+        // key, a switch to live, the methods, the connection test.
+        $answers = [
+            self::$shop->request('GET', '/admin/payments.php', $settingsOnly),
+            $this->save($settingsOnly, $csrf, ['test_api_key' => self::TEST_KEY, 'payment_mode' => 'test']),
+            $this->save($settingsOnly, $csrf, ['payment_mode' => 'live']),
+            $this->save($settingsOnly, $csrf, ['payment_methods_submitted' => '1', 'payment_methods' => ['ideal']], false),
+            $this->test($settingsOnly, $csrf, ['test_mode' => 'test', 'test_api_key' => self::TEST_KEY]),
+        ];
+        foreach ($answers as $index => $answer) {
+            $this->assertSame(403, $answer['status'], (string) $index);
+            $this->assertStringNotContainsString(self::TEST_KEY, $answer['body'] . $answer['headers'], (string) $index);
+        }
+
+        $this->assertSame(0, $this->countStoredKeys());
+        $mode = Database::connection()->prepare('SELECT COUNT(*) FROM site_settings WHERE setting_key = :key');
+        $mode->execute(['key' => MollieConfiguration::MODE_SETTING]);
+        $this->assertSame(0, (int) $mode->fetchColumn(), 'the mode was not written');
+        $this->assertSame([], FakeMollie::requests($this->scenario()), 'nobody reached Mollie');
+
+        // A Super Admin holds payments.manage without a grant.
+        [$superAdmin, $superCsrf] = $this->accounts->signIn([], true);
+        $this->assertSame(200, self::$shop->request('GET', '/admin/payments.php', $superAdmin)['status']);
+        $this->assertStringContainsString('href="/admin/payments.php"', self::$shop->request('GET', '/admin/shop-settings.php', $superAdmin)['body']);
+        $this->assertSame(200, $this->save($superAdmin, $superCsrf, ['test_api_key' => self::TEST_KEY, 'payment_mode' => 'test'])['status']);
+        $this->assertSame(self::TEST_KEY, $this->configuration()->keyFor('test'));
+    }
+
     public function testTheTokenAndThePostAreRequired(): void
     {
         [$session] = $this->accounts->signIn([ShopModule::PAYMENTS_MANAGE]);

@@ -7,6 +7,7 @@ namespace Tests\Service\Payment;
 use App\Database;
 use App\Service\Payment\MollieConfiguration;
 use App\Service\Payment\MolliePaymentProvider;
+use App\Service\Payment\MollieSetupStatus;
 use App\Service\Payment\PaymentProviderException;
 use App\Service\Payment\PaymentRequest;
 use App\Service\Payment\PaymentSnapshot;
@@ -21,8 +22,14 @@ use Tests\Support\FakeMollie;
  *  - createPayment: the body comes from the stored order, the return and
  *    webhook addresses from the configured base URL (a subfolder included),
  *    and no webhook where Mollie cannot call back;
+ *  - createPayment names the mode the payment was made in;
  *  - fetchPayment: every Mollie status in the Shop's words, the refunds on
- *    request, and after a mode switch the other stored key is asked once;
+ *    request; with the order's mode only that mode's key is asked, whatever
+ *    mode the shop is in, and without that key nothing is asked; without a
+ *    mode (an order from before it was recorded) the other stored key is
+ *    asked once after a not-found;
+ *  - live payments need a public https site address, test payments do not,
+ *    and the status card says why a working live key cannot take payments;
  *  - availableMethods and checkKey: one, several or no methods, named in the
  *    language asked, and a key of the wrong shape is refused before any
  *    request;
@@ -299,6 +306,100 @@ final class MolliePaymentProviderTest extends TestCase
         }
         $this->assertSame([], FakeMollie::requests($this->scenario));
         $this->assertTrue($this->provider()->isConfigured());
+    }
+
+    public function testACreatedPaymentNamesTheModeItWasMadeIn(): void
+    {
+        $this->assertSame('test', $this->provider()->createPayment(new PaymentRequest(self::order(), 'ideal', 'nl'))->mode);
+        $this->assertSame('live', $this->provider(self::LIVE_KEY)->createPayment(new PaymentRequest(self::order(), 'ideal', 'nl'))->mode);
+    }
+
+    public function testWithTheOrdersModeOnlyThatModesKeyIsAskedWhateverTheShopIsIn(): void
+    {
+        $cms = $this->configuration('');
+        $cms->storeKey('test', self::TEST_KEY);
+        $cms->storeKey('live', self::LIVE_KEY);
+        SiteSettings::overrideForTests([MollieConfiguration::MODE_SETTING => 'live']);
+        $provider = new MolliePaymentProvider($cms, 'https://winkel.example.nl', 'Winkel');
+
+        $this->assertSame(PaymentSnapshot::PAID, $provider->fetchPayment('tr_paid', 'test')->status, 'a test order in a live shop');
+        $this->assertSame(['test'], array_column(FakeMollie::requests($this->scenario), 'mode'));
+
+        // Not under the order's own key: not found, and no other key is tried.
+        $this->assertNotFound(fn () => $provider->fetchPayment('tr_live', 'test'));
+        $this->assertSame(['test', 'test'], array_column(FakeMollie::requests($this->scenario), 'mode'));
+
+        SiteSettings::overrideForTests([MollieConfiguration::MODE_SETTING => 'test']);
+        $this->assertSame(PaymentSnapshot::PAID, $provider->fetchPayment('tr_live', 'live')->status, 'a live order in a test shop');
+        $this->assertSame('live', $this->lastRequest()['mode']);
+    }
+
+    public function testWithoutAKeyForTheOrdersModeNothingIsAsked(): void
+    {
+        $cms = $this->configuration('');
+        $cms->storeKey('live', self::LIVE_KEY);
+        SiteSettings::overrideForTests([MollieConfiguration::MODE_SETTING => 'live']);
+        $cmsProvider = new MolliePaymentProvider($cms, 'https://winkel.example.nl', 'Winkel');
+
+        foreach ([
+            'no stored test key' => fn () => $cmsProvider->fetchPayment('tr_paid', 'test'),
+            'an unknown mode' => fn () => $cmsProvider->fetchPayment('tr_paid', 'production'),
+            'the environment pins a test key' => fn () => $this->provider(self::TEST_KEY)->fetchPayment('tr_live', 'live'),
+        ] as $case => $call) {
+            try {
+                $call();
+                $this->fail($case . ': must not be looked up');
+            } catch (PaymentProviderException $e) {
+                $this->assertSame(PaymentProviderException::NOT_CONFIGURED, $e->kind, $case);
+            }
+        }
+
+        $this->assertSame([], FakeMollie::requests($this->scenario), 'no other key is ever tried');
+    }
+
+    public function testLivePaymentsNeedAPublicHttpsSiteAddressAndTestPaymentsDoNot(): void
+    {
+        $this->assertSame('missing', MolliePaymentProvider::liveBaseUrlProblemFor('http://localhost', false));
+        $this->assertSame('not_https', MolliePaymentProvider::liveBaseUrlProblemFor('http://winkel.example.nl', true));
+        $this->assertSame('not_public', MolliePaymentProvider::liveBaseUrlProblemFor('https://mygdala.localhost', true));
+        $this->assertSame('not_public', MolliePaymentProvider::liveBaseUrlProblemFor('https://192.168.1.20', true));
+        $this->assertNull(MolliePaymentProvider::liveBaseUrlProblemFor('https://winkel.example.nl', true));
+
+        $log = $this->directory . '/error.log';
+        $previousLog = (string) ini_set('error_log', $log);
+        try {
+            foreach (['http://winkel.example.nl', 'https://shop.localhost', 'https://10.0.0.5'] as $base) {
+                $live = $this->provider(self::LIVE_KEY, $base);
+                $this->assertFalse($live->isConfigured(), $base);
+                try {
+                    $live->createPayment(new PaymentRequest(self::order(), 'ideal', 'nl'));
+                    $this->fail($base . ': no live payment');
+                } catch (PaymentProviderException $e) {
+                    $this->assertSame(PaymentProviderException::NOT_CONFIGURED, $e->kind, $base);
+                    $this->assertStringNotContainsString(substr(self::LIVE_KEY, 5), $e->getMessage());
+                }
+
+                $this->assertTrue($this->provider(self::TEST_KEY, $base)->isConfigured(), $base . ': test mode stays usable');
+            }
+        } finally {
+            ini_set('error_log', $previousLog);
+        }
+
+        $this->assertSame([], FakeMollie::requests($this->scenario), 'refused before Mollie is asked');
+        $this->assertStringContainsString('live payments refused', (string) file_get_contents($log));
+        $this->assertStringNotContainsString(substr(self::LIVE_KEY, 5), (string) file_get_contents($log));
+        $this->assertTrue($this->provider(self::LIVE_KEY)->isConfigured(), 'a public https address');
+    }
+
+    public function testTheStatusCardSaysWhyAWorkingLiveKeyCannotTakePayments(): void
+    {
+        $status = MollieSetupStatus::current($this->configuration(self::LIVE_KEY), $this->provider(self::LIVE_KEY, 'http://winkel.example.nl'), 'nl');
+        $this->assertSame(MollieSetupStatus::PROBLEM, $status->state);
+        $this->assertSame('not_https', $status->urlProblem);
+        $this->assertTrue($status->connection?->ok(), 'the key itself works');
+
+        $this->assertSame(MollieSetupStatus::LIVE, MollieSetupStatus::current($this->configuration(self::LIVE_KEY), $this->provider(self::LIVE_KEY), 'nl')->state);
+        $this->assertSame(MollieSetupStatus::TEST, MollieSetupStatus::current($this->configuration(), $this->provider(self::TEST_KEY, 'http://mygdala.localhost'), 'nl')->state);
     }
 
     public function testRedactionRemovesEveryKeyShapedWord(): void

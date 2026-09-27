@@ -187,9 +187,25 @@ final class AdminPermissionsTest extends TestCase
             }
         }
 
-        foreach (AdminPermissions::SUPER_ADMIN_GRANTABLE_ONLY as $permission) {
+        foreach (AdminPermissions::superAdminGrantableOnly() as $permission) {
             $this->assertTrue(AdminPermissions::isValid($permission), $permission);
         }
+    }
+
+    public function testPaymentsManageIsItsOwnPermissionThatOnlyASuperAdminHandsOut(): void
+    {
+        $this->assertContains(ShopModule::PAYMENTS_MANAGE, AdminPermissions::superAdminGrantableOnly());
+        $this->assertContains(AdminPermissions::USERS_MANAGE, AdminPermissions::superAdminGrantableOnly(), 'the Core ones stay');
+
+        // No other grant brings it along, settings.manage least of all.
+        foreach (AdminPermissions::all() as $permission) {
+            if ($permission !== ShopModule::PAYMENTS_MANAGE) {
+                $this->assertFalse(AdminPermissions::userHas($this->user([$permission]), ShopModule::PAYMENTS_MANAGE), $permission);
+            }
+        }
+        $this->assertFalse(AdminPermissions::userHas($this->user([AdminPermissions::SETTINGS_MANAGE, ShopModule::ORDERS_MANAGE, ShopModule::SHIPPING_MANAGE]), ShopModule::PAYMENTS_MANAGE));
+        $this->assertTrue(AdminPermissions::userHas($this->user([ShopModule::PAYMENTS_MANAGE]), ShopModule::PAYMENTS_MANAGE));
+        $this->assertTrue(AdminPermissions::userHas($this->user([], true), ShopModule::PAYMENTS_MANAGE));
     }
 
     public function testTheAccessSummaryHidesAViewThatItsManageAlreadyImplies(): void

@@ -135,6 +135,35 @@ final class AdminUserServiceTest extends TestCase
         );
     }
 
+    public function testOnlyASuperAdminHandsOutOrTakesAwayPaymentsManage(): void
+    {
+        $managerId = $this->repository->seed('manager', false, true, [AdminPermissions::USERS_MANAGE, AdminPermissions::SETTINGS_MANAGE]);
+
+        // settings.manage is no way in: its holder cannot grant payments.manage.
+        $newId = $this->service->create($this->actor($managerId), $this->input([
+            'permissions' => [AdminPermissions::SETTINGS_MANAGE, ShopModule::PAYMENTS_MANAGE],
+        ]));
+        $this->assertSame([AdminPermissions::SETTINGS_MANAGE], $this->repository->findById($newId)['granted_permissions']);
+
+        $superAdminId = $this->repository->seed('bart', true);
+        $cashierId = $this->service->create($this->actor($superAdminId), $this->input([
+            'username' => 'betalingen',
+            'email' => 'betalingen@example.test',
+            'permissions' => [ShopModule::PAYMENTS_MANAGE],
+        ]));
+        $this->assertSame([ShopModule::PAYMENTS_MANAGE], $this->repository->findById($cashierId)['granted_permissions']);
+
+        // Nor can that holder take it away again.
+        $this->service->update($this->actor($managerId), $cashierId, $this->input([
+            'username' => 'betalingen',
+            'email' => 'betalingen@example.test',
+            'password' => '',
+            'password_confirmation' => '',
+            'permissions' => [ShopModule::PRODUCTS_VIEW],
+        ]));
+        $this->assertContains(ShopModule::PAYMENTS_MANAGE, $this->repository->findById($cashierId)['granted_permissions']);
+    }
+
     public function testAUserWithoutUsersManageCannotCreateAccountsAtAll(): void
     {
         $editorId = $this->repository->seed('editor', false, true, [AdminPermissions::PAGES_MANAGE]);
