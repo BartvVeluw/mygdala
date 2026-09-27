@@ -222,8 +222,9 @@ $testButton = static function (string $mode, string $labelKey) use ($h): string 
     </div>
   </section>
 
-  <?php /* THE STEPS. Plain <details>: they open and close without a script. */ ?>
-  <section class="admin-card" id="payments-setup" aria-labelledby="payments-setup-title">
+  <?php /* THE STEPS. Plain <details>: they open and close without a script.
+           A region of the editor, so a save moves "Klaar" and "Nu" along. */ ?>
+  <section class="admin-card" id="payments-setup" aria-labelledby="payments-setup-title" data-admin-editor-region="payments-setup">
     <h2 id="payments-setup-title"><?= admin_te('payments.setup.title') ?></h2>
     <p class="admin-text-muted"><?= admin_te('payments.setup.intro') ?></p>
     <ol class="admin-payments-steps">
@@ -388,7 +389,7 @@ $testButton = static function (string $mode, string $labelKey) use ($h): string 
     <button type="submit" data-admin-editor-fallback><?= admin_te('common.save') ?></button>
   </form>
 
-  <section class="admin-card" id="payments-testpay" aria-labelledby="payments-testpay-title">
+  <section class="admin-card" id="payments-testpay" aria-labelledby="payments-testpay-title" data-admin-editor-region="payments-testpay">
     <h2 id="payments-testpay-title"><?= admin_te('payments.testpay.title') ?></h2>
     <p><?= admin_te('payments.testpay.intro') ?></p>
     <ol class="admin-payments-howto">
