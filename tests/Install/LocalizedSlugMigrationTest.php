@@ -273,15 +273,21 @@ final class LocalizedSlugMigrationTest extends TestCase
     public function testNotOneNeutralRowChanged(): void
     {
         foreach (self::NEUTRAL_TABLES as $table) {
-            // Compared on the columns the rows had before: catchUp() runs every
-            // later migration too, and one that ADDS a column to a neutral table
-            // (collections.media_id, 20260923120000) changes no value that was
-            // there.
+            // Compared on the columns and the rows there were before: catchUp()
+            // runs every later migration too, one that ADDS a column to a
+            // neutral table (collections.media_id, 20260923120000) changes no
+            // value that was there, and one that adds a row of its own (the
+            // Shop's and the Portfolio's system pages, 20260928150000) changes
+            // no row that was there.
             $before = self::$neutralBefore[$table];
             $columns = $before === [] ? null : array_flip(array_keys($before[0]));
+            $ids = array_column($before, 'id');
             $after = array_map(
                 static fn (array $row): array => $columns === null ? $row : array_intersect_key($row, $columns),
-                self::$upgraded->rows('SELECT * FROM `' . $table . '` ORDER BY id')
+                array_values(array_filter(
+                    self::$upgraded->rows('SELECT * FROM `' . $table . '` ORDER BY id'),
+                    static fn (array $row): bool => $before === [] || in_array($row['id'], $ids, true)
+                ))
             );
 
             self::assertSame(
@@ -302,14 +308,19 @@ final class LocalizedSlugMigrationTest extends TestCase
         );
 
         // Pages gain address-only rows (see below), so the words are compared
-        // on the rows that had words.
+        // on the rows that had words, of the pages that were there (a later
+        // migration adds the system pages with a title of their own).
+        $pages = array_column(self::$neutralBefore['pages'], 'id');
         self::assertSame(
             self::$wordsBefore['page_translations'],
-            self::$upgraded->rows(
-                'SELECT page_id, language_code, title, meta_title, meta_description FROM page_translations
-                  WHERE title IS NOT NULL OR meta_title IS NOT NULL OR meta_description IS NOT NULL
-                  ORDER BY page_id, language_code'
-            )
+            array_values(array_filter(
+                self::$upgraded->rows(
+                    'SELECT page_id, language_code, title, meta_title, meta_description FROM page_translations
+                      WHERE title IS NOT NULL OR meta_title IS NOT NULL OR meta_description IS NOT NULL
+                      ORDER BY page_id, language_code'
+                ),
+                static fn (array $row): bool => in_array($row['page_id'], $pages, true)
+            ))
         );
     }
 

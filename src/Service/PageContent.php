@@ -223,10 +223,12 @@ class PageContent
 
     /**
      * Does this page's URL still answer? True for every ordinary page. False
-     * only for a page served from a MODULE's own template while that module
-     * is switched off: the row is untouched and still editable, but
-     * /shop.php answers 404 like any other unknown URL, so the sitemap must
-     * not list it and nothing else may present it as reachable.
+     * for a page served from a MODULE's own template while that module is
+     * switched off: the row is untouched and still editable, but /shop.php
+     * answers 404 like any other unknown URL, so the sitemap must not list it
+     * and nothing else may present it as reachable. False too for a module's
+     * placeholder page (App\Service\ModuleSystemPages::isPlaceholder()): its
+     * address shows the module's own overview, which the module lists itself.
      *
      * Derived from the page's own `route_path` and the module registry —
      * never from a page name. See App\Module\ModuleRegistry.
@@ -235,6 +237,13 @@ class PageContent
     {
         if (!self::isRouteBound($page)) {
             return true;
+        }
+
+        // A module's placeholder page (App\Service\ModuleSystemPages): the
+        // address shows the module's own overview, not this empty page, so
+        // nothing may list or link the page as if it were.
+        if (ModuleSystemPages::isPlaceholder($page)) {
+            return false;
         }
 
         // Switched off, or switched on but not answering at this path right

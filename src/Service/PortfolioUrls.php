@@ -36,7 +36,8 @@ final class PortfolioUrls
 
     /**
      * The CMS page that is the overview, published or not, or null when there
-     * is none — a new installation, or one that switched Portfolio on later.
+     * is none — or when the only one is the empty page every installation got
+     * for the Portfolio (Shop Product & Ordering 2.0), until it gets a block.
      *
      * Found by its content key and nothing else: a page is never adopted as
      * the overview for its title or its slug. Without one, portfolio.php
@@ -46,7 +47,13 @@ final class PortfolioUrls
      */
     public static function overviewPage(): ?array
     {
-        return PageContent::forContentKey(self::OVERVIEW_CONTENT_KEY);
+        $page = PageContent::forContentKey(self::OVERVIEW_CONTENT_KEY);
+
+        // The page a migration made for the Portfolio on an installation that
+        // had none, while it has no block of its own, is not the overview
+        // yet: the module's own overview stays, exactly as before the page
+        // existed (App\Service\ModuleSystemPages).
+        return $page !== null && ModuleSystemPages::isPlaceholder($page) ? null : $page;
     }
 
     /**

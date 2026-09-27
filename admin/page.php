@@ -121,6 +121,11 @@ $pageId = (int) $page['id'];
 $pageName = PageLocalization::name($pageId);
 $editLanguage = admin_localized_language();
 $isProtected = PageContent::isProtected($page);
+// A module's page (App\Service\ModuleSystemPages): the Shop's storefront or
+// the Portfolio overview. The screen says whose it is and whether that module
+// is on, and offers no Verwijderen.
+$modulePage = \App\Service\ModuleSystemPages::forPage($page);
+$modulePlaceholder = $modulePage !== null && \App\Service\ModuleSystemPages::isPlaceholder($page);
 $hasFixedUrl = PageContent::isRouteBound($page);
 
 $repository = new PageSectionRepository();
@@ -376,6 +381,17 @@ $urlFieldOpen = !$hasFixedUrl
     </div>
   <?php endif; ?>
 
+  <?php if ($modulePage !== null): ?>
+    <div class="admin-alert admin-alert--<?= $modulePage['enabled'] ? 'info' : 'warning' ?>" role="status">
+      <p><?= admin_te('page.module_page', ['module' => $modulePage['module_label'], 'path' => $modulePage['route_path']]) ?></p>
+      <?php if (!$modulePage['enabled']): ?>
+        <p><?= admin_te('page.module_off', ['module' => $modulePage['module_label']]) ?></p>
+      <?php elseif ($modulePlaceholder): ?>
+        <p><?= admin_te('page.module_placeholder', ['module' => $modulePage['module_label']]) ?></p>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
+
   <?php /* The three tabs. Their order on screen is the order of this list —
            Inhoud first, because building the page is what an editor comes
            here for — and has nothing to do with the order the panels are
@@ -506,7 +522,9 @@ $urlFieldOpen = !$hasFixedUrl
          */
         $currentLocalizedPath = PageContent::localizedPath($page, $editLanguage);
         ?>
-        <?php if ($currentLocalizedPath === null): ?>
+        <?php if ($currentLocalizedPath === null && $modulePage !== null): ?>
+          <p class="admin-url-field__current"><code><?= $h(\App\Service\Routing\LocalizedUrl::path($modulePage['route_path'], $editLanguage)) ?></code></p>
+        <?php elseif ($currentLocalizedPath === null): ?>
           <p class="admin-url-field__current admin-text-muted"><?= admin_te('page.url_none_in_language') ?></p>
         <?php else: ?>
         <p class="admin-url-field__current">
@@ -814,7 +832,7 @@ $urlFieldOpen = !$hasFixedUrl
   <?php /* The second Pagina panel. It has to be one: it carries a <form> of
            its own, and that could not be nested inside the settings form the
            first Pagina panel lives in. The tab controls both. */ ?>
-  <?php if (!$isProtected): ?>
+  <?php if (!$isProtected && $modulePage === null): ?>
     <?php admin_tab_panel('pagina'); ?>
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>

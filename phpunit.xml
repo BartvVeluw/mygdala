@@ -424,6 +424,7 @@
             <file>tests/Repository/ContactFormMigrationTest.php</file>
             <file>tests/Service/MediaAdoptionTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
+            <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
         </testsuite>
 
         <!-- ============================================================
@@ -698,6 +699,8 @@
             <file>tests/Service/AdminEditorContractTest.php</file>
             <file>tests/Service/Secrets/MasterKeyTest.php</file>
             <file>tests/Service/Secrets/SecretStoreTest.php</file>
+            <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
+            <file>tests/Service/ModuleSystemPagesTest.php</file>
         </testsuite>
 
         <testsuite name="shop">

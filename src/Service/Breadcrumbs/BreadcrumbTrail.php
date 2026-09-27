@@ -97,7 +97,10 @@ final class BreadcrumbTrail
     {
         $page = PageContent::forContentKey($contentKey);
 
-        if ($page === null) {
+        // A module's placeholder page (App\Service\ModuleSystemPages) is not a
+        // page of its own on the website: the module's overview is, so the
+        // trail names that, exactly as before the page existed.
+        if ($page === null || \App\Service\ModuleSystemPages::isPlaceholder($page)) {
             return $fallbackRoute === null ? $this : $this->toRoute($fallbackRoute);
         }
 

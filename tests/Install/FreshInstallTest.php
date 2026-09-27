@@ -151,7 +151,9 @@ final class FreshInstallTest extends TestCase
      */
     public function testNoneOfThisSitesContentPagesAreCreated(): void
     {
-        foreach (['diensten', 'portfolio', 'over-mij', 'contact'] as $contentKey) {
+        // Not 'portfolio': that is the Portfolio module's system page now,
+        // on every installation (testEachModuleHasItsEmptySystemPage()).
+        foreach (['diensten', 'over-mij', 'contact'] as $contentKey) {
             $this->assertNull(
                 $this->page($contentKey),
                 "A generic install must not receive the page '{$contentKey}'."
@@ -243,22 +245,30 @@ final class FreshInstallTest extends TestCase
     // ------------------------------------------------------------- modules
 
     /**
-     * A webshop is a module, not a page an editor has to keep, and not a
-     * public listing of every product either: a fresh install has no product
-     * overview until the owner chooses a page (App\Service\ShopOverview,
-     * Tests\Install\FreshInstallRenderTest), so nothing is seeded for it:
-     * no page, no product grid, no menu item, no stored choice. An installation that ran
-     * the bootstrap before this changed keeps its Shop page, because Phinx
-     * never runs a migration twice (INSTALL-BOOTSTRAP.md).
+     * A webshop is a module, and not a public listing of every product
+     * either: a fresh install has no product overview until the owner
+     * chooses a page (App\Service\ShopOverview,
+     * Tests\Install\FreshInstallRenderTest), so no product grid, no menu item
+     * and no stored choice is seeded. What it does get since Shop Product &
+     * Ordering 2.0 is the Shop's SYSTEM PAGE (and the Portfolio's): empty,
+     * marked module_default, in Pagina's on every installation, and without a
+     * block of its own it changes nothing on the website
+     * (App\Service\ModuleSystemPages, db/migrations/20260928150000).
      */
-    public function testTheShopModuleSeedsNoPage(): void
+    public function testEachModuleHasItsEmptySystemPage(): void
     {
-        $this->assertNull($this->page('shop'), 'A fresh install must not receive a Shop page.');
-        $this->assertSame(
-            [],
-            $this->install()->rows('SELECT id FROM pages WHERE route_path = ?', ['/shop.php']),
-            'No page may claim the storefront route on a fresh install.'
-        );
+        foreach (['shop' => '/shop.php', 'portfolio' => '/portfolio'] as $contentKey => $routePath) {
+            $page = $this->page($contentKey);
+            $this->assertNotNull($page, $contentKey);
+            $this->assertSame($routePath, $page['route_path'], $contentKey);
+            $this->assertSame(1, (int) $page['is_system'], $contentKey);
+            $this->assertSame(1, (int) $page['module_default'], $contentKey);
+            $this->assertSame($contentKey, $page['slug'], $contentKey);
+            $this->assertSame('published', $page['status'], $contentKey);
+            $this->assertSame([], $this->install()->rows('SELECT id FROM page_sections WHERE page_id = ?', [(int) $page['id']]), $contentKey . ' has no block');
+        }
+
+        $this->assertCount(1, $this->install()->rows('SELECT id FROM pages WHERE route_path = ?', ['/shop.php']), 'one page at the storefront route');
         $this->assertSame(
             [],
             $this->install()->rows("SELECT setting_value FROM site_settings WHERE setting_key = 'shop_overview'"),
@@ -274,11 +284,11 @@ final class FreshInstallTest extends TestCase
         );
     }
 
-    public function testTheHomepageIsTheOnlySystemPage(): void
+    public function testTheHomepageAndTheModulePagesAreTheOnlySystemPages(): void
     {
         $this->assertSame(
-            [['content_key' => 'index']],
-            $this->install()->rows('SELECT content_key FROM pages WHERE is_system = 1')
+            [['content_key' => 'index'], ['content_key' => 'portfolio'], ['content_key' => 'shop']],
+            $this->install()->rows('SELECT content_key FROM pages WHERE is_system = 1 ORDER BY content_key')
         );
     }
 

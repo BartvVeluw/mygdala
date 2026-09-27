@@ -160,6 +160,17 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
+     * The overview page, content key "portfolio", at the module root: in
+     * Pagina's on every installation (App\Service\ModuleSystemPages). While it
+     * has no block of its own, /portfolio shows the module's own overview
+     * (App\Service\PortfolioUrls::overviewPage()).
+     */
+    public function systemPages(): array
+    {
+        return [PortfolioUrls::OVERVIEW_CONTENT_KEY => ['route_path' => PortfolioUrls::OVERVIEW_PATH]];
+    }
+
+    /**
      * Both root-level templates, reserved whether or not the module runs.
      * `portfolio` is also the first segment of every project address
      * (/portfolio/<slug>, see publicRoutes()); `portfolio-detail` is the template

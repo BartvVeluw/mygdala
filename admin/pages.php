@@ -150,6 +150,17 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
   <?= admin_info_panel(admin_t('help.pages.overview')) ?>
 
+  <?php /* A module's page that is missing because another page already held
+           its word (App\Service\ModuleSystemPages::conflicts()). Nothing
+           renames that page; the owner decides. */ ?>
+  <?php foreach (\App\Service\ModuleSystemPages::conflicts() as $moduleConflict): ?>
+    <p class="admin-alert admin-alert--warning" role="status"><?= admin_te('pages.module_page_conflict', [
+        'module' => $moduleConflict['module_label'],
+        'word' => $moduleConflict['content_key'],
+        'id' => (string) $moduleConflict['page_id'],
+    ]) ?></p>
+  <?php endforeach; ?>
+
   <?php if ($created): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('pages.created') ?></p>
   <?php endif; ?>
@@ -226,6 +237,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                   $isProtected = PageContent::isProtected($page);
                   $hasFixedUrl = PageContent::isRouteBound($page);
                   $publicUrl = PageContent::publicUrl($page);
+                  // A module's page (Shop, Portfolio): whose it is, and
+                  // whether that module is on. Its address is the module's
+                  // route; with the module off it answers nothing.
+                  $modulePage = \App\Service\ModuleSystemPages::forPage($page);
+                  if ($modulePage !== null) {
+                      $publicUrl = \App\Service\Routing\LocalizedUrl::path($modulePage['route_path']);
+                  }
                   // The rows this row folds: its direct children in this list.
                   $childRowIds = [];
                   foreach ($rows as $other) {
@@ -254,7 +272,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                   <td><code><?= $h($publicUrl) ?></code></td>
                   <td><span class="admin-badge admin-badge--<?= $isPublished ? 'published' : 'draft' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
                   <td>
-                    <?php if ($isProtected): ?>
+                    <?php if ($modulePage !== null): ?>
+                      <span class="admin-badge admin-badge--info" title="<?= admin_te('pages.module_page_hint', ['module' => $modulePage['module_label']]) ?>"><?= admin_te('pages.module_page', ['module' => $modulePage['module_label']]) ?></span>
+                      <?php if (!$modulePage['enabled']): ?>
+                        <span class="admin-badge admin-badge--warning"><?= admin_te('pages.module_off') ?></span>
+                      <?php endif; ?>
+                    <?php elseif ($isProtected): ?>
                       <span class="admin-badge admin-badge--info" title="<?= admin_te('pages.protected_hint') ?>"><?= admin_te('pages.protected') ?></span>
                     <?php elseif ($hasFixedUrl): ?>
                       <span class="admin-badge admin-badge--muted" title="<?= admin_te('pages.fixed_url_hint') ?>"><?= admin_te('pages.fixed_url') ?></span>
@@ -268,7 +291,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                       <?php /* Where visitors see it; a draft has no public
                                address yet, so it opens the editors-only
                                preview, as the editor's own button does. */ ?>
-                      <?php if ($isPublished): ?>
+                      <?php if ($modulePage !== null && !$modulePage['enabled']): ?>
+                        <?php /* The module is off: its address answers nothing. */ ?>
+                      <?php elseif ($isPublished): ?>
                         <a href="<?= $h($publicUrl) ?>" target="_blank" rel="noopener"><?= admin_te('pages.open') ?></a>
                       <?php else: ?>
                         <a href="/admin/page-preview.php?id=<?= $pageId ?>" target="_blank" rel="noopener"><?= admin_te('page.preview') ?></a>
@@ -279,10 +304,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                     </div>
                   </td>
                   <td>
-                    <?php if ($isProtected || $row['has_children']): ?>
+                    <?php if ($isProtected || $row['has_children'] || $modulePage !== null): ?>
                       <?php /* A page with pages under it is not deleted from
-                               under them (PageService::delete()). */ ?>
-                      <span class="admin-text-muted"<?= $row['has_children'] && !$isProtected ? ' title="' . admin_te('pages.delete_has_children') . '"' : '' ?>>&mdash;</span>
+                               under them, and a module's page not at all
+                               (PageService::delete()). */ ?>
+                      <span class="admin-text-muted"<?= $row['has_children'] && !$isProtected ? ' title="' . admin_te('pages.delete_has_children') . '"' : ($modulePage !== null ? ' title="' . admin_te('pages.module_page_delete') . '"' : '') ?>>&mdash;</span>
                     <?php else: ?>
                       <form method="post" action="/api/admin/delete-page.php" class="admin-inline-form" onsubmit="return confirm(<?= $h(json_encode(admin_t('pages.delete_confirm'), JSON_UNESCAPED_UNICODE)) ?>);">
                         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">

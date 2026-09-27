@@ -47,7 +47,7 @@ class PageRepository extends Repository
     public function findStructure(): array
     {
         $stmt = $this->db->query(
-            'SELECT id, parent_id, admin_group, slug, route_path, is_system, status, sort_order
+            'SELECT id, parent_id, admin_group, content_key, slug, route_path, is_system, module_default, status, sort_order
              FROM pages ORDER BY sort_order ASC, id ASC'
         );
 
@@ -180,6 +180,26 @@ class PageRepository extends Repository
         }
 
         return $stmt->fetch() !== false;
+    }
+
+    /**
+     * The page that has this word as its slug, in the neutral column or in
+     * any language, or null — what App\Service\ModuleSystemPages::conflicts()
+     * asks when a module's page is missing, the same two places the migration
+     * that makes those pages looked (db/migrations/20260928150000).
+     */
+    public function idHoldingSlug(string $slug): ?int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id FROM pages WHERE slug = :slug
+             UNION
+             SELECT page_id FROM page_translations WHERE slug = :translated_slug
+             LIMIT 1'
+        );
+        $stmt->execute(['slug' => $slug, 'translated_slug' => $slug]);
+        $id = $stmt->fetchColumn();
+
+        return $id === false ? null : (int) $id;
     }
 
     public function contentKeyExists(string $contentKey): bool

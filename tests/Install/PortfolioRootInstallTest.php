@@ -66,9 +66,20 @@ final class PortfolioRootInstallTest extends TestCase
         self::$legacy?->drop();
     }
 
-    public function testAFreshInstallHasNoPortfolioPageAndServesTheOverviewOnceSwitchedOn(): void
+    /**
+     * Since Shop Product & Ordering 2.0 a fresh installation HAS a Portfolio
+     * page: the module's system page, in Pagina's whether the module is on or
+     * off (App\Service\ModuleSystemPages). It is empty and marked
+     * module_default, and while it has no block of its own the module's own
+     * overview stands at /portfolio exactly as before the page existed:
+     * everything below is what this test asserted when there was no page.
+     */
+    public function testAFreshInstallHasTheEmptyPortfolioPageAndServesTheOverviewOnceSwitchedOn(): void
     {
-        $this->assertSame([], self::$fresh->rows("SELECT id FROM pages WHERE content_key = 'portfolio'"), 'a fresh installation seeds no Portfolio page');
+        $page = self::$fresh->rows("SELECT id, is_system, route_path, module_default, status FROM pages WHERE content_key = 'portfolio'");
+        $this->assertCount(1, $page, 'a fresh installation has the Portfolio system page');
+        $this->assertSame(['is_system' => 1, 'route_path' => '/portfolio', 'module_default' => 1, 'status' => 'published'], array_diff_key($page[0], ['id' => true]));
+        $this->assertSame([], self::$fresh->rows('SELECT id FROM page_sections WHERE page_id = ?', [(int) $page[0]['id']]), 'with no block of its own');
         $pagesBefore = self::$fresh->count('pages');
         $slug = $this->projectOnFreshInstall();
 
@@ -108,19 +119,21 @@ final class PortfolioRootInstallTest extends TestCase
         $again->stop();
 
         $this->assertSame($pagesBefore, self::$fresh->count('pages'), 'switching on, off and on again created no page');
-        $this->assertSame([], self::$fresh->rows("SELECT id FROM pages WHERE content_key = 'portfolio'"), 'and no Portfolio page at all');
+        $this->assertSame([['id' => $page[0]['id']]], self::$fresh->rows("SELECT id FROM pages WHERE content_key = 'portfolio'"), 'the same one Portfolio page');
     }
 
-    /** Running the bootstrap and the root migration a second time creates nothing either. */
+    /** Running the bootstrap, the root migration and the system-page migration again creates nothing. */
     public function testTheBootstrapTwiceStaysIdempotent(): void
     {
         $before = self::$fresh->count('pages');
+        $portfolio = self::$fresh->rows("SELECT id FROM pages WHERE content_key = 'portfolio'");
 
         self::$fresh->replay('20260909400000');
         self::$fresh->replay('20260925170000');
+        self::$fresh->replay('20260928150000');
 
         $this->assertSame($before, self::$fresh->count('pages'));
-        $this->assertSame([], self::$fresh->rows("SELECT id FROM pages WHERE content_key = 'portfolio'"));
+        $this->assertSame($portfolio, self::$fresh->rows("SELECT id FROM pages WHERE content_key = 'portfolio'"), 'still the one page');
     }
 
     /**

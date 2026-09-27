@@ -267,10 +267,18 @@ final class PageTranslationMigrationTest extends TestCase
         );
     }
 
+    /**
+     * Of the pages that were there: a later migration may add a page of its
+     * own (the Shop's and the Portfolio's system pages, 20260928150000).
+     */
     public function testNothingLanguageNeutralAboutAPageChanged(): void
     {
         self::assertNotSame([], self::$neutralBefore);
-        self::assertSame(self::$neutralBefore, self::$upgraded->rows('SELECT ' . self::NEUTRAL_COLUMNS . ' FROM pages ORDER BY id'));
+        $existing = array_column(self::$neutralBefore, 'id');
+        self::assertSame(self::$neutralBefore, array_values(array_filter(
+            self::$upgraded->rows('SELECT ' . self::NEUTRAL_COLUMNS . ' FROM pages ORDER BY id'),
+            static fn (array $row): bool => in_array($row['id'], $existing, true)
+        )));
     }
 
     public function testAFreshInstallGivesItsHomepageADutchName(): void

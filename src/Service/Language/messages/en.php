@@ -3481,4 +3481,12 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'shop.editor.tab_shipping' => 'Shipping',
     'shop.editor.tabs_label' => 'Parts of this product',
     'shop.editor.shipping_intro' => 'How this product is shipped. What shipping costs is set under Shop → Shipping settings.',
+    'pages.module_page' => ':module system page',
+    'pages.module_page_hint' => 'This page belongs to :module. Its address is fixed and stays reserved, also while :module is off; the page cannot be deleted.',
+    'pages.module_off' => 'Module is off',
+    'pages.module_page_delete' => 'A module\'s system page cannot be deleted.',
+    'pages.module_page_conflict' => 'The :module system page is missing: page #:id already uses the address ":word". That page was not changed. Give it another address; the system page is then created with the next update.',
+    'page.module_page' => 'This is the :module system page, at the fixed address :path. The address stays reserved, also while :module is off, and the page cannot be deleted.',
+    'page.module_off' => ':module is off: this page is not on the website right now. Everything you set here is kept for when :module is switched on.',
+    'page.module_placeholder' => 'While this page has no blocks, :module shows its own overview at this address. Add a block to design the page yourself.',
 ];

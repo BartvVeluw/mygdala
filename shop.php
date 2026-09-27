@@ -37,7 +37,7 @@ $overviewPage = \App\Service\ShopOverview::page();
 $page = null;
 
 if ($overviewMode === \App\Service\ShopOverview::PAGE && \App\Service\ShopOverview::isStorefrontPage($overviewPage)) {
-    $page = \App\Service\PageContent::forContentKey('shop');
+    $page = \App\Service\ShopOverview::storefrontPage();
 } elseif ($overviewMode === \App\Service\ShopOverview::PAGE) {
     $overviewUrl = \App\Service\ShopOverview::url();
     if ($overviewUrl !== null) {
@@ -45,7 +45,18 @@ if ($overviewMode === \App\Service\ShopOverview::PAGE && \App\Service\ShopOvervi
         exit;
     }
 } elseif ($overviewMode === \App\Service\ShopOverview::BUILTIN) {
-    $page = \App\Service\PageContent::forContentKey('shop');
+    // The storefront page when it is a page of its own; the automatic listing
+    // while there is none, or only the empty one every installation got for
+    // the Shop (App\Service\ShopOverview::storefrontPage()).
+    $page = \App\Service\ShopOverview::storefrontPage();
+}
+
+// The storefront page set to Concept is not on the website, whatever the
+// overview setting says: the editor chose that (App\Service\ModuleSystemPages).
+if ($page !== null && !\App\Service\PageContent::isPublished($page)) {
+    http_response_code(404);
+    require __DIR__ . '/partials/route-not-found-page.php';
+    exit;
 }
 
 // Nothing to show: no overview, a chosen page that is not published, or a

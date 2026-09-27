@@ -3491,4 +3491,12 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'shop.editor.tab_shipping' => 'Verzending',
     'shop.editor.tabs_label' => 'Onderdelen van dit product',
     'shop.editor.shipping_intro' => 'Hoe dit product wordt verzonden. Wat verzenden kost, stel je in onder Shop → Verzendinstellingen.',
+    'pages.module_page' => 'Systeempagina :module',
+    'pages.module_page_hint' => 'Deze pagina hoort bij :module. Het adres is vast en blijft gereserveerd, ook als :module uit staat; de pagina kan niet worden verwijderd.',
+    'pages.module_off' => 'Module staat uit',
+    'pages.module_page_delete' => 'Een systeempagina van een module kan niet worden verwijderd.',
+    'pages.module_page_conflict' => 'De systeempagina van :module ontbreekt: pagina #:id gebruikt het adres ":word" al. Die pagina is niet aangepast. Geef haar een ander adres; bij de volgende update wordt de systeempagina dan aangemaakt.',
+    'page.module_page' => 'Dit is de systeempagina van :module, op het vaste adres :path. Het adres blijft gereserveerd, ook als :module uit staat, en de pagina kan niet worden verwijderd.',
+    'page.module_off' => ':module staat uit: deze pagina is nu niet op de website te zien. Alles wat je hier instelt, blijft bewaard voor als :module aan gaat.',
+    'page.module_placeholder' => 'Zolang deze pagina geen blokken heeft, toont :module op dit adres zijn eigen overzicht. Voeg een blok toe om de pagina zelf in te richten.',
 ];

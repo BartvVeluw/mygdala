@@ -161,6 +161,27 @@ abstract class ModuleDefinition
     }
 
     /**
+     * The module's SYSTEM PAGES (Shop Product & Ordering 2.0, MODULES.md
+     * "Systeempagina's van modules"): pages that belong to this module and
+     * are in Pagina's on every installation, whether the module is on or off
+     * — the Shop's storefront page and the Portfolio overview. By content
+     * key: the one identity of a page that never changes.
+     *
+     * Read for EVERY registered module, enabled or not
+     * (App\Service\ModuleSystemPages): Pagina's shows the page, says the
+     * module is off and refuses to delete it, and the word stays reserved
+     * (reservedSlugs()), so nobody can take the address before the module is
+     * switched on. A migration made the page where it was missing
+     * (db/migrations/20260928150000); nothing here creates one.
+     *
+     * @return array<string, array{route_path: string}> content key => the page
+     */
+    public function systemPages(): array
+    {
+        return [];
+    }
+
+    /**
      * Single-segment URL words a CMS page may never claim as its slug.
      *
      * Read for EVERY registered module, enabled or not (see

@@ -102,11 +102,17 @@ final class PageNestingMigrationTest extends TestCase
 
     /**
      * Nothing about an existing page changes but the two new columns: the
-     * same ids, slugs, statuses and order, so the same URLs.
+     * same ids, slugs, statuses and order, so the same URLs. Only the pages
+     * that were there count: a later migration may add a page of its own
+     * (the Shop's and the Portfolio's system pages, 20260928150000).
      */
     public function testEveryExistingPageStaysWhereItWasAsARootWebsitePage(): void
     {
-        $after = self::pages($this->install(self::$deployed));
+        $existing = array_column(self::$pagesBefore, 'id');
+        $after = array_values(array_filter(
+            self::pages($this->install(self::$deployed)),
+            static fn (array $row): bool => in_array($row['id'], $existing, true)
+        ));
 
         $this->assertNotSame([], self::$pagesBefore);
         $this->assertSame(
@@ -117,7 +123,10 @@ final class PageNestingMigrationTest extends TestCase
         $this->assertSame(array_fill(0, count($after), 'website'), array_column($after, 'admin_group'));
         $this->assertSame(
             self::$slugsBefore,
-            $this->install(self::$deployed)->rows('SELECT page_id, language_code, slug FROM page_translations ORDER BY page_id, language_code')
+            array_values(array_filter(
+                $this->install(self::$deployed)->rows('SELECT page_id, language_code, slug FROM page_translations ORDER BY page_id, language_code'),
+                static fn (array $row): bool => in_array($row['page_id'], $existing, true)
+            ))
         );
     }
 

@@ -310,6 +310,27 @@ final class ShopModule extends ModuleDefinition
     }
 
     /**
+     * The storefront page, content key "shop", at /shop.php: in Pagina's on
+     * every installation (App\Service\ModuleSystemPages). Whether /shop.php
+     * shows it is Shop-instellingen → Productoverzicht (App\Service\ShopOverview).
+     */
+    public function systemPages(): array
+    {
+        return ['shop' => ['route_path' => '/shop.php']];
+    }
+
+    /**
+     * The storefront's address, whatever the overview setting says: with the
+     * Shop off, the page at /shop.php is not served (ModuleGuard answers
+     * 404), so nothing may list or link it. routes() alone could not say so,
+     * because it drops the 'shop' route while there is no overview.
+     */
+    public function publicPaths(): array
+    {
+        return ['/shop.php'];
+    }
+
+    /**
      * Root-level PHP files and one URL namespace this module owns. Reserved
      * whether or not the Shop is enabled — see
      * ModuleDefinition::reservedSlugs().
@@ -388,7 +409,7 @@ final class ShopModule extends ModuleDefinition
                 // Shop's own URL to list. A chosen overview is an ordinary
                 // page, which Core's pages collector lists at its own address
                 // (and /shop.php then only redirects); no overview, no entry.
-                if (ShopOverview::mode() !== ShopOverview::BUILTIN || PageContent::forContentKey('shop') !== null) {
+                if (ShopOverview::mode() !== ShopOverview::BUILTIN || ShopOverview::storefrontPage() !== null) {
                     return [];
                 }
 

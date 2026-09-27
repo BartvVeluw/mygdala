@@ -151,7 +151,8 @@ $canChoosePresentation = !$isChild && $childCount === 0;
 $currentTargetPageId = (int) ($item['target_page_id'] ?? 0);
 $linkablePages = array_values(array_filter(
     (new PageRepository())->findAllForAdmin(),
-    static fn (array $p): bool => PageContent::isPublished($p) || (int) $p['id'] === $currentTargetPageId
+    static fn (array $p): bool => (PageContent::isPublished($p) && !\App\Service\ModuleSystemPages::isPlaceholder($p))
+        || (int) $p['id'] === $currentTargetPageId
 ));
 \App\Service\PageLocalization::preload(array_map(static fn (array $p): int => (int) $p['id'], $linkablePages));
 

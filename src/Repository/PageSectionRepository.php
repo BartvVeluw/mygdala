@@ -51,6 +51,19 @@ class PageSectionRepository extends Repository
     }
 
     /**
+     * Whether a page shows at least one block (a hidden one does not count):
+     * what makes a module's placeholder page a page of its own
+     * (App\Service\ModuleSystemPages::isPlaceholder()).
+     */
+    public function hasActiveBlocks(int $pageId): bool
+    {
+        $stmt = $this->db->prepare('SELECT 1 FROM page_sections WHERE page_id = :page_id AND is_active = 1 LIMIT 1');
+        $stmt->execute(['page_id' => $pageId]);
+
+        return $stmt->fetch() !== false;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function findById(int $id): ?array

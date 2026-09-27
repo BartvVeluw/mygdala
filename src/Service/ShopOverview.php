@@ -67,6 +67,22 @@ final class ShopOverview
         return self::resolve()['page'];
     }
 
+    /**
+     * The storefront page (content key "shop") as the website sees it: null
+     * when there is none, and null for the empty page every installation got
+     * for the Shop (Shop Product & Ordering 2.0) while it has no block of its
+     * own — then /shop.php shows what it showed before that page existed
+     * (App\Service\ModuleSystemPages::isPlaceholder()).
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function storefrontPage(): ?array
+    {
+        $page = PageContent::forContentKey('shop');
+
+        return $page !== null && ModuleSystemPages::isPlaceholder($page) ? null : $page;
+    }
+
     /** Whether the chosen page is the storefront page that lives at /shop.php itself. */
     public static function isStorefrontPage(?array $page): bool
     {

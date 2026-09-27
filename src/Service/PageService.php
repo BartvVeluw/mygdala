@@ -534,6 +534,17 @@ class PageService
      */
     public static function delete(array $page): void
     {
+        // A module's page (App\Service\ModuleSystemPages): the Shop's
+        // storefront, the Portfolio overview. The module would come back to a
+        // missing page, and its word is reserved for it whether it is on or
+        // off, so nothing else could ever take its place.
+        $module = ModuleSystemPages::forPage($page);
+        if ($module !== null) {
+            throw new \RuntimeException(
+                'Dit is de systeempagina van ' . $module['module_label'] . ' en kan niet worden verwijderd. Zet de pagina op concept als ze niet op de website moet staan.'
+            );
+        }
+
         if (PageContent::isProtected($page)) {
             throw new \RuntimeException(
                 PageContent::isSiteRoot($page)
