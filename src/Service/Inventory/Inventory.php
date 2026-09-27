@@ -238,29 +238,4 @@ final class Inventory
 
         return $units;
     }
-
-    /**
-     * The units of these products that were sold out in $before and can be
-     * ordered in $after: what a change to stock (a save in the editor, a
-     * release) made available again. Tracking switched off counts too: an
-     * untracked unit is always orderable.
-     *
-     * @param array<int, ProductStock> $before
-     * @param array<int, ProductStock> $after
-     * @return list<StockUnit>
-     */
-    public static function cameBack(array $before, array $after): array
-    {
-        $units = [];
-        foreach ($after as $productId => $stock) {
-            $previous = isset($before[$productId]) ? $before[$productId]->units() : [];
-            foreach ($stock->units() as $key => $unit) {
-                if (isset($previous[$key]) && $previous[$key]->isSoldOut() && !$unit->isSoldOut()) {
-                    $units[] = $unit;
-                }
-            }
-        }
-
-        return $units;
-    }
 }

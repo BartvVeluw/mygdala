@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Mail\EmailPlaceholders;
 use App\Mail\OrderConfirmationBuilder;
@@ -13,6 +14,8 @@ use App\Service\DocumentNumberPrefix;
 use App\Module\ModuleGuard;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Inventory\StockNotifications;
+use App\Service\ShopLocalizedSettings;
 use App\Service\ShopOverview;
 use App\Service\ShopSettings;
 use App\Service\SiteSettings;
@@ -52,6 +55,21 @@ $failedSection = $_SESSION['admin_shop_settings_section'] ?? null;
 unset($_SESSION['admin_shop_settings_errors'], $_SESSION['admin_shop_settings_old'], $_SESSION['admin_shop_settings_section']);
 
 $savedSection = isset($_GET['saved']) ? ShopSettings::section($_GET['section'] ?? null) : null;
+
+// The back-in-stock mail (Shop Product & Ordering 2.0): its own form in the
+// E-mails tab, its own endpoint and its own messages, per website language
+// (App\Service\ShopLocalizedSettings). A refused save shows what was typed.
+$stockMailErrors = $_SESSION['admin_stock_mail_errors'] ?? [];
+$stockMailOld = $_SESSION['admin_stock_mail_old'] ?? null;
+$stockMailNotice = $_SESSION['admin_stock_mail_notice'] ?? null;
+unset($_SESSION['admin_stock_mail_errors'], $_SESSION['admin_stock_mail_old'], $_SESSION['admin_stock_mail_notice']);
+$stockMailLanguage = admin_localized_language();
+try {
+    $stockWaiting = (new StockNotifications())->summary();
+} catch (\Throwable $e) {
+    error_log('[admin/shop-settings.php] stock notifications: ' . $e->getMessage());
+    $stockWaiting = null;
+}
 
 $stored = SiteSettings::all();
 $values = is_array($old) ? $old : $stored;
@@ -134,7 +152,9 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       'productpagina' => admin_t('shop.gallery_transition.tab'),
   ], [
       'label' => admin_t('shop_settings.tabs_label'),
-      'force' => $failedSection !== null ? ShopSettings::section($failedSection) : $savedSection,
+      'force' => $failedSection !== null
+          ? ShopSettings::section($failedSection)
+          : ($stockMailErrors !== [] || $stockMailNotice !== null ? 'emails' : $savedSection),
   ]); ?>
 
   <?php admin_tab_panel('bedrijf'); ?>
@@ -338,6 +358,92 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       </div>
       <p class="admin-text-muted" data-restore-defaults-status role="status" aria-live="polite"></p>
     </form>
+  </section>
+
+  <?php /* TERUG OP VOORRAAD (Shop Product & Ordering 2.0): the one mail a
+           visitor asked for on a sold-out product. Per website language:
+           the shell's language switch decides which one this form edits,
+           and an empty field is the standard text in that language
+           (App\Service\ShopLocalizedSettings). Plain text with the closed
+           list of placeholders; the button to the product is always added
+           (App\Mail\StockNotificationBuilder). */ ?>
+  <section class="admin-card" id="stock-notification-mail">
+    <h2><?= admin_te('shop_settings.stock_mail_title') ?></h2>
+    <?= admin_info_panel(admin_t('help.shop_settings.stock_mail')) ?>
+
+    <?php if ($stockMailNotice !== null): ?>
+      <p class="admin-alert admin-alert--<?= $h((string) ($stockMailNotice['type'] ?? 'success')) ?>" role="status"><?= $h((string) ($stockMailNotice['message'] ?? '')) ?></p>
+    <?php endif; ?>
+    <?php if ($stockMailErrors !== []): ?>
+      <div class="admin-alert admin-alert--error">
+        <ul class="admin-error-list">
+          <?php foreach ($stockMailErrors as $error): ?>
+            <li><?= $h((string) $error) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
+
+    <form method="post" action="/api/admin/update-stock-notification-mail.php" class="admin-product-form" autocomplete="off"<?= $stockMailErrors !== [] ? ' data-save-bar-unsaved' : '' ?>>
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <?= admin_localized_input($stockMailLanguage) ?>
+      <?php admin_localized_bar($stockMailLanguage); ?>
+
+      <div class="admin-shop-placeholders">
+        <div class="admin-field__label">
+          <span><?= admin_te('shop_settings.placeholders') ?></span>
+          <?= admin_help(admin_t('shop_settings.placeholders'), admin_t('help.shop_settings.stock_mail_placeholders')) ?>
+        </div>
+        <p class="admin-shop-placeholders__list">
+          <?php foreach (EmailPlaceholders::STOCK as $placeholder): ?>
+            <code><?= $h('{{' . $placeholder . '}}') ?></code>
+          <?php endforeach; ?>
+        </p>
+      </div>
+
+      <?php foreach ([
+          ShopLocalizedSettings::STOCK_SUBJECT => ['label' => 'shop_settings.stock_mail_subject', 'help' => 'help.shop_settings.stock_mail_subject'],
+          ShopLocalizedSettings::STOCK_BODY => ['label' => 'shop_settings.stock_mail_body', 'help' => 'help.shop_settings.stock_mail_body'],
+      ] as $stockKey => $stockField): ?>
+        <?php
+          $stockValue = is_array($stockMailOld) && array_key_exists($stockKey, $stockMailOld)
+              ? (string) $stockMailOld[$stockKey]
+              : ShopLocalizedSettings::raw($stockKey, $stockMailLanguage);
+          $stockStandard = ShopLocalizedSettings::standard($stockKey, $stockMailLanguage);
+          $stockId = 'shop-' . str_replace('_', '-', $stockKey);
+        ?>
+        <div class="admin-form-row">
+          <div class="admin-field">
+            <?= admin_field_label($stockId, admin_t($stockField['label']), admin_t($stockField['help'])) ?>
+            <?php if ($stockKey === ShopLocalizedSettings::STOCK_SUBJECT): ?>
+              <input type="text" id="<?= $h($stockId) ?>" name="<?= $h($stockKey) ?>" maxlength="<?= ShopLocalizedSettings::SUBJECT_MAX_LENGTH ?>" value="<?= $h($stockValue) ?>" placeholder="<?= $h(ShopLocalizedSettings::value($stockKey, $stockMailLanguage)) ?>" data-default-value="<?= $h($stockStandard) ?>">
+            <?php else: ?>
+              <textarea id="<?= $h($stockId) ?>" name="<?= $h($stockKey) ?>" maxlength="<?= ShopLocalizedSettings::BODY_MAX_LENGTH ?>" rows="9" placeholder="<?= $h(ShopLocalizedSettings::value($stockKey, $stockMailLanguage)) ?>" data-default-value="<?= $h($stockStandard) ?>"><?= $h($stockValue) ?></textarea>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+
+      <div class="admin-form-actions">
+        <button type="submit"><?= admin_te('common.save') ?></button>
+        <button type="button" class="admin-btn-secondary" data-restore-defaults data-restore-defaults-confirm="<?= admin_te('shop_settings.restore_defaults_confirm') ?>" data-restore-defaults-done="<?= admin_te('shop_settings.restore_defaults_done') ?>" hidden><?= admin_te('shop_settings.restore_defaults') ?></button>
+      </div>
+      <p class="admin-text-muted" data-restore-defaults-status role="status" aria-live="polite"></p>
+    </form>
+
+    <h3><?= admin_te('shop_settings.stock_waiting_title') ?></h3>
+    <?php if ($stockWaiting === null): ?>
+      <p class="admin-text-muted"><?= admin_te('shop_settings.stock_waiting_unknown') ?></p>
+    <?php else: ?>
+      <p><?= admin_te('shop_settings.stock_waiting_summary', ['waiting' => (string) $stockWaiting['waiting'], 'due' => (string) $stockWaiting['due']]) ?></p>
+      <?php if ($stockWaiting['failed'] > 0): ?>
+        <p class="admin-alert admin-alert--warning" role="status"><?= admin_te('shop_settings.stock_waiting_failed', ['failed' => (string) $stockWaiting['failed']]) ?></p>
+      <?php endif; ?>
+      <form method="post" action="/api/admin/send-stock-notifications.php" class="admin-inline-form">
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <button type="submit" class="admin-btn-secondary"<?= $stockWaiting['due'] === 0 ? ' disabled' : '' ?>><?= admin_te('shop_settings.stock_waiting_send') ?></button>
+      </form>
+    <?php endif; ?>
   </section>
   <?php admin_tab_panel_end(); ?>
 

@@ -14,7 +14,15 @@ namespace App\Mail;
  */
 class EmailPlaceholders
 {
+    /** The order confirmation's placeholders (App\Mail\OrderConfirmationBuilder). */
     public const KNOWN = ['customer_name', 'order_number', 'order_date', 'order_total', 'site_name'];
+
+    /**
+     * The back-in-stock mail's placeholders (App\Mail\StockNotificationBuilder,
+     * Shop Product & Ordering 2.0): only what that mail really knows. There
+     * is no customer name — nobody gives one to ask for a notification.
+     */
+    public const STOCK = ['product_name', 'variant', 'product_url', 'site_name'];
 
     /**
      * Substitutes `{{key}}` tokens in $template using $values (only keys
@@ -26,14 +34,18 @@ class EmailPlaceholders
      * already-escaped markup because the inserted value itself contains no
      * unescaped "<"/">"/"&"/quotes.
      *
+     * $known is the closed list this mail replaces (KNOWN or STOCK); a token
+     * from another mail's list stays literal text here.
+     *
      * @param array<string, string> $values
+     * @param list<string> $known
      */
-    public static function render(string $template, array $values, bool $escapeHtml): string
+    public static function render(string $template, array $values, bool $escapeHtml, array $known = self::KNOWN): string
     {
         $text = $escapeHtml ? htmlspecialchars($template, ENT_QUOTES, 'UTF-8') : $template;
 
         return preg_replace_callback(
-            '/\{\{\s*(' . implode('|', array_map('preg_quote', self::KNOWN)) . ')\s*\}\}/',
+            '/\{\{\s*(' . implode('|', array_map('preg_quote', $known)) . ')\s*\}\}/',
             static function (array $matches) use ($values, $escapeHtml): string {
                 $value = $values[$matches[1]] ?? '';
                 return $escapeHtml ? htmlspecialchars($value, ENT_QUOTES, 'UTF-8') : $value;

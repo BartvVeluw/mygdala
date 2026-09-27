@@ -73,27 +73,4 @@ final class ProductStock
 
         return $units;
     }
-
-    /**
-     * Every unit a customer could order, by key: the product's own, or each
-     * variant's. What a back-in-stock check compares before and after a
-     * change.
-     *
-     * @return array<string, StockUnit>
-     */
-    public function units(): array
-    {
-        if (!$this->hasVariants()) {
-            $unit = $this->productUnit();
-
-            return [$unit->key() => $unit];
-        }
-
-        $units = [];
-        foreach ($this->variantUnits() as $unit) {
-            $units[$unit->key()] = $unit;
-        }
-
-        return $units;
-    }
 }

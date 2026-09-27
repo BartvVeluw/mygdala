@@ -28,9 +28,9 @@
  * stock in its row (App\Service\ProductVariantEditor). A value the admin did
  * not change is not written; a changed one only over the value the screen
  * showed, so a sale in the meantime is refused as a conflict rather than
- * undone. A unit that was sold out and can be ordered after the save is
- * handed to the back-in-stock notifications once the transaction is
- * committed.
+ * undone. Once the transaction is committed, everyone waiting for a unit of
+ * this product that can be ordered now gets their back-in-stock mail
+ * (App\Service\Inventory\StockNotifications).
  *
  * The SEO social image is the one image this endpoint does own, because it
  * lives in the SEO card of this same form — there is deliberately no
@@ -54,6 +54,7 @@ use App\Service\Csrf;
 use App\Service\Inventory\Inventory;
 use App\Service\Inventory\InventoryEditor;
 use App\Service\Inventory\StockConflictException;
+use App\Service\Inventory\StockNotifications;
 use App\Service\Language\AdminTranslator;
 use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
@@ -151,10 +152,7 @@ if ($errors !== []) {
     exit;
 }
 
-// Which units were sold out before this save: a unit that can be ordered
-// after it is "back in stock" (App\Service\Inventory\Inventory::cameBack()).
 $inventory = new Inventory($db);
-$stockBefore = $inventory->forProducts([$id]);
 
 try {
     // Row, words, variants, pictures and collections are ONE transaction, and
@@ -244,7 +242,6 @@ try {
     $db->commit();
     (new ProductImageUploader())->delete($unreferencedOgImagePath);
 
-    $backInStock = Inventory::cameBack($stockBefore, $inventory->forProducts([$id]));
 
     CollectionContent::clearCache();
     ProductSeo::clearCache();
@@ -280,6 +277,17 @@ try {
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php?id=' . $id);
     exit;
+}
+
+// Back in stock: whoever waits for a unit of this product that can be
+// ordered now gets their mail (App\Service\Inventory\StockNotifications). A
+// restock, tracking switched off or the product switched on again all make a
+// waiting request due, and a mail that failed before is tried again. After
+// the commit, and never at the cost of the save: a mail that fails stays due.
+try {
+    (new StockNotifications())->dispatchForProduct($id);
+} catch (\Throwable $e) {
+    error_log('[api/admin/update-product.php] back-in-stock mails: ' . $e->getMessage());
 }
 
 if ($json) {

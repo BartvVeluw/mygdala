@@ -202,6 +202,8 @@ final class CmsOnlyHttpTest extends TestCase
             [
                 '/api/checkout.php' => ['items' => [], 'email' => 'nobody@example.com'],
                 '/api/shipping-quote.php' => ['country' => 'NL', 'subtotal' => '10.00'],
+                '/api/cart-check.php' => ['items' => []],
+                '/api/stock-notification.php' => ['product_id' => '1', 'email' => 'nobody@example.com'],
                 '/api/withdrawal-request.php' => ['order' => '1', 'email' => 'nobody@example.com'],
                 '/api/mollie-webhook.php' => ['id' => 'tr_fake'],
                 '/api/personalization-upload.php' => ['product_id' => '1'],

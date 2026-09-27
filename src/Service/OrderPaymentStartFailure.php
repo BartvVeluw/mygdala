@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Database;
 use App\Repository\OrderRepository;
 use App\Service\Inventory\Inventory;
+use App\Service\Inventory\StockNotifications;
 use App\Service\Inventory\StockUnit;
 use PDO;
 
@@ -38,8 +39,14 @@ final class OrderPaymentStartFailure
 
         try {
             (new OrderRepository($db))->markPaymentStartFailed($orderId);
+            $cameBack = (new Inventory($db))->releaseForOrder($orderId);
 
-            return (new Inventory($db))->releaseForOrder($orderId);
+            // Units that are orderable again: whoever waits for them hears it.
+            if ($cameBack !== []) {
+                (new StockNotifications(null, $db))->dispatchForUnits($cameBack);
+            }
+
+            return $cameBack;
         } catch (\Throwable $e) {
             error_log('[OrderPaymentStartFailure] order ' . $orderId . ': ' . $e->getMessage());
 

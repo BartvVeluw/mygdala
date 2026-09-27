@@ -1749,9 +1749,10 @@ final class MultilingualBoundaryTest extends TestCase
     /**
      * ONE PHYSICAL STORE, AS MANY CLOSED CATALOGUES AS THERE ARE DOMAINS.
      * App\Service\Language\LocalizedSettings holds no key of its own; the
-     * catalogues are the two classes below, and nobody else may make one — a
-     * third holder would be a place where a key could appear without anybody
-     * deciding it should.
+     * catalogues are the classes below — Core's, the Blog's and, since Shop
+     * Product & Ordering 2.0, the Shop's (the back-in-stock mail) — and
+     * nobody else may make one: another holder would be a place where a key
+     * could appear without anybody deciding it should.
      */
     public function testEveryLocalizedSettingsCatalogueBelongsToOneDomain(): void
     {
@@ -1769,18 +1770,23 @@ final class MultilingualBoundaryTest extends TestCase
         sort($holders);
 
         self::assertSame(
-            ['src/Service/Blog/BlogLocalizedSettings.php', 'src/Service/LocalizedSiteSettings.php'],
+            ['src/Service/Blog/BlogLocalizedSettings.php', 'src/Service/LocalizedSiteSettings.php', 'src/Service/ShopLocalizedSettings.php'],
             $holders
         );
 
-        // No catalogue may name a key of another, in either direction.
-        self::assertSame(
-            [],
-            array_intersect(
-                array_keys(\App\Service\LocalizedSiteSettings::KEYS),
-                array_keys(\App\Service\Blog\BlogLocalizedSettings::KEYS)
-            )
-        );
+        // No catalogue may name a key of another, in any direction.
+        $catalogues = [
+            array_keys(\App\Service\LocalizedSiteSettings::KEYS),
+            array_keys(\App\Service\Blog\BlogLocalizedSettings::KEYS),
+            array_keys(\App\Service\ShopLocalizedSettings::KEYS),
+        ];
+        foreach ($catalogues as $index => $keys) {
+            foreach ($catalogues as $otherIndex => $otherKeys) {
+                if ($index !== $otherIndex) {
+                    self::assertSame([], array_values(array_intersect($keys, $otherKeys)));
+                }
+            }
+        }
     }
 
     public function testTheLocalizedSettingsCatalogueIsClosedToWebsiteText(): void

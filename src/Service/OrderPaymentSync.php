@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\OrderRepository;
 use App\Service\Inventory\Inventory;
+use App\Service\Inventory\StockNotifications;
 use App\Service\Payment\PaymentSnapshot;
 
 /**
@@ -25,17 +26,20 @@ class OrderPaymentSync
     private OrderConfirmationService $confirmations;
     private InvoiceService $invoices;
     private ?Inventory $inventory;
+    private ?StockNotifications $notifications;
 
     public function __construct(
         ?OrderRepository $orders = null,
         ?OrderConfirmationService $confirmations = null,
         ?InvoiceService $invoices = null,
-        ?Inventory $inventory = null
+        ?Inventory $inventory = null,
+        ?StockNotifications $notifications = null
     ) {
         $this->orders = $orders ?? new OrderRepository();
         $this->confirmations = $confirmations ?? new OrderConfirmationService();
         $this->invoices = $invoices ?? new InvoiceService();
         $this->inventory = $inventory;
+        $this->notifications = $notifications;
     }
 
     /**
@@ -79,7 +83,19 @@ class OrderPaymentSync
         // release marker first. A failure here is not swallowed: the webhook
         // then answers 503, Mollie calls again, and the release is retried.
         if (in_array($localStatus, [PaymentSnapshot::FAILED, PaymentSnapshot::CANCELED, PaymentSnapshot::EXPIRED], true)) {
-            $this->inventory()->releaseForOrder((int) $order['id']);
+            $cameBack = $this->inventory()->releaseForOrder((int) $order['id']);
+
+            // A unit that was sold out and is orderable again because of
+            // this release: whoever asked to hear about it gets their mail
+            // now. A mail that fails stays due for the next sender and never
+            // costs the webhook its answer.
+            if ($cameBack !== []) {
+                try {
+                    ($this->notifications ?? new StockNotifications())->dispatchForUnits($cameBack);
+                } catch (\Throwable $e) {
+                    error_log('[OrderPaymentSync] back-in-stock mails for order ' . $order['id'] . ': ' . $e->getMessage());
+                }
+            }
         }
 
         // A refund doesn't change the payment's own status (it stays "paid" —

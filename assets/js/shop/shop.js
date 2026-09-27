@@ -345,6 +345,62 @@
         return hasVariants ? selectedVariant : product;
       }
 
+      /* ---------------------------------------------------------------
+         TERUG OP VOORRAAD: the form in the sold-out block asks
+         api/stock-notification.php to write once when THIS unit — the
+         product, or the variant chosen right now — can be ordered again.
+         The answer is the same whether the address was known or not.
+         --------------------------------------------------------------- */
+      var notifyForm = document.querySelector("[data-product-notify]");
+      var notifyMessageEl = document.querySelector("[data-product-notify-message]");
+
+      function showNotifyMessage(message) {
+        if (!notifyMessageEl) return;
+        notifyMessageEl.textContent = message || "";
+        notifyMessageEl.hidden = !message;
+      }
+
+      if (notifyForm) {
+        notifyForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          var emailInput = notifyForm.querySelector('input[name="email"]');
+          var honeypot = notifyForm.querySelector('input[name="hp-note"]');
+          var submit = notifyForm.querySelector('button[type="submit"]');
+          var email = emailInput ? emailInput.value.trim() : "";
+          if (!email || (emailInput && emailInput.validity && !emailInput.validity.valid)) {
+            showNotifyMessage(S.text("notify_invalid"));
+            if (emailInput) emailInput.focus();
+            return;
+          }
+
+          if (submit) submit.disabled = true;
+          fetch(S.apiUrl("/api/stock-notification.php"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              product_id: product.id,
+              variant_id: hasVariants && selectedVariant ? selectedVariant.id : null,
+              email: email,
+              language: document.documentElement.lang || "",
+              "hp-note": honeypot ? honeypot.value : ""
+            })
+          })
+            .then(function (res) {
+              return res.json().then(function (data) { return { ok: res.ok, data: data || {} }; });
+            })
+            .then(function (result) {
+              if (!result.ok) {
+                showNotifyMessage(result.data.error || S.text("notify_failed"));
+                return;
+              }
+              showNotifyMessage(S.text(result.data.available ? "notify_available" : "notify_done"));
+              if (!result.data.available && emailInput) emailInput.value = "";
+            })
+            .catch(function () { showNotifyMessage(S.text("notify_failed")); })
+            .then(function () { if (submit) submit.disabled = false; });
+        });
+      }
+
       function showAddMessage(message) {
         if (!addMessageEl) return;
         addMessageEl.textContent = message || "";
@@ -357,6 +413,7 @@
         if (soldOutEl) soldOutEl.hidden = !soldOut;
         if (addRowEl) addRowEl.hidden = soldOut;
         showAddMessage("");
+        showNotifyMessage("");
 
         if (qtyInput) {
           var max = unit && unit.max_quantity != null ? Math.max(1, Math.min(20, unit.max_quantity)) : 20;

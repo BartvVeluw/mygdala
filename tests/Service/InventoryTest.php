@@ -10,7 +10,6 @@ use App\Repository\OrderRepository;
 use App\Service\CartAvailability;
 use App\Service\Inventory\InsufficientStockException;
 use App\Service\Inventory\Inventory;
-use App\Service\Inventory\ProductStock;
 use App\Service\Inventory\StockUnit;
 use App\Service\InvoiceService;
 use App\Service\OrderConfirmationService;
@@ -330,21 +329,6 @@ final class InventoryTest extends TestCase
             ['status' => CartAvailability::UNAVAILABLE, 'available' => null],
             ['status' => CartAvailability::UNAVAILABLE, 'available' => null],
         ], $result);
-    }
-
-    public function testCameBackComparesUnitsBeforeAndAfter(): void
-    {
-        $before = [7 => new ProductStock(7, true, 0, [])];
-        self::assertCount(1, Inventory::cameBack($before, [7 => new ProductStock(7, true, 2, [])]), '0 to 2');
-        self::assertCount(1, Inventory::cameBack($before, [7 => new ProductStock(7, false, 0, [])]), 'tracking switched off: orderable again');
-        self::assertCount(0, Inventory::cameBack([7 => new ProductStock(7, true, 1, [])], [7 => new ProductStock(7, true, 2, [])]), '1 to 2 is not back');
-        self::assertCount(0, Inventory::cameBack($before, [7 => new ProductStock(7, true, 0, [])]));
-
-        $variants = [8 => new ProductStock(8, true, 0, [81 => ['stock' => 0, 'active' => true], 82 => ['stock' => 0, 'active' => true]])];
-        $after = [8 => new ProductStock(8, true, 0, [81 => ['stock' => 4, 'active' => true], 82 => ['stock' => 0, 'active' => true]])];
-        $back = Inventory::cameBack($variants, $after);
-        self::assertCount(1, $back);
-        self::assertSame(81, $back[0]->variantId, 'only the variant that came back');
     }
 
     /* ------------------------------------------------------------------ */

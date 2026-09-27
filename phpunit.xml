@@ -773,6 +773,8 @@
             <file>tests/Service/InventoryTest.php</file>
             <file>tests/Service/ProductInventoryHttpTest.php</file>
             <file>tests/Service/InventoryContractTest.php</file>
+            <file>tests/Service/StockNotificationTest.php</file>
+            <file>tests/Service/StockNotificationHttpTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

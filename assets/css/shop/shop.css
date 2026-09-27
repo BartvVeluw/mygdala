@@ -290,6 +290,17 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__sold-out{ margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
 .product-detail__stock-status{ margin: 0; font-size: 1rem; color: #F0897E; }
 .product-detail__add-message{ margin: var(--sp-2) 0 0; font-size: 0.88rem; color: #F0897E; }
+
+/* Terug op voorraad: one address, one button, one line of reassurance. The
+   honeypot field is out of sight and out of the tab order. */
+.product-detail__notify{ margin-top: var(--sp-3); display: flex; flex-direction: column; gap: 0.5rem; }
+.product-detail__notify label{ font-size: 0.9rem; color: var(--color-text); }
+.product-detail__notify-row{ display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.product-detail__notify-row input{ flex: 1 1 14rem; min-width: 0; }
+.product-detail__notify-row .btn{ flex: 0 0 auto; }
+.product-detail__notify-note{ margin: 0; font-size: 0.78rem; color: var(--color-text-faint); }
+.product-detail__notify-message{ margin: 0; font-size: 0.88rem; color: var(--color-text); }
+.product-detail__notify-hp{ position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
 .cart-row__problem,
 .checkout-summary-item__problem{ display: block; margin: 0.25rem 0 0; font-size: 0.8rem; font-weight: 600; color: #F0897E; }
 .cart-row--problem .cart-row__media{ opacity: 0.6; }

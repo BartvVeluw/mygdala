@@ -140,6 +140,21 @@ function renderProductAddRow(): void
     ?>
     <div class="product-detail__sold-out" data-product-sold-out hidden>
       <p class="product-detail__stock-status"><strong><?= htmlspecialchars(\App\Service\ShopScriptText::text('sold_out'), ENT_QUOTES, 'UTF-8') ?></strong></p>
+      <?php /* Terug op voorraad (App\Service\Inventory\StockNotifications):
+               one mail for exactly this unit — the product, or the variant
+               chosen above, which assets/js/shop/shop.js sends along. No
+               account; the answer is the same whether the address was known
+               or not. The hidden field is a honeypot a person never fills. */ ?>
+      <form class="product-detail__notify" data-product-notify novalidate>
+        <label for="product-notify-email"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Mail mij als dit weer beschikbaar is', 'en' => 'Email me when this is available again']) ?></label>
+        <div class="product-detail__notify-row">
+          <input type="email" id="product-notify-email" name="email" required maxlength="254" autocomplete="email" placeholder="<?= \App\Service\Language\SiteText::escaped(['nl' => 'jouw@e-mailadres.nl', 'en' => 'your@email.com']) ?>">
+          <button type="submit" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Houd mij op de hoogte', 'en' => 'Keep me posted']) ?></button>
+        </div>
+        <input type="text" name="hp-note" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="product-detail__notify-hp">
+        <p class="product-detail__notify-note"><?= \App\Service\Language\SiteText::escaped(['nl' => 'We gebruiken je adres alleen voor deze ene melding.', 'en' => 'We only use your address for this one notification.']) ?></p>
+        <p class="product-detail__notify-message" data-product-notify-message role="status" hidden></p>
+      </form>
     </div>
     <div class="product-detail__add-row" data-product-add-row>
       <div class="qty-stepper" data-product-qty>

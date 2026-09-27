@@ -97,6 +97,16 @@ final class ShopScriptText
             'nl' => 'Dit product is uitverkocht.',
             'en' => 'This product is out of stock.',
         ],
+        'notify_done' => [
+            'nl' => 'Dank je! We mailen je één keer zodra dit weer te bestellen is.',
+            'en' => 'Thank you! We will email you once, as soon as this can be ordered again.',
+        ],
+        'notify_available' => [
+            'nl' => 'Goed nieuws: dit is net weer te bestellen. Ververs de pagina.',
+            'en' => 'Good news: this can be ordered again. Please refresh the page.',
+        ],
+        'notify_invalid' => ['nl' => 'Vul een geldig e-mailadres in.', 'en' => 'Please enter a valid email address.'],
+        'notify_failed' => ['nl' => 'Dit lukte niet. Probeer het later opnieuw.', 'en' => 'That did not work. Please try again later.'],
         'add_stock_left' => [
             'nl' => 'Er zijn er nog {max} op voorraad, inclusief wat al in je winkelwagen zit.',
             'en' => 'Only {max} left in stock, including what is already in your cart.',
