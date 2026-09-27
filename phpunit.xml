@@ -425,6 +425,7 @@
             <file>tests/Service/MediaAdoptionTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
             <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
+            <file>tests/Install/ShopProductOrderingMigrationTest.php</file>
         </testsuite>
 
         <!-- ============================================================
@@ -785,6 +786,7 @@
             <file>tests/Service/OrderFieldsHttpTest.php</file>
             <file>tests/Service/ProductSpecificationsTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
+            <file>tests/Install/ShopProductOrderingMigrationTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">
