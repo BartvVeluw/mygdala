@@ -583,7 +583,17 @@ class OrderRepository extends Repository
             'same_status' => $localStatus,
         ]);
 
-        return $stmt->rowCount() > 0;
+        if ($stmt->rowCount() > 0) {
+            return true;
+        }
+
+        // MySQL counts changed rows, not matched ones: writing the same values
+        // again in the same second changes nothing and is no refusal. The row
+        // itself says which it was.
+        $current = $this->db->prepare('SELECT status FROM orders WHERE id = :id');
+        $current->execute(['id' => $orderId]);
+
+        return $current->fetchColumn() === $localStatus;
     }
 
     /**
