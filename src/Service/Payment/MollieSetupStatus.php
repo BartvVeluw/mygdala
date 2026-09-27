@@ -14,7 +14,8 @@ namespace App\Service\Payment;
  *   live            a working live key: real payments
  *   problem         a key exists but does not work: Mollie refuses it,
  *                   cannot be reached, it has the wrong shape, or it can no
- *                   longer be decrypted
+ *                   longer be decrypted; or the live key works but the site
+ *                   address is not a public https one (urlProblem)
  *
  * Never a remembered "verified": every page view asks again, so a key that
  * was replaced or revoked is never shown as working.
@@ -26,11 +27,16 @@ final class MollieSetupStatus
     public const LIVE = 'live';
     public const PROBLEM = 'problem';
 
+    /**
+     * @param string|null $urlProblem why a live shop cannot take payments with
+     *                                its site address (MolliePaymentProvider::liveBaseUrlProblem())
+     */
     private function __construct(
         public readonly string $state,
         public readonly ?string $mode,
         public readonly string $source,
         public readonly ?MollieConnectionResult $connection,
+        public readonly ?string $urlProblem = null,
     ) {
     }
 
@@ -62,6 +68,12 @@ final class MollieSetupStatus
 
         if (!$result->ok()) {
             return new self(self::PROBLEM, $mode, $source, $result);
+        }
+
+        // A working live key is still no working live shop without a real
+        // site address: the checkout refuses, and this card says why.
+        if ($result->mode === MollieConfiguration::MODE_LIVE && ($urlProblem = $provider->liveBaseUrlProblem()) !== null) {
+            return new self(self::PROBLEM, $result->mode, $source, $result, $urlProblem);
         }
 
         return new self($result->mode === MollieConfiguration::MODE_LIVE ? self::LIVE : self::TEST, $result->mode, $source, $result);

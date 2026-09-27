@@ -3342,7 +3342,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'payments.webhook.url_label' => 'Webhookadres',
     'payments.webhook.copy' => 'Kopiëren',
     'payments.webhook.copied' => 'Gekopieerd',
-    'payments.webhook.unreachable' => 'Het webadres van deze site (:base) is niet bereikbaar vanaf internet, bijvoorbeeld omdat de site op je eigen computer draait. Mollie kan zo’n adres niet aanroepen, dus Mygdala geeft dan geen webhook mee. Een bestelling wordt dan bijgewerkt zodra de klant terugkomt op de bestelpagina.',
+    'payments.webhook.unreachable' => 'Het webadres van deze site (:base) is niet bereikbaar vanaf internet, bijvoorbeeld omdat de site op je eigen computer draait. Mollie kan zo’n adres niet aanroepen, dus Mygdala geeft dan geen webhook mee. In testmodus is dat geen probleem: een testbestelling wordt bijgewerkt zodra de klant terugkomt op de bestelpagina. Live kan alleen met een openbaar https-adres.',
     'payments.webhook.base_missing' => 'Het webadres van deze site is nog niet ingesteld. Doe dat in de installatiewizard, of vraag je webbouwer om APP_URL in te stellen: anders weet Mollie niet waar je webshop te bereiken is.',
     'payments.webhook.not_https' => 'Je site gebruikt geen https. Voor echte betalingen is een beveiligde verbinding (https) sterk aan te raden.',
     'payments.error.pinned_by_environment' => 'De Mollie-sleutel staat vast in de serveromgeving. Die kun je hier niet wijzigen of wissen.',
@@ -3381,4 +3381,9 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'shop.test_badge' => 'TEST',
     'shop.test_order_notice' => 'Testbestelling: betaald met een Mollie-testsleutel, dus zonder echt geld. Ze telt niet mee in de omzet en krijgt geen echte factuur.',
     'shop.test_order_invoice' => 'Testbestelling — er wordt geen echte factuur uitgegeven.',
+    'payments.status.live_url_problem' => 'Website-URL moet correct ingesteld zijn voordat Live gebruikt kan worden. :reason Klanten kunnen nu niet betalen. Stel het webadres in via de installatiewizard, of vraag je webbouwer om APP_URL in te stellen.',
+    'payments.error.live_needs_url' => 'Live kan pas aan als het webadres van de site klopt. :reason',
+    'payments.url.missing' => 'Het webadres van de site is nog niet ingesteld.',
+    'payments.url.not_https' => 'Het webadres begint niet met https://; echte betalingen gaan alleen over een beveiligde verbinding.',
+    'payments.url.not_public' => 'Het webadres is een lokaal of privéadres dat Mollie niet kan bereiken.',
 ];

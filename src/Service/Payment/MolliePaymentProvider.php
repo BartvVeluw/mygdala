@@ -48,6 +48,14 @@ use Mollie\Api\Resources\Payment;
  * wrong shape not configured. Its message is written here and never contains
  * the key.
  *
+ * LIVE NEEDS A REAL ADDRESS. A live payment is only started when the base
+ * URL is configured (not AppUrl's placeholder), https, and on a host Mollie
+ * can reach (liveBaseUrlProblem()): otherwise a customer who really paid
+ * would come back to a dead address and no webhook would ever report it.
+ * isConfigured() answers false then, so the checkout refuses before it
+ * stores an order. Test mode keeps working on a local address, synced by
+ * the order-status page.
+ *
  * THE WEBHOOK is sent with each payment, so nobody sets it up in Mollie's
  * dashboard. Not for a base URL Mollie cannot reach (localhost, *.test, a
  * private address): Mollie refuses such a payment outright, so there the
@@ -73,17 +81,52 @@ final class MolliePaymentProvider implements PaymentProvider
     public function isConfigured(): bool
     {
         try {
-            $this->configuration->activeKey();
+            $key = $this->configuration->activeKey();
         } catch (PaymentProviderException) {
+            return false;
+        }
+
+        if (MollieConfiguration::modeOfKey($key) === MollieConfiguration::MODE_LIVE && ($problem = $this->liveBaseUrlProblem()) !== null) {
+            error_log('[payments] live payments refused: the site address is ' . $problem);
+
             return false;
         }
 
         return true;
     }
 
+    /**
+     * Why live payments cannot start with this installation's base URL, or
+     * null when they can: 'missing' (no APP_URL and no address from the
+     * setup wizard: AppUrl's placeholder), 'not_https', or 'not_public' (a
+     * host Mollie cannot reach). Never the Host header.
+     */
+    public function liveBaseUrlProblem(): ?string
+    {
+        return self::liveBaseUrlProblemFor($this->baseUrl(), $this->baseUrl !== null || AppUrl::isConfigured());
+    }
+
+    public static function liveBaseUrlProblemFor(string $baseUrl, bool $configured): ?string
+    {
+        if (!$configured) {
+            return 'missing';
+        }
+        if (strtolower((string) parse_url($baseUrl, PHP_URL_SCHEME)) !== 'https') {
+            return 'not_https';
+        }
+        if (!self::acceptsWebhooks($baseUrl)) {
+            return 'not_public';
+        }
+
+        return null;
+    }
+
     public function createPayment(PaymentRequest $request): CreatedPayment
     {
         $key = $this->configuration->activeKey();
+        if (MollieConfiguration::modeOfKey($key) === MollieConfiguration::MODE_LIVE && ($problem = $this->liveBaseUrlProblem()) !== null) {
+            throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'no live payment without a public https site address (' . $problem . ')');
+        }
         $client = $this->client($key);
         $baseUrl = $this->baseUrl();
 

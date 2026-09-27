@@ -30,6 +30,14 @@ class OrderRepository extends Repository
     public const REAL_SALE_CONDITION = "(payment_mode IS NULL OR payment_mode <> 'test')";
 
     /**
+     * The payment statuses that are the END of a payment at Mollie: a paid
+     * payment stays paid (a refund or chargeback does not change it), and a
+     * failed, canceled or expired one never becomes anything else. Only
+     * `pending` (Mollie's open, pending and authorized) still moves.
+     */
+    public const FINAL_PAYMENT_STATUSES = ['paid', 'failed', 'canceled', 'expired'];
+
+    /**
      * The admin's own handling workflow for an order, deliberately just two
      * states: "Open" (still needs the owner's attention) and "Afgehandeld"
      * (dealt with). Completely separate from the Mollie-driven payment status
@@ -550,17 +558,32 @@ class OrderRepository extends Repository
      * Applies the outcome of a Mollie payment to the order: our own simplified
      * `status` plus Mollie's raw `mollie_status`, so we always keep both what we
      * concluded and exactly what Mollie last reported.
+     *
+     * NEVER BACK FROM A FINAL STATUS. The webhook and the order-status page
+     * can sync the same order at the same moment; a slower one that asked
+     * Mollie a moment earlier could otherwise write `pending` over the `paid`
+     * the other just stored. So an order whose status is already final
+     * (FINAL_PAYMENT_STATUSES) only accepts that same status again (Mollie's
+     * own word may still be refreshed); anything else is refused in the same
+     * statement, without a read in between.
+     *
+     * @return bool whether the row now holds this outcome
      */
-    public function updateStatusFromMollie(int $orderId, string $localStatus, string $mollieStatus): void
+    public function updateStatusFromMollie(int $orderId, string $localStatus, string $mollieStatus): bool
     {
+        $final = "'" . implode("', '", self::FINAL_PAYMENT_STATUSES) . "'";
         $stmt = $this->db->prepare(
-            'UPDATE orders SET status = :status, mollie_status = :mollie_status, updated_at = NOW() WHERE id = :id'
+            "UPDATE orders SET status = :status, mollie_status = :mollie_status, updated_at = NOW()
+             WHERE id = :id AND (status NOT IN ({$final}) OR status = :same_status)"
         );
         $stmt->execute([
             'status' => $localStatus,
             'mollie_status' => $mollieStatus,
             'id' => $orderId,
+            'same_status' => $localStatus,
         ]);
+
+        return $stmt->rowCount() > 0;
     }
 
     /**

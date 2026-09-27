@@ -191,6 +191,9 @@ $testButton = static function (string $mode, string $labelKey) use ($h): string 
       <span class="admin-payments-badge admin-payments-badge--<?= $h($status->state) ?>"><?= admin_te('payments.status.badge.' . $status->state) ?></span>
     </div>
     <p class="admin-payments-status__lead"><?= admin_te('payments.status.lead.' . $status->state) ?></p>
+    <?php if ($status->urlProblem !== null): ?>
+      <p class="admin-alert admin-alert--error"><?= admin_te('payments.status.live_url_problem', ['reason' => admin_t('payments.url.' . $status->urlProblem)]) ?></p>
+    <?php endif; ?>
 
     <dl class="admin-payments-facts">
       <dt><?= admin_te('payments.status.provider') ?></dt>

@@ -39,6 +39,9 @@ use App\Service\SiteSettings;
  *     refused, so a hidden .env key can never be replaced or erased.
  *   - A key must have the shape of a Mollie key AND of its field's mode: a
  *     live key typed as the test key is refused with a sentence that says so.
+ *   - LIVE ONLY WITH A REAL SITE ADDRESS: switching to live is refused
+ *     while the base URL is not a configured, public https address
+ *     (MolliePaymentProvider::liveBaseUrlProblem()).
  *   - LIVE ONLY AFTER A WORKING CONNECTION. Choosing live, or giving a live
  *     shop a new live key, runs the connection test on that live key inside
  *     this very save; only when Mollie accepts it is anything written. There
@@ -251,6 +254,12 @@ final class PaymentSettingsEditor
 
         $field = $this->liveKey !== '' ? 'live_api_key' : 'payment_mode';
         $key = $this->liveKey !== '' ? $this->liveKey : null;
+
+        if ($switching && ($urlProblem = $this->provider->liveBaseUrlProblem()) !== null) {
+            $this->errors['payment_mode'] = AdminTranslator::trans('payments.error.live_needs_url', ['reason' => AdminTranslator::trans('payments.url.' . $urlProblem)]);
+
+            return;
+        }
 
         if ($key === null) {
             try {

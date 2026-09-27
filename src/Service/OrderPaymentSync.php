@@ -48,9 +48,15 @@ class OrderPaymentSync
         $localStatus = $payment->status;
 
         if ($order['status'] !== $localStatus || $order['mollie_status'] !== $payment->providerStatus) {
-            $this->orders->updateStatusFromMollie((int) $order['id'], $localStatus, $payment->providerStatus);
-            $order['status'] = $localStatus;
-            $order['mollie_status'] = $payment->providerStatus;
+            if ($this->orders->updateStatusFromMollie((int) $order['id'], $localStatus, $payment->providerStatus)) {
+                $order['status'] = $localStatus;
+                $order['mollie_status'] = $payment->providerStatus;
+            } else {
+                // Refused: the order already has a final status (a sync that
+                // finished first). What is stored stands, and decides below.
+                $order = $this->orders->findByMolliePaymentId($payment->id) ?? $order;
+                $localStatus = (string) $order['status'];
+            }
         }
 
         // Attempted on every sync (not just on a fresh transition to "paid") so a failed

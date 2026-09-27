@@ -3332,7 +3332,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'payments.webhook.url_label' => 'Webhook address',
     'payments.webhook.copy' => 'Copy',
     'payments.webhook.copied' => 'Copied',
-    'payments.webhook.unreachable' => 'The address of this site (:base) cannot be reached from the internet, for example because the site runs on your own computer. Mollie cannot call such an address, so Mygdala sends no webhook then. An order is updated once the customer comes back to the order page.',
+    'payments.webhook.unreachable' => 'The address of this site (:base) cannot be reached from the internet, for example because the site runs on your own computer. Mollie cannot call such an address, so Mygdala sends no webhook then. In test mode that is fine: a test order is updated once the customer comes back to the order page. Live is only possible with a public https address.',
     'payments.webhook.base_missing' => 'The address of this site has not been set yet. Set it in the setup wizard, or ask your web developer to set APP_URL: otherwise Mollie does not know where to reach your webshop.',
     'payments.webhook.not_https' => 'Your site does not use https. For real payments a secure connection (https) is strongly recommended.',
     'payments.error.pinned_by_environment' => 'The Mollie key is set in the server environment. You cannot change or erase it here.',
@@ -3371,4 +3371,9 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'shop.test_badge' => 'TEST',
     'shop.test_order_notice' => 'Test order: paid with a Mollie test key, so without real money. It does not count towards revenue and gets no real invoice.',
     'shop.test_order_invoice' => 'Test order — no real invoice is issued.',
+    'payments.status.live_url_problem' => 'The website URL must be set correctly before Live can be used. :reason Customers cannot pay right now. Set the address in the setup wizard, or ask your web developer to set APP_URL.',
+    'payments.error.live_needs_url' => 'Live can only be switched on once the site address is right. :reason',
+    'payments.url.missing' => 'The site address has not been set yet.',
+    'payments.url.not_https' => 'The site address does not start with https://; real payments only go over a secure connection.',
+    'payments.url.not_public' => 'The site address is a local or private address Mollie cannot reach.',
 ];

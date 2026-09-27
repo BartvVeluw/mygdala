@@ -238,11 +238,19 @@ final class InMemoryOrderRepository extends OrderRepository
         return null;
     }
 
-    public function updateStatusFromMollie(int $orderId, string $localStatus, string $mollieStatus): void
+    public function updateStatusFromMollie(int $orderId, string $localStatus, string $mollieStatus): bool
     {
+        // The same rule as the real UPDATE: never back from a final status.
+        $current = $this->orders[$orderId]['status'] ?? 'pending';
+        if (in_array($current, OrderRepository::FINAL_PAYMENT_STATUSES, true) && $current !== $localStatus) {
+            return false;
+        }
+
         $this->statusUpdateCount++;
         $this->orders[$orderId]['status'] = $localStatus;
         $this->orders[$orderId]['mollie_status'] = $mollieStatus;
+
+        return true;
     }
 
     public function setRefundedAmount(int $orderId, float $refundedAmount): void
