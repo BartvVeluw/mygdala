@@ -263,6 +263,15 @@ met de uitleg dat het serverconfiguratie is. `AppUrl::source()` zegt hardop
 welke stap antwoordde, zodat een scherm niet doet alsof een waarde van de
 eigenaar is terwijl iets anders hem overrulet.
 
+**Live betalen vraagt een echt adres.** Stap 3 is een placeholder, en een
+betaling met echt geld heeft een adres nodig waar Mollie de webhook aflevert
+en de klant naar terugkomt. Zolang de ketting geen publiek `https://`-adres
+geeft (stap 3, `http://`, localhost, `*.localhost`, `.test` of een privé-IP),
+kan Shop → Betalingen niet op Live, zegt de statuskaart "Website-URL moet
+correct ingesteld zijn voordat Live gebruikt kan worden." en weigert de
+checkout een live-sleutel vóór er een bestelling ontstaat. Testmodus werkt
+op elk adres (`MODULES.md`, "Betalingen").
+
 **De Host-header wordt nooit geraadpleegd.** Een canoniek adres dat het
 verzoek volgt is geen canoniek adres. De wizard toont het adres waarop het
 verzoek binnenkwam als *hint* en laat de eigenaar het overtypen.

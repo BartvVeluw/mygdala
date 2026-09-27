@@ -73,6 +73,15 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
   redirect: alleen de gemaskeerde vorm uit `MollieConfiguration::mask()`.
   Een leeg sleutelveld houdt de opgeslagen sleutel, en een sleutel in de
   serveromgeving is door niets in het CMS te vervangen.
+- **Een testbestelling blijft een testbestelling.** `orders.payment_mode`
+  wordt één keer geschreven, bij het aanmaken van de betaling, en nooit
+  afgeleid van de huidige modus of sleutel. Een betaling wordt opgevraagd
+  met de sleutel van díe modus. Een testbestelling telt niet als omzet
+  (`OrderRepository::REAL_SALE_CONDITION` in elke query die geld optelt) en
+  krijgt nooit een factuur uit de echte reeks
+  (`Tests\Service\TestOrderTest`, `MollieWebhookHttpTest`).
+- **Betalingen is `payments.manage`**, niet `settings.manage`, en alleen een
+  Super Admin kent het toe.
 - **Geen test praat met Mollie.** Gebruik `Tests\Support\FakeMollie`
   (`TESTING.md`).
 - **Raak geen Core-bestand aan om iets van de Shop te regelen.** Core mag

@@ -770,25 +770,43 @@ Betalingen, de betaalprovider en de geheimenopslag (Mollie Setup 2.0,
                         en sleutel) en
                         ShopPaymentMethodsTest (zonder keuze iDEAL en
                         creditcard met hun oude woorden, een keuze in
-                        volgorde, "kaart" is creditcard) — niets nodig
+                        volgorde, "kaart" is creditcard),
+                        AdminPermissionsTest (payments.manage komt met geen
+                        andere permissie mee, alleen een Super Admin kent hem
+                        toe) en AdminUserServiceTest (een users.manage-houder
+                        kan payments.manage niet geven en niet afpakken, een
+                        Super Admin wel) — niets nodig
 --testsuite shop        voegt toe: MollieConfigurationTest (de keten
                         omgeving → CMS → niets, de placeholder, maskering,
                         onleesbaar is niet ingesteld), MolliePaymentProviderTest
                         (de body uit de bestelling, adressen uit APP_URL ook in
                         een submap, geen webhook naar localhost/.test/privé-IP,
-                        elke Mollie-status, refunds, de terugval naar de sleutel
-                        van de andere modus, elke fout één soort zonder sleutel
-                        erin), PaymentSettingsEditorTest (sleutels, live alleen
-                        na een geslaagde check, de bevestiging, de gepinde
-                        omgeving, methoden beschikbaar vóór aangeboden),
-                        PaymentSettingsHttpTest, MollieWebhookHttpTest en
-                        CheckoutPaymentMethodsHttpTest (over echt HTTP, zie
-                        hieronder), InvoicePrefixTest (het factuurprefix, een
-                        oude waarde, bestaande facturen en hun bestand
-                        onaangeroerd) en SecretSettingsMigrationTest (vers en
-                        upgrade, bestaande Mollie-bestellingen en refunds
-                        onaangeroerd, herhaling) — de laatste ook in
-                        --testsuite migration
+                        elke Mollie-status, refunds, de modus van een nieuwe
+                        betaling, opvragen met alleen de sleutel van de modus
+                        van de bestelling, de terugval voor NULL, live alleen
+                        met een publiek https-adres, de statuskaart, elke fout
+                        één soort zonder sleutel erin),
+                        PaymentSettingsEditorTest (sleutels, live alleen na
+                        een geslaagde check en met een echt webadres, de
+                        bevestiging, de gepinde omgeving, methoden
+                        beschikbaar vóór aangeboden), TestOrderTest (de modus
+                        opslaan, geen factuurnummer/rij/PDF voor een
+                        testbestelling, de mail zonder bijlage met [TEST],
+                        omzet zonder test en mét live en NULL, de CSV-kolom,
+                        een eindstatus die niet terugvalt),
+                        OrderPaymentSyncTest (ook: een tragere sync maakt
+                        betaald niet ongedaan), PaymentSettingsHttpTest,
+                        MollieWebhookHttpTest en CheckoutPaymentMethodsHttpTest
+                        (over echt HTTP, zie hieronder), InvoicePrefixTest
+                        (het factuurprefix, een oude waarde, bestaande
+                        facturen en hun bestand onaangeroerd),
+                        SecretSettingsMigrationTest (vers en upgrade,
+                        bestaande Mollie-bestellingen en refunds onaangeroerd,
+                        herhaling) en PaymentModeMigrationTest (vers en
+                        upgrade vanaf main vóór Mollie Setup 2.0, bestaande
+                        bestellingen NULL met ids, statussen, bedragen,
+                        refunds, facturen en de teller identiek, herhaling)
+                        — de laatste twee ook in --testsuite migration
 --testsuite cms         SecretStoreTest (versleuteld in de rij, fail closed
                         zonder of met een andere sleutel, een rij werkt niet in
                         een ander slot) en MasterKeyTest: de opslag is Core
@@ -816,6 +834,24 @@ sleutelmap (`SECRETS_STORAGE_PATH`), `MOLLIE_API_KEY` leeg of gepind,
 `SHOP_NOTIFICATION_EMAIL`, zodat een betaalde test-bestelling haar factuur
 krijgt maar er geen mail vertrekt. Ze ruimen hun sleutels, instellingen,
 bestellingen en facturen zelf op.
+
+- `PaymentSettingsHttpTest` bewijst ook de permissie: een account met alleen
+  `settings.manage` opent Shop-instellingen maar krijgt 403 op Betalingen en
+  op elk vervalst verzoek (sleutel, live, methoden, verbindingstest), zonder
+  dat er iets geschreven of aan Mollie gevraagd wordt; een Super Admin opent
+  en slaat op.
+- `MollieWebhookHttpTest` bevat de regressietest die een release nooit mag
+  herhalen, in twaalf genummerde stappen: shop op Test, een bestelling met
+  een betaling die gemaakt wordt zoals `api/checkout.php` dat doet (in het
+  testproces, tegen hetzelfde scenario), de shop op Live, de webhook voor de
+  oude testbetaling, en dan: opgevraagd met de testsleutel en geen andere,
+  betaald, nog steeds TEST, de factuurteller onveranderd, geen factuur of
+  PDF, de omzet onveranderd. Daarnaast een live bestelling in een testshop
+  (live sleutel, factuur, omzet) en een bestelling waarvan de sleutel van
+  haar modus ontbreekt (503, Mollie niets gevraagd).
+- `CheckoutPaymentMethodsHttpTest` start een derde server met een
+  live-sleutel en `APP_URL=http://mygdala.localhost`: de checkout weigert
+  met 503 vóór er een bestelling is.
 
 Wat de browser met Betalingen doet (de dirty-status, de vertrekdialoog, *Test
 deze sleutel* zonder opslaan, de regio's na opslaan, een echte testbestelling

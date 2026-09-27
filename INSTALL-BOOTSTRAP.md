@@ -142,8 +142,12 @@ sleutel en geen sleutelbestand gemaakt. Zonder `MOLLIE_API_KEY` in `.env`
 modus is testmodus en de aangeboden betaalmethoden zijn iDEAL en creditcard,
 allebei als code-standaard zonder rij in `site_settings`. Een bestaande
 installatie met een sleutel in `.env` betaalt na de update gewoon door; er
-wordt niets verplaatst. Zie `MODULES.md`, "Betalingen", en `SETUP.md`,
-"Geheimen in het CMS".
+wordt niets verplaatst. Migratie `20260927160000` voegt `orders.payment_mode`
+toe, leeg: een verse installatie heeft geen bestellingen, en een bestaande
+houdt al haar bestellingen op NULL (een echte verkoop, zoals voorheen).
+Betalingen beheren (`payments.manage`) heeft alleen de Super Admin die de
+wizard maakt; niemand anders krijgt het vanzelf. Zie `MODULES.md`,
+"Betalingen", en `SETUP.md`, "Geheimen in het CMS".
 
 `builtin` krijgt alleen een bestaande installatie: de pin-migratie
 `20260923140000` legt vast wat die installatie al toonde (de shoppagina als

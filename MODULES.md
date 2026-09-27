@@ -142,7 +142,7 @@ hij gebruikt.
 |---|---|---|
 | Adminnavigatie | `adminNavigationItems()` | `App\Service\AdminNavigation` |
 | Een menu in de zijbalk (de Shop) | `adminNavigationMenus()`, plus `menu` op een regel | `App\Service\AdminNavigation::sidebar()` (`ADMIN-UI.md`, "Menu's in de zijbalk") |
-| Permissies | `permissionGroups()`, `permissionImplications()` | `App\Service\AdminPermissions` |
+| Permissies | `permissionGroups()`, `permissionImplications()`, `superAdminGrantablePermissions()` (wat alleen een Super Admin mag toekennen) | `App\Service\AdminPermissions` |
 | Applicatieroutes | `routes()` | `App\Service\RouteRegistry` |
 | Gereserveerde slugs | `reservedSlugs()` | `App\Service\ReservedRoutes` |
 | Vaste publieke paden | `publicPaths()` | `App\Module\ModuleRegistry::disabledModuleForRoutePath()` |
@@ -503,6 +503,25 @@ Alles wat er ook zou zijn zonder webshop.
     Een opgeslagen sleutel die niet meer te ontsleutelen is, telt als geen
     sleutel: er wordt nooit met iets anders betaald, en het scherm vraagt hem
     opnieuw.
+
+    Die keten kiest de sleutel voor een **nieuwe** betaling. Een bestaande
+    betaling wordt opgezocht met de sleutel van de modus waarin ze gemaakt is
+    (hieronder, *Test of live per bestelling*).
+  - **Wie mag het: `payments.manage`.** Sleutels opslaan of vervangen, test
+    of live kiezen, de betaalmethoden en de verbindingstest vallen onder een
+    eigen permissie, *Betalingen beheren* in de groep Shop. Wie die heeft,
+    bepaalt op welk Mollie-account klanten betalen; daarom kan **alleen een
+    Super Admin** hem toekennen of intrekken
+    (`ShopModule::superAdminGrantablePermissions()`, dat samen met Cores
+    `users.manage` en `updates.manage` in
+    `AdminPermissions::superAdminGrantableOnly()` komt), en krijgt niemand hem
+    vanzelf: niet wie `settings.manage` heeft, niet wie bestellingen of
+    verzending beheert. Een Super Admin heeft hem zoals elke permissie. Een
+    beheerder zonder `payments.manage` ziet Betalingen niet in het menu en
+    krijgt 403 op het scherm en op elk rechtstreeks verzoek aan de twee
+    endpoints; Shop-instellingen blijft gewoon onder `settings.manage`. Na de
+    update heeft dus alleen een Super Admin Betalingen: wie het eerder via
+    `settings.manage` deed, krijgt het terug van een Super Admin.
   - **Live alleen na een werkende verbinding.** Live kiezen, of een live shop
     een nieuwe live-sleutel geven, voert in diezelfde opslag de
     verbindingstest uit op díe sleutel; weigert Mollie, dan wordt niets
@@ -510,6 +529,84 @@ Alles wat er ook zou zijn zonder webshop.
     na een sleutelwissel zou blijven staan. Een opgeslagen live-sleutel zet
     nooit zelf live. De live-sleutel vervangen van een shop die live is en al
     betalingen had, vraagt een bevestigingsvinkje.
+  - **Live alleen met een echt webadres.** Een echte betaling heeft een
+    adres nodig waar Mollie de webhook kan afleveren en waar de klant naar
+    terugkomt. Zonder een publiek https-adres uit `AppUrl` (geen `APP_URL` en
+    geen adres uit de installatiewizard; `http://`; of localhost,
+    `*.localhost`, `.test`, een privé-IP en de andere adressen die Mollie niet
+    bereikt) geldt voor een live-sleutel
+    (`MolliePaymentProvider::liveBaseUrlProblem()`: `missing`, `not_https`,
+    `not_public`):
+    - Live kiezen op Betalingen wordt geweigerd met de reden erbij;
+    - de statuskaart zegt *Probleem* met "Website-URL moet correct ingesteld
+      zijn voordat Live gebruikt kan worden.", ook als de sleutel zelf werkt
+      (bijvoorbeeld een live-sleutel in `MOLLIE_API_KEY`);
+    - `isConfigured()` is onwaar, dus `api/checkout.php` weigert met 503
+      vóór er een adres gecontroleerd of een bestelling opgeslagen wordt, en
+      `createPayment()` weigert ook zelf, zonder verzoek aan Mollie.
+
+    **Testmodus werkt op elk adres**, lokaal ook: zonder bereikbaar adres
+    gaat er geen webhook mee en werkt de bestelstatuspagina de bestelling
+    bij (hieronder, *De webhook*). Er is geen tunnel en er hoeft er geen te
+    zijn.
+  - **Test of live per bestelling** (`orders.payment_mode`, migratie
+    `20260927160000`). Bij het aanmaken van de betaling legt
+    `api/checkout.php` de modus vast die Mollie teruggeeft (`CreatedPayment::$mode`,
+    anders het voorvoegsel van de gebruikte sleutel): `test` of `live`. Hij
+    wordt daarna nooit meer afgeleid van de huidige modus van de shop, de
+    actieve sleutel of het betaal-id; een testbestelling blijft een
+    testbestelling als de shop vijf minuten later live gaat.
+    `OrderRepository::setMolliePaymentId()` schrijft alleen `test` of `live`,
+    al het andere wordt NULL; `OrderRepository::isTestOrder()` is alleen
+    `test`.
+
+    Webhook en bestelstatuspagina vragen de betaling op met `fetchPayment(id,
+    modus van de bestelling)`: **alleen de sleutel van die modus**, welke
+    modus de shop nu ook heeft, en geen andere. Een testbetaling die na de
+    overstap naar live wordt afgerond, wordt dus met de testsleutel
+    gevonden; ontbreekt die sleutel (of pint de serveromgeving een sleutel
+    van de andere modus), dan wordt Mollie niets gevraagd, antwoordt de
+    webhook 503 en blijft de bestelling staan tot de sleutel terug is.
+
+    **NULL** is een bestelling van vóór deze kolom. Welke sleutel die betaalde
+    is niet meer na te gaan, dus ze gedraagt zich precies als voorheen: een
+    echte verkoop met een echte factuur, en de oude terugval bij het opvragen
+    (de actieve sleutel, en bij *niet gevonden* één keer de opgeslagen
+    sleutel van de andere modus). De migratie vult niets in.
+  - **Testbestellingen** (`payment_mode = 'test'`):
+    - **TEST-badge** (`.admin-badge--test`, amber met woord) naast het
+      bestelnummer in Bestellingen, op het besteloverzicht (met een
+      waarschuwing bovenaan) en in *Recente bestellingen* op het dashboard.
+      Ze blijven in die lijsten, in het aantal *Af te handelen* en in de
+      CSV-export (kolom *Betaalmodus*: `test`, `live` of leeg): het zijn echte
+      bestellingen om af te handelen of weg te gooien, alleen geen omzet.
+    - **Geen omzet.** De enige query die geld optelt voor de eigenaar,
+      `DashboardRepository::orderTotalsBetween()` (omzet, aantal bestellingen
+      en gemiddelde orderwaarde op het dashboard, voor de periode en de
+      vergelijkingsperiode), voegt `OrderRepository::REAL_SALE_CONDITION`
+      toe: `live` en NULL tellen, `test` niet. De andere orderqueries
+      (`findRecentOrders()`, het aantal *Af te handelen*, de bestellijst, de
+      export, retourverzoeken) zijn operationeel en zijn bewust niet
+      veranderd.
+    - **Geen factuur.** `InvoiceService::issueForOrderIfNeeded()` geeft een
+      testbestelling niets uit: geen nummer uit de doorlopende teller, geen
+      rij in `invoices`, geen PDF. Er is geen aparte testreeks en geen
+      pro-forma. De kaart *Factuur* zegt "Testbestelling — er wordt geen
+      echte factuur uitgegeven." en heeft geen knop die er een maakt;
+      `api/admin/generate-invoice.php` weigert een testbestelling ook bij een
+      rechtstreeks verzoek.
+    - **De bevestigingsmail** gaat wel, zonder bijlage, met `[TEST] ` voor
+      het onderwerp en een melding bovenaan (klant en winkel): het was een
+      testbetaling, er is geen geld overgemaakt en er hoort geen factuur bij.
+      Opnieuw versturen kan, ook zonder factuur.
+  - **Een definitieve betaalstatus blijft staan.** Webhook en
+    bestelstatuspagina kunnen dezelfde bestelling tegelijk bijwerken.
+    `OrderRepository::updateStatusFromMollie()` schrijft een status alleen
+    als de bestelling nog niet `paid`, `failed`, `canceled` of `expired` is
+    (`FINAL_PAYMENT_STATUSES`), of als het dezelfde status is: in één
+    `UPDATE`, zonder lezen ertussen. Een tragere sync met een oudere status
+    wordt geweigerd; `OrderPaymentSync` gaat dan verder met wat is
+    opgeslagen. Van `pending` naar een eindstatus blijft gewoon mogelijk.
   - **De verbindingstest** (`MollieConnectionResult`) is één alleen-lezende
     aanroep, `methods->allEnabled`: geen bestelling, geen betaling, geen
     terugbetaling, geen webhook. Hij houdt drie soorten problemen uit elkaar:
@@ -549,10 +646,8 @@ Alles wat er ook zou zijn zonder webshop.
     `Retry-After` als Mollie niet bereikbaar is, de sleutel niet werkt of het
     opslaan faalt. Een betaal-id dat geen bestelling heeft, wordt beantwoord
     zonder Mollie iets te vragen: een anonieme POST met een verzonnen id kost
-    de shop geen verzoeken bij Mollie. Kent de actieve sleutel een betaling
-    niet, dan vraagt de provider het één keer met de opgeslagen sleutel van de
-    andere modus: een testbetaling van vóór de overstap naar live vindt zo nog
-    steeds haar bestelling (zie "Bekend" hieronder).
+    de shop geen verzoeken bij Mollie. Welke sleutel de betaling opvraagt,
+    bepaalt de bestelling (*Test of live per bestelling*, hierboven).
   - **Een testbetaling** is de echte checkout in testmodus; Mollie toont dan
     zijn testpagina waarop je de uitkomst kiest. Er is geen nepcheckout in het
     CMS. Betalingen legt de acht stappen uit en linkt in testmodus naar de
@@ -560,26 +655,19 @@ Alles wat er ook zou zijn zonder webshop.
   - **Geen auditlog.** De Shop heeft er geen; het serverlog krijgt
     `[payments] test API key replaced by admin user #3` en dergelijke, nooit
     met de sleutel.
-  - **Bekend** (Mollie Setup 2.0, open punten voor de eigenaar):
-    - Een bestelling onthoudt niet in welke modus ze betaald is. Een
-      testbestelling staat dus gewoon in Bestellingen, telt mee op het
-      dashboard en krijgt bij *betaald* een factuurnummer uit de gewone reeks
-      en een bevestigingsmail; Betalingen zegt dat bij de testbetaling. Door
-      de terugval naar de sleutel van de andere modus kan een testbetaling die
-      pas ná de overstap naar live wordt afgerond, haar bestelling nog op
-      betaald zetten. Een kolom met de modus per bestelling (plus een badge
-      en uitsluiting uit omzet en factuurreeks) zou dat oplossen.
-    - Sleutels en modus vallen onder `settings.manage`, zoals de opdracht
-      vroeg. Wie die permissie heeft, kan dus ook de live-sleutel vervangen,
-      en daarmee bepalen op welk Mollie-account betalingen binnenkomen. Een
-      eigen permissie die alleen een Super Admin kan geven is een mogelijke
-      aanscherping.
-    - Twee gelijktijdige syncs (webhook en bestelstatuspagina) kunnen in een
-      smal venster een oudere status over *betaald* heen schrijven;
-      `OrderRepository::updateStatusFromMollie()` schrijft onvoorwaardelijk.
-      Dat was al zo vóór deze fase.
-  - Scherm en endpoints: `admin/payments.php` (menu Shop, `settings.manage`
-    plus `ModuleGuard`, zoals Shop-instellingen),
+  - **Bekend** (open punten voor de eigenaar):
+    - Testbestellingen van vóór deze update hebben NULL en tellen dus als
+      echte verkoop, met hun factuur. Dat is niet terug te rekenen en wordt
+      niet geraden; zo'n factuur blijft wat ze is.
+    - Een testbestelling krijgt wel een bestelnummer uit de gewone reeks.
+      Bestelnummers hoeven niet aaneengesloten te zijn, factuurnummers wel;
+      alleen die reeks blijft schoon.
+    - Een testbestelling die na de overstap naar live nog open staat, wordt
+      alleen bijgewerkt zolang de testsleutel is opgeslagen. Wie die wist,
+      laat haar op *in afwachting*; de webhook antwoordt 503 tot Mollie het
+      opgeeft.
+  - Scherm en endpoints: `admin/payments.php` (menu Shop, `payments.manage`
+    plus `ModuleGuard`),
     `api/admin/update-payment-settings.php` (`PaymentSettingsEditor`,
     `AdminEditorResponse`), `api/admin/test-payment-connection.php`,
     `admin/assets/payments.js`. De teksten voor de beheerder, het stappenplan
@@ -592,7 +680,8 @@ Alles wat er ook zou zijn zonder webshop.
   bedrijfsgegevens bevroren in `seller_snapshot`, en een PDF buiten de
   webroot. De bestelbevestiging voegt precies dat bestand bij. Er is één
   sjabloon, `PdfInvoiceRenderer`, en alleen `InvoiceService` roept hem aan.
-  De factuur is altijd Nederlands; een bestelling kent geen eigen taal.
+  De factuur is altijd Nederlands; een bestelling kent geen eigen taal. Een
+  testbestelling krijgt geen factuur (*Betalingen*, hierboven).
 
   **Factuur bekijken** staat op het besteloverzicht (`admin/order.php`, kaart
   *Factuur*) zodra er een factuur is, en opent
@@ -626,7 +715,9 @@ Alles wat er ook zou zijn zonder webshop.
   Instellingen, omdat de footer en de mailvoetregel ze ook lezen. Het
   scherm vraagt `settings.manage`, dezelfde permissie als die tabbladen. Dat
   is een Core-permissie die met de Shop uit gewoon houdbaar blijft, dus
-  scherm en endpoint hebben (samen met Betalingen) wél een `ModuleGuard`.
+  scherm en endpoint hebben wél een `ModuleGuard`. Betalingen vraagt sinds
+  de release-hardening `payments.manage`, een Shop-permissie, en houdt zijn
+  `ModuleGuard` toch: de volgorde van de guards blijft zoals hij was.
 
   **De prefixen van bestel- en factuurnummer** staan in één klasse,
   `App\Service\DocumentNumberPrefix`, die ook het `pattern` van de velden
