@@ -64,6 +64,7 @@ final class ShopSettings
      */
     public const CHOICES = [
         ShopOverview::SETTING_KEY,
+        ProductGalleryTransition::SETTING_KEY,
     ];
 
     /**
@@ -79,6 +80,7 @@ final class ShopSettings
         'bestellingen' => ['order_number_prefix'],
         'emails' => OrderConfirmationBuilder::CUSTOMER_COPY_KEYS,
         'overzicht' => [ShopOverview::SETTING_KEY],
+        'productpagina' => [ProductGalleryTransition::SETTING_KEY],
     ];
 
     /**
@@ -139,6 +141,22 @@ final class ShopSettings
                 $errors[] = AdminTranslator::trans('validation.shop_overview_invalid');
             } else {
                 $values[ShopOverview::SETTING_KEY] = $overview;
+            }
+        }
+
+        /*
+         * How the product page's gallery changes picture for every product
+         * that follows the Shop (App\Service\ProductGalleryTransition). One
+         * of three words and nothing else: it ends up in the product page's
+         * markup, so an unknown value is refused, never stored.
+         */
+        if (array_key_exists(ProductGalleryTransition::SETTING_KEY, $post)) {
+            $transition = ProductGalleryTransition::normalise($post[ProductGalleryTransition::SETTING_KEY]);
+
+            if ($transition === null) {
+                $errors[] = AdminTranslator::trans('validation.gallery_transition_invalid');
+            } else {
+                $values[ProductGalleryTransition::SETTING_KEY] = $transition;
             }
         }
 

@@ -13,6 +13,7 @@ require_once __DIR__ . '/_admin_collapse.php';
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
 use App\Service\Csrf;
+use App\Service\ProductGalleryTransition;
 use App\Service\Seo;
 use App\Service\Shipping\ShippingProfile;
 use App\Repository\CollectionRepository;
@@ -171,6 +172,12 @@ $shippingWeightValue = $old !== null
 $requiresParcelChecked = $old !== null
     ? !empty($old['requires_parcel'])
     : ($product !== null ? (int) $product['requires_parcel'] === 1 : true);
+
+// The gallery's transition: a refused save's choice, else the stored one;
+// null follows the Shop. A new product starts following the Shop.
+$galleryTransitionValue = $old !== null && array_key_exists('gallery_transition', $old)
+    ? ProductGalleryTransition::normalise($old['gallery_transition'])
+    : ProductGalleryTransition::normalise($product['gallery_transition'] ?? null);
 
 // After a failed save the admin's own ticks win over what is in the
 // database, same precedence rule as every other field on this form.
@@ -385,6 +392,24 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
           <div class="admin-alert admin-alert--error" data-admin-editor-errors="images" hidden></div>
           <div data-admin-editor-region="images">
             <?php product_gallery_pool($galleryPictures); ?>
+          </div>
+
+          <?php /* How the product page changes picture: the Shop's default
+                   (an empty value, stored as NULL, so it follows a later
+                   change there) or this product's own choice
+                   (App\Service\ProductGalleryTransition). Part of the one
+                   save; outside the region, because nothing about it
+                   changes when the server draws the pictures again. */ ?>
+          <div class="admin-form-row admin-form-row--split">
+            <div class="admin-field">
+              <?= admin_field_label('product-gallery-transition', admin_t('shop.gallery_transition.product_label'), admin_t('help.shop.gallery_transition.product')) ?>
+              <select class="admin-select" id="product-gallery-transition" name="gallery_transition">
+                <option value=""<?= $galleryTransitionValue === null ? ' selected' : '' ?>><?= admin_te('shop.gallery_transition.inherit', ['default' => admin_t('shop.gallery_transition.' . ProductGalleryTransition::shopDefault())]) ?></option>
+                <?php foreach (ProductGalleryTransition::ALL as $transitionOption): ?>
+                  <option value="<?= htmlspecialchars($transitionOption, ENT_QUOTES, 'UTF-8') ?>"<?= $galleryTransitionValue === $transitionOption ? ' selected' : '' ?>><?= admin_te('shop.gallery_transition.' . $transitionOption) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
           </div>
         </div>
       </details>

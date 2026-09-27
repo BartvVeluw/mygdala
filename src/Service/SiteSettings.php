@@ -176,6 +176,13 @@ class SiteSettings
         // Empty by default: a webshop is no reason for a public listing.
         'shop_overview' => '',
 
+        // How the product page's big picture changes to another one, for
+        // every product that does not name its own: 'none', 'fade' or
+        // 'slide' (App\Service\ProductGalleryTransition, which checks it
+        // against that closed list). 'fade' because the gallery already
+        // faded before this setting existed, so no shop changes by it.
+        'shop_gallery_transition' => 'fade',
+
         // CMS-editable order-confirmation email copy (customer email only —
         // see App\Mail\OrderConfirmationBuilder / App\Mail\EmailPlaceholders
         // for the small, safe {{placeholder}} substitution supported here).

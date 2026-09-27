@@ -2,6 +2,8 @@
 
 namespace App\Repository;
 
+use App\Service\ProductGalleryTransition;
+
 /**
  * All product-related SQL lives here.
  */
@@ -234,7 +236,7 @@ class ProductRepository extends Repository
         $stmt = $this->db->prepare(
             'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog,
                     shipping_profile, shipping_weight_grams, requires_parcel,
-                    og_image_path, og_media_id
+                    og_image_path, og_media_id, gallery_transition
              FROM products
              WHERE id = :id
              LIMIT 1'
@@ -297,15 +299,20 @@ class ProductRepository extends Repository
                 (slug, price, image_path, active,
                  in_shop, in_personalization_catalog,
                  shipping_profile, shipping_weight_grams, requires_parcel,
+                 gallery_transition,
                  created_at, updated_at)
              VALUES
                 (:slug, :price, :image_path, :active,
                  :in_shop, :in_personalization_catalog,
                  :shipping_profile, :shipping_weight_grams, :requires_parcel,
+                 :gallery_transition,
                  NOW(), NOW())'
         );
         $stmt->execute([
             'slug' => $data['slug'],
+            // NULL unless the editor chose one: a new product follows the
+            // Shop's default (App\Service\ProductGalleryTransition).
+            'gallery_transition' => ProductGalleryTransition::normalise($data['gallery_transition'] ?? null),
             'price' => number_format($data['price'], 2, '.', ''),
             'image_path' => $data['image_path'],
             'active' => $data['active'] ? 1 : 0,
@@ -349,6 +356,33 @@ class ProductRepository extends Repository
             'requires_parcel' => $data['requires_parcel'] ? 1 : 0,
             'id' => $id,
         ] + $this->channelValues($data));
+    }
+
+    /**
+     * The product's own gallery transition, or NULL to follow the Shop's
+     * default (App\Service\ProductGalleryTransition). Separate from update()
+     * because the editor only writes it when its form carried the field, the
+     * rule every other section of that form follows. A value off the closed
+     * list is stored as NULL, never as itself.
+     */
+    public function updateGalleryTransition(int $id, ?string $transition): void
+    {
+        $stmt = $this->db->prepare('UPDATE products SET gallery_transition = :transition, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['transition' => ProductGalleryTransition::normalise($transition), 'id' => $id]);
+    }
+
+    /**
+     * The product's own gallery transition as stored (NULL = follow the
+     * Shop), for App\Service\ProductGalleryTransition::forProduct(), which
+     * checks it against the closed list before anything uses it.
+     */
+    public function findGalleryTransition(int $id): ?string
+    {
+        $stmt = $this->db->prepare('SELECT gallery_transition FROM products WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $id]);
+        $value = $stmt->fetchColumn();
+
+        return is_string($value) ? $value : null;
     }
 
     public function updateImagePath(int $id, ?string $imagePath): void

@@ -120,6 +120,7 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       'bestellingen' => admin_t('shop_settings.tab_orders'),
       'emails' => admin_t('shop_settings.tab_emails'),
       'overzicht' => admin_t('shop.overview.tab'),
+      'productpagina' => admin_t('shop.gallery_transition.tab'),
   ], [
       'label' => admin_t('shop_settings.tabs_label'),
       'force' => $failedSection !== null ? ShopSettings::section($failedSection) : $savedSection,
@@ -391,6 +392,36 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
           <p><a class="admin-btn-secondary" href="/admin/page.php?id=<?= (int) $chosenOverviewPage['id'] ?>"><?= admin_te('shop.overview.edit_page') ?></a></p>
         <?php endif; ?>
       <?php endif; ?>
+
+      <button type="submit"><?= admin_te('common.save') ?></button>
+    </form>
+  </section>
+  <?php admin_tab_panel_end(); ?>
+
+  <?php admin_tab_panel('productpagina'); ?>
+  <?php
+    // The gallery's transition for every product that follows the Shop
+    // (App\Service\ProductGalleryTransition). A product can name its own in
+    // the product editor; changing this changes every product that does not.
+    $transitionValue = \App\Service\ProductGalleryTransition::normalise($values[\App\Service\ProductGalleryTransition::SETTING_KEY] ?? null)
+        ?? \App\Service\ProductGalleryTransition::DEFAULT;
+  ?>
+  <section class="admin-card">
+    <h2><?= admin_te('shop.gallery_transition.heading') ?></h2>
+    <form method="post" action="/api/admin/update-shop-settings.php" class="admin-product-form">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <input type="hidden" name="section" value="productpagina">
+
+      <div class="admin-form-row">
+        <div class="admin-field">
+          <?= admin_field_label('shop-gallery-transition', admin_t('shop.gallery_transition.shop_label'), admin_t('help.shop.gallery_transition.shop')) ?>
+          <select class="admin-select" id="shop-gallery-transition" name="shop_gallery_transition">
+            <?php foreach (\App\Service\ProductGalleryTransition::ALL as $transitionOption): ?>
+              <option value="<?= $h($transitionOption) ?>"<?= $transitionValue === $transitionOption ? ' selected' : '' ?>><?= admin_te('shop.gallery_transition.' . $transitionOption) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
 
       <button type="submit"><?= admin_te('common.save') ?></button>
     </form>

@@ -111,6 +111,8 @@ try {
         'shipping_profile' => $fields['shipping_profile'],
         'shipping_weight_grams' => $fields['shipping_weight_grams'],
         'requires_parcel' => $fields['requires_parcel'],
+        // NULL (follow the Shop) unless the editor chose one.
+        'gallery_transition' => $fields['gallery_transition'],
     ]);
 
     ShopLocalization::saveProduct($productId, $fields['language_code'], [

@@ -147,6 +147,13 @@ try {
         'requires_parcel' => $fields['requires_parcel'],
     ]);
 
+    // The gallery's transition, in the Afbeeldingen section: NULL follows
+    // the Shop's default (App\Service\ProductGalleryTransition). Only when
+    // the form carried the field, like every other section here.
+    if ($fields['gallery_transition_submitted']) {
+        $productRepository->updateGalleryTransition($id, $fields['gallery_transition']);
+    }
+
     ShopLocalization::saveProduct($id, $fields['language_code'], [
         ShopLocalization::NAME => $fields['name'],
         ShopLocalization::DESCRIPTION => (string) $fields['description'],
