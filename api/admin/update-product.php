@@ -56,6 +56,7 @@ use App\Service\Inventory\InventoryEditor;
 use App\Service\Inventory\StockConflictException;
 use App\Service\Inventory\StockNotifications;
 use App\Service\Language\AdminTranslator;
+use App\Service\OrderFields\ProductOrderFieldEditor;
 use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
 use App\Service\ProductSeo;
@@ -112,6 +113,13 @@ $variantTokens = ProductGallery::variantTokens($_POST['variants_submitted'] ?? [
 // The Varianten section: options, values and variants as they are on screen.
 $variantEditor = ProductVariantEditor::fromRequest($_POST, $id, $db);
 foreach ($variantEditor->validate() as $field => $message) {
+    $errors[$field] = $message;
+}
+
+// The Bestelvelden section: the switch and the questions with their choices,
+// their words in the one language being edited.
+$orderFieldEditor = ProductOrderFieldEditor::fromRequest($_POST, $id, $fields['language_code'] !== '' ? $fields['language_code'] : \App\Service\ShopLocalization::defaultLanguage(), $db);
+foreach ($orderFieldEditor->validate() as $field => $message) {
     $errors[$field] = $message;
 }
 
@@ -210,6 +218,9 @@ try {
     // afterwards by the key the screen posted it under — a new one ("new0")
     // has its id only now.
     $variantIds = $variantEditor->save();
+
+    // The order questions and their choices, in this request's one language.
+    $orderFieldEditor->save();
 
     // After the variants: whether the product has any decides where its
     // stock lives (App\Service\Inventory\ProductStock).

@@ -101,6 +101,9 @@ final class AdminAccessControlTest extends TestCase
         // products.manage check. It stores nothing; update-product.php saves
         // the stock with the rest of the product.
         '_product_inventory.php',
+        // Its Bestelvelden section: output functions product-form.php calls
+        // behind the same check; update-product.php saves the questions.
+        '_product_order_fields.php',
         // The dynamic editor's bar, summary, leave dialog and one <script>
         // tag (ADMIN-UI.md): no URL, no data, no decision. Every save goes
         // through the screen's own guarded endpoint.

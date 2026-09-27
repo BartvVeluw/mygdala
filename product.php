@@ -10,6 +10,7 @@ require_once __DIR__ . '/partials/public-request.php';
 require_once __DIR__ . '/partials/breadcrumb.php';
 require_once __DIR__ . '/partials/related-products.php';
 require_once __DIR__ . '/partials/product-personalization.php';
+require_once __DIR__ . '/partials/product-order-fields.php';
 
 
 /**
@@ -130,6 +131,18 @@ if ($inquiry) {
 }
 
 /**
+ * BESTELVELDEN (App\Service\OrderFields\OrderFields, Shop Product & Ordering
+ * 2.0): the questions this product asks before it goes in the cart, in the
+ * language of the page — none for a product that asks nothing, and none for
+ * one "op aanvraag", which has no cart to put answers in. Drawn inside the add
+ * row (renderProductAddRow()), so they sit above the quantity and the button
+ * wherever that row is, the personalization section included.
+ */
+$productOrderQuestions = ($productId > 0 && $seo !== null && !$inquiry)
+    ? (new \App\Service\OrderFields\OrderFields())->questions($productId, \App\Service\Routing\RequestLanguage::current())
+    : [];
+
+/**
  * How the gallery changes picture: this product's own choice, else the
  * Shop's default (App\Service\ProductGalleryTransition — the one place that
  * decides it). Always one of none/fade/slide, written into the gallery's
@@ -152,6 +165,7 @@ $galleryTransition = \App\Service\ProductGalleryTransition::forProduct($seo !== 
  */
 function renderProductAddRow(): void
 {
+    global $productOrderQuestions;
     ?>
     <div class="product-detail__sold-out" data-product-sold-out hidden>
       <p class="product-detail__stock-status"><strong><?= htmlspecialchars(\App\Service\ShopScriptText::text('sold_out'), ENT_QUOTES, 'UTF-8') ?></strong></p>
@@ -171,6 +185,7 @@ function renderProductAddRow(): void
         <p class="product-detail__notify-message" data-product-notify-message role="status" hidden></p>
       </form>
     </div>
+    <?php render_product_order_fields($productOrderQuestions ?? []); ?>
     <div class="product-detail__add-row" data-product-add-row>
       <div class="qty-stepper" data-product-qty>
         <button type="button" data-step="down" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal verlagen', 'en' => 'Decrease quantity']) ?>">&minus;</button>

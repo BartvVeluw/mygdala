@@ -14,13 +14,17 @@
  * decides again, inside its own transaction (api/checkout.php).
  *
  * Request body (JSON):
- *   { "items": [ { "id": 3, "variant_id": 7, "qty": 2 }, … ] }
+ *   { "items": [ { "id": 3, "variant_id": 7, "qty": 2, "order_fields": {…} }, … ] }
  *
  * Response (200):
  *   { "lines": [ { "status": "ok" | "sold_out" | "insufficient" | "unavailable"
- *                  | "inquiry" | "order_fields", "available": 2 | null }, … ] }
+ *                  | "inquiry" | "order_fields", "available": 2 | null,
+ *                  "message": "…" (order_fields only) }, … ] }
  *   one entry per posted item, in the same order; an item that is not a valid
- *   line at all is "unavailable".
+ *   line at all is "unavailable". "order_fields": the line's answers to the
+ *   product's order questions no longer fit its questions (a question became
+ *   required, a choice was removed) — App\Service\OrderFields\OrderFields
+ *   says which, in the language of the page (?lang=).
  */
 
 declare(strict_types=1);
@@ -32,6 +36,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 \App\Module\ModuleGuard::requireApi('shop');
 
 use App\Service\CartAvailability;
+use App\Service\OrderFields\OrderFields;
+use App\Service\OrderFields\OrderFieldValidationException;
+use App\Service\Routing\ApiLanguage;
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -54,8 +61,22 @@ if (!is_array($items) || count($items) > 100) {
 }
 
 try {
+    $language = ApiLanguage::apply($_GET['lang'] ?? null);
     [$lines, $requestIndexes] = CartAvailability::linesFromRequest($items);
     $checked = (new CartAvailability())->check($lines);
+
+    // A line that can be ordered must still answer its product's questions.
+    $orderFields = new OrderFields();
+    foreach ($checked as $lineIndex => $result) {
+        if ($result['status'] !== CartAvailability::OK) {
+            continue;
+        }
+        try {
+            $orderFields->validate($lines[$lineIndex]['id'], $lines[$lineIndex]['order_fields'], $language);
+        } catch (OrderFieldValidationException $e) {
+            $checked[$lineIndex] = ['status' => 'order_fields', 'available' => null, 'message' => $e->getMessage()];
+        }
+    }
 
     $answer = array_fill(0, count($items), ['status' => CartAvailability::UNAVAILABLE, 'available' => null]);
     foreach ($checked as $lineIndex => $result) {

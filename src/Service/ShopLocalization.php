@@ -113,6 +113,28 @@ final class ShopLocalization
         self::DESCRIPTION => self::DESCRIPTION_MAX_LENGTH,
     ];
 
+    /**
+     * An order question's words (Shop Product & Ordering 2.0, MODULES.md
+     * "Bestelvelden"): its label and optional help text, and a choice's
+     * label. A visitor reads them in their language, else the default
+     * language, else whatever language they were typed in — a question
+     * never shows up without a label.
+     */
+    public const LABEL = 'label';
+    public const HELP_TEXT = 'help_text';
+
+    public const ORDER_FIELD_FIELDS = [
+        self::LABEL => 150,
+        self::HELP_TEXT => 500,
+    ];
+
+    public const ORDER_FIELD_OPTION_FIELDS = [
+        self::LABEL => 150,
+    ];
+
+    private static ?EntityTranslations $orderFields = null;
+    private static ?EntityTranslations $orderFieldOptions = null;
+
     public static function products(): EntityTranslations
     {
         return self::$products ??= new EntityTranslations(
@@ -139,6 +161,78 @@ final class ShopLocalization
         return self::$variants ??= new EntityTranslations(
             new TranslationTable('product_variant_translations', 'variant_id', self::VARIANT_FIELDS)
         );
+    }
+
+    public static function orderFields(): EntityTranslations
+    {
+        return self::$orderFields ??= new EntityTranslations(
+            new TranslationTable('product_order_field_translations', 'field_id', self::ORDER_FIELD_FIELDS)
+        );
+    }
+
+    public static function orderFieldOptions(): EntityTranslations
+    {
+        return self::$orderFieldOptions ??= new EntityTranslations(
+            new TranslationTable('product_order_field_option_translations', 'option_id', self::ORDER_FIELD_OPTION_FIELDS)
+        );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Order questions                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A question's label or help text for a visitor: this language, the
+     * default language, else any language it was written in. The help text
+     * may be '' (none).
+     */
+    public static function orderFieldWord(int $fieldId, string $field, string $languageCode): string
+    {
+        $value = self::orderFields()->value($fieldId, $field, $languageCode);
+
+        return $value !== '' || $field !== self::LABEL ? $value : self::orderFields()->name($fieldId, $field);
+    }
+
+    /** The stored words in one language, no fallback: what the editor shows. */
+    public static function rawOrderField(int $fieldId, string $field, string $languageCode): string
+    {
+        return self::orderFields()->raw($fieldId, $field, $languageCode);
+    }
+
+    /** @param array<string, string|null> $values label and help text in one language */
+    public static function saveOrderField(int $fieldId, string $languageCode, array $values): void
+    {
+        self::orderFields()->save($fieldId, $languageCode, $values);
+    }
+
+    /** @param list<int> $fieldIds */
+    public static function preloadOrderFields(array $fieldIds): void
+    {
+        self::orderFields()->preload($fieldIds);
+    }
+
+    /** A choice's label for a visitor, with the same fallback as a question's. */
+    public static function orderFieldOptionLabel(int $optionId, string $languageCode): string
+    {
+        $value = self::orderFieldOptions()->value($optionId, self::LABEL, $languageCode);
+
+        return $value !== '' ? $value : self::orderFieldOptions()->name($optionId, self::LABEL);
+    }
+
+    public static function rawOrderFieldOption(int $optionId, string $languageCode): string
+    {
+        return self::orderFieldOptions()->raw($optionId, self::LABEL, $languageCode);
+    }
+
+    public static function saveOrderFieldOption(int $optionId, string $languageCode, ?string $label): void
+    {
+        self::orderFieldOptions()->save($optionId, $languageCode, [self::LABEL => $label]);
+    }
+
+    /** @param list<int> $optionIds */
+    public static function preloadOrderFieldOptions(array $optionIds): void
+    {
+        self::orderFieldOptions()->preload($optionIds);
     }
 
     /* ------------------------------------------------------------------ */
@@ -320,6 +414,8 @@ final class ShopLocalization
         self::products()->clearCache();
         self::collections()->clearCache();
         self::variants()->clearCache();
+        self::orderFields()->clearCache();
+        self::orderFieldOptions()->clearCache();
     }
 
     /**

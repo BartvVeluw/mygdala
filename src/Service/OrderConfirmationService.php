@@ -143,8 +143,17 @@ class OrderConfirmationService
                 ];
             }
 
+            // The customer's answers to the order questions, under each line
+            // of both mails (Shop Product & Ordering 2.0): the order's own
+            // snapshot, never the product's questions as they are now.
+            $answers = (new \App\Repository\OrderItemFieldRepository($this->db))->findByOrderIdGrouped($orderId);
+            $mailItems = array_map(
+                static fn (array $item): array => $item + ['order_fields' => $answers[(int) ($item['id'] ?? 0)] ?? []],
+                $items
+            );
+
             $emailSettings = SiteSettings::all();
-            $emails = OrderConfirmationBuilder::build($order, $customer, $items, $emailSettings);
+            $emails = OrderConfirmationBuilder::build($order, $customer, $mailItems, $emailSettings);
             $shopFromName = \App\Mail\EmailIdentity::name();
 
             $this->mailer->send(

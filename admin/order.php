@@ -55,6 +55,15 @@ try {
     $previewSnapshots = $order !== null
         ? (new PersonalizationPreviewSnapshotRepository())->findByOrderIdGrouped($id)
         : [];
+
+    /**
+     * The customer's answers to each product's order questions (Shop Product
+     * & Ordering 2.0, "Bestelvelden"), keyed by order_items.id: the snapshot
+     * taken at checkout, never the product's questions as they are now.
+     */
+    $orderFieldAnswers = $order !== null
+        ? (new \App\Repository\OrderItemFieldRepository())->findByOrderIdGrouped($id)
+        : [];
 } catch (\Throwable $e) {
     error_log('[admin/order.php] ' . $e->getMessage());
     http_response_code(500);
@@ -201,6 +210,20 @@ $orderNumber = OrderRepository::orderNumber($order);
              */
             $itemPersonalizations = $personalizations[(int) ($item['id'] ?? 0)] ?? [];
           ?>
+          <?php $itemAnswers = $orderFieldAnswers[(int) ($item['id'] ?? 0)] ?? []; ?>
+          <?php if ($itemAnswers !== []): ?>
+            <tr class="admin-order-fields-row">
+              <td colspan="4">
+                <p class="admin-order-fields__heading"><?= admin_te('shop.order_fields.order_heading') ?></p>
+                <dl class="admin-order-fields">
+                  <?php foreach ($itemAnswers as $answer): ?>
+                    <dt><?= htmlspecialchars($answer['label'], ENT_QUOTES, 'UTF-8') ?></dt>
+                    <dd><?= nl2br(htmlspecialchars($answer['value'], ENT_QUOTES, 'UTF-8')) ?></dd>
+                  <?php endforeach; ?>
+                </dl>
+              </td>
+            </tr>
+          <?php endif; ?>
           <?php if ($itemPersonalizations !== []): ?>
             <tr class="admin-personalization-row">
               <td colspan="4"><?php renderOrderItemPersonalizations($itemPersonalizations, $previewSnapshots[(int) ($item['id'] ?? 0)] ?? []); ?></td>

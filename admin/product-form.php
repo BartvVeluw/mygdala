@@ -10,6 +10,7 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_admin_editor.php';
 require_once __DIR__ . '/_admin_collapse.php';
 require_once __DIR__ . '/_product_inventory.php';
+require_once __DIR__ . '/_product_order_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
@@ -234,6 +235,34 @@ $productStock = $isEdit
     : new \App\Service\Inventory\ProductStock(0, false, 0, []);
 $stockTracked = $old !== null && array_key_exists('track_stock', $old) ? (bool) $old['track_stock'] : $productStock->tracked;
 
+// The order questions (Shop Product & Ordering 2.0, "Bestelvelden"): the
+// switch and every question with its choices, their words in the language
+// being edited (no fallback: an empty field is an empty field). Only for an
+// existing product; a new one gets them after its first save, like variants.
+$orderFieldsEnabled = false;
+$orderFieldRows = [];
+if ($isEdit) {
+    $orderFieldRepository = new \App\Repository\OrderFieldRepository();
+    $orderFieldsEnabled = $orderFieldRepository->isEnabled((int) $product['id']);
+    $storedOrderFields = $orderFieldRepository->fieldsForProduct((int) $product['id']);
+    ShopLocalization::preloadOrderFields(array_column($storedOrderFields, 'id'));
+    foreach ($storedOrderFields as $storedField) {
+        ShopLocalization::preloadOrderFieldOptions(array_column($storedField['options'], 'id'));
+        $orderFieldRows[] = [
+            'id' => $storedField['id'],
+            'type' => $storedField['field_type'],
+            'required' => $storedField['is_required'],
+            'max_length' => $storedField['max_length'],
+            'label' => ShopLocalization::rawOrderField($storedField['id'], ShopLocalization::LABEL, $editingLanguage),
+            'help' => ShopLocalization::rawOrderField($storedField['id'], ShopLocalization::HELP_TEXT, $editingLanguage),
+            'options' => array_map(static fn (array $option): array => [
+                'id' => $option['id'],
+                'label' => ShopLocalization::rawOrderFieldOption($option['id'], $editingLanguage),
+            ], $storedField['options']),
+        ];
+    }
+}
+
 // Per variant, what its row in the Varianten section shows of the pictures
 // and its own description: a refused save's, else what is stored.
 $variantGallery = [];
@@ -275,6 +304,7 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-gallery.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-variants.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-inventory.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-order-fields.js') ?>" defer></script>
 <?php admin_collapse_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -482,6 +512,30 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
                      hang off it: saving this form creates it and opens its
                      own editor, where this section is complete. */ ?>
             <p class="admin-text-muted"><?= admin_te('shop.editor.variants_after_create') ?></p>
+          <?php endif; ?>
+        </div>
+      </details>
+    </section>
+
+    <?php /* Bestelvelden (Shop Product & Ordering 2.0): the questions a
+             customer answers before the product goes in the cart — "Naam op
+             het bord". A region, so a save draws the rows again with ids. */ ?>
+    <section class="admin-card admin-editor-section" data-admin-editor-section="order_fields">
+      <details class="admin-collapse admin-collapse--card" id="product-order-fields-section" data-admin-collapse-id="order-fields" open<?= $sectionForcedOpen ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h2 class="admin-collapse__title"><?= admin_te('shop.order_fields.heading') ?></h2>
+          <span class="admin-collapse__badges">
+            <span class="admin-badge" title="<?= admin_te('shop.order_fields.count') ?>"><?= count($orderFieldRows) ?><span class="admin-visually-hidden"> <?= admin_te('shop.order_fields.count') ?></span></span>
+          </span>
+        </summary>
+        <div class="admin-collapse__body">
+          <?php if ($isEdit): ?>
+            <div data-admin-editor-region="order-fields">
+              <?php product_order_fields_section($orderFieldsEnabled, $orderFieldRows); ?>
+            </div>
+          <?php else: ?>
+            <p class="admin-text-muted"><?= admin_te('shop.order_fields.after_create') ?></p>
           <?php endif; ?>
         </div>
       </details>

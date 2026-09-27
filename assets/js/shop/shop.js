@@ -561,6 +561,12 @@
           }
           var personalization = personalizer ? personalizer.getState() : null;
 
+          var orderFieldAnswers = readOrderFields();
+          if (orderFieldAnswers.firstInvalid) {
+            orderFieldAnswers.firstInvalid.focus();
+            return;
+          }
+
           var qty = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
           var effectivePrice = selectedVariant && selectedVariant.price != null ? selectedVariant.price : product.price;
           var effectiveImage = selectedVariant ?
@@ -576,7 +582,9 @@
             image_path: effectiveImage,
             variant_id: selectedVariant ? selectedVariant.id : null,
             variant_label: variantLabel,
-            personalization: personalization
+            personalization: personalization,
+            order_fields: orderFieldAnswers.answers,
+            order_fields_display: orderFieldAnswers.display
           };
 
           /* The server first: with what is in the cart already, can this
@@ -586,7 +594,7 @@
              No answer at all: the line is added and the checkout decides. */
           var unitOnClick = unitOnShow();
           addBtn.disabled = true;
-          S.checkCart(S.readCart().concat([{ id: product.id, variant_id: cartProduct.variant_id, qty: qty }]))
+          S.checkCart(S.readCart().concat([{ id: product.id, variant_id: cartProduct.variant_id, qty: qty, order_fields: cartProduct.order_fields }]))
             .then(function (results) {
               addBtn.disabled = hasVariants && !selectedVariant;
               var own = results ? results[results.length - 1] : null;
@@ -609,6 +617,81 @@
         };
       }
 
+      /* ---------------------------------------------------------------
+         BESTELVELDEN (partials/product-order-fields.php): the answers to
+         the product's order questions, read when "Toevoegen aan
+         winkelwagen" is pressed. A missing or too long answer is said next
+         to its question and nothing is added — for the customer's
+         convenience only: api/checkout.php checks every answer again.
+         --------------------------------------------------------------- */
+      var orderFieldsEl = document.querySelector("[data-product-order-fields]");
+
+      function readOrderFields() {
+        var result = { answers: null, display: [], firstInvalid: null };
+        if (!orderFieldsEl) return result;
+
+        var answers = {};
+        Array.prototype.forEach.call(orderFieldsEl.querySelectorAll("[data-order-field]"), function (fieldEl) {
+          var id = fieldEl.getAttribute("data-order-field");
+          var type = fieldEl.getAttribute("data-order-field-type");
+          var required = fieldEl.hasAttribute("data-order-field-required");
+          var label = fieldEl.getAttribute("data-order-field-label") || "";
+          var errorEl = fieldEl.querySelector("[data-order-field-error]");
+          var message = "";
+          var value = "";
+          var shown = "";
+
+          if (type === "checkbox") {
+            var box = fieldEl.querySelector('input[type="checkbox"]');
+            value = box && box.checked ? "1" : "0";
+            shown = S.text(value === "1" ? "yes" : "no");
+            if (required && value !== "1") message = S.text("order_field_tick");
+          } else if (type === "radio") {
+            var checked = fieldEl.querySelector('input[type="radio"]:checked');
+            value = checked ? checked.value : "";
+            shown = checked && checked.parentNode ? checked.parentNode.textContent.trim() : "";
+            if (required && !value) message = S.text("order_field_choose");
+          } else if (type === "select") {
+            var select = fieldEl.querySelector("select");
+            value = select ? select.value : "";
+            shown = select && select.selectedIndex > 0 ? select.options[select.selectedIndex].text : "";
+            if (required && !value) message = S.text("order_field_choose");
+          } else {
+            var input = fieldEl.querySelector("input, textarea");
+            value = input ? input.value.trim() : "";
+            shown = value;
+            var max = input ? parseInt(input.getAttribute("maxlength"), 10) || 0 : 0;
+            if (required && !value) message = S.text("order_field_required");
+            else if (max && value.length > max) message = S.text("order_field_too_long", { max: max });
+          }
+
+          if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.hidden = !message;
+          }
+          if (message) {
+            if (!result.firstInvalid) result.firstInvalid = fieldEl.querySelector("input, select, textarea");
+            return;
+          }
+
+          if (value !== "") {
+            answers[id] = value;
+            result.display.push({ label: label, value: shown });
+          }
+        });
+
+        result.answers = Object.keys(answers).length ? answers : null;
+        return result;
+      }
+
+      function resetOrderFields() {
+        if (!orderFieldsEl) return;
+        Array.prototype.forEach.call(orderFieldsEl.querySelectorAll("input, select, textarea"), function (control) {
+          if (control.type === "checkbox" || control.type === "radio") control.checked = false;
+          else control.value = "";
+        });
+      }
+
       /* Puts the line in the cart once the server said it can be ordered. */
       function addCheckedLine(cartProduct, qty, personalizer, personalization) {
           showAddMessage("");
@@ -619,6 +702,9 @@
           document.dispatchEvent(new CustomEvent("vvl-add-to-cart", { detail: { product: cartProduct, qty: qty } }));
           S.flashAddButton(addBtn);
           if (qtyInput) qtyInput.value = 1;
+          // Fresh questions for the next one: leaving "Luna" in place makes
+          // it far too easy to order the same name twice.
+          resetOrderFields();
 
           if (personalizer && personalization) {
             /* Compose the picture the customer just approved and post it,
@@ -1046,6 +1132,7 @@
             "<strong>" + S.escapeHtml(item.name) + "</strong>" +
             variantLine +
             S.cartPersonalizationHtml(item, "cart-personalization--compact") +
+            S.cartOrderFieldsHtml(item, "cart-order-fields--compact") +
             "<span>" + item.qty + "x</span>" +
             '<span class="checkout-summary-item__problem" data-checkout-problem hidden></span>' +
             "</div>" +
@@ -1251,6 +1338,10 @@
            the product's own configuration. */
         items: items.map(function (item) {
           var line = { id: item.id, qty: item.qty, variant_id: item.variant_id || null };
+          /* The answers to the product's order questions, by question id:
+             checked again by the server against the product's own questions
+             (App\Service\OrderFields\OrderFields), never taken as given. */
+          if (item.order_fields) line.order_fields = item.order_fields;
           var zones = S.cartPersonalizationZones(item);
           if (zones.length) {
             line.personalization = {

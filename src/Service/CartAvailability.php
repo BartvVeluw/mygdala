@@ -109,7 +109,10 @@ final class CartAvailability
      * (the checkout's own limits). A line that is none of that is dropped
      * and reported as unavailable by its index.
      *
-     * @return array{0: list<array{id: int, variant_id: ?int, qty: int}>, 1: array<int, int>} [lines, request index by line index]
+     * A line keeps what it answered to the product's order questions
+     * (`order_fields`), unchecked: api/cart-check.php checks it.
+     *
+     * @return array{0: list<array{id: int, variant_id: ?int, qty: int, order_fields: mixed}>, 1: array<int, int>} [lines, request index by line index]
      */
     public static function linesFromRequest(mixed $items): array
     {
@@ -134,7 +137,7 @@ final class CartAvailability
             }
 
             $indexes[count($lines)] = $requestIndex;
-            $lines[] = ['id' => $id, 'variant_id' => $variantId, 'qty' => $qty];
+            $lines[] = ['id' => $id, 'variant_id' => $variantId, 'qty' => $qty, 'order_fields' => $item['order_fields'] ?? null];
         }
 
         return [$lines, $indexes];

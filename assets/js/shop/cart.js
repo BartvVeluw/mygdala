@@ -334,6 +334,21 @@
      (rather than a hash, or the line key) is what makes "do not accidentally
      merge differently personalized items" a property of the data instead of
      a lucky collision-free hash. */
+  /* Whether two lines carry the same answers to the product's order
+     questions ("Naam op het bord"). "Luna" and "Kyra" are two lines, the
+     same name twice adds up. The answers are compared as data, key by key,
+     never through a hash. A line without answers matches only another line
+     without answers. */
+  function sameOrderFields(a, b) {
+    var left = a && a.order_fields ? a.order_fields : null;
+    var right = b && b.order_fields ? b.order_fields : null;
+    if (!left && !right) return true;
+    if (!left || !right) return false;
+    var keys = Object.keys(left).sort();
+    if (keys.join(",") !== Object.keys(right).sort().join(",")) return false;
+    return keys.every(function (key) { return String(left[key]) === String(right[key]); });
+  }
+
   function samePersonalization(a, b) {
     var left = a && a.personalization ? a.personalization : null;
     var right = b && b.personalization ? b.personalization : null;
@@ -346,6 +361,7 @@
     qty = parseInt(qty, 10) || 1;
     var variantId = product.variant_id != null ? product.variant_id : null;
     var personalization = product.personalization || null;
+    var orderFields = product.order_fields || null;
     var items = readCart();
     var existing = null;
     for (var i = 0; i < items.length; i++) {
@@ -353,7 +369,8 @@
       var sameVariant = (candidate.variant_id != null ? String(candidate.variant_id) : "") ===
         (variantId != null ? String(variantId) : "");
       if (String(candidate.id) === String(product.id) && sameVariant &&
-          samePersonalization(candidate, { personalization: personalization })) {
+          samePersonalization(candidate, { personalization: personalization }) &&
+          sameOrderFields(candidate, { order_fields: orderFields })) {
         existing = candidate;
         break;
       }
@@ -376,6 +393,16 @@
       if (personalization) {
         line.personalization = personalization;
         line.line_id = newCartLineId();
+      }
+      /* Answers to the order questions: what the server checks again at the
+         checkout (`order_fields`, by question id) and what the cart shows
+         (`order_fields_display`, in the language they were given in). Such a
+         line gets its own line_id too, because a product and variant no
+         longer name one line on their own. */
+      if (orderFields) {
+        line.order_fields = orderFields;
+        line.order_fields_display = Array.isArray(product.order_fields_display) ? product.order_fields_display : [];
+        if (!line.line_id) line.line_id = newCartLineId();
       }
       items.push(line);
       touched = line;
@@ -464,7 +491,8 @@
     return {
       id: item.id,
       variant_id: item.variant_id != null ? item.variant_id : null,
-      qty: parseInt(item.qty, 10) || 1
+      qty: parseInt(item.qty, 10) || 1,
+      order_fields: item.order_fields || null
     };
   }
 
@@ -487,6 +515,7 @@
     if (result.status === "sold_out") return text("sold_out");
     if (result.status === "insufficient") return text("stock_left", { max: result.available });
     if (result.status === "inquiry") return text("line_inquiry");
+    if (result.status === "order_fields") return result.message || text("line_order_fields");
     return text("line_unavailable");
   }
 
@@ -638,6 +667,19 @@
       rows.join("") + "</p>";
   }
 
+  /* A line's answers to the order questions, under its name: the same
+     short confirmation in the dropdown, the cart and the checkout summary.
+     Display only; the server keeps its own snapshot of what it checked. */
+  function cartOrderFieldsHtml(item, modifier) {
+    var answers = item && Array.isArray(item.order_fields_display) ? item.order_fields_display : [];
+    if (!answers.length) return "";
+
+    return '<p class="cart-order-fields' + (modifier ? " " + modifier : "") + '">' +
+      answers.map(function (answer) {
+        return '<span class="cart-order-fields__row"><b>' + escapeHtml(answer.label) + ":</b> " + escapeHtml(answer.value) + "</span>";
+      }).join("") + "</p>";
+  }
+
   /* Header cart badge + dropdown — reads current cart state and rewrites
      the existing markup on every page that has [data-cart-trigger]. */
   function renderCartHeader() {
@@ -682,6 +724,7 @@
             "<p>" + escapeHtml(item.name) + "</p>" +
             variantLine +
             cartPersonalizationHtml(item, "cart-personalization--compact") +
+            cartOrderFieldsHtml(item, "cart-order-fields--compact") +
             "<span>" + item.qty + "x</span>" +
             "</div>" +
             "</a>" +
@@ -724,6 +767,7 @@
           "<h3>" + escapeHtml(item.name) + "</h3>" +
           variantLine +
           cartPersonalizationHtml(item, "") +
+          cartOrderFieldsHtml(item, "") +
           '<p class="cart-row__problem" data-cart-problem role="status" hidden></p>' +
           "</div>" +
           "</a>" +
@@ -1102,6 +1146,7 @@
       cartProblemText: cartProblemText,
       cartItemMedia: cartItemMedia,
       cartPersonalizationHtml: cartPersonalizationHtml,
+      cartOrderFieldsHtml: cartOrderFieldsHtml,
       cartPersonalizationZones: cartPersonalizationZones,
       cartLineCents: cartLineCents,
       cartSubtotal: cartSubtotal,

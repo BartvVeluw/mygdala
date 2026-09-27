@@ -196,6 +196,12 @@ class OrderConfirmationBuilder
             if (!empty($item['variant_label'])) {
                 $nameCell .= '<br><span style="color:#777;font-size:12px;">' . self::esc($item['variant_label']) . '</span>';
             }
+            // The customer's answers to the order questions ("Naam op het
+            // bord: Luna"), from the order's own snapshot.
+            foreach ($item['order_fields'] ?? [] as $answer) {
+                $nameCell .= '<br><span style="color:#555;font-size:12px;">' . self::esc($answer['label']) . ': '
+                    . nl2br(self::esc($answer['value'])) . '</span>';
+            }
             $rows .= '<tr>'
                 . '<td style="padding:8px 0;border-bottom:1px solid #eee;">' . $nameCell . '</td>'
                 . '<td style="padding:8px 0;border-bottom:1px solid #eee;text-align:center;">' . (int) $item['quantity'] . '×</td>'
@@ -221,6 +227,9 @@ class OrderConfirmationBuilder
             $name = $item['name'] . (!empty($item['variant_label']) ? ' (' . $item['variant_label'] . ')' : '');
             $lines .= '- ' . $name . ' — ' . (int) $item['quantity'] . 'x ' . self::euro((float) $item['unit_price'])
                 . ' = ' . self::euro($lineTotal) . "\n";
+            foreach ($item['order_fields'] ?? [] as $answer) {
+                $lines .= '    ' . $answer['label'] . ': ' . str_replace("\n", "\n      ", $answer['value']) . "\n";
+            }
         }
         return $lines;
     }

@@ -756,6 +756,25 @@ a{ color: var(--admin-accent); }
 .admin-variant-panel__stock{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-2); }
 .admin-variant-panel__stock input[type="number"]{ max-width: 8rem; }
 
+/* Bestelvelden in the product editor (admin/_product_order_fields.php): one
+   card per question, the question and its type side by side, the choices
+   below it as a list of rows like an option's values. */
+.admin-order-field-list{ display: flex; flex-direction: column; gap: var(--admin-sp-3); margin: var(--admin-sp-3) 0; }
+.admin-order-field__head{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--admin-sp-3); }
+.admin-order-field__label{ flex: 2 1 16rem; min-width: 0; }
+.admin-order-field__type{ flex: 1 1 11rem; min-width: 0; }
+.admin-order-field__options{ margin-top: var(--admin-sp-2); }
+
+/* The answers under an order line (admin/order.php). */
+.admin-order-fields__heading{ margin: 0 0 var(--admin-sp-1); font-size: 0.85rem; font-weight: 600; }
+.admin-order-fields{ display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem var(--admin-sp-3); margin: 0; font-size: 0.9rem; }
+.admin-order-fields dt{ color: var(--admin-text-muted); }
+.admin-order-fields dd{ margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px){
+  .admin-order-fields{ grid-template-columns: 1fr; }
+  .admin-order-fields dd{ margin-bottom: var(--admin-sp-2); }
+}
+
 /* Simple status filter tabs (admin/contact-requests.php) */
 .admin-filter-tabs{ display: flex; gap: var(--admin-sp-2); margin: 0 0 var(--admin-sp-4); flex-wrap: wrap; }
 .admin-filter-tab{

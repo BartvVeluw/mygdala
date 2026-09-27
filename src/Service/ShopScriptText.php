@@ -86,6 +86,18 @@ final class ShopScriptText
         // Op aanvraag (App\Service\PurchaseMode): what a card shows instead
         // of a price, and what a cart line of such a product says.
         'on_request' => ['nl' => 'Op aanvraag', 'en' => 'On request'],
+        // Bestelvelden (App\Service\OrderFields\OrderFields): what the product
+        // page says next to a question, and how a cart line shows an answer.
+        'order_field_required' => ['nl' => 'Vul dit in.', 'en' => 'Please fill this in.'],
+        'order_field_choose' => ['nl' => 'Maak een keuze.', 'en' => 'Please choose one.'],
+        'order_field_tick' => ['nl' => 'Vink dit aan om verder te gaan.', 'en' => 'Please tick this to continue.'],
+        'order_field_too_long' => ['nl' => 'Hooguit {max} tekens.', 'en' => 'At most {max} characters.'],
+        'yes' => ['nl' => 'Ja', 'en' => 'Yes'],
+        'no' => ['nl' => 'Nee', 'en' => 'No'],
+        'line_order_fields' => [
+            'nl' => 'Controleer je bestelgegevens: verwijder deze regel en voeg het product opnieuw toe.',
+            'en' => 'Please check your order details: remove this line and add the product again.',
+        ],
         'line_inquiry' => ['nl' => 'Alleen op aanvraag te bestellen', 'en' => 'Available on request only'],
         // Stock (App\Service\CartAvailability, api/cart-check.php): what a
         // cart line, the product page and the checkout say when a unit is

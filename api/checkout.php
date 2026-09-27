@@ -101,6 +101,9 @@ use App\Service\Inventory\Inventory;
 use App\Service\LegalPages;
 use App\Service\OrderPaymentStartFailure;
 use App\Service\OrderItemNameSnapshot;
+use App\Service\OrderFields\OrderFields;
+use App\Service\OrderFields\OrderFieldValidationException;
+use App\Repository\OrderItemFieldRepository;
 use App\Service\Payment\PaymentProviderException;
 use App\Service\Payment\PaymentProviders;
 use App\Service\Payment\PaymentRequest;
@@ -347,6 +350,10 @@ if (!is_array($items) || $items === []) {
 // every existing cart keeps behaving exactly as before.
 $personalizationValidator = new PersonalizationValidator();
 $productRepository = new ProductRepository();
+// The product's order questions (App\Service\OrderFields\OrderFields): the
+// answers are checked here, against the product's own questions, and never
+// trusted from the browser. A product that asks nothing takes no answers.
+$orderFields = new OrderFields();
 $requestedLines = [];
 foreach ($items as $item) {
     if (!is_array($item)) {
@@ -417,7 +424,20 @@ foreach ($items as $item) {
         }
     }
 
-    $key = $id . '|' . ($variantId ?? '') . '|' . PersonalizationValidator::fingerprint($personalization);
+    try {
+        $orderFieldAnswers = $orderFields->validate($id, $item['order_fields'] ?? null, $checkoutLanguage);
+    } catch (OrderFieldValidationException $e) {
+        // Written for the customer, in their language, naming the question.
+        fail(422, $e->getMessage());
+    } catch (\Throwable $e) {
+        error_log('[api/checkout.php] order fields: ' . $e->getMessage());
+        fail(500, 'Could not verify your order details right now. Please try again.');
+    }
+
+    // Two lines of the same product and variant with DIFFERENT answers stay
+    // two lines ("Luna" and "Kyra" are two signs); the same answers add up.
+    $key = $id . '|' . ($variantId ?? '') . '|' . PersonalizationValidator::fingerprint($personalization)
+        . '|' . OrderFields::fingerprint($orderFieldAnswers);
     if (isset($requestedLines[$key])) {
         $requestedLines[$key]['qty'] += $qty;
         // Two identical personalizations merge into one line, and so do their
@@ -430,6 +450,7 @@ foreach ($items as $item) {
             'qty' => $qty,
             'personalization' => $personalization,
             'preview_snapshots' => $previewSnapshots,
+            'order_fields' => $orderFieldAnswers,
         ];
     }
 }
@@ -534,6 +555,9 @@ foreach ($requestedLines as $line) {
         // for every unpersonalized line.
         'personalization' => $line['personalization'],
         'preview_snapshots' => $line['preview_snapshots'],
+        // The customer's answers to the product's order questions, stored
+        // as a snapshot once the line has an id. Never a column.
+        'order_fields' => $line['order_fields'],
     ];
 }
 
@@ -681,6 +705,19 @@ try {
 
         foreach ($orderItem['product_name_words'] as $code => $name) {
             OrderItemNameSnapshot::record((int) $orderItemIds[$index], (string) $code, (string) $name);
+        }
+    }
+
+    /**
+     * The ANSWERS to the product's order questions become order data here, in
+     * this same transaction: the question and the answer as they are now, in
+     * the default language (App\Service\OrderFields\OrderFields::snapshot()).
+     * A question renamed or removed tomorrow never changes this order.
+     */
+    $itemFields = new OrderItemFieldRepository($db);
+    foreach ($orderItems as $index => $orderItem) {
+        if ($orderItem['order_fields'] !== [] && isset($orderItemIds[$index])) {
+            $itemFields->create((int) $orderItemIds[$index], $orderFields->snapshot((int) $orderItem['product_id'], $orderItem['order_fields']));
         }
     }
 
