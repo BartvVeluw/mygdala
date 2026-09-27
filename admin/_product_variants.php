@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_product_gallery.php';
+require_once __DIR__ . '/_product_inventory.php';
 
 /**
  * The product editor's Varianten section (admin/product-form.php): the
@@ -32,6 +33,12 @@ require_once __DIR__ . '/_product_gallery.php';
  * (names, display types, values, prices, switches); adding, moving and
  * removing rows needs the script, as choosing a picture from the library
  * already does.
+ *
+ * A VARIANT'S STOCK is a field of its row (Shop Product & Ordering 2.0),
+ * shown while "Voorraad bijhouden" is on (admin/_product_inventory.php) with
+ * its status beside it. It carries the value it showed (`stock_seen`), for
+ * the same reason the product's own stock does: a sale in the meantime is
+ * never undone by a save (App\Service\ProductVariantEditor).
  */
 
 /**
@@ -42,8 +49,9 @@ require_once __DIR__ . '/_product_gallery.php';
  * @param list<array{token: string, src: string, name: string, media_id: ?int}> $pictures the pool as shown
  * @param array<int, array{tokens: list<string>, own: bool, html: string}> $variantGallery per variant id
  * @param list<int> $lockedVariantIds variants an order points at
+ * @param bool $stockTracked whether the product's "Voorraad bijhouden" is on
  */
-function product_variants_section(array $options, array $variants, array $pictures, array $variantGallery, array $lockedVariantIds): void
+function product_variants_section(array $options, array $variants, array $pictures, array $variantGallery, array $lockedVariantIds, bool $stockTracked = false): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
@@ -113,6 +121,9 @@ function product_variants_section(array $options, array $variants, array $pictur
                     'price' => $variant['price'] !== null ? number_format((float) $variant['price'], 2, '.', '') : '',
                     'active' => (int) $variant['active'] === 1,
                     'locked' => in_array($variantId, $lockedVariantIds, true),
+                    'stock' => (int) ($variant['stock'] ?? 0),
+                    'stock_seen' => (int) ($variant['stock'] ?? 0),
+                    'tracked' => $stockTracked,
                 ],
                 $pictures,
                 $variantGallery[$variantId] ?? ['tokens' => [], 'own' => false, 'html' => '']
@@ -121,7 +132,7 @@ function product_variants_section(array $options, array $variants, array $pictur
         <?php endforeach; ?>
       </div>
       <p class="admin-text-muted" data-product-variants-empty<?= $variants !== [] ? ' hidden' : '' ?>><?= admin_te('shop.varianten_2') ?></p>
-      <template data-row-list-template="product-variants"><?php product_variants_variant_row('__KEY__', ['label' => admin_t('shop.nieuwe_variant'), 'pairs' => '', 'price' => '', 'active' => true, 'locked' => false], $pictures, ['tokens' => [], 'own' => false, 'html' => '']); ?></template>
+      <template data-row-list-template="product-variants"><?php product_variants_variant_row('__KEY__', ['label' => admin_t('shop.nieuwe_variant'), 'pairs' => '', 'price' => '', 'active' => true, 'locked' => false, 'stock' => 0, 'stock_seen' => null, 'tracked' => $stockTracked], $pictures, ['tokens' => [], 'own' => false, 'html' => '']); ?></template>
       <p class="admin-visually-hidden" role="status" aria-live="polite" data-row-list-status="product-variants" data-row-list-moved="<?= admin_te('editor_rows.verplaatst') ?>"></p>
       <div class="admin-option-rows__tools">
         <button type="button" class="admin-btn-secondary" data-row-list-add="product-variants" hidden>+ <?= admin_te('shop.editor.add_variant') ?></button>
@@ -220,7 +231,7 @@ function product_variants_value_row(string $optionKey, string $key, string $valu
  * One variant. A stored one shows the combination it is; a new one chooses
  * it ([data-variant-choices], filled by admin/assets/product-variants.js).
  *
- * @param array{label: string, pairs: string, price: string, active: bool, locked: bool} $variant
+ * @param array{label: string, pairs: string, price: string, active: bool, locked: bool, stock?: int, stock_seen?: ?int, tracked?: bool} $variant
  * @param list<array{token: string, src: string, name: string, media_id: ?int}> $pictures the pool
  * @param array{tokens: list<string>, own: bool, html: string} $gallery
  */
@@ -256,6 +267,15 @@ function product_variants_variant_row(string $key, array $variant, array $pictur
           <input type="checkbox" class="admin-switch" role="switch" name="variants[<?= $h($key) ?>][active]" value="1"<?= $variant['active'] ? ' checked' : '' ?>>
           <?= admin_te('common.active') ?>
         </label>
+        <?php $tracked = (bool) ($variant['tracked'] ?? false); ?>
+        <div class="admin-field admin-variant-panel__stock" data-stock-tracked-only<?= $tracked ? '' : ' hidden' ?>>
+          <label for="<?= $h($id) ?>-stock"><?= admin_te('shop.stock.quantity') ?></label>
+          <input type="number" id="<?= $h($id) ?>-stock" name="variants[<?= $h($key) ?>][stock]" min="0" max="<?= \App\Service\Inventory\InventoryEditor::MAX_STOCK ?>" step="1" inputmode="numeric" value="<?= max(0, (int) ($variant['stock'] ?? 0)) ?>">
+          <?php if (($variant['stock_seen'] ?? null) !== null): ?>
+            <input type="hidden" name="variants[<?= $h($key) ?>][stock_seen]" value="<?= (int) $variant['stock_seen'] ?>">
+            <?= product_stock_badge(new \App\Service\Inventory\StockUnit(0, 1, true, (int) $variant['stock_seen'])) ?>
+          <?php endif; ?>
+        </div>
       </div>
 
       <?php product_gallery_variant_block($pictures, [

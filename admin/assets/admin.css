@@ -746,6 +746,16 @@ a{ color: var(--admin-accent); }
    is never read as a real sale in a list. */
 .admin-badge--test{ color: var(--admin-warning); border-color: var(--admin-warning); background: var(--admin-warning-soft); font-weight: 700; letter-spacing: 0.06em; }
 
+/* Stock of a product or variant (admin/_product_inventory.php): "12 op
+   voorraad" in green, "Uitverkocht" in red; "Voorraad niet bijgehouden" is
+   the muted badge. Always the word, so the colour only confirms it. */
+.admin-badge--in-stock{ color: var(--admin-success); border-color: var(--admin-success-line); background: var(--admin-success-soft); }
+.admin-badge--sold-out{ color: var(--admin-error); border-color: var(--admin-error-line); background: var(--admin-error-soft); }
+.admin-product-inventory__row{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--admin-sp-3); }
+.admin-product-inventory__row .admin-field{ max-width: 12rem; }
+.admin-variant-panel__stock{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-2); }
+.admin-variant-panel__stock input[type="number"]{ max-width: 8rem; }
+
 /* Simple status filter tabs (admin/contact-requests.php) */
 .admin-filter-tabs{ display: flex; gap: var(--admin-sp-2); margin: 0 0 var(--admin-sp-4); flex-wrap: wrap; }
 .admin-filter-tab{

@@ -36,6 +36,7 @@ use App\Service\AdminEditorResponse;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\Inventory\InventoryEditor;
 use App\Service\Language\AdminTranslator;
 use App\Service\ProductGallery;
 use App\Service\ShopLocalization;
@@ -77,6 +78,17 @@ $fields['og_media_id'] = $share['media']?->id;
 
 if ($share['error'] !== null) {
     $errors['og_media_id'] = $share['error'];
+}
+
+// "Voorraad bijhouden" and the stock of the new product, which has no
+// variants yet (App\Service\Inventory\InventoryEditor).
+$inventoryEditor = InventoryEditor::fromRequest($_POST);
+foreach ($inventoryEditor->validate() as $field => $message) {
+    $errors[$field] = $message;
+}
+if ($inventoryEditor->posted()) {
+    $fields['track_stock'] = $inventoryEditor->tracking();
+    $fields['stock_input'] = is_string($_POST['stock'] ?? null) ? trim($_POST['stock']) : '';
 }
 
 if ($errors !== []) {
@@ -123,6 +135,10 @@ try {
     ]);
 
     (new ProductGallery($db))->save($productId, $galleryTokens);
+
+    // No stock was ever shown for a product that did not exist, so there
+    // is nothing a sale could have changed in between.
+    $inventoryEditor->save($productId, false, $db);
 
     if ($share['media'] !== null) {
         $productRepository->updateOgImagePath($productId, $share['media']->path, $share['media']->id);

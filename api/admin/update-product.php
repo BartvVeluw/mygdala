@@ -23,6 +23,15 @@
  * the screen stays as it is and nothing reloads. A form posted without the
  * script gets the PRG redirect and session flash it always got.
  *
+ * STOCK (Shop Product & Ordering 2.0): "Voorraad bijhouden" and the
+ * product's own stock (App\Service\Inventory\InventoryEditor), a variant's
+ * stock in its row (App\Service\ProductVariantEditor). A value the admin did
+ * not change is not written; a changed one only over the value the screen
+ * showed, so a sale in the meantime is refused as a conflict rather than
+ * undone. A unit that was sold out and can be ordered after the save is
+ * handed to the back-in-stock notifications once the transaction is
+ * committed.
+ *
  * The SEO social image is the one image this endpoint does own, because it
  * lives in the SEO card of this same form — there is deliberately no
  * separate product-SEO save endpoint. It is written only when another library
@@ -42,6 +51,9 @@ use App\Service\AdminEditorResponse;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\Inventory\Inventory;
+use App\Service\Inventory\InventoryEditor;
+use App\Service\Inventory\StockConflictException;
 use App\Service\Language\AdminTranslator;
 use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
@@ -102,6 +114,16 @@ foreach ($variantEditor->validate() as $field => $message) {
     $errors[$field] = $message;
 }
 
+// The Voorraad section: the switch and, without variants, the product's own stock.
+$inventoryEditor = InventoryEditor::fromRequest($_POST);
+foreach ($inventoryEditor->validate() as $field => $message) {
+    $errors[$field] = $message;
+}
+if ($inventoryEditor->posted()) {
+    $fields['track_stock'] = $inventoryEditor->tracking();
+    $fields['stock_input'] = is_string($_POST['stock'] ?? null) ? trim($_POST['stock']) : '';
+}
+
 // A refused save shows the same pictures and selections again.
 if ($gallerySubmitted) {
     $fields['gallery'] = $galleryTokens;
@@ -128,6 +150,11 @@ if ($errors !== []) {
     header('Location: /admin/product-form.php?id=' . $id);
     exit;
 }
+
+// Which units were sold out before this save: a unit that can be ordered
+// after it is "back in stock" (App\Service\Inventory\Inventory::cameBack()).
+$inventory = new Inventory($db);
+$stockBefore = $inventory->forProducts([$id]);
 
 try {
     // Row, words, variants, pictures and collections are ONE transaction, and
@@ -180,6 +207,10 @@ try {
     // has its id only now.
     $variantIds = $variantEditor->save();
 
+    // After the variants: whether the product has any decides where its
+    // stock lives (App\Service\Inventory\ProductStock).
+    $inventoryEditor->save($id, $inventory->forProduct($id)->hasVariants(), $db);
+
     if ($gallerySubmitted) {
         $selections = [];
         foreach ($variantTokens as $key => $tokens) {
@@ -213,9 +244,27 @@ try {
     $db->commit();
     (new ProductImageUploader())->delete($unreferencedOgImagePath);
 
+    $backInStock = Inventory::cameBack($stockBefore, $inventory->forProducts([$id]));
+
     CollectionContent::clearCache();
     ProductSeo::clearCache();
     ShopLocalization::clearCache();
+} catch (StockConflictException $e) {
+    // A sale (most likely) changed this stock after the screen was drawn:
+    // nothing of this save is stored, and the field says what it is now.
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
+    $conflict = [$e->field => AdminTranslator::trans('validation.stock_changed', ['current' => (string) $e->current])];
+    if ($json) {
+        AdminEditorResponse::invalid($conflict, AdminTranslator::trans('editor.invalid'));
+    }
+
+    $_SESSION['admin_product_errors'] = AdminEditorResponse::messages($conflict);
+    $_SESSION['admin_product_old'] = $fields;
+    header('Location: /admin/product-form.php?id=' . $id);
+    exit;
 } catch (\Throwable $e) {
     if ($db->inTransaction()) {
         $db->rollBack();

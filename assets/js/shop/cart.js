@@ -445,6 +445,50 @@
     writeCart(items);
   }
 
+  /* ---------------------------------------------------------------------
+     WHETHER THE LINES CAN BE ORDERED RIGHT NOW (api/cart-check.php,
+     App\Service\CartAvailability).
+
+     The cart lives in this browser, so what it holds may have sold out, run
+     low or stopped being for sale since it was added. The server is asked
+     when a line is added (shop.js), when the cart page draws and after every
+     quantity change here, and when the checkout opens — never trusted with a
+     price, only with "can this be ordered, and how many". Only identities
+     and quantities travel.
+
+     Resolves to one {status, available} per line, in the cart's order, or
+     null when the server could not be asked: then nothing is marked, and
+     the checkout still decides for itself.
+     --------------------------------------------------------------------- */
+  function cartCheckLine(item) {
+    return {
+      id: item.id,
+      variant_id: item.variant_id != null ? item.variant_id : null,
+      qty: parseInt(item.qty, 10) || 1
+    };
+  }
+
+  function checkCart(items) {
+    if (!items.length) return Promise.resolve([]);
+
+    return fetch(apiUrl("/api/cart-check.php"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: items.map(cartCheckLine) })
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (payload) { return payload && Array.isArray(payload.lines) ? payload.lines : null; })
+      .catch(function () { return null; });
+  }
+
+  /** What a line's check says to the customer, or "" when it is fine. */
+  function cartProblemText(result) {
+    if (!result || result.status === "ok") return "";
+    if (result.status === "sold_out") return text("sold_out");
+    if (result.status === "insufficient") return text("stock_left", { max: result.available });
+    return text("line_unavailable");
+  }
+
   function cartCount(items) {
     return items.reduce(function (sum, item) { return sum + (parseInt(item.qty, 10) || 0); }, 0);
   }
@@ -672,13 +716,14 @@
         var variantLine = item.variant_label ?
           "<p class=\"cart-row__variant\">" + escapeHtml(item.variant_label) + "</p>" : "";
         return (
-          '<div class="cart-row">' +
+          '<div class="cart-row" data-cart-row="' + escapeAttr(key) + '">' +
           '<a class="cart-row__link" href="' + escapeAttr(cartItemEditUrl(item)) + '">' +
           '<div class="cart-row__media">' + cartItemMedia(item) + "</div>" +
           '<div class="cart-row__info">' +
           "<h3>" + escapeHtml(item.name) + "</h3>" +
           variantLine +
           cartPersonalizationHtml(item, "") +
+          '<p class="cart-row__problem" data-cart-problem role="status" hidden></p>' +
           "</div>" +
           "</a>" +
           '<div class="qty-stepper qty-stepper--sm">' +
@@ -696,6 +741,66 @@
 
     document.querySelectorAll("[data-cart-subtotal]").forEach(function (el) { el.innerHTML = formatPrice(subtotal); });
     document.querySelectorAll("[data-cart-total]").forEach(function (el) { el.innerHTML = formatPrice(subtotal); });
+
+    markCartProblems(items);
+  }
+
+  /* The cart page asks the server about its lines every time it draws, and
+     marks the ones that cannot be ordered as they are: sold out, too few
+     left, or no longer for sale. While one is marked, "Afrekenen" says so
+     and does not go on (the checkout would refuse the same lines). Only the
+     answer to the LAST draw is applied, so a slow answer never marks rows
+     that have changed since. */
+  var cartCheckRound = 0;
+
+  function markCartProblems(items) {
+    var list = document.querySelector("[data-cart-list]");
+    var summary = document.querySelector("[data-cart-problems]");
+    var checkoutLink = document.querySelector("[data-cart-checkout]");
+    if (!list) return;
+
+    var round = ++cartCheckRound;
+    setCheckoutBlocked(checkoutLink, summary, false);
+    if (!items.length) return;
+
+    checkCart(items).then(function (results) {
+      if (round !== cartCheckRound || !results) return;
+
+      var blocked = false;
+      items.forEach(function (item, index) {
+        var row = list.querySelector('[data-cart-row="' + cssEscape(cartLineKey(item)) + '"]');
+        var problem = row ? row.querySelector("[data-cart-problem]") : null;
+        var message = cartProblemText(results[index]);
+        if (message) blocked = true;
+        if (!problem) return;
+        problem.textContent = message;
+        problem.hidden = message === "";
+        if (row) row.classList.toggle("cart-row--problem", message !== "");
+      });
+
+      setCheckoutBlocked(checkoutLink, summary, blocked);
+    });
+  }
+
+  function setCheckoutBlocked(link, summary, blocked) {
+    if (summary) {
+      summary.textContent = blocked ? text("cart_has_problems") : "";
+      summary.hidden = !blocked;
+    }
+    if (!link) return;
+    if (blocked) {
+      link.setAttribute("aria-disabled", "true");
+      link.classList.add("is-disabled");
+    } else {
+      link.removeAttribute("aria-disabled");
+      link.classList.remove("is-disabled");
+    }
+  }
+
+  function cssEscape(value) {
+    return window.CSS && typeof window.CSS.escape === "function"
+      ? window.CSS.escape(value)
+      : String(value).replace(/["\\]/g, "\\$&");
   }
 
   function renderCartUI() {
@@ -707,6 +812,16 @@
      renderCartHeader() and renderCartPage() above. */
   function initCartControls() {
     document.addEventListener("click", function (e) {
+      // A cart with a line that cannot be ordered does not go to the
+      // checkout until it is fixed; the summary says why.
+      var blockedCheckout = e.target.closest("[data-cart-checkout][aria-disabled=\"true\"]");
+      if (blockedCheckout) {
+        e.preventDefault();
+        var problems = document.querySelector("[data-cart-problems]");
+        if (problems) problems.focus && problems.focus();
+        return;
+      }
+
       var removeBtn = e.target.closest("[data-cart-remove]");
       if (removeBtn) { cartRemove(removeBtn.getAttribute("data-cart-remove")); return; }
 
@@ -919,19 +1034,22 @@
     document.querySelectorAll(".qty-stepper").forEach(function (stepper) {
       var input = stepper.querySelector("input");
       if (!input) return;
-      var min = parseInt(input.min, 10) || 1;
-      var max = parseInt(input.max, 10) || 99;
+
+      // Read at every step, not once: the product page lowers the maximum
+      // to what is left in stock when another variant is chosen.
+      function min() { return parseInt(input.min, 10) || 1; }
+      function max() { return parseInt(input.max, 10) || 99; }
 
       function clamp() {
         var val = parseInt(input.value, 10);
-        if (isNaN(val)) val = min;
-        input.value = Math.max(min, Math.min(max, val));
+        if (isNaN(val)) val = min();
+        input.value = Math.max(min(), Math.min(max(), val));
       }
 
       stepper.querySelectorAll("button").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          var val = (parseInt(input.value, 10) || min) + (btn.dataset.step === "down" ? -1 : 1);
-          input.value = Math.max(min, Math.min(max, val));
+          var val = (parseInt(input.value, 10) || min()) + (btn.dataset.step === "down" ? -1 : 1);
+          input.value = Math.max(min(), Math.min(max(), val));
           input.dispatchEvent(new Event("change", { bubbles: true }));
         });
       });
@@ -979,6 +1097,8 @@
       readCart: readCart,
       writeCart: writeCart,
       cartAdd: cartAdd,
+      checkCart: checkCart,
+      cartProblemText: cartProblemText,
       cartItemMedia: cartItemMedia,
       cartPersonalizationHtml: cartPersonalizationHtml,
       cartPersonalizationZones: cartPersonalizationZones,

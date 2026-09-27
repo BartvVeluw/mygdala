@@ -176,6 +176,40 @@ final class BuiltInServer
     }
 
     /**
+     * A POST with a JSON body, the way the storefront's scripts call the
+     * public endpoints (api/cart-check.php, api/stock-notification.php):
+     * no session, the payload as the raw body. Answers like request().
+     *
+     * @param array<string, mixed> $payload
+     * @return array{status: int, location: string, body: string, headers: string}
+     */
+    public function postJson(string $path, array $payload): array
+    {
+        $handle = curl_init('http://127.0.0.1:' . $this->port . $path);
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => (string) json_encode($payload),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        ]);
+
+        $response = (string) curl_exec($handle);
+        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $headerSize = (int) curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+        curl_close($handle);
+
+        return [
+            'status' => $status,
+            'location' => '',
+            'body' => substr($response, $headerSize),
+            'headers' => substr($response, 0, $headerSize),
+        ];
+    }
+
+    /**
      * One header of a response from request(), or '' when it has none: what
      * a page says about caching, indexing or framing.
      *

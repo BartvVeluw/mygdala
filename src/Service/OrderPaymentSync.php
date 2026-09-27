@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\OrderRepository;
+use App\Service\Inventory\Inventory;
 use App\Service\Payment\PaymentSnapshot;
 
 /**
@@ -23,15 +24,18 @@ class OrderPaymentSync
     private OrderRepository $orders;
     private OrderConfirmationService $confirmations;
     private InvoiceService $invoices;
+    private ?Inventory $inventory;
 
     public function __construct(
         ?OrderRepository $orders = null,
         ?OrderConfirmationService $confirmations = null,
-        ?InvoiceService $invoices = null
+        ?InvoiceService $invoices = null,
+        ?Inventory $inventory = null
     ) {
         $this->orders = $orders ?? new OrderRepository();
         $this->confirmations = $confirmations ?? new OrderConfirmationService();
         $this->invoices = $invoices ?? new InvoiceService();
+        $this->inventory = $inventory;
     }
 
     /**
@@ -69,6 +73,15 @@ class OrderPaymentSync
             $this->confirmations->sendForOrderIfNeeded((int) $order['id']);
         }
 
+        // A payment that ended without money gives the order's reserved stock
+        // back (App\Service\Inventory\Inventory): attempted on every such
+        // sync, and done exactly once, by whichever sync claims the order's
+        // release marker first. A failure here is not swallowed: the webhook
+        // then answers 503, Mollie calls again, and the release is retried.
+        if (in_array($localStatus, [PaymentSnapshot::FAILED, PaymentSnapshot::CANCELED, PaymentSnapshot::EXPIRED], true)) {
+            $this->inventory()->releaseForOrder((int) $order['id']);
+        }
+
         // A refund doesn't change the payment's own status (it stays "paid" —
         // Mollie models refunds as a separate sub-resource), so this is checked
         // independently of $localStatus above. Mollie calls the same payment
@@ -80,6 +93,11 @@ class OrderPaymentSync
         }
 
         return $order;
+    }
+
+    private function inventory(): Inventory
+    {
+        return $this->inventory ??= new Inventory();
     }
 
     /**

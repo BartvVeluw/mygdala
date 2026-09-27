@@ -283,6 +283,19 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__add-row{ display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); flex-wrap: wrap; }
 .product-detail__add-row .btn{ flex: 1 1 200px; }
 
+/* Stock (Shop Product & Ordering 2.0): the sold-out block that replaces the
+   quantity and the button while the chosen unit has none left, and the one
+   line that says why an add was refused. The same soft red as a form error,
+   always with the words. */
+.product-detail__sold-out{ margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
+.product-detail__stock-status{ margin: 0; font-size: 1rem; color: #F0897E; }
+.product-detail__add-message{ margin: var(--sp-2) 0 0; font-size: 0.88rem; color: #F0897E; }
+.cart-row__problem,
+.checkout-summary-item__problem{ display: block; margin: 0.25rem 0 0; font-size: 0.8rem; font-weight: 600; color: #F0897E; }
+.cart-row--problem .cart-row__media{ opacity: 0.6; }
+.order-summary__problems{ margin: 0 0 var(--sp-2); font-size: 0.85rem; color: #F0897E; }
+.btn.is-disabled{ opacity: 0.5; cursor: not-allowed; }
+
 .product-detail__variants{ display: flex; flex-direction: column; gap: var(--sp-3); margin: var(--sp-3) 0; }
 .product-detail__variant-group{ display: flex; flex-direction: column; gap: 0.5rem; }
 .product-detail__variant-group label{ font-size: 0.85rem; color: var(--color-text); }

@@ -20,6 +20,8 @@ use App\Repository\ProductImageRepository;
 use App\Repository\ProductOptionRepository;
 use App\Repository\ProductVariantRepository;
 use App\Repository\ProductRepository;
+use App\Service\Inventory\Inventory;
+use App\Service\Inventory\StockUnit;
 use App\Service\Routing\ApiLanguage;
 use App\Service\ShopLocalization;
 
@@ -68,10 +70,20 @@ try {
     // A variant's description is its own text in this language, or else the
     // product's (App\Service\ShopLocalization::variantDescription()), so the
     // page can swap it with the selection and never shows an empty one.
+    // What the page can DO with the stock (App\Service\Inventory): whether a
+    // unit is sold out, and at most how many of it can be ordered. The
+    // figure itself is not published, and an untracked product says
+    // "unlimited" (null) for every unit, exactly as before stock existed.
+    $stock = (new Inventory())->forProduct($id);
+    $product['stock_tracked'] = $stock->tracked;
+    $product += shopAvailability($stock->hasVariants() ? null : $stock->productUnit());
+    $variantUnits = $stock->variantUnits();
+
     ShopLocalization::preloadVariants(array_map(static fn (array $v): int => (int) $v['id'], $product['variants']));
     foreach ($product['variants'] as &$variant) {
         $variant['images'] = array_map('shopPicture', $variant['images']);
         $variant['description'] = ShopLocalization::variantDescription((int) $variant['id'], $id, $language);
+        $variant += shopAvailability($variantUnits[(int) $variant['id']] ?? null);
     }
     unset($variant);
 
@@ -80,6 +92,22 @@ try {
     error_log('[api/product.php] ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Could not load this product right now.']);
+}
+
+/**
+ * A unit's availability as the product page needs it: sold out or not, and
+ * the most that may be put in the cart at once (null: no limit from stock).
+ * No unit (a variant product's own row) is simply not sold out.
+ *
+ * @return array{sold_out: bool, max_quantity: ?int}
+ */
+function shopAvailability(?StockUnit $unit): array
+{
+    if ($unit === null || !$unit->tracked) {
+        return ['sold_out' => false, 'max_quantity' => null];
+    }
+
+    return ['sold_out' => $unit->isSoldOut(), 'max_quantity' => (int) $unit->available()];
 }
 
 /**

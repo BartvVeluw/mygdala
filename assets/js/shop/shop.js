@@ -244,6 +244,9 @@
       var addBtn = document.querySelector("[data-product-add-to-cart]");
       var qtyInput = document.querySelector("[data-product-qty] input");
       var variantsEl = document.querySelector("[data-product-variants]");
+      var soldOutEl = document.querySelector("[data-product-sold-out]");
+      var addRowEl = document.querySelector("[data-product-add-row]");
+      var addMessageEl = document.querySelector("[data-product-add-message]");
 
       var options = Array.isArray(product.options) ? product.options : [];
       var variants = Array.isArray(product.variants) ? product.variants : [];
@@ -328,6 +331,40 @@
       // change, so it is not animated.
       var galleryReady = false;
 
+      /* ---------------------------------------------------------------
+         STOCK of the unit on show (api/product.php, Shop Product &
+         Ordering 2.0): the product's own, or the selected variant's — the
+         variant decides, and another variant in stock stays orderable.
+         Sold out: the sold-out block instead of the quantity and the
+         button. Otherwise the stepper goes no higher than what is left.
+         The page never gets the figure itself, only "sold out" and a
+         maximum, and the server decides again at every step
+         (api/cart-check.php, api/checkout.php).
+         --------------------------------------------------------------- */
+      function unitOnShow() {
+        return hasVariants ? selectedVariant : product;
+      }
+
+      function showAddMessage(message) {
+        if (!addMessageEl) return;
+        addMessageEl.textContent = message || "";
+        addMessageEl.hidden = !message;
+      }
+
+      function applyStock() {
+        var unit = unitOnShow();
+        var soldOut = !!(unit && unit.sold_out);
+        if (soldOutEl) soldOutEl.hidden = !soldOut;
+        if (addRowEl) addRowEl.hidden = soldOut;
+        showAddMessage("");
+
+        if (qtyInput) {
+          var max = unit && unit.max_quantity != null ? Math.max(1, Math.min(20, unit.max_quantity)) : 20;
+          qtyInput.max = String(max);
+          if ((parseInt(qtyInput.value, 10) || 1) > max) qtyInput.value = String(max);
+        }
+      }
+
       function applySelection() {
         selectedVariant = hasVariants ? findMatchingVariant() : null;
 
@@ -354,6 +391,7 @@
         }
 
         if (addBtn) addBtn.disabled = hasVariants && !selectedVariant;
+        applyStock();
       }
 
       /* ---------------------------------------------------------------
@@ -476,6 +514,40 @@
             variant_label: variantLabel,
             personalization: personalization
           };
+
+          /* The server first: with what is in the cart already, can this
+             many more be ordered (api/cart-check.php)? The check sees every
+             line of the same unit, so two engravings of one variant count
+             together. Sold out or too few left: said here, nothing is added.
+             No answer at all: the line is added and the checkout decides. */
+          var unitOnClick = unitOnShow();
+          addBtn.disabled = true;
+          S.checkCart(S.readCart().concat([{ id: product.id, variant_id: cartProduct.variant_id, qty: qty }]))
+            .then(function (results) {
+              addBtn.disabled = hasVariants && !selectedVariant;
+              var own = results ? results[results.length - 1] : null;
+              if (own && own.status !== "ok") {
+                if (own.status === "sold_out" && unitOnClick) {
+                  unitOnClick.sold_out = true;
+                  unitOnClick.max_quantity = 0;
+                  applyStock();
+                }
+                showAddMessage(
+                  own.status === "sold_out" ? S.text("add_sold_out") :
+                  own.status === "insufficient" ? S.text("add_stock_left", { max: own.available }) :
+                  S.cartProblemText(own)
+                );
+                return;
+              }
+
+              addCheckedLine(cartProduct, qty, personalizer, personalization);
+            });
+        };
+      }
+
+      /* Puts the line in the cart once the server said it can be ordered. */
+      function addCheckedLine(cartProduct, qty, personalizer, personalization) {
+          showAddMessage("");
           // `price` stays the product's own unit price; the surcharge lives
           // inside `personalization` so the cart can show and total both
           // without ever conflating them.
@@ -498,7 +570,6 @@
             // place makes it far too easy to order the same name twice.
             personalizer.reset();
           }
-        };
       }
 
       if (contentEl) contentEl.hidden = false;
@@ -912,6 +983,7 @@
             variantLine +
             S.cartPersonalizationHtml(item, "cart-personalization--compact") +
             "<span>" + item.qty + "x</span>" +
+            '<span class="checkout-summary-item__problem" data-checkout-problem hidden></span>' +
             "</div>" +
             '<div class="checkout-summary-item__price">' + S.formatPrice(S.cartLineCents(item) / 100) + "</div>" +
             "</div>"
@@ -945,6 +1017,34 @@
       errorEl.classList.add("is-visible");
     }
 
+    /* The lines of the summary, checked against the server as the page
+       opens and after every cart change (api/cart-check.php): a line that
+       sold out, ran low or stopped being for sale since it was added is
+       marked here, before the customer fills in the form. The order itself
+       is refused by api/checkout.php either way. */
+    var summaryCheckRound = 0;
+    function checkSummary() {
+      var items = S.readCart();
+      var round = ++summaryCheckRound;
+      S.checkCart(items).then(function (results) {
+        if (round !== summaryCheckRound || !results || !itemsEl) return;
+
+        var rows = itemsEl.querySelectorAll(".checkout-summary-item");
+        var blocked = false;
+        items.forEach(function (item, index) {
+          var message = S.cartProblemText(results[index]);
+          if (message) blocked = true;
+          var problem = rows[index] ? rows[index].querySelector("[data-checkout-problem]") : null;
+          if (problem) {
+            problem.textContent = message;
+            problem.hidden = message === "";
+          }
+        });
+
+        if (blocked) showError(S.text("cart_has_problems"));
+      });
+    }
+
     function clearError() {
       if (errorEl) errorEl.classList.remove("is-visible");
     }
@@ -974,9 +1074,11 @@
     updateBillingVisibility();
     requestShippingQuote();
     renderSummary();
+    checkSummary();
 
     document.addEventListener("vvl-cart-change", function () {
       renderSummary();
+      checkSummary();
       scheduleShippingQuote();
     });
 

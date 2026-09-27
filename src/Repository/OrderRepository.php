@@ -386,16 +386,18 @@ class OrderRepository extends Repository
      * recorded beside it by App\Service\OrderItemNameSnapshot, once the line
      * has an id — see api/checkout.php.
      *
-     * @param array<int, array{product_id:int, variant_id:?int, variant_label:?string, quantity:int, unit_price:float|string, product_name:string, base_unit_price?:float|string|null, personalization_surcharge?:float|string|null}> $items
+     * @param array<int, array{product_id:int, variant_id:?int, variant_label:?string, quantity:int, unit_price:float|string, product_name:string, base_unit_price?:float|string|null, personalization_surcharge?:float|string|null, stock_reserved?:int, stock_source?:?string}> $items
      * @return array<int, int>
      */
     public function addItems(int $orderId, array $items): array
     {
         $stmt = $this->db->prepare(
             'INSERT INTO order_items (order_id, product_id, variant_id, variant_label, product_name,
-                                      quantity, unit_price, base_unit_price, personalization_surcharge, created_at, updated_at)
+                                      quantity, stock_reserved, stock_source,
+                                      unit_price, base_unit_price, personalization_surcharge, created_at, updated_at)
              VALUES (:order_id, :product_id, :variant_id, :variant_label, :product_name,
-                     :quantity, :unit_price, :base_unit_price, :personalization_surcharge, NOW(), NOW())'
+                     :quantity, :stock_reserved, :stock_source,
+                     :unit_price, :base_unit_price, :personalization_surcharge, NOW(), NOW())'
         );
 
         $ids = [];
@@ -408,6 +410,11 @@ class OrderRepository extends Repository
                 'variant_label' => $item['variant_label'] ?? null,
                 'product_name' => $item['product_name'],
                 'quantity' => $item['quantity'],
+                // What this line took from stock when it was created
+                // (App\Service\Inventory\Inventory::reserve()), so a failed
+                // payment gives exactly that back. 0 and NULL: untracked.
+                'stock_reserved' => (int) ($item['stock_reserved'] ?? 0),
+                'stock_source' => $item['stock_source'] ?? null,
                 'unit_price' => self::decimal($item['unit_price']),
                 'base_unit_price' => self::nullableDecimal($item['base_unit_price'] ?? null),
                 'personalization_surcharge' => self::nullableDecimal($item['personalization_surcharge'] ?? null),
@@ -451,6 +458,28 @@ class OrderRepository extends Repository
             'payment_mode' => in_array($paymentMode, self::PAYMENT_MODES, true) ? $paymentMode : null,
             'id' => $orderId,
         ]);
+    }
+
+    /**
+     * An order whose payment could not be started: no payment id, so nobody
+     * can ever pay it (the customer never got a payment page, and a webhook
+     * finds no order for a payment id that was never stored). It becomes
+     * `failed`, which is what it is, so its reserved stock is given back
+     * (App\Service\Inventory\Inventory::releaseForOrder()). Only a pending
+     * order without a payment id: an order that has one is Mollie's to
+     * settle.
+     *
+     * @return bool whether this call marked it
+     */
+    public function markPaymentStartFailed(int $orderId): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE orders SET status = 'failed', updated_at = NOW()
+             WHERE id = :id AND status = 'pending' AND mollie_payment_id IS NULL"
+        );
+        $stmt->execute(['id' => $orderId]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /**

@@ -57,7 +57,7 @@ class ProductRepository extends Repository
             // from the database before building this list.
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
             $stmt = $this->db->prepare(
-                "SELECT id, slug, price, image_path, stock
+                "SELECT id, slug, price, image_path
                  FROM products
                  WHERE active = 1 AND id IN ({$placeholders})
                  ORDER BY FIELD(id, {$placeholders})"
@@ -69,7 +69,7 @@ class ProductRepository extends Repository
 
         if ($collectionId !== null) {
             $stmt = $this->db->prepare(
-                'SELECT p.id, p.slug, p.price, p.image_path, p.stock
+                'SELECT p.id, p.slug, p.price, p.image_path
                  FROM products p
                  INNER JOIN collection_products cp
                     ON cp.product_id = p.id AND cp.collection_id = :collection_id
@@ -82,7 +82,7 @@ class ProductRepository extends Repository
         }
 
         $stmt = $this->db->prepare(
-            'SELECT id, slug, price, image_path, stock
+            'SELECT id, slug, price, image_path
              FROM products
              WHERE active = 1 AND in_shop = 1
              ORDER BY id ASC'
@@ -131,11 +131,16 @@ class ProductRepository extends Repository
      * product sits in is nothing the browser needs — the one caller that has
      * to know asks isShopPurchasable() below, which answers the actual
      * question rather than handing out two columns to re-derive it from.
+     *
+     * Neither is the stock figure (Shop Product & Ordering 2.0): the page
+     * gets what it can DO with it — sold out or not, and at most how many —
+     * from App\Service\Inventory\Inventory, and only for a product that
+     * tracks stock (api/product.php).
      */
     public function findActiveById(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, slug, price, image_path, stock
+            'SELECT id, slug, price, image_path
              FROM products
              WHERE id = :id AND active = 1
              LIMIT 1'

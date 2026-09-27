@@ -95,7 +95,11 @@ use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
 use App\Service\Address\AddressValidationException;
 use App\Service\Address\CheckoutAddressResolver;
+use App\Service\CartAvailability;
+use App\Service\Inventory\InsufficientStockException;
+use App\Service\Inventory\Inventory;
 use App\Service\LegalPages;
+use App\Service\OrderPaymentStartFailure;
 use App\Service\OrderItemNameSnapshot;
 use App\Service\Payment\PaymentProviderException;
 use App\Service\Payment\PaymentProviders;
@@ -107,6 +111,9 @@ use App\Service\Personalization\PersonalizationValidator;
 use App\Service\Personalization\ProductPersonalizationContent;
 use App\Service\Shipping\ShippingCalculationService;
 use App\Service\ShopLocalization;
+use App\Service\Language\SiteText;
+use App\Service\Routing\ApiLanguage;
+use App\Service\Routing\RequestLanguage;
 use App\Service\Shipping\ShippingUnavailableException;
 use App\Service\TurnstileVerifier;
 
@@ -126,6 +133,23 @@ function fail(int $status, string $message): never
     http_response_code($status);
     echo json_encode(['error' => $message]);
     exit;
+}
+
+/**
+ * The customer's answer to a line that cannot be ordered in this quantity,
+ * in the language this checkout happens in, naming the product in it.
+ */
+function stockMessage(int $productId, string $status, ?int $available): string
+{
+    $name = ShopLocalization::product($productId, ShopLocalization::NAME, RequestLanguage::current());
+
+    $sentence = match ($status) {
+        CartAvailability::SOLD_OUT => ['nl' => '{name} is uitverkocht.', 'en' => '{name} is out of stock.'],
+        CartAvailability::INSUFFICIENT => ['nl' => 'Van {name} zijn er nog {max} op voorraad.', 'en' => 'Only {max} of {name} left in stock.'],
+        default => ['nl' => '{name} is niet meer te bestellen.', 'en' => '{name} can no longer be ordered.'],
+    };
+
+    return strtr(SiteText::pick($sentence), ['{name}' => $name, '{max}' => (string) (int) $available]);
 }
 
 function requiredString(mixed $value, int $maxLength): ?string
@@ -203,6 +227,22 @@ $body = json_decode($raw ?: '', true);
 if (!is_array($body)) {
     fail(400, 'Invalid request body.');
 }
+
+/**
+ * THE LANGUAGE THIS CHECKOUT IS HAPPENING IN.
+ *
+ * This endpoint is reached by fetch() and has no URL of its own to read a
+ * language prefix from, so the browser sends the one its page is in and the
+ * registry decides whether to believe it (App\Service\Routing\ApiLanguage,
+ * docs/multilingual/ROUTING.md). Anything that is not an ACTIVE website
+ * language falls back to the default, exactly as an unprefixed URL does.
+ *
+ * It picks words (a stock message in the customer's own language) and which
+ * of THIS site's order pages the customer comes back to: the URL is built by
+ * App\Service\Routing\LocalizedUrl from the configured base URL, so a forged
+ * value cannot name another host. Never a price, never an identity.
+ */
+$checkoutLanguage = ApiLanguage::apply($body['language'] ?? null);
 
 // Nothing is checked, looked up or stored for an order that cannot be paid:
 // without a usable payment key (App\Service\Payment\PaymentProvider::
@@ -496,6 +536,25 @@ foreach ($requestedLines as $line) {
     ];
 }
 
+/**
+ * STOCK, BEFORE ANYTHING IS STORED (App\Service\CartAvailability): a line
+ * whose unit is sold out, has fewer left than this order asks, or cannot be
+ * sold at all (a tracked variant product without a variant) is said now, in
+ * the customer's language, naming the product. Lines of the same unit count
+ * together. Advice only: the units are really taken inside the transaction
+ * below, where a customer who was a moment faster still wins.
+ */
+$availability = (new CartAvailability())->check(array_map(
+    static fn (array $line): array => ['id' => $line['product_id'], 'variant_id' => $line['variant_id'], 'qty' => $line['qty']],
+    array_values($requestedLines)
+));
+foreach (array_values($requestedLines) as $index => $line) {
+    $result = $availability[$index] ?? ['status' => CartAvailability::UNAVAILABLE, 'available' => null];
+    if ($result['status'] !== CartAvailability::OK) {
+        fail(409, stockMessage($line['product_id'], $result['status'], $result['available']));
+    }
+}
+
 // Never trust a shipping price/method sent by the frontend: pickup is always
 // exactly €0, and a shipped order's price/method is always recalculated here
 // from the database (destination zone, current product shipping settings,
@@ -556,6 +615,23 @@ $db = Database::connection();
 
 try {
     $db->beginTransaction();
+
+    /**
+     * THE UNITS ARE TAKEN FIRST, inside this transaction
+     * (App\Service\Inventory\Inventory::reserve()): one conditional UPDATE
+     * per unit, so of two customers for the last one exactly one gets it,
+     * whatever each of them saw a moment ago. Too few left and everything
+     * below rolls back with it: no order, no line, no unit taken. What each
+     * line took, and from which counter, is stored on the line, so a payment
+     * that ends without money gives exactly that back.
+     */
+    $reservations = (new Inventory($db))->reserve(array_map(
+        static fn (array $item): array => ['product_id' => $item['product_id'], 'variant_id' => $item['variant_id'], 'quantity' => $item['quantity']],
+        $orderItems
+    ));
+    foreach ($reservations as $index => $reservation) {
+        $orderItems[$index] += $reservation;
+    }
 
     $shippingAddition = $shippingAddress['house_number_addition'] ?? '';
     $shippingAdditionSeparator = ($shippingAddition !== '' && ctype_digit($shippingAddition[0])) ? '-' : '';
@@ -669,28 +745,19 @@ try {
     }
 
     $db->commit();
+} catch (InsufficientStockException $e) {
+    // A customer who was a moment faster took the last units: nothing of
+    // this order was stored.
+    $db->rollBack();
+    fail(409, stockMessage(
+        $e->productId,
+        $e->available > 0 ? CartAvailability::INSUFFICIENT : CartAvailability::SOLD_OUT,
+        $e->available
+    ));
 } catch (\Throwable $e) {
     $db->rollBack();
     error_log('[api/checkout.php] ' . $e->getMessage());
     fail(500, 'Could not create your order right now.');
-}
-
-/**
- * THE LANGUAGE THIS CHECKOUT IS HAPPENING IN.
- *
- * This endpoint is reached by fetch() and has no URL of its own to read a
- * language prefix from, so the browser sends the one its page is in and the
- * registry decides whether to believe it (docs/multilingual/ROUTING.md).
- * Anything that is not an ACTIVE website language falls back to the default,
- * exactly as an unprefixed URL does.
- *
- * All it can influence is which of THIS site's order pages the customer comes
- * back to: the URL is built by App\Service\Routing\LocalizedUrl from the
- * configured base URL, so a forged value cannot name another host.
- */
-$checkoutLanguage = \App\Service\Language\LanguageCode::normalise((string) ($body['language'] ?? ''));
-if ($checkoutLanguage === null || !\App\Service\Language\SiteLanguages::isActive($checkoutLanguage)) {
-    $checkoutLanguage = \App\Service\Routing\LanguageResolver::defaultLanguage();
 }
 
 try {
@@ -723,8 +790,12 @@ try {
     echo json_encode(['checkoutUrl' => $payment->checkoutUrl]);
 } catch (PaymentProviderException $e) {
     error_log('[api/checkout.php] payment provider: ' . $e->getMessage());
+    // Nobody can pay this order now: it becomes failed and gives its
+    // reserved stock back at once (App\Service\OrderPaymentStartFailure).
+    OrderPaymentStartFailure::handle($orderId, $db);
     fail(502, 'Could not start the payment right now. Please try again.');
 } catch (\Throwable $e) {
     error_log('[api/checkout.php] ' . $e->getMessage());
+    OrderPaymentStartFailure::handle($orderId, $db);
     fail(500, 'Could not start the payment right now. Please try again.');
 }

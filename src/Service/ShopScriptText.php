@@ -83,6 +83,24 @@ final class ShopScriptText
             'nl' => 'Controleer de postcode en het huisnummer van je factuuradres.',
             'en' => 'Please check the postal code and house number of your billing address.',
         ],
+        // Stock (App\Service\CartAvailability, api/cart-check.php): what a
+        // cart line, the product page and the checkout say when a unit is
+        // sold out or has fewer left than asked.
+        'sold_out' => ['nl' => 'Uitverkocht', 'en' => 'Out of stock'],
+        'stock_left' => ['nl' => 'Nog {max} op voorraad', 'en' => 'Only {max} left in stock'],
+        'line_unavailable' => ['nl' => 'Niet meer te bestellen', 'en' => 'No longer available'],
+        'cart_has_problems' => [
+            'nl' => 'Niet alles in je winkelwagen is nog te bestellen. Pas de gemarkeerde regels aan.',
+            'en' => 'Not everything in your cart can still be ordered. Please adjust the marked lines.',
+        ],
+        'add_sold_out' => [
+            'nl' => 'Dit product is uitverkocht.',
+            'en' => 'This product is out of stock.',
+        ],
+        'add_stock_left' => [
+            'nl' => 'Er zijn er nog {max} op voorraad, inclusief wat al in je winkelwagen zit.',
+            'en' => 'Only {max} left in stock, including what is already in your cart.',
+        ],
     ];
 
     /** @return list<string> every key a script may ask for */

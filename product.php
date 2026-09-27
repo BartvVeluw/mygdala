@@ -126,11 +126,22 @@ $galleryTransition = \App\Service\ProductGalleryTransition::forProduct($seo !== 
 /**
  * The quantity stepper plus the add-to-cart button. Rendered exactly once per
  * page — that is the whole point of it being a function.
+ *
+ * STOCK (Shop Product & Ordering 2.0): beside it sits the sold-out block,
+ * hidden. assets/js/shop/shop.js shows it instead of the add row when the
+ * chosen unit — the product, or the selected variant — tracks stock and has
+ * none left (api/product.php says so, never the figure itself), and caps the
+ * quantity at what is left. Another variant that is in stock stays orderable.
+ * The server refuses a sold-out line anyway (api/cart-check.php,
+ * api/checkout.php): this only says it before the customer tries.
  */
 function renderProductAddRow(): void
 {
     ?>
-    <div class="product-detail__add-row">
+    <div class="product-detail__sold-out" data-product-sold-out hidden>
+      <p class="product-detail__stock-status"><strong><?= htmlspecialchars(\App\Service\ShopScriptText::text('sold_out'), ENT_QUOTES, 'UTF-8') ?></strong></p>
+    </div>
+    <div class="product-detail__add-row" data-product-add-row>
       <div class="qty-stepper" data-product-qty>
         <button type="button" data-step="down" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal verlagen', 'en' => 'Decrease quantity']) ?>">&minus;</button>
         <input type="number" value="1" min="1" max="20" inputmode="numeric" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal', 'en' => 'Quantity']) ?>">
@@ -142,6 +153,7 @@ function renderProductAddRow(): void
         <svg class="btn-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>
       </button>
     </div>
+    <p class="product-detail__add-message" data-product-add-message role="status" hidden></p>
     <?php
 }
 

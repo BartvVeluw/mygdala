@@ -9,6 +9,7 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_admin_editor.php';
 require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_product_inventory.php';
 
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
@@ -218,6 +219,15 @@ $productId = $isEdit ? (int) $product['id'] : null;
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_product_variants.php';
 
+// The product's stock (Shop Product & Ordering 2.0): whether it is tracked,
+// and where it lives — the product's own for a product without variants,
+// every variant's own otherwise (App\Service\Inventory\ProductStock). A new
+// product has none yet: untracked, no variants.
+$productStock = $isEdit
+    ? (new \App\Service\Inventory\Inventory())->forProduct((int) $product['id'])
+    : new \App\Service\Inventory\ProductStock(0, false, 0, []);
+$stockTracked = $old !== null && array_key_exists('track_stock', $old) ? (bool) $old['track_stock'] : $productStock->tracked;
+
 // Per variant, what its row in the Varianten section shows of the pictures
 // and its own description: a refused save's, else what is stored.
 $variantGallery = [];
@@ -258,6 +268,7 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-gallery.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-variants.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-inventory.js') ?>" defer></script>
 <?php admin_collapse_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -377,6 +388,23 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
       </div>
     </section>
 
+    <?php /* Voorraad (Shop Product & Ordering 2.0): off is unlimited, as
+             every product was before. A region, so a save draws it again
+             with the stock as it is then (a sale may have changed it). */ ?>
+    <section class="admin-card admin-editor-section" data-admin-editor-section="inventory">
+      <details class="admin-collapse admin-collapse--card" id="product-inventory-section" data-admin-collapse-id="inventory" open<?= $sectionForcedOpen ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h2 class="admin-collapse__title"><?= admin_te('shop.stock.heading') ?></h2>
+        </summary>
+        <div class="admin-collapse__body">
+          <div data-admin-editor-region="inventory">
+            <?php product_inventory_section($productStock, $old); ?>
+          </div>
+        </div>
+      </details>
+    </section>
+
     <?php /* The product's own pictures, and nothing else: which of them a
              variant shows is part of that variant, in Varianten below. */ ?>
     <section class="admin-card admin-editor-section" data-admin-editor-section="images">
@@ -427,7 +455,7 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
         <div class="admin-collapse__body">
           <?php if ($isEdit): ?>
             <div data-admin-editor-region="variants">
-              <?php product_variants_section($options, $variants, $galleryPictures, $variantGallery, $lockedVariantIds); ?>
+              <?php product_variants_section($options, $variants, $galleryPictures, $variantGallery, $lockedVariantIds, $stockTracked); ?>
             </div>
           <?php else: ?>
             <?php /* A product needs its id before an option or a variant can

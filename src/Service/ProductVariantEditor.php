@@ -6,8 +6,11 @@ namespace App\Service;
 
 use App\Database;
 use App\Repository\ProductOptionRepository;
+use App\Repository\InventoryRepository;
 use App\Repository\ProductVariantRepository;
 use App\Service\Blocks\EditorRows;
+use App\Service\Inventory\InventoryEditor;
+use App\Service\Inventory\StockConflictException;
 use App\Service\Language\AdminTranslator;
 use LogicException;
 use PDO;
@@ -45,6 +48,13 @@ use PDO;
  *
  * ONLY THIS PRODUCT'S ROWS. A key naming another product's option, value or
  * variant is dropped, whatever the request says.
+ *
+ * A VARIANT'S STOCK (Shop Product & Ordering 2.0) is part of its row: a
+ * whole number from 0, written only when the admin changed it and only over
+ * the value the screen showed (`stock_seen`), so a sale in between is never
+ * undone (App\Service\Inventory\InventoryEditor has the same rule for the
+ * product's own stock). A row without the field leaves the stock alone; a new
+ * variant without one starts at 0.
  */
 final class ProductVariantEditor
 {
@@ -57,6 +67,7 @@ final class ProductVariantEditor
 
     private ProductOptionRepository $optionRepository;
     private ProductVariantRepository $variantRepository;
+    private InventoryRepository $inventoryRepository;
 
     /** @var array<string, string|list<string>>|null what validate() found, null before it ran */
     private ?array $errors = null;
@@ -65,7 +76,7 @@ final class ProductVariantEditor
      * @param array<int, array{id: int, name: string, display_type: string, values: array<int, array{id: int, value: string, hex_color: string}>}> $storedOptions by id, in stored order
      * @param array<int, array{id: int, value_ids: list<int>, label: string}> $storedVariants by id, in stored order
      * @param list<array{key: string, id: int, name: string, display_type: string, values: list<array{key: string, id: int, value: string, hex_color: string}>}>|null $options null: the list was not on the form
-     * @param list<array{key: string, id: int, price: string, active: bool, values: array<string, string>}>|null $variants null: the list was not on the form
+     * @param list<array{key: string, id: int, price: string, active: bool, stock: ?string, stock_seen: ?int, values: array<string, string>}>|null $variants null: the list was not on the form
      */
     private function __construct(
         private readonly int $productId,
@@ -77,6 +88,7 @@ final class ProductVariantEditor
     ) {
         $this->optionRepository = new ProductOptionRepository($db);
         $this->variantRepository = new ProductVariantRepository($db);
+        $this->inventoryRepository = new InventoryRepository($db);
     }
 
     /** @param array<string, mixed> $post the request's $_POST */
@@ -179,6 +191,10 @@ final class ProductVariantEditor
                 } elseif ((float) $price <= 0 || (float) $price > 99999.99) {
                     $errors[self::variantField($variant['key'], 'price')] = AdminTranslator::trans('validation.prijs_override_groter_0_maximaal');
                 }
+            }
+
+            if ($variant['stock'] !== null && $variant['stock'] !== '' && !InventoryEditor::isValidStock($variant['stock'])) {
+                $errors[self::variantField($variant['key'], 'stock')] = AdminTranslator::trans('validation.stock_invalid');
             }
 
             if ($variant['id'] > 0) {
@@ -324,6 +340,8 @@ final class ProductVariantEditor
                     $variantId = $this->variantRepository->create($this->productId, $chosen, $price, $variant['active']);
                 }
 
+                $this->saveStock($variant, $variantId);
+
                 $order[] = $variantId;
                 $variantIds[$variant['key']] = $variantId;
             }
@@ -353,6 +371,35 @@ final class ProductVariantEditor
         }
 
         return $variantIds;
+    }
+
+    /**
+     * A variant's stock, when its row carried one: a new variant starts at
+     * what was typed; a stored one changes only when the admin changed it,
+     * and only over the value the screen showed.
+     *
+     * @param array{key: string, id: int, stock: ?string, stock_seen: ?int} $variant
+     *
+     * @throws StockConflictException
+     */
+    private function saveStock(array $variant, int $variantId): void
+    {
+        if ($variant['stock'] === null || $variant['stock'] === '') {
+            return;
+        }
+
+        $stock = (int) $variant['stock'];
+        $seen = $variant['id'] > 0 ? $variant['stock_seen'] : null;
+        if ($seen !== null && $stock === $seen) {
+            return;
+        }
+
+        if (!$this->inventoryRepository->setVariantStock($variantId, $this->productId, $stock, $seen)) {
+            throw new StockConflictException(
+                self::variantField($variant['key'], 'stock'),
+                (int) $this->inventoryRepository->variantStock($variantId)
+            );
+        }
     }
 
     /** Whether this request carried the section at all. */
@@ -421,7 +468,7 @@ final class ProductVariantEditor
     /**
      * @param array<string, mixed> $post
      * @param array<int, array<string, mixed>> $stored
-     * @return list<array{key: string, id: int, price: string, active: bool, values: array<string, string>}>
+     * @return list<array{key: string, id: int, price: string, active: bool, stock: ?string, stock_seen: ?int, values: array<string, string>}>
      */
     private static function postedVariants(array $post, array $stored): array
     {
@@ -454,6 +501,10 @@ final class ProductVariantEditor
                 'id' => $id,
                 'price' => is_string($fields['price'] ?? null) ? trim(str_replace(',', '.', $fields['price'])) : '',
                 'active' => ($fields['active'] ?? null) === '1',
+                'stock' => is_string($fields['stock'] ?? null) ? trim($fields['stock']) : null,
+                'stock_seen' => is_string($fields['stock_seen'] ?? null) && preg_match('/^-?\d{1,9}$/', $fields['stock_seen']) === 1
+                    ? (int) $fields['stock_seen']
+                    : null,
                 'values' => $values,
             ];
         }

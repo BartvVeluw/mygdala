@@ -181,6 +181,7 @@
             <file>tests/Service/AdminEditorContractTest.php</file>
             <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Module/AdminSidebarMenuTest.php</file>
+            <file>tests/Service/InventoryContractTest.php</file>
         </testsuite>
 
         <!-- unit + contract: everything that needs nothing but PHP. The one
@@ -331,6 +332,7 @@
             <file>tests/Module/AdminSidebarMenuTest.php</file>
             <file>tests/Service/Secrets/MasterKeyTest.php</file>
             <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
+            <file>tests/Service/InventoryContractTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test
@@ -768,6 +770,9 @@
             <file>tests/Service/PaymentSettingsHttpTest.php</file>
             <file>tests/Service/MollieWebhookHttpTest.php</file>
             <file>tests/Service/CheckoutPaymentMethodsHttpTest.php</file>
+            <file>tests/Service/InventoryTest.php</file>
+            <file>tests/Service/ProductInventoryHttpTest.php</file>
+            <file>tests/Service/InventoryContractTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

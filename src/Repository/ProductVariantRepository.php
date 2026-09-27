@@ -14,14 +14,19 @@ class ProductVariantRepository extends Repository
 {
     /**
      * All variants for a product (admin), each with its selected values under
-     * `values` (id, option_id, option_name, value).
+     * `values` (id, option_id, option_name, value), and its `stock` (the
+     * product editor shows it; App\Service\Inventory decides what it means).
+     *
+     * findActiveByProductId() below deliberately does not select the stock:
+     * api/product.php echoes its rows to the browser, which gets only
+     * "sold out" and a maximum quantity.
      *
      * @return array<int, array<string, mixed>>
      */
     public function findByProductId(int $productId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, product_id, price, active, sort_order
+            'SELECT id, product_id, price, stock, active, sort_order
              FROM product_variants
              WHERE product_id = :product_id
              ORDER BY sort_order ASC, id ASC'

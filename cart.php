@@ -104,7 +104,11 @@ require __DIR__ . '/partials/header.php';
             <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Totaal', 'en' => 'Total']) ?></span>
             <strong data-cart-total>&euro;0,00</strong>
           </div>
-          <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--block"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Afrekenen', 'en' => 'Proceed to checkout']) ?>
+          <?php /* Filled by assets/js/shop/cart.js when a line cannot be
+                   ordered as it is (sold out, too few left, no longer for
+                   sale, api/cart-check.php); "Afrekenen" then waits. */ ?>
+          <p class="order-summary__problems" data-cart-problems role="alert" tabindex="-1" hidden></p>
+          <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--block" data-cart-checkout><?= \App\Service\Language\SiteText::escaped(['nl' => 'Afrekenen', 'en' => 'Proceed to checkout']) ?>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
           <p class="order-summary__note"><?php
