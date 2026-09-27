@@ -54,7 +54,8 @@ class InvoiceService
 
     /**
      * Returns the (possibly newly created) invoice row for $orderId, or null
-     * if the order isn't paid or issuance failed (logged; safe to retry on
+     * if the order isn't paid, is a test order (`payment_mode = 'test'`: no
+     * real invoice, ever), or issuance failed (logged; safe to retry on
      * the next webhook/return-page sync — same tradeoff as
      * OrderConfirmationService::sendForOrderIfNeeded()).
      *
@@ -73,6 +74,17 @@ class InvoiceService
             $order = $stmt->fetch();
 
             if ($order === false || $order['status'] !== 'paid') {
+                if (!$alreadyInTransaction) {
+                    $this->db->commit();
+                }
+                return null;
+            }
+
+            // A TEST payment is no sale: no number from the real, gapless
+            // sequence, no invoice row and no PDF. The counter is not even
+            // read. An order from before the mode was recorded (NULL) is
+            // invoiced as it always was.
+            if (OrderRepository::isTestOrder($order)) {
                 if (!$alreadyInTransaction) {
                     $this->db->commit();
                 }

@@ -3378,4 +3378,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'payments.testpay.note' => 'Goed om te weten: een testbestelling is een gewone bestelling in je webshop. Hij staat daarna in Shop → Bestellingen, en krijgt bij "betaald" een factuur met een nummer uit je gewone reeks en een bevestigingsmail. Doe daarom zo weinig testbestellingen als nodig, het liefst vóórdat je live gaat, en herken ze aan je eigen naam en e-mailadres.',
     'perm.payments.manage.label' => 'Betalingen beheren',
     'perm.payments.manage.description' => 'De Mollie-sleutels, test of live en de betaalmethoden. Bepaalt op welk Mollie-account klanten betalen; alleen een Super Admin kan dit toekennen.',
+    'shop.test_badge' => 'TEST',
+    'shop.test_order_notice' => 'Testbestelling: betaald met een Mollie-testsleutel, dus zonder echt geld. Ze telt niet mee in de omzet en krijgt geen echte factuur.',
+    'shop.test_order_invoice' => 'Testbestelling — er wordt geen echte factuur uitgegeven.',
 ];

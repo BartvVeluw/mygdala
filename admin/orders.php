@@ -101,7 +101,7 @@ $filters = [
             $isPaid = $order['status'] === 'paid';
           ?>
           <tr class="<?= $isHandled ? 'admin-row--handled' : '' ?>">
-            <td><a href="/admin/order.php?id=<?= (int) $order['id'] ?>"><?= htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8') ?></a></td>
+            <td><a href="/admin/order.php?id=<?= (int) $order['id'] ?>"><?= htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8') ?></a><?php if (OrderRepository::isTestOrder($order)): ?> <span class="admin-badge admin-badge--test"><?= admin_te('shop.test_badge') ?></span><?php endif; ?></td>
             <td><?= htmlspecialchars(date('d-m-Y H:i', strtotime((string) $order['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars((string) $order['customer_name'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><span class="admin-badge admin-badge--<?= htmlspecialchars((string) $order['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(adminPaymentStatusLabel((string) $order['status']), ENT_QUOTES, 'UTF-8') ?></span></td>

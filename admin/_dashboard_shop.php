@@ -255,7 +255,7 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
                 $fulfilmentStatus = (string) $order['fulfilment_status'];
               ?>
               <tr>
-                <td><a href="/admin/order.php?id=<?= $orderId ?>"><?= $h($orderNumber) ?></a></td>
+                <td><a href="/admin/order.php?id=<?= $orderId ?>"><?= $h($orderNumber) ?></a><?php if (OrderRepository::isTestOrder($order)): ?> <span class="admin-badge admin-badge--test"><?= admin_te('shop.test_badge') ?></span><?php endif; ?></td>
                 <td><?= $h($createdAt->format('d-m-Y H:i')) ?></td>
                 <td>
                   <?php if ($customerName === ''): ?>

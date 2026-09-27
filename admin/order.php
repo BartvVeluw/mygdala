@@ -67,6 +67,9 @@ if ($order === null) {
 }
 
 $updated = isset($_GET['updated']);
+// Paid with a Mollie test key (orders.payment_mode): marked TEST, no revenue,
+// and never a real invoice (MODULES.md, "Betalingen").
+$isTestOrder = OrderRepository::isTestOrder($order);
 $invoiceGenerated = isset($_GET['invoice_generated']);
 $emailResent = isset($_GET['email_resent']);
 $emailResendFailed = isset($_GET['email_resend_failed']);
@@ -94,7 +97,10 @@ $orderNumber = OrderRepository::orderNumber($order);
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <p><a href="/admin/orders.php"><?= admin_t('shop.terug_bestellingen') ?></a></p>
-  <h1><?= admin_t('shop.order_number', ['v1' => htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8')]) ?></h1>
+  <h1><?= admin_t('shop.order_number', ['v1' => htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8')]) ?><?php if ($isTestOrder): ?> <span class="admin-badge admin-badge--test"><?= admin_te('shop.test_badge') ?></span><?php endif; ?></h1>
+  <?php if ($isTestOrder): ?>
+    <p class="admin-alert admin-alert--warning"><?= admin_te('shop.test_order_notice') ?></p>
+  <?php endif; ?>
 
   <?php if ($updated): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('shop.afhandelingsstatus_bijgewerkt') ?></p>
@@ -251,6 +257,17 @@ $orderNumber = OrderRepository::orderNumber($order);
         <a class="admin-btn-secondary" href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>&amp;mode=download"><?= admin_te('shop.download_pdf') ?></a>
       </p>
       <?php if ($canManageOrders): ?>
+      <form method="post" action="/api/admin/resend-order-confirmation.php" class="admin-fulfilment-form">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+        <button type="submit"><?= admin_te('shop.verstuur_bevestigingsmail_opnieuw') ?></button>
+      </form>
+      <?php endif; ?>
+    <?php elseif ($isTestOrder): ?>
+      <?php /* No button that could issue a real invoice for a test payment;
+               the mail can still be sent again, without an invoice. */ ?>
+      <p><strong><?= admin_te('shop.test_order_invoice') ?></strong></p>
+      <?php if ($canManageOrders && $order['status'] === 'paid'): ?>
       <form method="post" action="/api/admin/resend-order-confirmation.php" class="admin-fulfilment-form">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">

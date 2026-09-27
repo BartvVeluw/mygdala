@@ -3368,4 +3368,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'payments.testpay.note' => 'Good to know: a test order is an ordinary order in your webshop. It then appears under Shop → Orders and, once "paid", gets an invoice with a number from your normal sequence and a confirmation email. So make as few test orders as you need, preferably before you go live, and recognise them by your own name and email address.',
     'perm.payments.manage.label' => 'Manage payments',
     'perm.payments.manage.description' => 'The Mollie keys, test or live, and the payment methods. Decides which Mollie account customers pay into; only a Super Admin can grant this.',
+    'shop.test_badge' => 'TEST',
+    'shop.test_order_notice' => 'Test order: paid with a Mollie test key, so without real money. It does not count towards revenue and gets no real invoice.',
+    'shop.test_order_invoice' => 'Test order — no real invoice is issued.',
 ];

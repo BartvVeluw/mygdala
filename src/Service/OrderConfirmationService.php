@@ -96,8 +96,11 @@ class OrderConfirmationService
                 return false;
             }
 
-            $invoice = $this->invoices->findByOrderId($orderId);
-            if ($invoice === null) {
+            // A test order never gets an invoice (InvoiceService), so its
+            // confirmation goes without one: the mails say it was a test.
+            $isTestOrder = OrderRepository::isTestOrder($order);
+            $invoice = $isTestOrder ? null : $this->invoices->findByOrderId($orderId);
+            if ($invoice === null && !$isTestOrder) {
                 // Not ready yet: the invoice is issued first by OrderPaymentSync, so this
                 // means issuance hasn't succeeded (yet). Leave confirmation_sent_at null so
                 // the next sync retries both together, rather than emailing without a PDF.
@@ -128,10 +131,17 @@ class OrderConfirmationService
                 return false;
             }
 
-            if (!$this->invoiceStorage->exists($invoice['pdf_path'])) {
-                $this->invoiceService->regeneratePdfIfMissing($invoice, $order, $customer, $items);
+            $attachments = [];
+            if ($invoice !== null) {
+                if (!$this->invoiceStorage->exists($invoice['pdf_path'])) {
+                    $this->invoiceService->regeneratePdfIfMissing($invoice, $order, $customer, $items);
+                }
+                $attachments[] = [
+                    'path' => $this->invoiceStorage->path($invoice['pdf_path']),
+                    'name' => InvoiceService::pdfFilename((string) $invoice['invoice_number']),
+                    'mime' => 'application/pdf',
+                ];
             }
-            $invoicePdfPath = $this->invoiceStorage->path($invoice['pdf_path']);
 
             $emailSettings = SiteSettings::all();
             $emails = OrderConfirmationBuilder::build($order, $customer, $items, $emailSettings);
@@ -145,11 +155,7 @@ class OrderConfirmationService
                 $emails['customer']['text'],
                 $shopEmail,
                 $shopFromName,
-                [[
-                    'path' => $invoicePdfPath,
-                    'name' => InvoiceService::pdfFilename((string) $invoice['invoice_number']),
-                    'mime' => 'application/pdf',
-                ]]
+                $attachments
             );
 
             $this->mailer->send(

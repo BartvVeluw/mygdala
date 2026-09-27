@@ -41,6 +41,14 @@ if ($orderId === false || $orderId === null || $orderId < 1) {
     exit('Invalid order id.');
 }
 
+// A test order never gets a real invoice. InvoiceService refuses it
+// anyway; this only keeps the screen from claiming one was generated.
+$order = (new \App\Repository\OrderRepository())->findById($orderId);
+if ($order !== null && \App\Repository\OrderRepository::isTestOrder($order)) {
+    header('Location: /admin/order.php?id=' . $orderId);
+    exit;
+}
+
 (new InvoiceService())->issueForOrderIfNeeded($orderId);
 
 header('Location: /admin/order.php?id=' . $orderId . '&invoice_generated=1');

@@ -741,6 +741,11 @@ a{ color: var(--admin-accent); }
 .admin-badge--info{ color: var(--admin-accent); border-color: var(--admin-accent-line-soft); background: var(--admin-accent-soft); }
 .admin-badge--warning{ color: var(--admin-error); border-color: var(--admin-error-line); background: var(--admin-error-soft); }
 
+/* A test order (orders.payment_mode = 'test', MODULES.md "Betalingen"):
+   the word TEST, bold, in the test-mode amber of Shop → Betalingen, so it
+   is never read as a real sale in a list. */
+.admin-badge--test{ color: var(--admin-warning); border-color: var(--admin-warning); background: var(--admin-warning-soft); font-weight: 700; letter-spacing: 0.06em; }
+
 /* Simple status filter tabs (admin/contact-requests.php) */
 .admin-filter-tabs{ display: flex; gap: var(--admin-sp-2); margin: 0 0 var(--admin-sp-4); flex-wrap: wrap; }
 .admin-filter-tab{

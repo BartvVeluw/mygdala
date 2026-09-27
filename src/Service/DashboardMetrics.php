@@ -32,6 +32,16 @@ namespace App\Service;
  * whether it was sold. That is what keeps this consistent with the invoices,
  * which are issued on `paid` too (App\Service\InvoiceService).
  *
+ * ## Test orders
+ *
+ * An order paid with a Mollie test key (`orders.payment_mode = 'test'`) is
+ * no money and never revenue: the totals query leaves it out
+ * (App\Repository\OrderRepository::REAL_SALE_CONDITION), so it counts for no
+ * turnover, order count or average order value. An order from before the
+ * mode was recorded (NULL) counts, as it always did. The recent-orders list
+ * and the "awaiting handling" count are operational and keep test orders;
+ * they are marked TEST where they are listed.
+ *
  * ## Refunds
  *
  * `orders.refunded_amount` is Mollie's own total refunded for that payment,

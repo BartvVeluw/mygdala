@@ -19,6 +19,17 @@ class OrderRepository extends Repository
     public const PAYMENT_MODES = [self::PAYMENT_MODE_TEST, self::PAYMENT_MODE_LIVE];
 
     /**
+     * The SQL condition for "this order is a real sale", on an unaliased
+     * `orders`: live, or from before the mode was recorded (NULL). Every
+     * query that adds up money for the owner — revenue, average order value
+     * (App\Repository\DashboardRepository::orderTotalsBetween()) — uses it,
+     * so a test payment never becomes turnover. Operational lists (the
+     * order list, recent orders, the orders awaiting handling, the CSV
+     * export) keep test orders and show them as TEST instead.
+     */
+    public const REAL_SALE_CONDITION = "(payment_mode IS NULL OR payment_mode <> 'test')";
+
+    /**
      * The admin's own handling workflow for an order, deliberately just two
      * states: "Open" (still needs the owner's attention) and "Afgehandeld"
      * (dealt with). Completely separate from the Mollie-driven payment status
@@ -564,7 +575,7 @@ class OrderRepository extends Repository
      */
     public function findAllForAdmin(?string $fulfilmentStatus = null): array
     {
-        $sql = 'SELECT o.id, o.order_number, o.status, o.fulfilment_status, o.handled_at, o.total, o.shipping_cost,
+        $sql = 'SELECT o.id, o.order_number, o.status, o.payment_mode, o.fulfilment_status, o.handled_at, o.total, o.shipping_cost,
                        o.shipping_method, o.created_at, c.name AS customer_name
                 FROM orders o
                 JOIN customers c ON c.id = o.customer_id';
@@ -755,7 +766,7 @@ class OrderRepository extends Repository
 
         $stmt = $this->db->prepare(
             "SELECT o.id, o.order_number, o.created_at, o.total, o.shipping_cost, o.refunded_amount,
-                    o.status, o.fulfilment_status, o.mollie_payment_id, o.currency,
+                    o.status, o.payment_mode, o.fulfilment_status, o.mollie_payment_id, o.currency,
                     COALESCE(o.shipping_country, c.country) AS country,
                     c.name AS customer_name, c.email AS customer_email
              FROM orders o

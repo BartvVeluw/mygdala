@@ -121,12 +121,24 @@ class OrderConfirmationBuilder
 
         $htmlParagraph = static fn (string $text): string => $text === '' ? '' : '<p>' . nl2br(self::esc($text)) . '</p>';
 
+        // A TEST order (orders.payment_mode = 'test'): paid with a Mollie test
+        // key, so both mails say so up front, the subject included, and no
+        // invoice is attached (OrderConfirmationService).
+        $isTest = OrderRepository::isTestOrder($order);
+        $testPrefix = $isTest ? '[TEST] ' : '';
+        $testNotice = 'Dit is een testbestelling: de betaling was een test bij Mollie, er is geen geld overgemaakt en er hoort geen factuur bij.';
+        $testHtml = $isTest
+            ? '<p style="margin:0 0 16px;padding:12px 16px;border:2px solid #b45309;border-radius:6px;background:#fef3c7;color:#78350f;font-weight:bold;">' . self::esc($testNotice) . '</p>'
+            : '';
+        $testText = $isTest ? $testNotice . "\n\n" : '';
+
         return [
             'customer' => [
-                'subject' => $subject,
+                'subject' => $testPrefix . $subject,
                 'html' => self::wrapHtml(
                     $heading,
-                    $htmlParagraph($intro)
+                    $testHtml
+                    . $htmlParagraph($intro)
                     . $htmlParagraph($beforeItems)
                     . $itemsHtml . $totalsHtml
                     . $htmlParagraph($afterItems)
@@ -136,7 +148,8 @@ class OrderConfirmationBuilder
                     . '<p style="margin-top:24px;">' . nl2br(self::esc($closing)) . '</p>'
                     . ($signature !== '' ? '<p style="margin-top:16px;">' . nl2br(self::esc($signature)) . '</p>' : '')
                 ),
-                'text' => ($intro !== '' ? $intro . "\n\n" : '')
+                'text' => $testText
+                    . ($intro !== '' ? $intro . "\n\n" : '')
                     . ($beforeItems !== '' ? $beforeItems . "\n\n" : '')
                     . $itemsText . "\n" . $totalsText
                     . ($afterItems !== '' ? "\n" . $afterItems . "\n" : '')
@@ -146,16 +159,18 @@ class OrderConfirmationBuilder
                     . ($signature !== '' ? "\n" . $signature . "\n" : ''),
             ],
             'shop' => [
-                'subject' => 'Nieuwe betaalde bestelling ' . $orderNumber,
+                'subject' => $testPrefix . 'Nieuwe betaalde bestelling ' . $orderNumber,
                 'html' => self::wrapHtml(
                     'Nieuwe betaalde bestelling',
-                    '<p>Er is een nieuwe, betaalde bestelling binnengekomen: <strong>' . self::esc($orderNumber) . '</strong>.</p>'
+                    $testHtml
+                    . '<p>Er is een nieuwe, betaalde bestelling binnengekomen: <strong>' . self::esc($orderNumber) . '</strong>.</p>'
                     . $itemsHtml . $totalsHtml
                     . '<h2 style="font-size:16px;margin:24px 0 8px;">Klant- / bezorggegevens</h2>'
                     . $addressHtml
                     . $billingHtml
                 ),
-                'text' => "Er is een nieuwe, betaalde bestelling binnengekomen: {$orderNumber}.\n\n"
+                'text' => $testText
+                    . "Er is een nieuwe, betaalde bestelling binnengekomen: {$orderNumber}.\n\n"
                     . $itemsText . "\n" . $totalsText
                     . "\nKlant- / bezorggegevens:\n" . $addressText
                     . $billingText,

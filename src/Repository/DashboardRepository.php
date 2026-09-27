@@ -27,7 +27,10 @@ class DashboardRepository extends Repository
 {
     /**
      * The order totals for one half-open time window [$from, $until), limited
-     * to the payment statuses the caller counts as revenue.
+     * to the payment statuses the caller counts as revenue, and to real sales:
+     * a test order (`payment_mode = 'test'`) is no turnover and never counts
+     * (OrderRepository::REAL_SALE_CONDITION); an order from before the mode
+     * was recorded (NULL) does, as it always did.
      *
      * Half-open on purpose: "today" is `>= 00:00:00 today AND < 00:00:00
      * tomorrow`, which needs no assumption about the smallest representable
@@ -57,6 +60,7 @@ class DashboardRepository extends Repository
                     COALESCE(SUM(refunded_amount), 0) AS refunded_total
              FROM orders
              WHERE status IN ({$placeholders})
+               AND " . OrderRepository::REAL_SALE_CONDITION . "
                AND created_at >= ?
                AND created_at < ?"
         );
@@ -94,7 +98,7 @@ class DashboardRepository extends Repository
         $limit = max(1, min(50, $limit));
 
         $stmt = $this->db->query(
-            'SELECT o.id, o.order_number, o.status, o.fulfilment_status, o.total, o.currency, o.created_at,
+            'SELECT o.id, o.order_number, o.status, o.payment_mode, o.fulfilment_status, o.total, o.currency, o.created_at,
                     c.name AS customer_name
              FROM orders o
              LEFT JOIN customers c ON c.id = o.customer_id

@@ -38,6 +38,9 @@ class OrderCsvExport
             'Afhandeling',
             'Terugbetaald',
             'Mollie betalings-ID',
+            // test, live, or empty for an order from before it was recorded:
+            // a bookkeeper filters test orders out here.
+            'Betaalmodus',
         ];
     }
 
@@ -67,6 +70,7 @@ class OrderCsvExport
             (string) $order['fulfilment_status'],
             number_format((float) ($order['refunded_amount'] ?? 0.0), 2, '.', ''),
             (string) ($order['mollie_payment_id'] ?? ''),
+            (string) ($order['payment_mode'] ?? ''),
         ];
     }
 
