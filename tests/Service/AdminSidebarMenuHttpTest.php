@@ -28,6 +28,7 @@ final class AdminSidebarMenuHttpTest extends TestCase
 {
     private const MENU_ENTRIES = [
         '/admin/products.php' => 'Producten',
+        '/admin/product-specifications.php' => 'Specificaties',
         '/admin/collections.php' => 'Collecties',
         '/admin/related-products.php' => 'Gerelateerde producten',
         '/admin/personalization.php' => 'Personalisatie',
