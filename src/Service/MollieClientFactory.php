@@ -33,7 +33,7 @@ final class MollieClientFactory
      * @throws \Mollie\Api\Exceptions\InvalidAuthenticationException when $apiKey
      *         does not have the shape of a key; its message does not repeat the key
      */
-    public static function forKey(string $apiKey): MollieApiClient
+    public static function forKey(#[\SensitiveParameter] string $apiKey): MollieApiClient
     {
         if (self::$factoryForTests !== null) {
             return (self::$factoryForTests)($apiKey);

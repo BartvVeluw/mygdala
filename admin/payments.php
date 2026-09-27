@@ -397,6 +397,7 @@ $testButton = static function (string $mode, string $labelKey) use ($h): string 
         <li><?= admin_te('payments.testpay.step' . $number) ?></li>
       <?php endfor; ?>
     </ol>
+    <p class="admin-alert admin-alert--warning"><?= admin_te('payments.testpay.note') ?></p>
     <?php if ($status->state === MollieSetupStatus::TEST): ?>
       <p><a class="admin-btn-secondary" href="<?= $h($shopUrl) ?>" target="_blank" rel="noopener"><?= admin_te('payments.testpay.open_shop') ?></a></p>
     <?php else: ?>

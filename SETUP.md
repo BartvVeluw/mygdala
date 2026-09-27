@@ -341,11 +341,15 @@ geweigerd. Een scherm krijgt nooit de waarde terug, alleen een `hint`
    het bestand hieronder.
 2. Anders het sleutelbestand `app.key` in de afgeschermde opslag, één map
    boven de projectroot (`<boven de root>/storage/secrets/app.key`, naast de
-   facturen), of onder `SECRETS_STORAGE_PATH`. Mygdala maakt het zelf, **één
-   keer, bij de eerste opslag van een geheim**: nooit bij het bekijken van een
+   facturen), of onder `SECRETS_STORAGE_PATH` (een absoluut pad; een relatief
+   pad wordt geweigerd, want dat hangt af van welk script draait). Mygdala
+   maakt het zelf, **één keer, bij de eerste opslag van een geheim**: nooit
+   bij het bekijken van een
    pagina, een webhook of een checkout. Atomisch (een lock, een tijdelijk
-   bestand met rechten 0600 dat volledig geschreven wordt, dan een rename;
-   de map krijgt 0700), en een bestaand bestand wordt nooit vervangen, ook
+   bestand met rechten 0600 dat volledig geschreven en naar schijf gesynct
+   wordt, dan een rename; de map krijgt 0700 en een `.htaccess` die elk
+   verzoek weigert, voor een installatie waarvan "één map hoger" tóch
+   geserveerd wordt), en een bestaand bestand wordt nooit vervangen, ook
    niet als het kapot is. Lukt schrijven niet, dan mislukt de opslag met een
    uitleg: er is geen terugval die een geheim onversleuteld bewaart. Het
    bestand heeft dezelfde vorm als `APP_KEY`, dus zijn regel kan zo naar

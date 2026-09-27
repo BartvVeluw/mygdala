@@ -159,7 +159,7 @@ final class MolliePaymentProvider implements PaymentProvider
      *
      * @throws PaymentProviderException NOT_CONFIGURED for a key of the wrong shape, before any request
      */
-    public function checkKey(string $key, string $language): array
+    public function checkKey(#[\SensitiveParameter] string $key, string $language): array
     {
         if (!MollieConfiguration::isKeyFormat($key)) {
             throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'the key does not have the shape of a Mollie API key');
@@ -315,15 +315,15 @@ final class MolliePaymentProvider implements PaymentProvider
     /**
      * @return list<PaymentMethodOption>
      */
-    private function methodsFor(string $key, string $language): array
+    private function methodsFor(#[\SensitiveParameter] string $key, string $language): array
     {
         $client = $this->client($key);
-        // An administrator waits for this answer on a screen, so one quick
-        // retry instead of the SDK's five slow ones: a Mollie that is down
-        // is reported in seconds, not after a minute.
-        $client->setRetryStrategy(new LinearRetryStrategy(1, 500));
 
         try {
+            // An administrator waits for this answer on a screen, so one
+            // quick retry instead of the SDK's five slow ones: a Mollie that
+            // is down is reported in seconds, not after a minute.
+            $client->setRetryStrategy(new LinearRetryStrategy(1, 500));
             $methods = $client->methods->allEnabled(['locale' => self::locale($language)]);
 
             $options = [];
@@ -339,7 +339,7 @@ final class MolliePaymentProvider implements PaymentProvider
         }
     }
 
-    private function client(string $key): MollieApiClient
+    private function client(#[\SensitiveParameter] string $key): MollieApiClient
     {
         try {
             return MollieClientFactory::forKey($key);

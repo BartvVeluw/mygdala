@@ -547,10 +547,12 @@ Alles wat er ook zou zijn zonder webshop.
     (vóór er iets gevraagd wordt), **200** als het klaar is en ook voor een
     betaling die niemand kent of die Mollie definitief weigert, **503** met
     `Retry-After` als Mollie niet bereikbaar is, de sleutel niet werkt of het
-    opslaan faalt. Kent de actieve sleutel een betaling niet, dan vraagt de
-    provider het één keer met de opgeslagen sleutel van de andere modus: een
-    testbetaling van vóór de overstap naar live vindt zo nog steeds haar
-    bestelling.
+    opslaan faalt. Een betaal-id dat geen bestelling heeft, wordt beantwoord
+    zonder Mollie iets te vragen: een anonieme POST met een verzonnen id kost
+    de shop geen verzoeken bij Mollie. Kent de actieve sleutel een betaling
+    niet, dan vraagt de provider het één keer met de opgeslagen sleutel van de
+    andere modus: een testbetaling van vóór de overstap naar live vindt zo nog
+    steeds haar bestelling (zie "Bekend" hieronder).
   - **Een testbetaling** is de echte checkout in testmodus; Mollie toont dan
     zijn testpagina waarop je de uitkomst kiest. Er is geen nepcheckout in het
     CMS. Betalingen legt de acht stappen uit en linkt in testmodus naar de
@@ -558,6 +560,24 @@ Alles wat er ook zou zijn zonder webshop.
   - **Geen auditlog.** De Shop heeft er geen; het serverlog krijgt
     `[payments] test API key replaced by admin user #3` en dergelijke, nooit
     met de sleutel.
+  - **Bekend** (Mollie Setup 2.0, open punten voor de eigenaar):
+    - Een bestelling onthoudt niet in welke modus ze betaald is. Een
+      testbestelling staat dus gewoon in Bestellingen, telt mee op het
+      dashboard en krijgt bij *betaald* een factuurnummer uit de gewone reeks
+      en een bevestigingsmail; Betalingen zegt dat bij de testbetaling. Door
+      de terugval naar de sleutel van de andere modus kan een testbetaling die
+      pas ná de overstap naar live wordt afgerond, haar bestelling nog op
+      betaald zetten. Een kolom met de modus per bestelling (plus een badge
+      en uitsluiting uit omzet en factuurreeks) zou dat oplossen.
+    - Sleutels en modus vallen onder `settings.manage`, zoals de opdracht
+      vroeg. Wie die permissie heeft, kan dus ook de live-sleutel vervangen,
+      en daarmee bepalen op welk Mollie-account betalingen binnenkomen. Een
+      eigen permissie die alleen een Super Admin kan geven is een mogelijke
+      aanscherping.
+    - Twee gelijktijdige syncs (webhook en bestelstatuspagina) kunnen in een
+      smal venster een oudere status over *betaald* heen schrijven;
+      `OrderRepository::updateStatusFromMollie()` schrijft onvoorwaardelijk.
+      Dat was al zo vóór deze fase.
   - Scherm en endpoints: `admin/payments.php` (menu Shop, `settings.manage`
     plus `ModuleGuard`, zoals Shop-instellingen),
     `api/admin/update-payment-settings.php` (`PaymentSettingsEditor`,

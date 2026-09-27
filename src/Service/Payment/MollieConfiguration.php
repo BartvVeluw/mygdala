@@ -105,7 +105,7 @@ final class MollieConfiguration
      * four characters ("test_••••••••abcd"). Enough to tell two keys apart,
      * never enough to use one.
      */
-    public static function mask(string $key): string
+    public static function mask(#[\SensitiveParameter] string $key): string
     {
         $mode = self::modeOfKey($key);
         if ($mode === null) {

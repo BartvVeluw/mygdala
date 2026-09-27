@@ -16,10 +16,11 @@
  *
  *   400  no payment id, or something that is not one: not from Mollie,
  *        nothing is looked up
- *   200  done; and also for a payment nobody here knows (Mollie does not
- *        know it under any configured key, or no order holds it) and for
- *        a lookup Mollie refused for good — asking again changes nothing,
- *        so it must not be asked again
+ *   200  done; and also for a payment nobody here knows and for a lookup
+ *        Mollie refused for good — asking again changes nothing, so it
+ *        must not be asked again. A payment id no order holds is answered
+ *        before Mollie is asked at all: an anonymous POST with a made-up
+ *        id must not spend the shop's requests at Mollie
  *   503  Mollie could not be reached, timed out or had a problem of its
  *        own; the payment key could not be used (none, unreadable, refused
  *        — something the owner can repair); or storing the result failed.
@@ -39,6 +40,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 \App\Module\ModuleGuard::requireApi('shop');
 
 
+use App\Repository\OrderRepository;
 use App\Service\OrderPaymentSync;
 use App\Service\Payment\PaymentProviderException;
 use App\Service\Payment\PaymentProviders;
@@ -55,6 +57,21 @@ $paymentId = $_POST['id'] ?? null;
 // one of Mollie's, and is refused before a request goes out for it.
 if (!is_string($paymentId) || preg_match('/^tr_[A-Za-z0-9]{1,60}$/', $paymentId) !== 1) {
     http_response_code(400);
+    exit;
+}
+
+try {
+    $known = (new OrderRepository())->findByMolliePaymentId($paymentId) !== null;
+} catch (\Throwable $e) {
+    error_log('[api/mollie-webhook.php] ' . $paymentId . ' could not be looked up: ' . PaymentProviderException::redact($e->getMessage()));
+    http_response_code(503);
+    header('Retry-After: 300');
+    exit;
+}
+
+if (!$known) {
+    error_log('[api/mollie-webhook.php] no order holds payment ' . $paymentId . '; Mollie was not asked');
+    http_response_code(200);
     exit;
 }
 

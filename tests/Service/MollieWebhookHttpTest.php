@@ -24,8 +24,9 @@ use Tests\Support\InvoiceOrderFixture;
  *    changes nothing and issues no second invoice;
  *  - 400 for something that is not a Mollie payment id, before any request
  *    to Mollie; 405 for a GET;
- *  - 200 for a payment nobody knows (Mollie, or no order): asking again would
- *    not help;
+ *  - 200 for a payment nobody knows: asking again would not help. A payment
+ *    id no order holds is answered without asking Mollie at all, so an
+ *    anonymous POST cannot spend the shop's requests there;
  *  - 503 with Retry-After when Mollie is down, refuses the key, or there is
  *    no key: the payment is real, so Mollie must deliver again — and the
  *    order is left as it was;
@@ -233,6 +234,13 @@ final class MollieWebhookHttpTest extends TestCase
     {
         $this->assertSame(200, $this->deliver(['id' => 'tr_unknownatmollie'])['status'], 'Mollie does not know it');
         $this->assertSame(200, $this->deliver(['id' => 'tr_whnoorder'])['status'], 'no order holds it');
+        $this->assertSame([], FakeMollie::requests($this->scenario()), 'no order holds either: Mollie is not asked');
+
+        // An order holds it, Mollie does not know it: asked once, and final.
+        $orderId = $this->pendingOrder('tr_whgone');
+        $this->assertSame(200, $this->deliver(['id' => 'tr_whgone'])['status']);
+        $this->assertSame(['GetPaymentRequest'], array_column(FakeMollie::requests($this->scenario()), 'request'));
+        $this->assertSame('pending', $this->order($orderId)['status']);
     }
 
     public function testMollieDownARefusedKeyOrNoKeyAsksMollieToDeliverAgain(): void

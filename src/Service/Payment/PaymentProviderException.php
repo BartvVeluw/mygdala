@@ -51,11 +51,13 @@ final class PaymentProviderException extends \RuntimeException
 
     /**
      * $text with every API key or access token in it replaced: "test_…",
-     * "live_…" and "access_…" followed by a run of word characters.
+     * "live_…" and "access_…" followed by ten or more letters, digits or
+     * underscores, wherever it stands (also glued to another word). Short
+     * names such as the slot "shop.mollie.test_api_key" stay readable.
      * Public so every log line about a provider can use the same rule.
      */
     public static function redact(string $text): string
     {
-        return (string) preg_replace('/\b(test|live|access)_\w{6,}/', '$1_[redacted]', $text);
+        return (string) preg_replace('/(test|live|access)_[A-Za-z0-9_]{10,}/', '$1_[redacted]', $text);
     }
 }

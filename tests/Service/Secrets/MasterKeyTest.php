@@ -97,6 +97,7 @@ final class MasterKeyTest extends TestCase
         $this->assertSame($first->id(), $second->id(), 'a second save uses the key the first one made');
         $this->assertSame($contents, file_get_contents($path), 'the file is never rewritten');
         $this->assertSame([], glob(dirname($path) . '/*.tmp') ?: [], 'no temporary file is left behind');
+        $this->assertSame("Require all denied\n", file_get_contents(dirname($path) . '/.htaccess'), 'a served folder would refuse every request');
         $this->assertSame('ok', $second->open('slot', $first->seal('slot', 'ok')));
     }
 
@@ -138,6 +139,19 @@ final class MasterKeyTest extends TestCase
         } finally {
             unlink($this->directory);
         }
+    }
+
+    public function testARelativeStoragePathIsRefused(): void
+    {
+        foreach (['storage', './storage', '../storage'] as $relative) {
+            try {
+                MasterKey::loadOrCreate(['APP_KEY' => '', 'SECRETS_STORAGE_PATH' => $relative]);
+                $this->fail('a relative path depends on which script runs: ' . $relative);
+            } catch (SecretStoreException $e) {
+                $this->assertSame(SecretStoreException::KEY_INVALID, $e->reason);
+            }
+        }
+        $this->assertDirectoryDoesNotExist(getcwd() . '/storage/secrets');
     }
 
     public function testEverySealHasItsOwnNonceAndOpensOnlyInItsSlotUnderItsKey(): void

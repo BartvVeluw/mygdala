@@ -22,15 +22,19 @@ use Dotenv\Dotenv;
  *   2. the key file      <private storage>/secrets/app.key. Private storage is
  *                        one directory ABOVE the project root, outside the
  *                        webroot, where App\Service\InvoiceStorage keeps the
- *                        invoices; SECRETS_STORAGE_PATH points it elsewhere.
- *                        Same format as APP_KEY, so the line can be moved into
- *                        .env as it is.
+ *                        invoices; SECRETS_STORAGE_PATH (an ABSOLUTE path; a
+ *                        relative one would depend on which script runs) points
+ *                        it elsewhere. Same format as APP_KEY, so the line can
+ *                        be moved into .env as it is. The folder also gets an
+ *                        .htaccess that denies every request, for an
+ *                        installation whose "one directory above" is still
+ *                        served (a project in a sub-folder of a document root).
  *   3. none              nothing can be stored or read.
  *
  * MADE ONCE, AND ONLY WHEN A SECRET IS SAVED (loadOrCreate()). A page view,
  * a webhook or a checkout only reads (load()), so reading never writes.
  * Making it is atomic: an exclusive lock, a temporary file with mode 0600
- * written in full, then a rename into place. A second administrator saving at
+ * written in full and synced to disk, then a rename into place. A second administrator saving at
  * the same moment waits for the lock and then reads the key the first one
  * made. When private storage cannot be written the save fails: there is no
  * fallback that keeps a secret unencrypted, and none that puts the key in the
@@ -119,9 +123,19 @@ final class MasterKey
         }
         @chmod($directory, 0700);
 
+        // A second line behind "outside the webroot": should this folder be
+        // served after all, the web server refuses everything in it.
+        if (!file_exists($directory . '/.htaccess')) {
+            @file_put_contents($directory . '/.htaccess', "Require all denied\n");
+        }
+
         $lockPath = $directory . '/.' . self::FILE_NAME . '.lock';
         $lock = @fopen($lockPath, 'c');
-        if ($lock === false || !flock($lock, LOCK_EX)) {
+        if ($lock === false) {
+            throw new SecretStoreException(SecretStoreException::KEY_NOT_CREATED, 'the secrets directory could not be locked');
+        }
+        if (!flock($lock, LOCK_EX)) {
+            fclose($lock);
             throw new SecretStoreException(SecretStoreException::KEY_NOT_CREATED, 'the secrets directory could not be locked');
         }
         @chmod($lockPath, 0600);
@@ -143,7 +157,7 @@ final class MasterKey
             // Restricted before a single byte of the key is in it.
             @chmod($temporary, 0600);
             $written = fwrite($handle, self::PREFIX . base64_encode(random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES)) . "\n");
-            $flushed = fflush($handle);
+            $flushed = fflush($handle) && fsync($handle);
             fclose($handle);
 
             if ($written === false || $flushed === false || !@rename($temporary, $path)) {
@@ -163,10 +177,17 @@ final class MasterKey
      * private storage one directory above the project root.
      *
      * @param array<string, string>|null $environment
+     *
+     * @throws SecretStoreException KEY_INVALID for a relative SECRETS_STORAGE_PATH
      */
     public static function directory(?array $environment = null): string
     {
         $configured = trim(self::variable(self::PATH_VARIABLE, $environment));
+
+        if ($configured !== '' && preg_match('#^([/\\\\]|[A-Za-z]:[/\\\\])#', $configured) !== 1) {
+            throw new SecretStoreException(SecretStoreException::KEY_INVALID, 'SECRETS_STORAGE_PATH must be an absolute path');
+        }
+
         $base = $configured !== '' ? rtrim($configured, '/\\') : dirname(__DIR__, 4) . '/storage';
 
         return $base . '/secrets';

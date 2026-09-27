@@ -88,7 +88,7 @@ final class PaymentSettingsEditor
      * @param (\Closure(): bool)|null $shopHasPayments whether any order ever got a payment; a test's own
      */
     public function __construct(
-        array $post,
+        #[\SensitiveParameter] array $post,
         private readonly MollieConfiguration $configuration,
         private readonly MolliePaymentProvider $provider,
         private readonly string $language,
@@ -222,7 +222,7 @@ final class PaymentSettingsEditor
         }
     }
 
-    private function validateKey(string $mode, string $key, string $field): void
+    private function validateKey(string $mode, #[\SensitiveParameter] string $key, string $field): void
     {
         if ($key === '') {
             return;

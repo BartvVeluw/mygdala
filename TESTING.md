@@ -765,8 +765,9 @@ Betalingen, de betaalprovider en de geheimenopslag (Mollie Setup 2.0,
 --testsuite fast        MasterKeyTest (APP_KEY wint en een verkeerde wordt
                         geweigerd, lezen schrijft nooit, het sleutelbestand
                         eenmalig 0600 in een 0700-map en nooit vervangen,
-                        onschrijfbare opslag geeft geen sleutel, een verse
-                        nonce per waarde, gebonden aan slot en sleutel) en
+                        onschrijfbare opslag of een relatief pad geeft geen
+                        sleutel, een verse nonce per waarde, gebonden aan slot
+                        en sleutel) en
                         ShopPaymentMethodsTest (zonder keuze iDEAL en
                         creditcard met hun oude woorden, een keuze in
                         volgorde, "kaart" is creditcard) — niets nodig
