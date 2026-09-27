@@ -423,7 +423,7 @@ final class PortfolioModuleTest extends TestCase
         $this->assertTrue(SectionRegistry::isManuallyAddable('project_cards'));
         $this->assertTrue(SectionRegistry::allowMultiple('project_cards'));
         $this->assertSame('Projecten', (new ProjectCardsBlock())->meta()['label']);
-        $this->assertSame(BlockCategories::MEDIA, (new ProjectCardsBlock())->category(), 'next to the gallery it is built on');
+        $this->assertSame(BlockCategories::PORTFOLIO, (new ProjectCardsBlock())->category(), 'in the Portfolio drawer, beside the Portfoliogalerij card');
 
         $this->withPortfolio(false);
 

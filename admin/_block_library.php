@@ -76,7 +76,8 @@ function block_library(array $definitions): void
 function block_library_card(string $type, BlockDefinition $definition, bool $hasSample): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $label = $definition->label();
+    // A preset card of the picker names itself (admin/_block_picker.php).
+    $label ??= $definition->label();
     ?>
           <article class="admin-catalogue-card" data-block-library-card>
             <?php block_visual($definition); ?>
@@ -130,11 +131,12 @@ function block_library_card(string $type, BlockDefinition $definition, bool $has
  * admin/block-preview.php only lets it hit or miss a registry key. Without a
  * sample the button still opens the dialog, which then shows the drawing.
  */
-function block_library_preview_button(string $type, BlockDefinition $definition, string $class, ?bool $hasSample = null): void
+function block_library_preview_button(string $type, BlockDefinition $definition, string $class, ?bool $hasSample = null, ?string $label = null): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $hasSample ??= $definition->sampleContent(new BlockSamples()) !== null;
-    $label = $definition->label();
+    // A preset card of the picker names itself (admin/_block_picker.php).
+    $label ??= $definition->label();
     ?>
               <button type="button" class="<?= $h($class) ?>"
                       data-block-preview-open

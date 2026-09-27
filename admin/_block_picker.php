@@ -9,6 +9,7 @@ require_once __DIR__ . '/_block_library.php';
 
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
+use App\Service\Blocks\OffersPickerPresets;
 
 /**
  * The block picker: ONE button under the page's block list — or, while the
@@ -100,6 +101,58 @@ function block_picker_empty_state(bool $canAdd): void
 }
 
 /**
+ * The picker's cards, grouped in BlockCategories order with empty groups left
+ * out: one card per block, or one per PRESET for a block that offers presets
+ * (App\Service\Blocks\OffersPickerPresets) — the gallery shows as
+ * "Collectiegalerij" under Shop and "Portfoliogalerij" under Portfolio, each
+ * card its own category, words and starting setting, and all of them the one
+ * type. A block whose presets are empty keeps its ordinary card.
+ *
+ * Only the picker expands presets. The Contentblokken catalogue describes
+ * block types and groups them with BlockCategories::group(), so there the
+ * gallery is one block under its own category.
+ *
+ * @param array<string, BlockDefinition> $available type => definition
+ *
+ * @return array<string, list<array{type: string, preset: ?string, definition: BlockDefinition, label: string, description: string, category: string, use_cases: list<string>}>>
+ */
+function block_picker_cards(array $available): array
+{
+    $grouped = array_fill_keys(BlockCategories::keys(), []);
+
+    foreach ($available as $type => $definition) {
+        $presets = $definition instanceof OffersPickerPresets ? $definition->pickerPresets() : [];
+
+        if ($presets === []) {
+            $grouped[$definition->category()][] = [
+                'type' => (string) $type,
+                'preset' => null,
+                'definition' => $definition,
+                'label' => $definition->label(),
+                'description' => $definition->describedFor(),
+                'category' => $definition->category(),
+                'use_cases' => $definition->useCasesFor(),
+            ];
+            continue;
+        }
+
+        foreach ($presets as $preset => $card) {
+            $grouped[$card['category']][] = [
+                'type' => (string) $type,
+                'preset' => (string) $preset,
+                'definition' => $definition,
+                'label' => $card['label'],
+                'description' => $card['description'],
+                'category' => $card['category'],
+                'use_cases' => $card['use_cases'],
+            ];
+        }
+    }
+
+    return array_filter($grouped, static fn (array $cards): bool => $cards !== []);
+}
+
+/**
  * The panel itself. Call once per screen, near the end of the document —
  * same convention as media_picker_modal().
  *
@@ -109,7 +162,7 @@ function block_picker_empty_state(bool $canAdd): void
 function block_picker_modal(array $available, int $pageId, string $csrfToken): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $groups = BlockCategories::group($available);
+    $groups = block_picker_cards($available);
     ?>
     <div class="admin-block-picker" data-block-picker data-block-picker-layout="cards" hidden aria-hidden="true"
          role="dialog" aria-modal="true" aria-labelledby="admin-block-picker-title">
@@ -168,24 +221,32 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="page_id" value="<?= $pageId ?>">
 
-            <?php foreach ($groups as $categoryKey => $blocks): ?>
+            <?php foreach ($groups as $categoryKey => $cards): ?>
               <section class="admin-block-picker__group" data-block-picker-group="<?= $h($categoryKey) ?>">
                 <h3 class="admin-block-picker__group-title"><?= $h(BlockCategories::label($categoryKey)) ?></h3>
                 <div class="admin-block-grid">
-                  <?php foreach ($blocks as $type => $definition): ?>
+                  <?php foreach ($cards as $card): ?>
                     <?php
-                      $categoryLabel = BlockCategories::label($definition->category());
-                      $useCases = $definition->useCasesFor();
+                      $type = $card['type'];
+                      $definition = $card['definition'];
+                      $categoryLabel = BlockCategories::label($card['category']);
+                      $useCases = $card['use_cases'];
                       // Everything the search box matches on, lowercased once
                       // here so the script does no work per keystroke — and
                       // deliberately NOT including the registry key: an
                       // editor never sees `text_image_split`, so they can
                       // never usefully search for it either.
                       $terms = mb_strtolower(
-                          $definition->label() . ' ' . $definition->describedFor()
+                          $card['label'] . ' ' . $card['description']
                           . ' ' . $categoryLabel
                           . ' ' . implode(' ', $useCases)
                       );
+                      // A preset card posts its type and preset together
+                      // (api/admin/add-page-section.php); an ordinary card
+                      // posts its type, as it always did.
+                      [$choiceName, $choiceValue] = $card['preset'] === null
+                          ? ['section_type', $type]
+                          : ['section_preset', $type . ':' . $card['preset']];
                     ?>
                     <?php /* The card is the submit button that adds the block, and a
                              button cannot hold another one: the preview is its
@@ -194,17 +255,17 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                              sample and the same frame as the Contentblokken
                              library, and adds nothing. */ ?>
                     <div class="admin-block-card-slot" data-block-slot>
-                    <button type="submit" name="section_type" value="<?= $h($type) ?>"
+                    <button type="submit" name="<?= $h($choiceName) ?>" value="<?= $h($choiceValue) ?>"
                             class="admin-block-card" data-block-card
-                            data-block-category="<?= $h($definition->category()) ?>"
+                            data-block-category="<?= $h($card['category']) ?>"
                             data-block-terms="<?= $h($terms) ?>">
                       <?php block_visual($definition); ?>
                       <span class="admin-block-card__body">
                         <span class="admin-block-card__name">
                           <?php block_icon_svg($definition, 'admin-block-card__icon'); ?>
-                          <span data-block-slot-name><?= $h($definition->label()) ?></span>
+                          <span data-block-slot-name><?= $h($card['label']) ?></span>
                         </span>
-                        <span class="admin-block-card__desc" data-block-slot-description><?= $h($definition->describedFor()) ?></span>
+                        <span class="admin-block-card__desc" data-block-slot-description><?= $h($card['description']) ?></span>
                         <?php if ($useCases !== []): ?>
                           <?php /* Hidden until a search matches one of them, and
                                    then only the ones it matched. Hidden text is
@@ -223,7 +284,7 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                         <span class="admin-block-card__add" aria-hidden="true"><?= admin_te('common.add') ?></span>
                       </span>
                     </button>
-                    <?php block_library_preview_button($type, $definition, 'admin-block-card__preview'); ?>
+                    <?php block_library_preview_button($type, $definition, 'admin-block-card__preview', null, $card['label']); ?>
                     </div>
                   <?php endforeach; ?>
                 </div>

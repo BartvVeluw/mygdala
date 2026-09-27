@@ -27,7 +27,7 @@ use App\Module\ModuleRegistry;
  * name or a query. Do not replace this with a query builder or an "entity +
  * filters" abstraction; see CONTENT-BLOCKS.md.
  *
- * A SOURCE IS SIX THINGS:
+ * A SOURCE IS SEVEN THINGS:
  *
  *   label             what the editor picks in the admin.
  *   order             where it sits in that choice. The first AVAILABLE source
@@ -42,6 +42,11 @@ use App\Module\ModuleRegistry;
  *   filter_categories callable(): list<array> — optional. Only a source with
  *                     a taxonomy can offer a filter bar; a collection has
  *                     none, so a collection-backed block simply has no bar.
+ *   picker            optional: the source's own card in the block picker,
+ *                     {category, label, description, use_cases} — the
+ *                     gallery started on this source, filed under the
+ *                     module's category (App\Service\Blocks\ItemGalleryBlock,
+ *                     OffersPickerPresets). Presentation only.
  *
  * KNOWN vs AVAILABLE, the same distinction App\Service\AdminPermissions makes.
  * A source whose module is switched off is still KNOWN — a stored block keeps

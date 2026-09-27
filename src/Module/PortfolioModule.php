@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module;
 
 use App\Service\AdminPermissions;
+use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\ItemGalleryContent;
 use App\Service\PortfolioGalleryContent;
@@ -297,6 +298,15 @@ final class PortfolioModule extends ModuleDefinition
                 'order' => 10,
                 'needs_collection' => false,
                 'needs_scope' => true,
+                // Its card in the block picker: the gallery started on
+                // portfolio items, filed under Portfolio
+                // (App\Service\Blocks\ItemGalleryBlock).
+                'picker' => [
+                    'category' => BlockCategories::PORTFOLIO,
+                    'label' => 'Portfoliogalerij',
+                    'description' => 'Je portfolio-items als raster met beeld, met optioneel een filterbalk en een vergroting bij het aanklikken.',
+                    'use_cases' => ['een portfolio-overzicht', 'uitgelicht werk op de homepage'],
+                ],
                 'items' => static fn (array $settings): array => PortfolioGalleryContent::catalogueItems(
                     ($settings['portfolio_scope'] ?? '') === ItemGalleryContent::SCOPE_FEATURED
                 ),

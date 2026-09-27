@@ -46,8 +46,14 @@ final class BlockCategories
     /** Blocks asking the visitor to do something: click, fill in, get in touch. */
     public const ACTION = 'action';
 
-    /** Blocks a module contributes — today only the Shop's two. */
+    /** The Shop's blocks, and the gallery's Collectiegalerij card. */
     public const SHOP = 'shop';
+
+    /**
+     * The Portfolio's blocks (Projecten), and the gallery's Portfoliogalerij
+     * card. Like Shop, empty and therefore absent while its module is off.
+     */
+    public const PORTFOLIO = 'portfolio';
 
     /**
      * key => Dutch name, in display order.
@@ -60,6 +66,7 @@ final class BlockCategories
         self::MEDIA => 'Beeld & media',
         self::ACTION => 'Actie & interactie',
         self::SHOP => 'Shop',
+        self::PORTFOLIO => 'Portfolio',
     ];
 
     /**

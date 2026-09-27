@@ -191,7 +191,7 @@ final class BlockPresentationTest extends TestCase
      */
     public function testEveryRegisteredCategoryIsOneSomeBlockActuallyUses(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'portfolio' => true, 'multilingual' => true]);
 
         $used = [];
         foreach (BlockDefinitions::all() as $definition) {

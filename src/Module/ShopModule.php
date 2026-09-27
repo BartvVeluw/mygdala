@@ -9,6 +9,7 @@ use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminPermissions;
 use App\Service\AppUrl;
+use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\ProductGridBlock;
 use App\Service\Blocks\ShopCollectionsBlock;
 use App\Service\CollectionContent;
@@ -418,6 +419,14 @@ final class ShopModule extends ModuleDefinition
                 // gallery block still starts as the portfolio grid it always was.
                 'order' => 20,
                 'needs_collection' => true,
+                // Its card in the block picker: the gallery started on a
+                // collection, filed under Shop (App\Service\Blocks\ItemGalleryBlock).
+                'picker' => [
+                    'category' => BlockCategories::SHOP,
+                    'label' => 'Collectiegalerij',
+                    'description' => 'De producten van één collectie als raster met beeld, met optioneel een vergroting bij het aanklikken. Welke collectie kies je in het blok.',
+                    'use_cases' => ['beeld uit een collectie tonen', 'een collectie tussen je eigen tekst en beeld'],
+                ],
                 'items' => static fn (array $settings): array => CollectionGalleryItems::forCollection(
                     $settings['collection_id'] ?? null
                 ),

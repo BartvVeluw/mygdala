@@ -5,6 +5,7 @@ namespace App\Service\Blocks;
 use App\Repository\ItemGalleryRepository;
 use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
+use App\Service\Language\AdminTranslator;
 
 require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
 
@@ -23,8 +24,13 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * The items behind it are not its content: they belong to Portfolio and
  * Collecties, which keep their own CRUD and uploaded media, so deleting this
  * block deletes only the placement and its settings.
+ *
+ * IN THE PICKER it is one card per available source (OffersPickerPresets):
+ * "Collectiegalerij" under Shop and "Portfoliogalerij" under Portfolio, each
+ * starting with its source chosen. Still this one type; its own category
+ * below is what the Contentblokken catalogue shows.
  */
-final class ItemGalleryBlock extends BlockDefinition
+final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPresets
 {
     public function type(): string
     {
@@ -97,14 +103,74 @@ final class ItemGalleryBlock extends BlockDefinition
 
     public function create(string $pageSlug): array
     {
-        $key = self::newSectionKey();
-
         // Defaults to the block in its most familiar shape: the first source
         // an enabled module offers — portfolio items while the Portfolio runs
         // — with a filter bar and zoom.
+        return $this->createWithSource($pageSlug, ItemGallerySources::defaultSource());
+    }
+
+    /**
+     * One card per source an ENABLED module offers, in the sources' own
+     * order, each under the category the module names for it: a collection
+     * of the Shop under Shop ("Collectiegalerij"), portfolio items under
+     * Portfolio ("Portfoliogalerij"). The words come from the module's
+     * contribution (App\Service\ItemGallerySources, `picker`), in the
+     * editor's CMS language when the catalogue has them. A source without a
+     * `picker` entry still gets a card: the block's name with the source's,
+     * under the block's own category, so no source is ever unreachable.
+     */
+    public function pickerPresets(): array
+    {
+        $presets = [];
+
+        foreach (ItemGallerySources::available() as $source => $contribution) {
+            $source = (string) $source;
+            $picker = is_array($contribution['picker'] ?? null) ? $contribution['picker'] : [];
+            $category = (string) ($picker['category'] ?? '');
+            $useCases = [];
+
+            foreach (array_values((array) ($picker['use_cases'] ?? [])) as $index => $case) {
+                $useCases[] = self::presetWord($source, 'use_case_' . ($index + 1), (string) $case);
+            }
+
+            $presets[$source] = [
+                'label' => self::presetWord($source, 'label', (string) ($picker['label'] ?? $this->label() . ' — ' . ItemGallerySources::label($source))),
+                'description' => self::presetWord($source, 'description', (string) ($picker['description'] ?? $this->describedFor())),
+                'category' => BlockCategories::has($category) ? $category : $this->category(),
+                'use_cases' => $useCases,
+            ];
+        }
+
+        return $presets;
+    }
+
+    public function createFromPreset(string $pageSlug, string $preset): array
+    {
+        if (!ItemGallerySources::isAvailable($preset)) {
+            throw new \RuntimeException("Gallery preset \"{$preset}\" is not an available source.");
+        }
+
+        return $this->createWithSource($pageSlug, $preset);
+    }
+
+    /** A preset's words in the reader's CMS language, the module's Dutch otherwise. */
+    private static function presetWord(string $source, string $suffix, string $fallback): string
+    {
+        $key = 'block.item_gallery.preset.' . $source . '.' . $suffix;
+        // trans() answers the key itself when no catalogue knows it.
+        $word = AdminTranslator::trans($key);
+
+        return $word === $key ? $fallback : $word;
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function createWithSource(string $pageSlug, string $source): array
+    {
+        $key = self::newSectionKey();
+
         $repository = new ItemGalleryRepository();
         $repository->upsertSection($pageSlug, $key, [
-            'source_type' => ItemGallerySources::defaultSource(),
+            'source_type' => $source,
             'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
             'show_filter_bar' => true,
             'enable_lightbox' => true,

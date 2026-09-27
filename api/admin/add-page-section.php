@@ -53,6 +53,22 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 $pageId = (int) ($_POST['page_id'] ?? 0);
 $sectionType = (string) ($_POST['section_type'] ?? '');
 
+// A picker card that is a PRESET of a block (App\Service\Blocks\OffersPickerPresets)
+// posts `section_preset` = "<type>:<preset>" instead: the same type, started
+// with one setting chosen. Both halves are checked below against the same
+// closed lists the picker drew its cards from; the shape alone is checked here.
+$preset = null;
+$presetChoice = $_POST['section_preset'] ?? null;
+
+if ($presetChoice !== null) {
+    if (!is_string($presetChoice) || preg_match('/^([a-z0-9_]{1,64}):([a-z0-9_]{1,64})$/', $presetChoice, $choice) !== 1) {
+        http_response_code(400);
+        exit('This section type cannot be added to this page.');
+    }
+
+    [, $sectionType, $preset] = $choice;
+}
+
 $page = $pageId > 0 ? (new PageRepository())->findById($pageId) : null;
 
 if ($page === null) {
@@ -63,13 +79,14 @@ if ($page === null) {
 $repository = new PageSectionRepository();
 $available = SectionRegistry::availableForPage($page, $repository);
 
-if (!array_key_exists($sectionType, $available)) {
+if (!array_key_exists($sectionType, $available)
+    || ($preset !== null && !SectionRegistry::offersPreset($sectionType, $preset))) {
     http_response_code(400);
     exit('This section type cannot be added to this page.');
 }
 
 try {
-    [$sectionId, $sectionKey] = SectionRegistry::create($sectionType, (string) $page['content_key']);
+    [$sectionId, $sectionKey] = SectionRegistry::create($sectionType, (string) $page['content_key'], $preset);
     $newId = $repository->create(
         (int) $page['id'],
         (string) $page['content_key'],

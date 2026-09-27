@@ -66,9 +66,10 @@ final class ProjectCardsBlock extends BlockDefinition
         return 'Je projecten uit Portfolio als kaarten met foto en titel. Heeft een project een eigen pagina, dan klikt de bezoeker daarheen door.';
     }
 
+    /** The Portfolio's own drawer, next to the gallery's Portfoliogalerij card. */
     public function category(): string
     {
-        return BlockCategories::MEDIA;
+        return BlockCategories::PORTFOLIO;
     }
 
     /** The picture frame the Portfolio's own sidebar entry wears (admin/_header.php). */
