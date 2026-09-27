@@ -183,6 +183,14 @@ class SiteSettings
         // faded before this setting existed, so no shop changes by it.
         'shop_gallery_transition' => 'fade',
 
+        // Whether the webshop takes test or real payments when its Mollie
+        // keys are stored in the CMS: 'test' or 'live'
+        // (App\Service\Payment\MollieConfiguration). 'test' until the owner
+        // consciously chooses live on Shop → Betalingen; a stored live key
+        // alone never switches. The keys themselves are secrets and never
+        // here: they are sealed in secret_settings.
+        'shop_payment_mode' => 'test',
+
         // CMS-editable order-confirmation email copy (customer email only —
         // see App\Mail\OrderConfirmationBuilder / App\Mail\EmailPlaceholders
         // for the small, safe {{placeholder}} substitution supported here).

@@ -412,6 +412,16 @@ class OrderRepository extends Repository
         $stmt->execute(['payment_id' => $paymentId, 'id' => $orderId]);
     }
 
+    /**
+     * Whether any order ever got a payment at the provider. Shop → Betalingen
+     * asks before a live shop's live key is replaced: once customers have
+     * paid, that deserves a confirmation (App\Service\Payment\PaymentSettingsEditor).
+     */
+    public function hasAnyPayment(): bool
+    {
+        return $this->db->query('SELECT 1 FROM orders WHERE mollie_payment_id IS NOT NULL LIMIT 1')->fetchColumn() !== false;
+    }
+
     public function findById(int $orderId): ?array
     {
         $stmt = $this->db->prepare(

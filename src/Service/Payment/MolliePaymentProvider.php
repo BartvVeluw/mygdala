@@ -16,6 +16,7 @@ use Mollie\Api\Exceptions\RequestException;
 use Mollie\Api\Exceptions\RequestTimeoutException;
 use Mollie\Api\Exceptions\TooManyRequestsException;
 use Mollie\Api\Exceptions\UnauthorizedException;
+use Mollie\Api\Http\LinearRetryStrategy;
 use Mollie\Api\MollieApiClient;
 use Mollie\Api\Resources\Payment;
 
@@ -30,7 +31,9 @@ use Mollie\Api\Resources\Payment;
  *                       back to, and Mollie reports to, the configured base
  *                       URL (App\Service\AppUrl) and never the Host header of
  *                       the request that happened to start the checkout
- *   fetchPayment()      payments->get with the active key
+ *   fetchPayment()      payments->get with the active key, and once more with
+ *                       the other mode's stored key when the active one does
+ *                       not know the payment (a mode switch in between)
  *   availableMethods()  methods->allEnabled: what Mollie has switched on for
  *                       the website profile of the active key; read-only
  *
@@ -103,6 +106,16 @@ final class MolliePaymentProvider implements PaymentProvider
         return new CreatedPayment((string) $payment->id, $checkoutUrl);
     }
 
+    /**
+     * With the active key first. A payment is only visible to a key of the
+     * mode it was made in, so when Mollie does not know it under the active
+     * key and the OTHER mode has a stored key, it is asked once more with
+     * that one: a test payment still reaches its order after the shop went
+     * live, and a live payment after the owner switched back to test to try
+     * something. Only a not-found answer leads to the second question; when
+     * that one fails too, the payment is not found, unless Mollie could not
+     * be reached, which the webhook must hear as temporary.
+     */
     public function fetchPayment(string $paymentId): PaymentSnapshot
     {
         $key = $this->configuration->activeKey();
@@ -110,7 +123,25 @@ final class MolliePaymentProvider implements PaymentProvider
         try {
             return self::snapshot($this->client($key)->payments->get($paymentId));
         } catch (\Throwable $e) {
-            throw self::translate($e);
+            $failure = self::translate($e);
+            if ($failure->kind !== PaymentProviderException::NOT_FOUND) {
+                throw $failure;
+            }
+        }
+
+        $otherKey = $this->configuration->otherModeKey();
+        if ($otherKey === null || $otherKey === $key) {
+            throw $failure;
+        }
+
+        try {
+            return self::snapshot($this->client($otherKey)->payments->get($paymentId));
+        } catch (\Throwable $e) {
+            $second = self::translate($e);
+
+            throw $second->isTemporary()
+                ? $second
+                : new PaymentProviderException(PaymentProviderException::NOT_FOUND, 'not under the active key, and the other mode\'s key answered ' . $second->kind);
         }
     }
 
@@ -286,8 +317,14 @@ final class MolliePaymentProvider implements PaymentProvider
      */
     private function methodsFor(string $key, string $language): array
     {
+        $client = $this->client($key);
+        // An administrator waits for this answer on a screen, so one quick
+        // retry instead of the SDK's five slow ones: a Mollie that is down
+        // is reported in seconds, not after a minute.
+        $client->setRetryStrategy(new LinearRetryStrategy(1, 500));
+
         try {
-            $methods = $this->client($key)->methods->allEnabled(['locale' => self::locale($language)]);
+            $methods = $client->methods->allEnabled(['locale' => self::locale($language)]);
 
             $options = [];
             foreach ($methods as $method) {

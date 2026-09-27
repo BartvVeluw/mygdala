@@ -40,6 +40,13 @@ docker/volumes/
 # override that points back inside the repo.
 /storage/personalization-uploads/*
 
+# The application key that encrypts the secrets stored in the CMS (see
+# src/Service/Secrets/MasterKey.php). Made one directory above the project
+# root by default, so this normally matches nothing - kept as a safety net for
+# a SECRETS_STORAGE_PATH override that points back inside the repo. A key in
+# git would unlock every secret of every copy of the database.
+/storage/secrets/*
+
 # CMS-uploaded Hero videos (runtime content, not source — see
 # src/Service/SectionVideoUploader.php). The uploader creates this
 # directory on demand (mkdir), so a fresh clone doesn't need it to exist.

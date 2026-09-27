@@ -34,6 +34,7 @@ final class AdminSidebarMenuHttpTest extends TestCase
         '/admin/shipping.php' => 'Verzendinstellingen',
         '/admin/carrier-rates.php' => 'Carrier-tarieven',
         '/admin/shop-settings.php' => 'Shop-instellingen',
+        '/admin/payments.php' => 'Betalingen',
         '/admin/orders.php' => 'Bestellingen',
         '/admin/withdrawal-requests.php' => 'Retourverzoeken',
     ];

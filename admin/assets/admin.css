@@ -5654,6 +5654,105 @@ body.admin-block-picker-open{ overflow: hidden; }
 .admin-page-placement__preview code{ overflow-wrap: anywhere; }
 
 /* ==========================================================================
+   Shop → Betalingen (admin/payments.php)
+
+   The status badge is the loudest thing on the screen on purpose: a shop in
+   test mode must never be mistaken for one that takes real money, so
+   TESTMODUS is a filled amber block with its word, not a small grey label.
+   The word always says the state; the colour only confirms it (forced
+   colours keep the border and the word).
+   ========================================================================== */
+
+.admin-payments-status{ border-left: 4px solid var(--admin-border-strong); }
+.admin-payments-status--test{ border-left-color: var(--admin-warning); }
+.admin-payments-status--live{ border-left-color: var(--admin-success); }
+.admin-payments-status--problem{ border-left-color: var(--admin-error); }
+
+.admin-payments-status__head{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-3);
+}
+
+.admin-payments-status__head h2{ margin: 0; }
+
+.admin-payments-status__lead{ margin: 0 0 var(--admin-sp-4); max-width: 70ch; }
+
+.admin-payments-badge{
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.9rem;
+  border: 2px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-pill);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+  white-space: nowrap;
+}
+
+.admin-payments-badge--test{ color: var(--admin-warning); border-color: var(--admin-warning); background: var(--admin-warning-soft); }
+.admin-payments-badge--live{ color: var(--admin-success); border-color: var(--admin-success); background: var(--admin-success-soft); }
+.admin-payments-badge--problem{ color: var(--admin-error); border-color: var(--admin-error); background: var(--admin-error-soft); }
+
+.admin-payments-facts{
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: 0 0 var(--admin-sp-4);
+}
+
+.admin-payments-facts dt{ color: var(--admin-text-muted); font-weight: 600; }
+.admin-payments-facts dd{ margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.admin-payments-actions{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-2) var(--admin-sp-4); }
+
+.admin-payments-result{ margin: var(--admin-sp-2) 0 0; font-weight: 600; }
+.admin-payments-actions .admin-payments-result{ margin: 0; flex: 1 1 16rem; }
+.admin-payments-result--ok{ color: var(--admin-success); }
+.admin-payments-result--error{ color: var(--admin-error); }
+
+.admin-payments-heading{ display: flex; align-items: center; gap: var(--admin-sp-2); margin-bottom: var(--admin-sp-4); }
+.admin-payments-heading h2{ margin: 0; }
+
+.admin-payments-steps{ list-style: none; margin: var(--admin-sp-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--admin-sp-3); }
+.admin-payments-step{ padding: var(--admin-sp-3) var(--admin-sp-4); border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); }
+.admin-payments-step .admin-collapse__title{ font-size: 1rem; }
+.admin-payments-step__text{ max-width: 70ch; }
+
+.admin-payments-key + .admin-payments-key{ margin-top: var(--admin-sp-5); padding-top: var(--admin-sp-5); border-top: 1px solid var(--admin-border); }
+.admin-payments-key__stored{ margin: 0 0 var(--admin-sp-2); }
+.admin-payments-key__stored--problem{ color: var(--admin-error); font-weight: 600; }
+.admin-payments-key__row{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-2); align-items: center; }
+.admin-payments-key__row input{ flex: 1 1 16rem; min-width: 0; }
+.admin-payments-confirm{ margin-top: var(--admin-sp-3); }
+
+.admin-payments-pinned p{ margin: 0 0 var(--admin-sp-2); max-width: 70ch; }
+
+.admin-payments-howto{ margin: 0 0 var(--admin-sp-4); padding-left: 1.4rem; max-width: 70ch; }
+.admin-payments-howto li + li{ margin-top: var(--admin-sp-2); }
+
+.admin-payments-copy{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-2) var(--admin-sp-3); }
+.admin-payments-copy__label{ font-weight: 600; }
+.admin-payments-copy code{
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+@media (max-width: 600px){
+  .admin-payments-facts{ grid-template-columns: minmax(0, 1fr); gap: 0 0; }
+  .admin-payments-facts dd{ margin-bottom: var(--admin-sp-3); }
+  .admin-payments-step{ padding: var(--admin-sp-3); }
+}
+
+/* ==========================================================================
    ADMIN UI PRIMITIVES (admin/_admin_ui.php, admin/assets/admin-ui.js)
 
    The shared building blocks of every admin form: field help and the global

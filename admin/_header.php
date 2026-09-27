@@ -110,6 +110,7 @@ const ADMIN_NAV_ICONS = [
     'personalization' => '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
     'shipping' => '<rect x="1" y="7" width="15" height="10" rx="1.5"/><path d="M16 10h3.5l3.5 3.5V17h-7z"/><circle cx="6" cy="19.5" r="1.8"/><circle cx="18" cy="19.5" r="1.8"/>',
     'shop_settings' => '<path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 6.8v1.4M12 13.8v1.4M7.8 11h1.4M14.8 11h1.4"/>',
+    'payments' => '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/><path d="M6.5 15h4"/>',
     'carrier_rates' =>'<path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="1.8" fill="currentColor" stroke="none"/><circle cx="14" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="10" cy="18" r="1.8" fill="currentColor" stroke="none"/>',
     'orders' => '<path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
     'contact_requests' => '<path d="M4 4h16v16H4z"/><path d="M4 6l8 6 8-6"/>',

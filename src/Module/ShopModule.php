@@ -78,9 +78,10 @@ final class ShopModule extends ModuleDefinition
 
     /**
      * ONE line in the sidebar, "Shop", instead of a line per screen: the
-     * nine screens of a webshop crowded out everything else a site owner
-     * edits. Its order is where Producten used to stand, so the rest of the
-     * sidebar keeps its place; the screens keep their own orders inside it.
+     * screens of a webshop (ten since Betalingen) crowded out everything
+     * else a site owner edits. Its order is where Producten used to stand,
+     * so the rest of the sidebar keeps its place; the screens keep their own
+     * orders inside it.
      */
     public function adminNavigationMenus(): array
     {
@@ -164,6 +165,20 @@ final class ShopModule extends ModuleDefinition
                 'permission' => AdminPermissions::SETTINGS_MANAGE,
                 'order' => 360,
                 'scripts' => ['shop-settings.php'],
+                'menu' => self::ADMIN_MENU,
+            ],
+            [
+                // Mollie: the keys, test or live, and the setup guide
+                // (MODULES.md, "Betalingen"). settings.manage like
+                // Shop-instellingen, so no new permission; the screen and
+                // its endpoints carry a ModuleGuard for the same reason.
+                'key' => 'payments',
+                'label' => 'Betalingen',
+                'url' => '/admin/payments.php',
+                'icon' => 'payments',
+                'permission' => AdminPermissions::SETTINGS_MANAGE,
+                'order' => 365,
+                'scripts' => ['payments.php'],
                 'menu' => self::ADMIN_MENU,
             ],
             [

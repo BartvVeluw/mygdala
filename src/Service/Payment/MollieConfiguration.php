@@ -4,21 +4,39 @@ declare(strict_types=1);
 
 namespace App\Service\Payment;
 
+use App\Service\Secrets\SecretStore;
+use App\Service\Secrets\SecretStoreException;
+use App\Service\SiteSettings;
 use Dotenv\Dotenv;
 
 /**
  * Which Mollie API key a payment is made with, and whether that is a test
  * key or a live one.
  *
- * THE KEY COMES FROM THE SERVER ENVIRONMENT: `MOLLIE_API_KEY` in .env. The
- * placeholder .env.example carries (`test_xxxx…`) is no key, so an
- * installation that copied it counts as not configured instead of sending a
- * made-up key to Mollie.
+ * THE PRECEDENCE CHAIN, and there is exactly one (the shape of
+ * App\Service\AppUrl's):
  *
- * TEST OR LIVE is the key's own prefix, exactly as Mollie defines it: a
- * `test_` key only ever makes test payments, a `live_` key real ones.
+ *   1. MOLLIE_API_KEY in the server environment (.env). A deployment that
+ *      sets it decides: its prefix is the mode, and nothing saved in the CMS
+ *      can replace or erase it; the Betalingen screen says "Geconfigureerd
+ *      via serveromgeving" and offers no key fields. The placeholder
+ *      .env.example carries (`test_xxxx…`) is no key and does not count.
+ *   2. The keys stored on Shop → Betalingen: a Test API key and a Live API
+ *      key, each sealed in App\Service\Secrets\SecretStore, and the mode the
+ *      owner chose (`site_settings.shop_payment_mode`, test until somebody
+ *      consciously picks live). Having a live key never switches to live.
+ *   3. Nothing: payments cannot be started, and the checkout says so before
+ *      it stores an order.
  *
- * Nothing here talks to Mollie. Whether Mollie accepts the key is what
+ * TEST OR LIVE follows Mollie's own definition: a `test_` key only ever
+ * makes test payments, a `live_` key real ones. A key in the wrong field
+ * (a live key typed as the test key) is refused by the screen.
+ *
+ * FAIL CLOSED. A stored key this installation can no longer decrypt is not
+ * a key: activeKey() throws NOT_CONFIGURED, so no payment is ever attempted
+ * with something else in its place, and the screen asks for it again.
+ *
+ * Nothing here talks to Mollie. Whether Mollie accepts a key is what
  * MolliePaymentProvider finds out.
  */
 final class MollieConfiguration
@@ -27,15 +45,33 @@ final class MollieConfiguration
 
     public const MODE_TEST = 'test';
     public const MODE_LIVE = 'live';
+    public const MODES = [self::MODE_TEST, self::MODE_LIVE];
+
+    /** The mode the owner chose on Shop → Betalingen (step 2 of the chain). */
+    public const MODE_SETTING = 'shop_payment_mode';
+
+    /** Where each key of step 2 is sealed (App\Service\Secrets\SecretStore). */
+    public const SLOTS = [
+        self::MODE_TEST => 'shop.mollie.test_api_key',
+        self::MODE_LIVE => 'shop.mollie.live_api_key',
+    ];
+
+    public const SOURCE_ENVIRONMENT = 'environment';
+    public const SOURCE_CMS = 'cms';
 
     private static bool $envLoaded = false;
+
+    private ?SecretStore $secrets;
 
     /**
      * @param array<string, string>|null $environment a test's own variables;
      *                                              null reads .env and $_ENV
      */
-    public function __construct(private readonly ?array $environment = null)
-    {
+    public function __construct(
+        private readonly ?array $environment = null,
+        ?SecretStore $secrets = null,
+    ) {
+        $this->secrets = $secrets;
     }
 
     /**
@@ -65,6 +101,21 @@ final class MollieConfiguration
     }
 
     /**
+     * What a screen shows of a key: its prefix, a row of dots and its last
+     * four characters ("test_••••••••abcd"). Enough to tell two keys apart,
+     * never enough to use one.
+     */
+    public static function mask(string $key): string
+    {
+        $mode = self::modeOfKey($key);
+        if ($mode === null) {
+            return '••••••••';
+        }
+
+        return $mode . '_' . str_repeat('•', 8) . substr($key, -4);
+    }
+
+    /**
      * The key the server environment sets, or null when it sets none (unset,
      * empty or the placeholder). A value of the wrong shape IS returned: it
      * is configured, just not usable, and the Betalingen screen says so.
@@ -80,28 +131,74 @@ final class MollieConfiguration
         return $value;
     }
 
+    /** Whether step 1 of the chain answers, leaving the CMS no say over keys or mode. */
+    public function isPinnedByEnvironment(): bool
+    {
+        return $this->environmentKey() !== null;
+    }
+
+    public function source(): string
+    {
+        return $this->isPinnedByEnvironment() ? self::SOURCE_ENVIRONMENT : self::SOURCE_CMS;
+    }
+
+    /** The mode the owner chose in the CMS: live only when that was chosen, test otherwise. */
+    public function storedMode(): string
+    {
+        return SiteSettings::get(self::MODE_SETTING) === self::MODE_LIVE ? self::MODE_LIVE : self::MODE_TEST;
+    }
+
     /**
-     * The mode payments are made in, or null while there is no usable key to
-     * tell.
+     * The mode payments are made in: the environment key's prefix, or the
+     * owner's choice. Null only for an environment key of the wrong shape,
+     * which tells no mode.
      */
     public function activeMode(): ?string
     {
-        $key = $this->environmentKey();
+        $environmentKey = $this->environmentKey();
+        if ($environmentKey !== null) {
+            return self::modeOfKey($environmentKey);
+        }
 
-        return $key === null ? null : self::modeOfKey($key);
+        return $this->storedMode();
+    }
+
+    /**
+     * The key for $mode, or null when there is none. With the environment
+     * pinned that is the environment key when it is of that mode.
+     *
+     * @throws PaymentProviderException NOT_CONFIGURED when a stored key cannot be decrypted
+     */
+    public function keyFor(string $mode): ?string
+    {
+        $environmentKey = $this->environmentKey();
+        if ($environmentKey !== null) {
+            return self::modeOfKey($environmentKey) === $mode ? $environmentKey : null;
+        }
+
+        if (!isset(self::SLOTS[$mode])) {
+            return null;
+        }
+
+        try {
+            return $this->secrets()->get(self::SLOTS[$mode]);
+        } catch (SecretStoreException $e) {
+            throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'the stored ' . $mode . ' key cannot be read (' . $e->reason . ')');
+        }
     }
 
     /**
      * The key a payment is made with now.
      *
-     * @throws PaymentProviderException NOT_CONFIGURED when there is none, or it has the wrong shape
+     * @throws PaymentProviderException NOT_CONFIGURED when there is none, it has the wrong shape, or it cannot be decrypted
      */
     public function activeKey(): string
     {
-        $key = $this->environmentKey();
+        $mode = $this->activeMode();
+        $key = $mode === null ? $this->environmentKey() : $this->keyFor($mode);
 
         if ($key === null) {
-            throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'no Mollie API key is configured');
+            throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'no Mollie API key is configured for ' . ($mode ?? 'this') . ' mode');
         }
 
         if (!self::isKeyFormat($key)) {
@@ -109,6 +206,61 @@ final class MollieConfiguration
         }
 
         return $key;
+    }
+
+    /**
+     * The stored key of the mode that is NOT active, when there is a usable
+     * one: a payment made before the mode was switched is looked up with it
+     * (MolliePaymentProvider::fetchPayment()). Never throws; null with the
+     * environment pinned, which has only one key.
+     */
+    public function otherModeKey(): ?string
+    {
+        if ($this->isPinnedByEnvironment()) {
+            return null;
+        }
+
+        $other = $this->storedMode() === self::MODE_LIVE ? self::MODE_TEST : self::MODE_LIVE;
+
+        try {
+            $key = $this->keyFor($other);
+        } catch (PaymentProviderException) {
+            return null;
+        }
+
+        return $key !== null && self::modeOfKey($key) === $other ? $key : null;
+    }
+
+    /**
+     * What the Betalingen screen may show about the stored key of $mode:
+     * its masked form, when it was stored, and whether it can still be
+     * opened. Null when none is stored. Never the key.
+     *
+     * @return array{hint: string, updated_at: string, readable: bool, reason: string}|null
+     */
+    public function storedKey(string $mode): ?array
+    {
+        return isset(self::SLOTS[$mode]) ? $this->secrets()->describe(self::SLOTS[$mode]) : null;
+    }
+
+    /**
+     * Seals $key as the stored key of its own mode, replacing the previous
+     * one. The caller has checked that it has the shape of a key of $mode.
+     *
+     * @throws SecretStoreException when no application key exists or can be made
+     */
+    public function storeKey(string $mode, #[\SensitiveParameter] string $key): void
+    {
+        if (!isset(self::SLOTS[$mode]) || self::modeOfKey($key) !== $mode) {
+            throw new \InvalidArgumentException('A Mollie key is stored in the slot of its own mode only.');
+        }
+
+        $this->secrets()->put(self::SLOTS[$mode], $key, self::mask($key));
+    }
+
+    private function secrets(): SecretStore
+    {
+        return $this->secrets ??= new SecretStore(null, $this->environment);
     }
 
     private function variable(string $name): string
