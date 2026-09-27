@@ -55,6 +55,12 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module.
   alles in één transactie (`ProductVariantEditor`). Voeg geen endpoint per
   rij toe. Een nieuw veld gaat in hetzelfde formulier, met een melding op
   zijn veldnaam.
+- **Een factuur bekijken is alleen-lezen.** *Factuur bekijken* op het
+  besteloverzicht streamt via `InvoiceService::issuedPdfForOrder()` het
+  bestand dat de klant kreeg. Laat het nooit uitgeven, een nummer
+  reserveren, een bestand schrijven of mailen, en bouw geen tweede
+  factuursjabloon: `PdfInvoiceRenderer` is het enige
+  (`Tests\Service\InvoicePreviewTest`).
 - **Raak geen Core-bestand aan om iets van de Shop te regelen.** Core mag
   geen Shop-klasse en geen Shop-assetpad noemen:
   `Tests\Module\ShopDisabledTest` faalt daarop. Moet Core iets weten, voeg

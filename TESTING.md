@@ -738,6 +738,26 @@ De productgalerij en haar overgang (Product Gallery 2.0, `MODULES.md`):
                         herhaling) — de laatste ook in --testsuite migration
 ```
 
+*Factuur bekijken* (Factuurpreview 1.0, `MODULES.md`, "Shop"):
+
+```
+--testsuite shop        InvoicePreviewTest (de preview is byte voor byte het
+                        bestand dat de mail bijvoegde; een ontbrekend bestand
+                        wordt in het geheugen gerenderd uit de bevroren
+                        gegevens, gelijk op het tijdstip en het document-id
+                        van dompdf na, en niet weggeschreven; kijken geeft
+                        nooit een factuur uit; één sjabloon) en
+                        InvoicePreviewHttpTest (login, orders.view, Shop uit,
+                        400/404, headers, de knop in een nieuw tabblad, een
+                        Engels CMS toont de Nederlandse factuur, en elke rij,
+                        teller en elk factuurbestand gelijk voor en na)
+```
+
+Beide gebruiken `Tests\Support\InvoiceOrderFixture`: een betaalde bestelling
+met twee regels, verzendkosten en een apart factuuradres. Hij ruimt ook de
+PDF's op en zet de factuurteller van het jaar terug, want een factuur uitgeven
+kost een nummer.
+
 Wat de overgang in een browser doet (vervagen, schuiven, vegen, verticaal
 scrollen, reduced motion), bewijst geen van deze tests. Na een wijziging aan
 `product-gallery.js` loop je het na in de Browser-pane. Een pane die niet

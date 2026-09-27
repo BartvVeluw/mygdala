@@ -464,7 +464,36 @@ Alles wat er ook zou zijn zonder webshop.
   bestelnummer wordt één keer gemaakt, bij het aanmaken van de bestelling, en
   opgeslagen in `orders.order_number`; mail, Mollie, beheer, export en factuur
   lezen het via `OrderRepository::orderNumber()`.
-- Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`.
+- Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`. Een
+  factuur wordt één keer uitgegeven, zodra een bestelling betaald is
+  (`OrderPaymentSync` → `InvoiceService::issueForOrderIfNeeded()`): een
+  nummer uit de doorlopende teller per jaar, een rij in `invoices` met de
+  bedrijfsgegevens bevroren in `seller_snapshot`, en een PDF buiten de
+  webroot. De bestelbevestiging voegt precies dat bestand bij. Er is één
+  sjabloon, `PdfInvoiceRenderer`, en alleen `InvoiceService` roept hem aan.
+  De factuur is altijd Nederlands; een bestelling kent geen eigen taal.
+
+  **Factuur bekijken** staat op het besteloverzicht (`admin/order.php`, kaart
+  *Factuur*) zodra er een factuur is, en opent
+  `api/admin/invoice-download.php` in een nieuw tabblad: de PDF inline in de
+  pdf-viewer van de browser, met *Download PDF* ernaast (`&mode=download`,
+  dezelfde bytes als bijlage). Dat is precies wat de klant kreeg:
+  `InvoiceService::issuedPdfForOrder()` geeft het opgeslagen bestand, of, als
+  dat weg is, dezelfde factuur opnieuw in het geheugen gerenderd uit haar
+  bevroren gegevens (eigen nummer, datum en `seller_snapshot`, de
+  orderregels van de bestelling zelf). Bekijken is **alleen-lezen**: het geeft
+  geen factuur uit, reserveert geen nummer, schrijft geen bestand en raakt
+  geen rij. Een ontbrekend bestand zet het mailpad terug
+  (`regeneratePdfIfMissing()`), niet het kijken. `orders.view` is genoeg, net
+  als voor het besteloverzicht; niet ingelogd gaat naar de login, zonder
+  `orders.view` (en met de Shop uit) volgt 403, een bestelling zonder factuur
+  geeft 404. Headers: `application/pdf`, `inline` of `attachment` met
+  `filename="factuur-<nummer>.pdf"` uit `InvoiceService::pdfFilename()`
+  (dezelfde naam als de mailbijlage, teruggebracht tot `[A-Za-z0-9._-]`
+  omdat het factuurprefix vrije tekst is), `nosniff` en
+  `Cache-Control: private, no-store`. Een opnieuw gerenderde PDF heeft dezelfde
+  inhoud maar niet dezelfde bytes: dompdf zet er het tijdstip en een
+  willekeurig document-id in.
 - Shop-instellingen — `ShopSettings`, `admin/shop-settings.php`,
   `api/admin/update-shop-settings.php`: de bedrijfsgegevens en vaste teksten
   op facturen, het bestelnummerprefix, de tekst van de bestelbevestiging
