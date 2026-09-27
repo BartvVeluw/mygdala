@@ -135,7 +135,7 @@ final class FakeMollie
             'GetPaymentRequest' => self::payment($scenario, $mode, basename($path)),
             // Payment::refunds() follows the payment's own refunds link.
             'GetPaginatedPaymentRefundsRequest', 'DynamicGetRequest' => self::refunds($scenario, basename(dirname($path))),
-            'CreatePaymentRequest' => self::created($scenario, $mode),
+            'CreatePaymentRequest' => self::created($scenarioFile, $scenario, $mode, (array) ($entry['body'] ?? [])),
         };
     }
 
@@ -200,20 +200,35 @@ final class FakeMollie
         return MockResponse::ok(['count' => count($refunds), '_embedded' => ['refunds' => $refunds], '_links' => ['next' => null]]);
     }
 
-    /** @param array<string, mixed> $scenario */
-    private static function created(array $scenario, string $mode): MockResponse
+    /**
+     * A new payment. Without a fixed id in the scenario every create gets its
+     * own, and the payment is added to the scenario as `open`, with the body
+     * it was created with, so a later GET finds it and a harness page can
+     * play Mollie's test checkout on it ("{id}" in created.checkoutUrl is
+     * the new id).
+     *
+     * @param array<string, mixed> $scenario
+     * @param array<string, mixed> $body
+     */
+    private static function created(string $scenarioFile, array $scenario, string $mode, array $body): MockResponse
     {
         $created = (array) ($scenario['created'] ?? []);
-        $id = (string) ($created['id'] ?? 'tr_fake' . bin2hex(random_bytes(4)));
+        $id = (string) ($created['id'] ?? 'tr_fake' . bin2hex(random_bytes(5)));
+        $checkoutUrl = str_replace('{id}', $id, (string) ($created['checkoutUrl'] ?? 'https://www.mollie.com/checkout/select-method/{id}'));
+
+        if (!isset($created['id'])) {
+            $scenario['payments'][$id] = ['mode' => $mode, 'status' => 'open', 'body' => $body];
+            self::write($scenarioFile, $scenario);
+        }
 
         return MockResponse::created([
             'resource' => 'payment',
             'id' => $id,
             'mode' => $mode,
             'status' => 'open',
-            'amount' => ['value' => '10.00', 'currency' => 'EUR'],
+            'amount' => (array) ($body['amount'] ?? ['value' => '10.00', 'currency' => 'EUR']),
             '_links' => [
-                'checkout' => ['href' => (string) ($created['checkoutUrl'] ?? 'https://www.mollie.com/checkout/select-method/' . $id), 'type' => 'text/html'],
+                'checkout' => ['href' => $checkoutUrl, 'type' => 'text/html'],
             ],
         ]);
     }
