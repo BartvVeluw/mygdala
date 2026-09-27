@@ -482,7 +482,14 @@ presentatie-metadata van een blok of de opslagbalk
                         (elk blok een voorbeeld door zijn eigen partial,
                         ge-escaped, zonder sitetekst) en
                         BlockPreviewContractTest (de bron van
-                        admin/block-preview.php) — geen webserver nodig
+                        admin/block-preview.php) — geen webserver nodig.
+                        BlockPickerTest bewijst ook de presets: de galerij
+                        als Collectiegalerij (Shop) en Portfoliogalerij
+                        (Portfolio), per module aan en uit
+--testsuite blocks      voegt GalleryPickerPresetHttpTest toe: een preset-
+                        kaart maakt over echte HTTP het ene item_gallery-blok
+                        met zijn bron gekozen, en een preset die het blok
+                        niet aanbiedt wordt geweigerd zonder iets toe te voegen
 --testsuite blocks      dezelfde vijf, plus ContentBlockArchitectureTest:
                         één lijst, één toevoegknop, en die staat ónder de
                         blokken; PageBuilderScreenTest: het echte
@@ -710,6 +717,33 @@ zijbalk"):
                         AdminSidebarMenuHttpTest (per account en met de Shop
                         uit: één menu, open op zijn eigen schermen)
 ```
+
+De productgalerij en haar overgang (Product Gallery 2.0, `MODULES.md`):
+
+```
+--testsuite fast        ProductGalleryTransitionTest (de resolver: product ??
+                        Shop ?? fade, de gesloten lijst, wat de editor mag
+                        posten), ShopGalleryContractTest (contain en cover,
+                        één show() voor klik, vegen, pijltjes en variant,
+                        het woord nogmaals gecontroleerd in het script,
+                        vegen zonder preventDefault) en ShopSettingsTest
+                        (het tabblad Productpagina) — niets nodig
+--testsuite shop        voegt ProductGalleryTransitionHttpTest toe (elke keuze
+                        in de ene opslag van de producteditor, weigeren
+                        zonder iets op te slaan, een nieuw product volgt de
+                        Shop, Shop-instellingen, en het opgeloste woord op de
+                        productpagina als de standaard verandert) en
+                        ProductGalleryTransitionMigrationTest (vers en
+                        upgrade, bestaande producten en foto's ongewijzigd,
+                        herhaling) — de laatste ook in --testsuite migration
+```
+
+Wat de overgang in een browser doet (vervagen, schuiven, vegen, verticaal
+scrollen, reduced motion), bewijst geen van deze tests. Na een wijziging aan
+`product-gallery.js` loop je het na in de Browser-pane. Een pane die niet
+tekent bevriest CSS-transities en laat `img.decode()` niet oplossen: pauzeer
+de `getAnimations()` van beide foto's, zet `currentTime` op de helft en lees
+`opacity`/`transform` af.
 
 Wat een klik in de browser doet, bewijst geen van deze tests. Na een
 wijziging aan `admin-editor.js`, `product-variants.js`, `row-list.js` of

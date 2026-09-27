@@ -62,7 +62,7 @@ adminpaneel is.
 | `src/Update/` | De ingebouwde updater: het eigendomscontract (`Ownership`), de ene versie (`AppVersion`, bestand `VERSION`), de ondertekende feed, pakketverwerking, preflight, back-up en restore, de hervatbare state machine (`Updater`) en de onderhoudsguard; `Build/` is de releasebouwer achter `scripts/release.php` (`docs/updates/`) |
 | `src/Module/` | Het moduleregister en de first-party modules (`ShopModule`, `PersonalizationModule`, `BlogModule`) |
 | `src/Service/` | Applicatielogica; `*Content`-klassen lezen blokinhoud |
-| `src/Service/Blocks/` | Eén blokdefinitie per bloktype, plus `BlockDefinitions` — dé registratielijst. `BlockCategories` en `BlockPreview` zijn de gesloten lijstjes waarmee een blok zichzelf in de blokkenkiezer presenteert |
+| `src/Service/Blocks/` | Eén blokdefinitie per bloktype, plus `BlockDefinitions` — dé registratielijst. `BlockCategories` en `BlockPreview` zijn de gesloten lijstjes waarmee een blok zichzelf in de blokkenkiezer presenteert; `OffersPickerPresets` laat één blok meer dan één kiezerkaart tonen (de galerij als Collectiegalerij en Portfoliogalerij) |
 | `src/Service/Language/` | Meertaligheid: het gesloten talenregister, het talenregister van de website (`SiteLanguages`, tabel `site_languages`) met zijn standaardtaal, de talen van de website, de CMS-taal en de bewerktaal per beheerder, de terugvalregel en de CMS-tekstcatalogi (`MULTILINGUAL.md`) |
 | `src/Service/Translation/` | Automatisch vertalen: het providercontract, DeepL, de dienst die editors aanroepen en de vertaalstatus (`MULTILINGUAL.md`) |
 | `src/Service/Theme/` | De vormgeving van de website: instellingen, kleurenrekenwerk, lettertypecombinaties en het CSS-overrideblok. Hoe het CMS zelf eruitziet is `Service\AdminTheme` |
@@ -83,7 +83,7 @@ adminpaneel is.
 | `assets/css/core.css`, `assets/js/core.js` | De frontend die élke pagina nodig heeft: tokens, basis, header/footer, taalwissel, reveal |
 | `assets/css/blocks/`, `assets/js/blocks/` | Per bloktype, alleen geladen op een pagina waar dat blok staat |
 | `assets/css/blog/` | De Blog-frontend, alleen geladen op een Blog-route |
-| `assets/css/shop/`, `assets/js/shop/` | Shop-frontend: `cart.*` (de mini-winkelwagen in de gedeelde header, dus overal), `shop.*` (catalogus, product, afrekenen, bestelstatus) en `personalization.css` |
+| `assets/css/shop/`, `assets/js/shop/` | Shop-frontend: `cart.*` (de mini-winkelwagen in de gedeelde header, dus overal), `shop.*` (catalogus, product, afrekenen, bestelstatus), `product-gallery.js` (de productgalerij: klikken, vegen, overgang; alleen op `product.php`) en `personalization.css` |
 | `assets/js/lightbox.js` | De ene lightbox van de site, gevraagd door het galerijblok, het blok Projecten en een Portfolio-projectpagina |
 | `assets/js/personalization.js`, `assets/js/cookie-consent.js` | Frontend van één route/onderdeel |
 | `assets/images/`, `assets/fonts/`, `assets/videos/` | Publieke media (uploads incl.) |
@@ -121,7 +121,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Media/uploads (overig)** | Beeld- en videoverwerking en -opslag die nog bij hun eigen feature horen, en het opruimen van eigen bestanden van vóór de bibliotheek | `SectionImageUploader`, `SectionVideoUploader`, `ProductImageUploader`, `ImageOptimizer` (`PortfolioImageProcessor` hoort bij Portfolio) |
 | **SEO/sitemap** | Effectieve metadata, canonicals, OG/Twitter, robots-tag, sitemap.xml, robots.txt | `SeoMetadata`, `SeoDefaults`, `PageSeo`, `Seo`, `ProductSeo`, `AppUrl`, `AppEnvironment`, `Sitemap`, `Robots`, `partials/seo-head.php`, `sitemap.php`, `robots.php` — zie `SEO.md` |
 | **Redirects** | Verhuisde publieke URL's: opslag, normalisatie, conflicten, automatische slugredirects | `Service\Redirects\*`, `RedirectRepository`, `404.php`, `admin/redirects.php` — zie `REDIRECTS.md` |
-| **Shop/catalogus** | Producten, varianten, opties, afbeeldingen, collecties, gerelateerde producten | `ProductRepository`, `ProductVariantRepository`, `ProductOptionRepository`, `ProductVariantEditor` (de Varianten-sectie in de ene opslag van de producteditor), `CollectionService`, `RelatedProductsContent`, `admin/products.php`, `admin/product-form.php`, `admin/collections.php` |
+| **Shop/catalogus** | Producten, varianten, opties, afbeeldingen, collecties, gerelateerde producten | `ProductRepository`, `ProductVariantRepository`, `ProductOptionRepository`, `ProductVariantEditor` (de Varianten-sectie in de ene opslag van de producteditor), `ProductGalleryTransition` (de overgang van de productgalerij: product ?? Shop ?? fade), `CollectionService`, `RelatedProductsContent`, `admin/products.php`, `admin/product-form.php`, `admin/collections.php` |
 | **Winkelwagen/afrekenen** | Winkelwagen (client-side), afrekenformulier, adres, verzendkeuze | `assets/js/shop/cart.js` (`vvl-cart` in `localStorage`), `assets/js/shop/shop.js`, `cart.php`, `checkout.php`, `api/checkout.php`, `Service\Address\*` |
 | **Bestellingen/betalingen** | Orders, Mollie, statussen, bevestiging, facturen, herroeping | `OrderRepository`, `OrderPaymentSync`, `MollieClientFactory`, `MolliePaymentData`, `OrderConfirmationService`, `InvoiceService`, `PdfInvoiceRenderer`, `api/mollie-webhook.php`, `admin/orders.php` |
 | **Verzending** | Zones, tarieven, berekening, PostNL-synchronisatie | `Service\Shipping\*`, `ShippingRateRepository`, `ShippingZoneRepository`, `api/shipping-quote.php`, `admin/shipping.php` |
@@ -193,6 +193,7 @@ zelf om zijn bestanden. Er is geen globale `style.css`/`main.js` meer.
 | **Core** | `assets/css/core.css`, `assets/js/core.js` | Altijd, op elke publieke pagina |
 | **Blok** | `assets/css/blocks/<type>.css`, `assets/js/blocks/<type>.js` | Alleen op een pagina waar dat blok staat |
 | **Shop** | `assets/{css,js}/shop/shop.*` | Shop-routes en de Shop-blokken (`product_grid`, `shop_collections`) |
+| **Shop (productgalerij)** | `assets/js/shop/product-gallery.js` | Alleen `product.php`, vóór `shop.js` |
 | **Shop (mini-winkelwagen)** | `assets/{css,js}/shop/cart.*` | Overal zolang de Shop aan staat, want de gedeelde header rendert de mini-winkelwagen. Gevraagd door `ShopModule::shellStyles()`, niet door Core |
 | **Blog** | `assets/css/blog/blog.css` | Alleen `/blog` en de berichten/archieven eronder; gevraagd door die routes, nooit door de schil |
 | **Gedeeld** | `assets/js/lightbox.js` | Een pagina met een zoombare kaart of een Portfolio-projectpagina; gevraagd door de blokken en `portfolio-detail.php`, nooit door de schil |

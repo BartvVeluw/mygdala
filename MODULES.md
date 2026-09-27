@@ -167,7 +167,11 @@ de volgorde waarin modules geregistreerd staan.
 
 Een galerijbron draagt ook een `order`, al komen daar alle bronnen uit
 modules: de laagste beschikbare bron is de bron waarmee een nieuw galerijblok
-begint. Portfolio-items (10) staan vóór een collectie van de Shop (20).
+begint. Portfolio-items (10) staan vóór een collectie van de Shop (20). Een
+bron kan ook zijn eigen kaart in de blokkenkiezer meegeven (`picker`: categorie,
+naam, omschrijving, voorbeelden). Zo toont de kiezer het ene galerijblok als
+*Collectiegalerij* onder Shop en *Portfoliogalerij* onder Portfolio, elk met
+zijn bron voorgekozen (`PAGE-EDITOR.md`).
 
 **Een module bezit een header-slot, niet de header.** `headerPartials()` voegt
 iets toe aan de actiezone rechts — vandaag alleen de mini-winkelwagen. De
@@ -353,7 +357,8 @@ Alles wat er ook zou zijn zonder webshop.
   `ADMIN-UI.md`, "Een editor die opslaat zonder te herladen"). Eén
   formulier en één *Opslaan*, zonder herladen:
   - het product zelf, zijn collecties en SEO;
-  - de kaart *Afbeeldingen*, met alleen de pool van het product;
+  - de kaart *Afbeeldingen*, met alleen de pool van het product en de
+    *Overgang productgalerij* (zie hieronder);
   - de kaart *Varianten*: de opties met hun waardes, en de varianten met
     hun prijs, schakelaar, afbeeldingen uit de pool en eigen beschrijving.
 
@@ -377,6 +382,42 @@ Alles wat er ook zou zijn zonder webshop.
   Een nieuw product is de enige aparte stap. `create-product.php` maakt de
   rij, want opties en varianten hebben het id nodig, en opent daarna direct
   de editor van dat product (`?created=1`).
+- **De productgalerij op de productpagina** (Product Gallery 2.0).
+  - **De grote foto is altijd heel.** `object-fit: contain` in het vierkante
+    vak, met wat binnenruimte zodat de afgeronde hoeken van het vak nooit een
+    hoek van de foto afsnijden. Staat een foto rechtop of liggend, dan blijft
+    de achtergrond van het vak eromheen zichtbaar. De thumbnails vullen hun
+    kleine vierkant juist wél (`cover`).
+  - **Eén controller**, `assets/js/shop/product-gallery.js`
+    (`window.VVLProductGallery`), die `shop.js` de foto's geeft. Klik op een
+    thumbnail, vegen, ← en → op een thumbnail en een andere variant lopen
+    allemaal via één `show(target, direction, animate)`. Zo kunnen de grote
+    foto, de actieve thumbnail (`aria-current`) en de index niet uit elkaar
+    lopen. Voorbij het eind begint hij weer vooraan, net als de lightbox.
+  - **Vegen is bediening, geen overgang.** Het werkt met touch en pen
+    (Pointer Events): minstens 50 px en duidelijk meer opzij dan omhoog.
+    Het vak heeft `touch-action: pan-y pinch-zoom` en er is geen
+    `preventDefault()`, dus verticaal scrollen blijft gewoon werken. Vegen is
+    nooit de enige manier: de thumbnails blijven knoppen.
+  - **Drie overgangen, een gesloten lijst**
+    (`App\Service\ProductGalleryTransition`): `none` (direct), `fade`
+    (overvloeien) en `slide` (de nieuwe foto schuift in vanaf de kant waar
+    hij vandaan komt; bij een thumbnail bepaalt het indexverschil de kant).
+    Elke wissel wacht tot de volgende foto gedecodeerd is (hooguit 400 ms),
+    zodat het vak nooit leeg flitst of van maat verandert.
+    `prefers-reduced-motion` maakt elke wissel direct.
+  - **Twee niveaus.** Shop-instellingen → Productpagina →
+    *Standaard overgang productgalerij* (`site_settings.shop_gallery_transition`,
+    standaard `fade`, omdat de galerij al vervaagde). Per product staat in de
+    producteditor, kaart *Afbeeldingen*, *Overgang productgalerij*:
+    *Standaard van Shop* (`products.gallery_transition` = NULL) of een eigen
+    keuze. NULL is geen kopie, dus een product dat de Shop volgt verandert
+    mee als de standaard verandert. Een nieuw product volgt de Shop.
+    `ProductGalleryTransition::resolve()` is de enige plek die
+    "product ?? Shop ?? fade" uitrekent. `product.php` zet het resultaat in
+    `data-gallery-transition`, en het script controleert het nogmaals tegen
+    dezelfde drie woorden. Een onbekende opgeslagen waarde valt terug en komt
+    nooit zelf op de pagina.
 - **In de zijbalk één menu *Shop*** (`ShopModule::adminNavigationMenus()`,
   `ADMIN-UI.md`, "Menu's in de zijbalk"). Het staat op de plek waar
   Producten stond en bevat alle Shop-schermen plus Personalisatie, in hun
@@ -426,8 +467,9 @@ Alles wat er ook zou zijn zonder webshop.
 - Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`.
 - Shop-instellingen — `ShopSettings`, `admin/shop-settings.php`,
   `api/admin/update-shop-settings.php`: de bedrijfsgegevens en vaste teksten
-  op facturen, het bestelnummerprefix en de tekst van de bestelbevestiging,
-  met "Herstel standaardtekst" en uitleg bij de invulvelden. Dit waren de
+  op facturen, het bestelnummerprefix, de tekst van de bestelbevestiging
+  (met "Herstel standaardtekst" en uitleg bij de invulvelden), het
+  productoverzicht en de standaard overgang van de productgalerij. Dit waren de
   tabbladen Facturen en E-mails van Instellingen; het zijn dezelfde
   sleutels in `site_settings`, dus uit- en aanzetten raakt ze niet. Adres,
   KVK-nummer, e-mailadres en telefoon staan niet hier maar op
@@ -772,7 +814,8 @@ overzicht zijn aparte uitbreidingen.
 
 **Projecten op een gewone pagina.** Portfolio brengt één eigen blok mee:
 **Projecten** (`project_cards`, `src/Service/Blocks/ProjectCardsBlock.php`),
-in de blokkenkiezer onder *Beeld & media*. Het is geen tweede galerij: het
+in de blokkenkiezer onder *Portfolio*, naast de kaart *Portfoliogalerij* (het
+galerijblok met bron `portfolio` voorgekozen, `PAGE-EDITOR.md`). Het is geen tweede galerij: het
 bewaart zijn instellingen in dezelfde `item_galleries`-rij als het galerijblok,
 leest en tekent via `ItemGalleryContent` en `partials/section-item-gallery.php`,
 en krijgt zijn projecten en de link van elke kaart van de galerijbron

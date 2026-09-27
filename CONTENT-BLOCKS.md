@@ -263,6 +263,14 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    opgeslagen in plaats van per instantie (zoals de Page Hero) heeft
    daarom `max_instances => 1` nodig, anders zou een tweede aanroep dezelfde
    inhoudsrij teruggeven.
+
+   **Meer dan één kaart in de kiezer, zonder tweede bloktype.** Moet één
+   blok onder twee namen of categorieën te kiezen zijn, dan implementeert het
+   `App\Service\Blocks\OffersPickerPresets`: `pickerPresets()` geeft een
+   gesloten lijst kaarten, en `createFromPreset()` is `create()` met één
+   instelling gekozen. De galerij doet dit (*Collectiegalerij* onder Shop,
+   *Portfoliogalerij* onder Portfolio, `PAGE-EDITOR.md`). Maak hiervoor nooit
+   een tweede bloktype met dezelfde tabel, editor of partial.
 8. **Eigen JS/CSS — alleen als het blok die nodig heeft.** Zet ze in
    `assets/js/blocks/<type>.js` en `assets/css/blocks/<type>.css` en noem ze
    in je definitie:

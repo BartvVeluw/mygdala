@@ -89,6 +89,9 @@ en `GenericBlockDefaultsTest` bewaken beide.
   afbeelding óf een video neemt, gebruikt één mediakiezer met
   `MediaType::VISUAL` en laat het gekozen item beslissen (`MEDIA.md`), nooit
   een eigen keuzelijst voor het type.
+- **Eén blok, meer kiezerkaarten?** Implementeer `OffersPickerPresets`
+  (presets, zoals de galerij als Collectiegalerij en Portfoliogalerij), nooit
+  een tweede bloktype met dezelfde tabel of editor (`PAGE-EDITOR.md`).
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
 - **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de

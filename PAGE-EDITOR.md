@@ -234,9 +234,10 @@ staan, omdat twintig echte blokken in een raster te zwaar en te klein zijn om
 tussen te kiezen.
 
 **Categorieën** staan in `BlockCategories`, gesloten en op volgorde: *Kop van
-de pagina*, *Content*, *Beeld & media*, *Actie & interactie*, *Shop*. Een
-categorie zonder blokken verdwijnt vanzelf van het scherm — dat is precies
-wat er met *Shop* gebeurt zodra de Shop uit staat.
+de pagina*, *Content*, *Beeld & media*, *Actie & interactie*, *Shop*,
+*Portfolio*. Een categorie zonder blokken verdwijnt vanzelf van het scherm —
+dat is precies wat er met *Shop* gebeurt zodra de Shop uit staat, en met
+*Portfolio* zodra de Portfolio uit staat.
 
 ## De blokkenkiezer
 
@@ -274,6 +275,33 @@ de kiezer tekent er zijn kaarten mee en het endpoint valideert het geposte
 geweigerd wordt — vaste blokken, blokken die op deze pagina niet mogen,
 blokken die hun maximum al bereikt hebben, en blokken van een uitgeschakelde
 module.
+
+**Een blok kan meer dan één kaart hebben: presets.** Een blok dat
+`App\Service\Blocks\OffersPickerPresets` implementeert, krijgt in de kiezer een
+kaart per preset in plaats van één kaart: hetzelfde bloktype, met één
+instelling al gekozen, elke kaart met eigen naam, omschrijving, voorbeelden en
+categorie. Zo'n kaart post `section_preset` = `<type>:<preset>`. Het endpoint
+accepteert dat alleen als het type beschikbaar is én de preset er een is die
+het blok nu aanbiedt (`SectionRegistry::offersPreset()`). Na het toevoegen
+gedraagt het blok zich precies als een blok zonder preset, en de instelling
+is gewoon te wijzigen in zijn editor.
+
+Enige gebruiker: de galerij (`item_gallery`). Die toont een kaart per bron van
+een ingeschakelde module:
+
+| Kaart | Categorie | Bron voorgekozen |
+|---|---|---|
+| *Collectiegalerij* | *Shop* | `collection` (kies daarna de collectie) |
+| *Portfoliogalerij* | *Portfolio* | `portfolio` |
+
+Er is geen losse kaart *Portfolio-/collectiegalerij* meer. Staat een module
+uit, dan verdwijnt zijn kaart, en zonder andere blokken ook zijn kop.
+De kaartteksten komen uit de bron (`picker` in
+`ModuleDefinition::itemGallerySources()`), vertaald via
+`block.item_gallery.preset.<bron>.*`. **Alleen de kiezer** splitst: de
+Contentblokken-bibliotheek beschrijft bloktypes en toont de galerij één keer,
+onder zijn eigen categorie *Beeld & media*. *Projecten* (`project_cards`) staat
+in de kiezer en de bibliotheek onder *Portfolio*.
 
 **Een kaart zegt wat het blok is, niet alles wat erover te zeggen valt.** De
 schets, de naam met het pictogram, de beschrijving en onderaan de categorie.
@@ -748,7 +776,9 @@ welke verplicht zijn, staat in `App\Service\SiteSettingsValidator`; alleen de
 naam van de website is verplicht.
 
 **Shop-instellingen** (`admin/shop-settings.php`, alleen met de Shop aan)
-gebruikt het ook: *Bedrijfsgegevens*, *Facturen*, *Bestellingen* en *E-mails*.
+gebruikt het ook: *Bedrijfsgegevens*, *Facturen*, *Bestellingen*, *E-mails*,
+*Productoverzicht* en *Productpagina* (de standaard overgang van de
+productgalerij, `MODULES.md`).
 Dat waren de tabbladen Facturen en E-mails van Instellingen. De velden en
 tabbladen staan in `App\Service\ShopSettings`.
 
