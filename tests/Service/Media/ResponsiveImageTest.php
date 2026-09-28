@@ -227,9 +227,15 @@ final class ResponsiveImageTest extends TestCase
         $own = (new ResponsiveImage(20, 30, null, 70, 80, 'cover', 'contain'))->forRender(['src' => '/a.jpg']);
         self::assertSame(['20% 30%', '70% 80%', 'cover', 'contain'], [$own['position'], $own['mobile_position'], $own['fit'], $own['mobile_fit']]);
 
-        // A media sequence's slides never take the phone picture: no lookup at all.
-        $slide = (new ResponsiveImage(mobileMediaId: 999999))->forRender(['src' => '/a.jpg'], false);
-        self::assertNull($slide['mobile']);
+        // A media sequence's slides never take the phone picture: no lookup at
+        // all. Nor the point set on that phone picture: a slide keeps the
+        // desktop point on a phone. The phone fit is the frame's, and stays.
+        $slide = (new ResponsiveImage(10, 20, 999999, 70, 80, 'cover', 'contain'))->forRender(['src' => '/a.jpg'], false);
+        self::assertSame([null, null, 'contain'], [$slide['mobile'], $slide['mobile_position'], $slide['mobile_fit']]);
+
+        // A point of its own on the desktop picture itself goes to every slide.
+        $own = (new ResponsiveImage(10, 20, null, 70, 80))->forRender(['src' => '/a.jpg'], false);
+        self::assertSame('70% 80%', $own['mobile_position']);
     }
 
     public function testAPhonePictureOfItsOwnAlwaysHasItsOwnPoint(): void

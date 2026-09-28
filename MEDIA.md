@@ -573,7 +573,11 @@ gekozen telefoonafbeelding los, ook als de kiezer hem nog vasthoudt.
 **Een reeks** (Paginakop en Mediabanner, `App\Service\Media\MediaSequence`):
 het punt en de weergave van het blok gelden voor elke dia. Een eigen
 telefoonafbeelding geldt alleen voor een blok met één beeld; een dia krijgt
-hem nooit, want één telefoonbeeld kan niet voor een hele reeks staan. Een
+hem nooit, want één telefoonbeeld kan niet voor een hele reeks staan, en
+ook het punt dat op die telefoonafbeelding is gezet niet: een dia houdt op een
+telefoon het desktoppunt. Een eigen telefoonpunt op de desktopafbeelding zelf
+(*Mobiel focuspunt apart instellen*) geldt wel voor elke dia, net als de
+weergave op een telefoon. Een
 punt per dia is bewust niet gebouwd: de reeks is een lijst van keuzes uit de
 bibliotheek zonder eigen rij per dia in de editor, en een tweede editor per
 dia zou een tweede implementatie zijn.

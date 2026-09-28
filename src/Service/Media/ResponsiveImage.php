@@ -356,7 +356,11 @@ final class ResponsiveImage
         }
 
         $position = self::objectPosition($this->focusX, $this->focusY);
-        $mobilePoint = $this->mobileFocus($mobile !== null);
+        // A phone's own point belongs to the picture it was set on. With a
+        // phone picture of its own chosen, that is the phone picture: a slide
+        // of a sequence, or the desktop picture standing in for a phone
+        // picture that left the library, keeps the desktop point on a phone.
+        $mobilePoint = $this->mobileMediaId !== null && $mobile === null ? null : $this->mobileFocus($mobile !== null);
         $mobilePosition = $mobilePoint === null ? null : self::objectPosition($mobilePoint[0], $mobilePoint[1]);
 
         return [
