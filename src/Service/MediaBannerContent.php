@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Repository\MediaBannerRepository;
 use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaItem;
+use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
 
@@ -37,6 +38,23 @@ use App\Service\Media\MediaType;
  *   - the focus point is a picture's: a video is always centred;
  *   - a poster is only a picture, and only for a video.
  *
+ * MORE THAN ONE ITEM makes the banner a media sequence
+ * (App\Service\Media\MediaSequence, db/migrations/20260928180000): its first
+ * item stays `media_id`, the ones after it are media_banner_items, and
+ * `items` is the whole list, first included, each a MediaSequence::slide()
+ * with the library's alt text. The video contract grows with it:
+ *   - "plays by itself" (video_autoplay) is the sequence's: a picture stays
+ *     `duration` seconds, a video plays to its end, muted, then the next
+ *     comes; "repeat" (video_loop) starts it again after its last item, and a
+ *     single video inside a sequence never loops;
+ *   - a sequence that does not play by itself has a way to move: arrows or
+ *     dots, never none (`nav`); the endpoint refuses that combination too;
+ *   - a video in a sequence that does not play by itself has its controls;
+ *   - the poster is the first item's, when that is a video; the focus point
+ *     applies to every picture.
+ * A further item that is gone, or is neither a picture nor a video, is left
+ * out; without a usable first item there is no banner at all.
+ *
  * The three states of every block (CONTENT-BLOCKS.md): no row or a failed
  * lookup is STATE_FALLBACK, a row switched off is STATE_HIDDEN. Both render
  * nothing, and so does an active row without a usable item ('kind' '').
@@ -63,7 +81,7 @@ final class MediaBannerContent
     private static array $cache = [];
 
     /**
-     * @return array{state: string, kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, focus: string, autoplay: bool, loop: bool, controls: bool}
+     * @return array{state: string, kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, focus: string, autoplay: bool, loop: bool, controls: bool, items: list<array<string, mixed>>, transition: string, duration: int, nav: string}
      *         kind is MediaType::IMAGE, MediaType::VIDEO or '' for nothing to
      *         show; templates must check 'state' !== STATE_HIDDEN first
      */
@@ -74,8 +92,13 @@ final class MediaBannerContent
             return self::$cache[$cacheKey];
         }
 
+        $further = [];
         try {
-            $row = (new MediaBannerRepository())->findBySlugAndKey($pageSlug, $sectionKey);
+            $repository = new MediaBannerRepository();
+            $row = $repository->findBySlugAndKey($pageSlug, $sectionKey);
+            if ($row !== null && (bool) $row['is_active']) {
+                $further = $repository->findItemIds((int) $row['id']);
+            }
         } catch (\Throwable $e) {
             error_log('[MediaBannerContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
             $row = null;
@@ -89,28 +112,53 @@ final class MediaBannerContent
             return self::$cache[$cacheKey] = ['state' => self::STATE_HIDDEN] + self::fromRow([]);
         }
 
-        return self::$cache[$cacheKey] = ['state' => self::STATE_ACTIVE] + self::fromRow($row);
+        return self::$cache[$cacheKey] = ['state' => self::STATE_ACTIVE] + self::fromRow($row, $further);
     }
 
     /**
      * What a stored row shows, every value checked: the item and its kind,
-     * the layout, and the video options under the contract above. For the
-     * page and for the editor alike; an empty row is an empty banner with
-     * every default.
+     * the layout, the video options under the contract above, and — when
+     * $furtherIds names more items — the whole sequence. For the page and
+     * for the editor alike; an empty row is an empty banner with every
+     * default.
      *
      * @param array<string, mixed> $row
+     * @param list<int>            $furtherIds the items after the first (media_banner_items), in order
      *
-     * @return array{kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, focus: string, autoplay: bool, loop: bool, controls: bool}
+     * @return array{kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, focus: string, autoplay: bool, loop: bool, controls: bool, items: list<array<string, mixed>>, transition: string, duration: int, nav: string}
      */
-    public static function fromRow(array $row): array
+    public static function fromRow(array $row, array $furtherIds = []): array
     {
         $item = self::usableItem(isset($row['media_id']) ? (int) $row['media_id'] : null);
         $kind = $item?->kind() ?? '';
         $isImage = $kind === MediaType::IMAGE;
         $isVideo = $kind === MediaType::VIDEO;
 
-        $autoplay = $isVideo && (bool) ($row['video_autoplay'] ?? false);
+        // The whole sequence, first item included: only with a usable first.
+        $items = [];
+        if ($item !== null) {
+            $items[] = MediaSequence::slide($item, $item->altText);
+            MediaService::preload($furtherIds);
+            foreach ($furtherIds as $id) {
+                $further = self::usableItem((int) $id);
+                if ($further !== null) {
+                    $items[] = MediaSequence::slide($further, $further->altText);
+                }
+            }
+        }
+        $isSequence = count($items) > 1;
+        $hasImage = in_array(MediaType::IMAGE, array_column($items, 'kind'), true);
+        $hasVideo = in_array(MediaType::VIDEO, array_column($items, 'kind'), true);
+
+        // Plays by itself: one video, or a whole sequence.
+        $autoplay = ($isVideo || $isSequence) && (bool) ($row['video_autoplay'] ?? false);
         $poster = $isVideo ? self::poster(isset($row['poster_media_id']) ? (int) $row['poster_media_id'] : null) : null;
+
+        // A sequence that does not move by itself has a way to move.
+        $nav = MediaSequence::controls($row['slide_controls'] ?? null);
+        if ($isSequence && !$autoplay && $nav === 'none') {
+            $nav = 'dots';
+        }
 
         return [
             'kind' => $kind,
@@ -122,11 +170,15 @@ final class MediaBannerContent
             'poster' => $poster?->publicPath() ?? '',
             'width' => self::width($row['width'] ?? null),
             'height' => self::height($row['height'] ?? null),
-            'focus' => $isImage ? ImageFocus::normalise($row['image_focus'] ?? null) : ImageFocus::DEFAULT,
+            'focus' => $hasImage ? ImageFocus::normalise($row['image_focus'] ?? null) : ImageFocus::DEFAULT,
             'autoplay' => $autoplay,
-            'loop' => $isVideo && (bool) ($row['video_loop'] ?? false),
+            'loop' => ($isVideo || $isSequence) && (bool) ($row['video_loop'] ?? false),
             // Without autoplay, the controls are the only way to start it.
-            'controls' => $isVideo && (!$autoplay || (bool) ($row['video_controls'] ?? true)),
+            'controls' => $hasVideo && (!$autoplay || (bool) ($row['video_controls'] ?? true)),
+            'items' => $isSequence ? $items : [],
+            'transition' => MediaSequence::transition($row['slide_transition'] ?? null),
+            'duration' => MediaSequence::duration($row['slide_duration'] ?? null),
+            'nav' => $nav,
         ];
     }
 

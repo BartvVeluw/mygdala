@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/media-sequence.php';
+
+use App\Service\Language\SiteText;
 use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaType;
 use App\Service\MediaBannerContent;
@@ -32,6 +35,12 @@ use App\Service\MediaBannerContent;
  * assets/js/blocks/media-banner.js stops a video that plays by itself for a
  * visitor who asked for less motion, and gives it its controls.
  *
+ * MORE THAN ONE ITEM (`items`, MediaBannerContent) is a media sequence in the
+ * same frame (partials/media-sequence.php): the items one after the other,
+ * with the chosen transition, time per picture and buttons, a pause button
+ * when it plays by itself, and the frame a region named "Diavoorstelling".
+ * A banner with one item prints exactly the markup it always printed.
+ *
  * Caller must already have checked $content['state'] !==
  * MediaBannerContent::STATE_HIDDEN. STATE_FALLBACK, and an active row without
  * a picture or video, render nothing: no empty frame, no room.
@@ -59,10 +68,34 @@ function render_section_media_banner(array $content, bool $tightTop = false): vo
     $inContainer = $width !== 'full';
 
     $sectionClass = 'media-banner-section media-banner-section--' . $width . ($tightTop ? ' media-banner-section--tight-top' : '');
-    $frameClass = 'media-banner media-banner--' . $height . ' media-banner--' . $kind;
+    $items = array_values($content['items'] ?? []);
+    $isSequence = count($items) > 1;
+    $frameClass = 'media-banner media-banner--' . $height . ' media-banner--' . ($isSequence ? 'sequence' : $kind);
+    $autoplay = !empty($content['autoplay']);
+    $nav = (string) ($content['nav'] ?? 'both');
     ?>
     <section class="<?= $h($sectionClass) ?>">
       <?php if ($inContainer): ?><div class="container"><?php endif; ?>
+        <?php if ($isSequence): ?>
+        <div class="<?= $h($frameClass) ?>" data-reveal role="region" aria-roledescription="carousel" aria-label="<?= SiteText::escaped(['nl' => 'Diavoorstelling', 'en' => 'Slideshow']) ?>"<?= media_sequence_attributes([
+            'transition' => $content['transition'] ?? null,
+            'duration' => $content['duration'] ?? null,
+            'autoplay' => $autoplay,
+            'loop' => !empty($content['loop']),
+            'hover_pause' => true,
+            'swipe' => $nav !== 'none',
+        ]) ?>>
+          <?php render_media_sequence_slides($items, [
+              'transition' => $content['transition'] ?? null,
+              'focus' => $content['focus'] ?? null,
+              'media_class' => 'media-banner__media',
+              'video_autoplay' => $autoplay,
+              'video_controls' => !empty($content['controls']),
+              'poster' => (string) ($content['poster'] ?? ''),
+          ]); ?>
+          <?php render_media_sequence_controls(count($items), ['controls' => $nav, 'pause' => $autoplay]); ?>
+        </div>
+        <?php else: ?>
         <div class="<?= $h($frameClass) ?>" data-reveal>
           <?php if ($kind === MediaType::IMAGE):
               $focus = ImageFocus::normalise($content['focus'] ?? null);
@@ -81,6 +114,7 @@ function render_section_media_banner(array $content, bool $tightTop = false): vo
           <video class="media-banner__media" src="<?= $h($src) ?>"<?= $poster !== '' ? ' poster="' . $h($poster) . '"' : '' ?> playsinline preload="metadata"<?= $controls ? ' controls' : '' ?><?= $autoplay ? ' autoplay muted data-media-banner-autoplay' : '' ?><?= !empty($content['loop']) ? ' loop' : '' ?><?= $controls ? '' : ' aria-hidden="true"' ?>></video>
           <?php endif; ?>
         </div>
+        <?php endif; ?>
       <?php if ($inContainer): ?></div><?php endif; ?>
     </section>
     <?php

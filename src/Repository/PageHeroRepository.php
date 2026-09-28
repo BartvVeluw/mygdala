@@ -9,7 +9,7 @@ namespace App\Repository;
 class PageHeroRepository extends Repository
 {
     /** The choices upsert() writes only when its caller names them. */
-    private const LATER_CHOICES = ['image_mode', 'hero_height', 'image_focus'];
+    private const LATER_CHOICES = ['image_mode', 'hero_height', 'image_focus', 'slide_transition', 'slide_duration'];
 
     /**
      * @return array<string, mixed>|null null when no row exists for this slug
@@ -34,17 +34,18 @@ class PageHeroRepository extends Repository
      *
      * Every key is required, the image and the first three presentation
      * choices included: a caller that left one out would silently reset what
-     * an editor chose. The three that came later — image_mode, hero_height
-     * and image_focus (db/migrations/20260924120000) — are the exception the
+     * an editor chose. The ones that came later — image_mode, hero_height
+     * and image_focus (db/migrations/20260924120000), slide_transition and
+     * slide_duration (db/migrations/20260928180000) — are the exception the
      * other way round: a caller that does not name one leaves it as it is
      * stored, and a new row gets the column's default (no picture, medium,
-     * centre). So nothing written before they existed can reset them. The
-     * values arrive checked — `media_id` resolved against the Media Library
-     * (BlockImage::fromRequest()) or null, each choice one of
-     * PageHeroContent's closed lists and the focus an ImageFocus key — so
-     * this only writes them.
+     * centre, fade, five seconds). So nothing written before they existed
+     * can reset them. The values arrive checked — `media_id` resolved against
+     * the Media Library (BlockImage::fromRequest()) or null, each choice one
+     * of PageHeroContent's or MediaSequence's closed lists and the focus an
+     * ImageFocus key — so this only writes them.
      *
-     * @param array{media_id: int|null, content_position: string, title_size: string, text_size: string, image_mode?: string, hero_height?: string, image_focus?: string, is_active: bool} $values
+     * @param array{media_id: int|null, content_position: string, title_size: string, text_size: string, image_mode?: string, hero_height?: string, image_focus?: string, slide_transition?: string, slide_duration?: int, is_active: bool} $values
      */
     public function upsert(string $pageSlug, array $values): void
     {
@@ -83,7 +84,8 @@ class PageHeroRepository extends Repository
      * Permanently removes the row for this page slug — used by the page
      * builder's "Delete section" action (distinct from is_active, which only
      * hides it). A later "Add section" for the same page starts fresh via
-     * upsert() rather than resurrecting this row.
+     * upsert() rather than resurrecting this row. Its further pictures go
+     * with it (page_hero_images, ON DELETE CASCADE).
      */
     public function deleteBySlug(string $pageSlug): bool
     {
@@ -91,5 +93,43 @@ class PageHeroRepository extends Repository
         $stmt->execute(['page_slug' => $pageSlug]);
 
         return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * The header's FURTHER pictures, after its own (`media_id`), in their
+     * order: a media sequence (App\Service\Media\MediaSequence). Library ids
+     * only; whether they still name a picture is the reader's check.
+     *
+     * @return list<int>
+     */
+    public function findImageIds(int $heroId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT media_id FROM page_hero_images WHERE page_hero_id = :hero_id ORDER BY sort_order ASC, id ASC'
+        );
+        $stmt->execute(['hero_id' => $heroId]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Stores the header's further pictures as exactly this list, in this
+     * order. A row here is nothing but a library id and a place — no words,
+     * no settings — so the list is simply written again. The ids arrive
+     * checked (pictures of the library, the header's own picture not among
+     * them); runs inside the caller's transaction.
+     *
+     * @param list<int> $mediaIds
+     */
+    public function replaceImages(int $heroId, array $mediaIds): void
+    {
+        $this->db->prepare('DELETE FROM page_hero_images WHERE page_hero_id = :hero_id')->execute(['hero_id' => $heroId]);
+
+        $insert = $this->db->prepare(
+            'INSERT INTO page_hero_images (page_hero_id, media_id, sort_order, created_at) VALUES (:hero_id, :media_id, :sort_order, NOW())'
+        );
+        foreach (array_values($mediaIds) as $position => $mediaId) {
+            $insert->execute(['hero_id' => $heroId, 'media_id' => (int) $mediaId, 'sort_order' => $position]);
+        }
     }
 }

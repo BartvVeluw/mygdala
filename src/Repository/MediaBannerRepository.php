@@ -8,7 +8,10 @@ namespace App\Repository;
  * All SQL of the Mediabanner block (`media_banners`,
  * App\Service\Blocks\MediaBannerBlock): one row per instance, addressed by
  * (page_slug, section_key) like every block, holding the chosen library item,
- * the layout and the video options. It has no words and no child rows.
+ * the layout, the video options and the choices of a media sequence. It has
+ * no words. Its only child rows are the FURTHER items of its sequence
+ * (`media_banner_items`: a library id and a place each), after the first one
+ * in `media_id`.
  */
 final class MediaBannerRepository extends Repository
 {
@@ -22,6 +25,9 @@ final class MediaBannerRepository extends Repository
         'video_loop',
         'video_controls',
         'poster_media_id',
+        'slide_transition',
+        'slide_duration',
+        'slide_controls',
     ];
 
     public function findBySlugAndKey(string $pageSlug, string $sectionKey): ?array
@@ -93,8 +99,9 @@ final class MediaBannerRepository extends Repository
 
     /**
      * Permanently removes one instance — used by the page builder's "Delete
-     * section" action via App\Service\SectionRegistry::delete(). The library
-     * items it used stay in the library.
+     * section" action via App\Service\SectionRegistry::delete(). Its further
+     * items go with it (ON DELETE CASCADE); the library items it used stay in
+     * the library.
      */
     public function deleteSection(int $id): bool
     {
@@ -102,5 +109,43 @@ final class MediaBannerRepository extends Repository
         $stmt->execute(['id' => $id]);
 
         return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * The banner's FURTHER pictures and videos, after its first (`media_id`),
+     * in their order: a media sequence (App\Service\Media\MediaSequence).
+     * Library ids only; whether they still name a picture or a video is the
+     * reader's check.
+     *
+     * @return list<int>
+     */
+    public function findItemIds(int $bannerId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT media_id FROM media_banner_items WHERE media_banner_id = :banner_id ORDER BY sort_order ASC, id ASC'
+        );
+        $stmt->execute(['banner_id' => $bannerId]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Stores the banner's further items as exactly this list, in this order.
+     * A row here is nothing but a library id and a place, so the list is
+     * simply written again. The ids arrive checked (pictures or videos of the
+     * library, the first item not among them).
+     *
+     * @param list<int> $mediaIds
+     */
+    public function replaceItems(int $bannerId, array $mediaIds): void
+    {
+        $this->db->prepare('DELETE FROM media_banner_items WHERE media_banner_id = :banner_id')->execute(['banner_id' => $bannerId]);
+
+        $insert = $this->db->prepare(
+            'INSERT INTO media_banner_items (media_banner_id, media_id, sort_order, created_at) VALUES (:banner_id, :media_id, :sort_order, NOW())'
+        );
+        foreach (array_values($mediaIds) as $position => $mediaId) {
+            $insert->execute(['banner_id' => $bannerId, 'media_id' => (int) $mediaId, 'sort_order' => $position]);
+        }
     }
 }

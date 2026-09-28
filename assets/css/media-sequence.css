@@ -1,0 +1,183 @@
+/* ==========================================================================
+   The media sequence (partials/media-sequence.php, assets/js/media-sequence.js):
+   more than one picture or video in one frame, one after the other.
+
+   Shared, and owned by nobody but its callers, like the lightbox: the
+   Paginakop and the Mediabanner ask for it
+   (App\Service\Blocks\PageHeroBlock::styles(), MediaBannerBlock::styles()).
+   The frame is theirs — its size, its corners, the veil over a header's
+   picture — so the track simply fills whatever positioned box it is put in.
+
+   WITHOUT THE SCRIPT only the first item shows, exactly like a single
+   picture. The script marks the root .is-sequencing; from then on every item
+   lies in the same place and the one in view is .is-active. How the next one
+   arrives is the track's modifier: --fade (a crossfade), --slide (the next
+   pushes in from the side it comes from; the script places it there) or
+   --none (at once). With reduced motion every item simply appears.
+
+   THE CONTROLS lie over the frame, above everything in it: arrows at the
+   sides, dots at the bottom, the pause button in the corner. They take the
+   theme's raised surface and text colours; every target is at least 24px.
+
+   NOT HERE: any size of the frame, any colour of its own, and any rule of the
+   block around it.
+   ========================================================================== */
+
+.media-sequence{
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.media-sequence__slide{
+  position: absolute;
+  inset: 0;
+}
+.media-sequence__slide > img,
+.media-sequence__slide > video{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Without the script: the first item only. */
+[data-media-sequence]:not(.is-sequencing) .media-sequence__slide:not(:first-child){ display: none; }
+
+/* With it: everything in one place, the one in view on top. */
+.is-sequencing .media-sequence__slide{ visibility: hidden; }
+.is-sequencing .media-sequence__slide.is-active{ visibility: visible; z-index: 1; }
+
+/* The outgoing item stays whole underneath until the incoming one has faded
+   in over it, so the frame never dims to its background in between. */
+.is-sequencing .media-sequence--fade .media-sequence__slide{
+  opacity: 0;
+  transition: opacity 0s linear 900ms, visibility 0s linear 900ms;
+}
+.is-sequencing .media-sequence--fade .media-sequence__slide.is-active{
+  opacity: 1;
+  transition: opacity 900ms ease, visibility 0s;
+}
+
+.is-sequencing .media-sequence--slide .media-sequence__slide{
+  transition: transform 750ms var(--ease-premium), visibility 0s linear 750ms;
+}
+.is-sequencing .media-sequence--slide .media-sequence__slide.is-active{
+  transition: transform 750ms var(--ease-premium), visibility 0s;
+}
+.is-sequencing .media-sequence--slide .media-sequence__slide.is-entering{ transition: none; }
+
+/* A horizontal swipe steps; a vertical one still scrolls the page and two
+   fingers still zoom. */
+[data-media-sequence-swipe]{ touch-action: pan-y pinch-zoom; }
+
+/* --- The controls ------------------------------------------------------------ */
+.media-sequence__controls{
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.media-sequence__controls[hidden]{ display: none; }
+
+.media-sequence__arrow,
+.media-sequence__pause{
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--color-text-rgb), 0.28);
+  background: rgba(var(--color-surface-veil-rgb), 0.78);
+  color: var(--color-text);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.media-sequence__arrow:hover,
+.media-sequence__pause:hover{
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.media-sequence__arrow svg{ width: 1.25rem; height: 1.25rem; }
+.media-sequence__arrow--prev{ left: var(--sp-2); top: 50%; translate: 0 -50%; }
+.media-sequence__arrow--next{ right: var(--sp-2); top: 50%; translate: 0 -50%; }
+
+.media-sequence__pause{
+  right: var(--sp-2);
+  bottom: var(--sp-2);
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.media-sequence__pause svg{ width: 1rem; height: 1rem; }
+.media-sequence__icon-play{ display: none; }
+.media-sequence__pause[data-state="paused"] .media-sequence__icon-play{ display: block; }
+.media-sequence__pause[data-state="paused"] .media-sequence__icon-pause{ display: none; }
+
+.media-sequence__dots{
+  position: absolute;
+  left: 50%;
+  bottom: var(--sp-2);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: calc(100% - 7rem);
+  padding: 0.2rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(var(--color-surface-veil-rgb), 0.7);
+  pointer-events: auto;
+}
+.media-sequence__dot{
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.media-sequence__dot::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--color-text-rgb), 0.8);
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.media-sequence__dot:hover::before{ background: rgba(var(--color-text-rgb), 0.5); }
+.media-sequence__dot[aria-current="true"]::before{
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  transform: scale(1.2);
+}
+
+@media (max-width: 640px){
+  .media-sequence__arrow{ width: 2.5rem; height: 2.5rem; }
+  .media-sequence__arrow--prev{ left: var(--sp-1); }
+  .media-sequence__arrow--next{ right: var(--sp-1); }
+  .media-sequence__pause{ right: var(--sp-1); bottom: var(--sp-1); }
+  .media-sequence__dots{ bottom: var(--sp-1); }
+}
+
+/* Less motion: every item simply appears. */
+@media (prefers-reduced-motion: reduce){
+  .is-sequencing .media-sequence__slide,
+  .is-sequencing .media-sequence__slide.is-active{ transition: none; }
+  .media-sequence__dot::before{ transition: none; }
+}
+
+/* High contrast: the buttons keep a visible edge of the system's own. */
+@media (forced-colors: active){
+  .media-sequence__arrow,
+  .media-sequence__pause,
+  .media-sequence__dots{ border: 1px solid ButtonText; }
+  .media-sequence__dot::before{ border-color: ButtonText; }
+  .media-sequence__dot[aria-current="true"]::before{ background: Highlight; }
+}

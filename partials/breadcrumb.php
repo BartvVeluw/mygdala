@@ -34,16 +34,18 @@ use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\Language\SiteText;
 
 /**
- * @param bool $narrow   the trail lines up with a narrow content column
- *                       (`.container--narrow`) instead of the full one — what a
- *                       blog post's header uses, and the only reason this
- *                       parameter exists.
- * @param bool $inColumn the trail sits inside a column that already lines it
- *                       up, so it prints no container of its own: the text
- *                       beside a Paginakop's picture
- *                       (partials/section-page-hero.php).
+ * @param bool $narrow the trail lines up with a narrow content column
+ *                     (`.container--narrow`) instead of the full one — what a
+ *                     blog post's header uses, and the only reason this
+ *                     parameter exists.
+ *
+ * The trail always has a container of its own and always starts at its left
+ * edge. A Paginakop with a picture beside its text used to print it inside
+ * its text column, without a container, so it moved with the text; it is the
+ * header's own top zone there now, as over a picture behind the text
+ * (partials/section-page-hero.php).
  */
-function render_breadcrumb(?BreadcrumbTrail $trail, bool $narrow = false, bool $inColumn = false): void
+function render_breadcrumb(?BreadcrumbTrail $trail, bool $narrow = false): void
 {
     if ($trail === null || !$trail->isRenderable()) {
         return;
@@ -54,7 +56,7 @@ function render_breadcrumb(?BreadcrumbTrail $trail, bool $narrow = false, bool $
     $last = count($items) - 1;
     ?>
     <nav class="breadcrumb-bar" aria-label="<?= SiteText::escaped(['nl' => 'Kruimelpad', 'en' => 'Breadcrumb']) ?>">
-      <?php if (!$inColumn): ?><div class="container<?= $narrow ? ' container--narrow' : '' ?>"><?php endif; ?>
+      <div class="container<?= $narrow ? ' container--narrow' : '' ?>">
         <ol class="breadcrumb">
           <?php foreach ($items as $index => $item): ?>
             <li class="breadcrumb__item">
@@ -69,7 +71,7 @@ function render_breadcrumb(?BreadcrumbTrail $trail, bool $narrow = false, bool $
             </li>
           <?php endforeach; ?>
         </ol>
-      <?php if (!$inColumn): ?></div><?php endif; ?>
+      </div>
     </nav>
     <?php
 }

@@ -21,6 +21,12 @@ declare(strict_types=1);
  * part still posts its value; the endpoint decides what it means. The
  * choices in Vormgeving apply with and without a picture and are always shown.
  *
+ * MORE PICTURES: under the picture, "Meer afbeeldingen" is the shared list of
+ * a media sequence (admin/_media_sequence_field.php) — the pictures that
+ * follow the header's own one — with the transition and the time per picture
+ * once it has one. The header's own picture stays the first and keeps its alt
+ * text and focus point.
+ *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * the eyebrow, title and lead show the language chosen in the CMS shell, as
  * stored and without the default language's words in an empty translation,
@@ -37,12 +43,15 @@ require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_media_sequence_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 use App\Service\PageHeroContent;
 use App\Repository\PageHeroRepository;
 
@@ -94,6 +103,8 @@ if ($old !== null) {
         'image_mode' => (string) ($row['image_mode'] ?? PageHeroContent::IMAGE_NONE),
         'hero_height' => (string) ($row['hero_height'] ?? PageHeroContent::HEIGHT_MEDIUM),
         'image_focus' => (string) ($row['image_focus'] ?? ImageFocus::DEFAULT),
+        'slide_transition' => (string) ($row['slide_transition'] ?? MediaSequence::DEFAULT_TRANSITION),
+        'slide_duration' => (int) ($row['slide_duration'] ?? MediaSequence::DEFAULT_DURATION),
         'is_active' => (bool) $row['is_active'],
     ];
 } else {
@@ -101,6 +112,16 @@ if ($old !== null) {
 }
 
 $heroId = (int) ($row['id'] ?? 0);
+
+// The pictures after the header's own one: as a refused save handed them
+// back, else as stored. Only pictures of the library are shown.
+$sequenceIds = is_array($old) && is_array($old['sequence'] ?? null)
+    ? (MediaSequence::idsFromTokens($old['sequence']) ?? [])
+    : ($heroId > 0 ? (new PageHeroRepository())->findImageIds($heroId) : []);
+$sequenceItems = array_values(array_filter(array_map(
+    static fn (int $id): ?\App\Service\Media\MediaItem => MediaService::findImage($id),
+    $sequenceIds
+)));
 $oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
 
 /**
@@ -266,6 +287,22 @@ function pageHeroOptions(array $labels, string $current): string
             admin_t('block_pagehero.image_help')
         ); ?>
 
+        <?php /* The pictures that follow the header's own one, and how
+                 (admin/_media_sequence_field.php). */ ?>
+        <div data-page-hero-needs-image<?= $heroMedia !== null ? '' : ' hidden' ?>>
+          <?php media_sequence_field($sequenceItems, [
+              'kind' => MediaType::IMAGE,
+              'label' => admin_t('block_pagehero.slides'),
+              'help' => admin_t('help.page_hero.slides'),
+              'empty' => admin_t('block_pagehero.slides_empty'),
+              'add' => admin_t('block_pagehero.slides_add'),
+          ]); ?>
+          <?php media_sequence_choices([
+              'transition' => (string) ($values['slide_transition'] ?? ''),
+              'duration' => (int) ($values['slide_duration'] ?? 0),
+          ], $sequenceItems !== []); ?>
+        </div>
+
         <p class="admin-text-muted" data-page-hero-part="left right"<?= $isBeside ? '' : ' hidden' ?>><?= admin_te('block_pagehero.side_note') ?></p>
 
         <div class="admin-field" data-page-hero-part="left right" data-page-hero-needs-image<?= $isBeside && $heroMedia !== null ? '' : ' hidden' ?>>
@@ -342,6 +379,7 @@ function pageHeroOptions(array $labels, string $current): string
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
+<?php media_sequence_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/page-hero.js') ?>" defer></script>
 </body>

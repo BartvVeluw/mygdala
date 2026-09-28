@@ -9,12 +9,14 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_media_sequence_field.php';
 
 use App\Repository\MediaBannerRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaType;
 use App\Service\MediaBannerContent;
 use App\Service\SectionRegistry;
@@ -25,14 +27,18 @@ use App\Service\SectionRegistry;
  * video's options. The same "valid only when the page and its content row
  * really exist" gate as admin/spacer.php.
  *
- * THREE CARDS (CONTENT-BLOCKS.md, "Mediabanner"): Media (one field that takes
+ * FOUR CARDS (CONTENT-BLOCKS.md, "Mediabanner"): Media (one field that takes
  * a picture or a video from the Media Library, MediaType::VISUAL; the chosen
- * item decides which it is, so there is no image/video switch), Weergave
- * (width, height, and the focus point for a picture) and Video (autoplay,
- * loop, controls and an optional poster, for a video). What only one kind
- * needs shows only for that kind (admin/assets/media-banner.js); the server
- * prints the same `hidden` for what is stored, the form always posts every
- * field, and the endpoint decides what a value means.
+ * item decides which it is, so there is no image/video switch — and under it,
+ * once it has one, "Meer afbeeldingen en video's", the shared list of a media
+ * sequence, admin/_media_sequence_field.php), Weergave (width, height, and the
+ * focus point for a picture), Afspelen (autoplay and repeat for a video or a
+ * sequence, a video's controls, and the first video's poster) and
+ * Diavoorstelling (transition, time per picture and the visitor's buttons,
+ * for a sequence). What only some items need shows only for them
+ * (admin/assets/media-banner.js); the server prints the same `hidden` for
+ * what is stored, the form always posts every field, and the endpoint decides
+ * what a value means.
  *
  * No website language on this screen: a banner has no words. The picture's
  * alt text is the library's (Media Library → the item). Whether the block
@@ -73,6 +79,9 @@ $source = is_array($old) ? $old : [
     'video_loop' => (bool) ($section['video_loop'] ?? false),
     'video_controls' => (bool) ($section['video_controls'] ?? true),
     'poster_media_id' => (string) ($section['poster_media_id'] ?? ''),
+    'slide_transition' => $section['slide_transition'] ?? null,
+    'slide_duration' => $section['slide_duration'] ?? null,
+    'slide_controls' => $section['slide_controls'] ?? null,
 ];
 $mediaId = (string) ($source['media_id'] ?? '');
 $media = MediaBannerContent::usableItem(ctype_digit($mediaId) ? (int) $mediaId : null);
@@ -86,6 +95,20 @@ $loop = !empty($source['video_loop']);
 $controls = !empty($source['video_controls']);
 $isImage = $media !== null && $media->isPicture();
 $isVideo = $media !== null && $media->isVideo();
+
+// The items after the first: as a refused save handed them back, else as
+// stored. Only pictures and videos of the library are shown.
+$sequenceIds = is_array($old) && is_array($old['sequence'] ?? null)
+    ? (MediaSequence::idsFromTokens($old['sequence']) ?? [])
+    : $repository->findItemIds((int) $section['id']);
+$sequenceItems = array_values(array_filter(array_map(
+    static fn (int $id): ?\App\Service\Media\MediaItem => MediaBannerContent::usableItem($id),
+    $sequenceIds
+)));
+$isSequence = $media !== null && $sequenceItems !== [];
+$kinds = array_map(static fn (\App\Service\Media\MediaItem $item): string => $item->isVideo() ? 'video' : 'image', $sequenceItems);
+$hasImage = $isImage || in_array('image', $kinds, true);
+$hasVideo = $isVideo || in_array('video', $kinds, true);
 
 $pageLabel = \App\Service\PageLocalization::name((int) $page['id']);
 $csrfToken = Csrf::token();
@@ -177,6 +200,17 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
         ); ?>
       </div>
       <?php editor_field_error($fieldErrors, 'media_id'); ?>
+
+      <div data-media-banner-needs="main"<?= $media !== null ? '' : ' hidden' ?>>
+        <?php media_sequence_field($sequenceItems, [
+            'kind' => MediaType::VISUAL,
+            'label' => admin_t('block_media_banner.slides'),
+            'help' => admin_t('help.block_media_banner.slides'),
+            'empty' => admin_t('block_media_banner.slides_empty'),
+            'add' => admin_t('block_media_banner.slides_add'),
+        ]); ?>
+        <?php editor_field_error($fieldErrors, 'sequence'); ?>
+      </div>
     </section>
 
     <section class="admin-card">
@@ -184,7 +218,7 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
       <?php $choice('width', MediaBannerContent::WIDTHS, $width); ?>
       <?php $choice('height', MediaBannerContent::HEIGHTS, $height); ?>
 
-      <div data-media-banner-needs="image"<?= $isImage ? '' : ' hidden' ?>>
+      <div data-media-banner-needs="image"<?= $hasImage ? '' : ' hidden' ?>>
         <?php media_focus_field(
             'image_focus',
             $focus,
@@ -197,21 +231,37 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
       </div>
     </section>
 
-    <section class="admin-card" data-media-banner-needs="video"<?= $isVideo ? '' : ' hidden' ?>>
-      <h2><?= admin_te('block_media_banner.group_video') ?></h2>
+    <section class="admin-card" data-media-banner-needs="play"<?= $isVideo || $isSequence ? '' : ' hidden' ?>>
+      <h2><?= admin_te('block_media_banner.group_play') ?></h2>
       <?php $switch('video_autoplay', 'autoplay', $autoplay); ?>
       <?php $switch('video_loop', 'loop', $loop); ?>
-      <?php $switch('video_controls', 'controls', $controls); ?>
+      <div data-media-banner-needs="video"<?= $hasVideo ? '' : ' hidden' ?>>
+        <?php $switch('video_controls', 'controls', $controls); ?>
+      </div>
 
-      <?php media_picker_field(
-          'poster_media_id',
-          $poster,
-          admin_t('block_media_banner.poster'),
-          admin_t('block_media_banner.poster_help')
-      ); ?>
-      <?php editor_field_error($fieldErrors, 'poster_media_id'); ?>
+      <div data-media-banner-needs="main-video"<?= $isVideo ? '' : ' hidden' ?>>
+        <?php media_picker_field(
+            'poster_media_id',
+            $poster,
+            admin_t('block_media_banner.poster'),
+            admin_t('block_media_banner.poster_help')
+        ); ?>
+        <?php editor_field_error($fieldErrors, 'poster_media_id'); ?>
+      </div>
 
-      <p class="admin-text-muted"><?= admin_te('block_media_banner.video_uitleg') ?></p>
+      <p class="admin-text-muted" data-media-banner-needs="video"<?= $hasVideo ? '' : ' hidden' ?>><?= admin_te('block_media_banner.video_uitleg') ?></p>
+    </section>
+
+    <section class="admin-card" data-media-banner-needs="sequence"<?= $isSequence ? '' : ' hidden' ?>>
+      <h2><?= admin_te('block_media_banner.group_sequence') ?></h2>
+      <?php media_sequence_choices([
+          'transition' => (string) ($source['slide_transition'] ?? ''),
+          'duration' => (int) ($source['slide_duration'] ?? 0),
+          'controls' => (string) ($source['slide_controls'] ?? ''),
+      ], $isSequence, true); ?>
+      <?php editor_field_error($fieldErrors, 'slide_transition'); ?>
+      <?php editor_field_error($fieldErrors, 'slide_duration'); ?>
+      <?php editor_field_error($fieldErrors, 'slide_controls'); ?>
     </section>
 
     <section class="admin-card">
@@ -223,6 +273,7 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
 <?php media_picker_modal(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
+<?php media_sequence_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/media-banner.js') ?>" defer></script>
 </body>

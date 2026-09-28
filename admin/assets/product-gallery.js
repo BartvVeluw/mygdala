@@ -41,6 +41,12 @@
  * `data-gallery-exclude-input` names the form field of a picture that may not
  * also be in the list (the item's main picture), which is then refused like a
  * double. The server applies both rules again (App\Service\PortfolioProjectGallery).
+ *
+ * AND A MEDIA SEQUENCE'S FURTHER ITEMS (admin/_media_sequence_field.php: the
+ * Paginakop's and the Mediabanner's): the same pool, where an item may be a
+ * video (data-kind="video", or the picked item's kind). A video has no frame
+ * to show, so its card shows the Media Library's video icon instead of a
+ * picture.
  */
 (function () {
   "use strict";
@@ -71,14 +77,37 @@
       return text;
     }
 
-    /** The pool: [{token, src, name}], in display order. */
+    /** The pool: [{token, src, name, kind}], in display order. */
     var pool = Array.prototype.map.call(list.querySelectorAll("[data-gallery-item]"), function (item) {
       return {
         token: item.getAttribute("data-token"),
         src: item.getAttribute("data-src") || "",
-        name: item.getAttribute("data-name") || ""
+        name: item.getAttribute("data-name") || "",
+        kind: item.getAttribute("data-kind") === "video" ? "video" : "image"
       };
     });
+
+    /** The same decorative picture media_video_icon() prints (admin/_media_picker.php). */
+    function videoIcon() {
+      var ns = "http://www.w3.org/2000/svg";
+      var wrap = document.createElement("span");
+      wrap.className = "admin-media-video-icon";
+      wrap.setAttribute("aria-hidden", "true");
+      var svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("width", "32");
+      svg.setAttribute("height", "32");
+      svg.setAttribute("focusable", "false");
+      var rect = document.createElementNS(ns, "rect");
+      [["x", "2.5"], ["y", "5"], ["width", "19"], ["height", "14"], ["rx", "2.5"], ["fill", "none"], ["stroke", "currentColor"], ["stroke-width", "1.6"]].forEach(function (a) { rect.setAttribute(a[0], a[1]); });
+      var path = document.createElementNS(ns, "path");
+      path.setAttribute("d", "M10 9.2v5.6l4.8-2.8z");
+      path.setAttribute("fill", "currentColor");
+      svg.appendChild(rect);
+      svg.appendChild(path);
+      wrap.appendChild(svg);
+      return wrap;
+    }
 
     /** Per variant on the page: {id, label, root, list, tiles, tokens: [...]} */
     var variants = [];
@@ -132,6 +161,7 @@
         item.className = "admin-gallery__item";
         item.setAttribute("data-gallery-item", "");
         item.setAttribute("data-token", token);
+        item.setAttribute("data-kind", picture.kind === "video" ? "video" : "image");
         item.setAttribute("draggable", "true");
 
         var input = document.createElement("input");
@@ -142,12 +172,16 @@
 
         var media = document.createElement("span");
         media.className = "admin-gallery__media";
-        var img = document.createElement("img");
-        img.src = picture.src;
-        img.alt = "";
-        img.loading = "lazy";
-        img.draggable = false;
-        media.appendChild(img);
+        if (picture.kind === "video") {
+          media.appendChild(videoIcon());
+        } else {
+          var img = document.createElement("img");
+          img.src = picture.src;
+          img.alt = "";
+          img.loading = "lazy";
+          img.draggable = false;
+          media.appendChild(img);
+        }
         item.appendChild(media);
 
         var position = document.createElement("span");
@@ -366,7 +400,7 @@
         return;
       }
 
-      pool.push({ token: token, src: item.thumbnail || "", name: item.name || "", mediaId: item.id });
+      pool.push({ token: token, src: item.thumbnail || "", name: item.name || "", mediaId: item.id, kind: item.kind === "video" ? "video" : "image" });
       renderPool();
       touched();
       announce(word("added", ":name toegevoegd", { name: item.name || "" }));

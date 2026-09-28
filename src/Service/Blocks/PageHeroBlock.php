@@ -5,14 +5,16 @@ namespace App\Service\Blocks;
 use App\Repository\PageHeroRepository;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaSequence;
 use App\Service\PageHeroContent;
 
 require_once dirname(__DIR__, 3) . '/partials/section-page-hero.php';
 
 /**
  * The ordinary page hero: the H1, and optionally an eyebrow, a lead and an
- * image from the Media Library behind them or beside them, placed and sized
- * by closed choices (App\Service\PageHeroContent). One per page, addressed by
+ * image from the Media Library behind them or beside them — or several, one
+ * after the other (App\Service\Media\MediaSequence) — placed and sized by
+ * closed choices (App\Service\PageHeroContent). One per page, addressed by
  * page_slug (it predates repeatable instances and there is no second hero to
  * tell it apart from), and denied on the homepage, which has its own richer
  * HomepageHeroBlock.
@@ -190,6 +192,9 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
             'image_mode' => PageHeroContent::IMAGE_BACKGROUND,
             'hero_height' => PageHeroContent::HEIGHT_MEDIUM,
             'image_focus' => ImageFocus::DEFAULT,
+            'slide_transition' => MediaSequence::DEFAULT_TRANSITION,
+            'slide_duration' => MediaSequence::DEFAULT_DURATION,
+            'slides' => [],
         ];
     }
 
@@ -201,11 +206,18 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
     /**
      * Only the choices an editor makes. The header itself — .page-hero,
      * .eyebrow, .lead — stays in core.css, because the shop, cart, checkout,
-     * blog and legal templates print the same header by hand.
+     * blog and legal templates print the same header by hand. More than one
+     * picture is the shared media sequence, with the Mediabanner.
      */
     public function styles(): array
     {
-        return ['assets/css/blocks/page-hero.css'];
+        return ['assets/css/media-sequence.css', 'assets/css/blocks/page-hero.css'];
+    }
+
+    /** The shared media sequence: only a header with more than one picture has anything for it to do. */
+    public function scripts(): array
+    {
+        return ['assets/js/media-sequence.js'];
     }
 
     public function instanceTitle(array $pageSection): string

@@ -2,10 +2,13 @@
 
 require_once __DIR__ . '/eyebrow.php';
 require_once __DIR__ . '/breadcrumb.php';
+require_once __DIR__ . '/media-sequence.php';
 
 use App\Service\Breadcrumbs\BreadcrumbTrail;
+use App\Service\Language\SiteText;
 use App\Service\Media\BlockImage;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaType;
 use App\Service\PageHeroContent;
 
 /**
@@ -62,6 +65,16 @@ use App\Service\PageHeroContent;
  * (App\Service\Media\ImageFocus) becomes object-position, and only when it is
  * not the middle, which is what the browser does by itself.
  *
+ * MORE THAN ONE PICTURE (`slides`, the pictures after the header's own) makes
+ * the picture a media sequence in the same place (partials/media-sequence.php):
+ * the header's own picture first, the others after it, following each other
+ * by themselves with the chosen transition and time, always again from the
+ * first, with a pause button. Behind the text the whole sequence is
+ * decoration, like the single picture; beside it every picture is content,
+ * the further ones with the library's alt text, in a frame named
+ * "Diavoorstelling" like the Mediabanner's. A header with one picture
+ * prints exactly the markup it always printed.
+ *
  * $titleMaxWidthCh reproduces each page's own hand-tuned `<h1>` line-wrap
  * width (a purely cosmetic, per-page value that was never CMS content —
  * see App\Service\Blocks\PageHeroBlock); null omits
@@ -70,10 +83,13 @@ use App\Service\PageHeroContent;
  * THE BREADCRUMB is the page's own navigation (partials/breadcrumb.php), and
  * this file does not decide whether a page has one. When the page hands its
  * trail to a header with a picture ($trail, App\Service\Blocks\CarriesBreadcrumb),
- * the trail is printed inside the band: over the picture at the top of a
- * background header, above the text beside a picture. A header without a
- * picture is never handed one, so its trail stays where it always was, just
- * before it. See HEADER-FOOTER.md.
+ * the trail is printed inside the band as a zone of its own at the top: over
+ * the picture of a background header, above both columns of a header with a
+ * picture beside its text. It always starts at the left of the container,
+ * whatever the text's position (assets/css/blocks/page-hero.css): the trail
+ * is navigation, not header text. A header without a picture is never handed
+ * one, so its trail stays where it always was, just before it. See
+ * HEADER-FOOTER.md.
  *
  * @param array<string, mixed> $pageHero see PageHeroContent::forSlug()
  */
@@ -138,11 +154,39 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
         . BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null])
         . ($focus !== ImageFocus::DEFAULT ? ' style="object-position: ' . $h(ImageFocus::objectPosition($focus)) . ';"' : '')
         . ' loading="eager" decoding="async" fetchpriority="high">';
+
+    // The header's own picture and the ones after it, when there are more.
+    $further = ($isBackground || $isBeside) ? array_values($pageHero['slides'] ?? []) : [];
+    $slides = $further === [] ? [] : array_merge([[
+        'kind' => MediaType::IMAGE,
+        'src' => (string) ($pageHero['image_path'] ?? ''),
+        'alt' => $text('image_alt'),
+        'width' => $pageHero['image_width'] ?? null,
+        'height' => $pageHero['image_height'] ?? null,
+    ]], $further);
+    $sequence = $slides === [] ? '' : media_sequence_attributes([
+        'transition' => $pageHero['slide_transition'] ?? null,
+        'duration' => $pageHero['slide_duration'] ?? null,
+        'autoplay' => true,
+        'loop' => true,
+    ]);
+    if ($slides !== []) {
+        $classes[] = 'page-hero--sequence';
+    }
+    $slideOptions = [
+        'transition' => $pageHero['slide_transition'] ?? null,
+        'eager' => true,
+        'focus' => $focus,
+    ];
     ?>
-    <section class="<?= $h(implode(' ', $classes)) ?>">
+    <section class="<?= $h(implode(' ', $classes)) ?>"<?= $isBackground ? $sequence : '' ?>>
       <?php if ($isBackground): ?>
       <div class="page-hero__media">
+        <?php if ($slides !== []): ?>
+          <?php render_media_sequence_slides($slides, $slideOptions + ['decorative' => true]); ?>
+        <?php else: ?>
         <?= $picture('') ?>
+        <?php endif; ?>
       </div>
       <?php render_breadcrumb($trail); ?>
       <div class="container page-hero__body">
@@ -152,19 +196,29 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
           <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>
         <?php endif; ?>
       </div>
+      <?php if ($slides !== []): ?>
+        <?php render_media_sequence_controls(count($slides), ['controls' => 'none', 'pause' => true, 'class' => 'page-hero__sequence-controls']); ?>
+      <?php endif; ?>
       <?php elseif ($isBeside): ?>
+      <?php render_breadcrumb($trail); ?>
       <div class="container page-hero__split">
         <div class="page-hero__text">
-          <?php render_breadcrumb($trail, false, true); ?>
           <?php render_eyebrow($text('eyebrow')); ?>
           <h1<?= $titleStyle ?>><?= $h($text('title')) ?></h1>
           <?php if ($hasLead): ?>
             <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>
           <?php endif; ?>
         </div>
+        <?php if ($slides !== []): ?>
+        <figure class="page-hero__figure page-hero__figure--sequence" role="region" aria-roledescription="carousel" aria-label="<?= SiteText::escaped(['nl' => 'Diavoorstelling', 'en' => 'Slideshow']) ?>"<?= $sequence ?>>
+          <?php render_media_sequence_slides($slides, $slideOptions); ?>
+          <?php render_media_sequence_controls(count($slides), ['controls' => 'none', 'pause' => true]); ?>
+        </figure>
+        <?php else: ?>
         <figure class="page-hero__figure">
           <?= $picture($text('image_alt')) ?>
         </figure>
+        <?php endif; ?>
       </div>
       <?php else: ?>
       <div class="container">

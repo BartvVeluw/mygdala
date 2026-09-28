@@ -6,6 +6,8 @@ use App\Repository\PageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaSequence;
+use App\Service\Media\MediaService;
 use App\Service\Routing\RequestLanguage;
 
 /**
@@ -43,6 +45,15 @@ use App\Service\Routing\RequestLanguage;
  * longer names an item is no image. Its alt text is layered like every other
  * block's: the header's own `image_alt` word per language, else the item's.
  * There is no video (docs/content-blocks/DECISIONS.md).
+ *
+ * MORE PICTURES make it a media sequence (App\Service\Media\MediaSequence,
+ * db/migrations/20260928180000): `slides` are the pictures AFTER the header's
+ * own one, from page_hero_images, each with the library's alt text, and
+ * `slide_transition` and `slide_duration` say how they follow each other.
+ * The header's own picture stays the first and keeps its alt text and focus
+ * point; the focus point applies to every picture. A further picture that is
+ * gone or is not a picture is left out. Without a picture of its own a header
+ * has no picture at all, however many further ones are stored.
  *
  * THE CHOICES — where the text sits, how large the title and the intro text
  * are, where the picture goes (image_mode), how tall a header with a picture
@@ -151,7 +162,9 @@ class PageHeroContent
      *     (int|null when unknown); and content_position, title_size,
      *     text_size, image_mode and hero_height, always one of POSITIONS /
      *     SIZES / IMAGE_MODES / HEIGHTS, and image_focus, always an
-     *     ImageFocus key.
+     *     ImageFocus key; `slides`, the further pictures
+     *     (MediaSequence::slide() shapes, possibly none), with
+     *     slide_transition and slide_duration from MediaSequence's lists.
      *     Templates must only render the section when 'state' ===
      *     STATE_ACTIVE; the content fields are still present (empty, the
      *     choices at their defaults) otherwise, purely so a template that
@@ -195,7 +208,9 @@ class PageHeroContent
 
         // The block's own alt text is one of its words; the image puts the
         // library's under it (BlockImage), so it replaces the word here.
-        return self::$cache[$cacheKey] = array_merge($content, self::imageOf($row, $content['image_alt'] ?? '')) + self::choicesOf($row);
+        return self::$cache[$cacheKey] = array_merge($content, self::imageOf($row, $content['image_alt'] ?? ''))
+            + self::choicesOf($row)
+            + ['slides' => self::slidesOf($heroId, $row)];
     }
 
     /**
@@ -300,7 +315,7 @@ class PageHeroContent
      * db/migrations/20260924120000 ran) had its picture behind the text, the
      * only place there was, so that is how it reads.
      *
-     * @return array{content_position: string, title_size: string, text_size: string, image_mode: string, hero_height: string, image_focus: string}
+     * @return array{content_position: string, title_size: string, text_size: string, image_mode: string, hero_height: string, image_focus: string, slide_transition: string, slide_duration: int}
      */
     private static function choicesOf(array $row): array
     {
@@ -313,7 +328,47 @@ class PageHeroContent
             'image_mode' => self::oneOf($row['image_mode'] ?? $modeBeforeItWasAChoice, self::IMAGE_MODES, self::IMAGE_NONE),
             'hero_height' => self::oneOf($row['hero_height'] ?? null, self::HEIGHTS, self::HEIGHT_MEDIUM),
             'image_focus' => ImageFocus::normalise($row['image_focus'] ?? null),
+            'slide_transition' => MediaSequence::transition($row['slide_transition'] ?? null),
+            'slide_duration' => MediaSequence::duration($row['slide_duration'] ?? null),
         ];
+    }
+
+    /**
+     * The header's further pictures, in their order, each with the
+     * library's alt text: a picture beside the text is content, and the
+     * partial drops the alt text of a picture behind it. Nothing without a
+     * picture of the header's own, and a failed lookup is no further picture
+     * rather than a broken header.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return list<array{kind: string, src: string, mime: string, alt: string, width: int|null, height: int|null}>
+     */
+    private static function slidesOf(int $heroId, array $row): array
+    {
+        if (MediaService::findImage(isset($row['media_id']) ? (int) $row['media_id'] : null) === null) {
+            return [];
+        }
+
+        try {
+            $ids = (new PageHeroRepository())->findImageIds($heroId);
+        } catch (\Throwable $e) {
+            error_log('[PageHeroContent] further pictures lookup failed for hero ' . $heroId . ': ' . $e->getMessage());
+
+            return [];
+        }
+
+        MediaService::preload($ids);
+
+        $slides = [];
+        foreach ($ids as $id) {
+            $item = MediaService::findImage($id);
+            if ($item !== null) {
+                $slides[] = MediaSequence::slide($item, $item->altText);
+            }
+        }
+
+        return $slides;
     }
 
     /**
@@ -341,6 +396,9 @@ class PageHeroContent
             'image_mode' => self::IMAGE_NONE,
             'hero_height' => self::HEIGHT_MEDIUM,
             'image_focus' => ImageFocus::DEFAULT,
+            'slide_transition' => MediaSequence::DEFAULT_TRANSITION,
+            'slide_duration' => MediaSequence::DEFAULT_DURATION,
+            'slides' => [],
         ];
     }
 }

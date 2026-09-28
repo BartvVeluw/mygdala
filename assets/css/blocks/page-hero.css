@@ -24,17 +24,21 @@
 /* --- Where the text sits -------------------------------------------------- */
 /* The narrower boxes inside keep their own widths — the per-page line-wrap
    width on the h1 and the lead's max-width — and auto margins move them to
-   the chosen side rather than stretching them. A trail inside the header
-   follows the text. */
+   the chosen side rather than stretching them. */
 .page-hero--content-center .container{ text-align: center; }
 .page-hero--content-center h1,
 .page-hero--content-center .lead{ margin-inline: auto; }
-.page-hero--content-center .breadcrumb{ justify-content: center; }
 
 .page-hero--content-right .container{ text-align: right; }
 .page-hero--content-right h1,
 .page-hero--content-right .lead{ margin-inline-start: auto; }
-.page-hero--content-right .breadcrumb{ justify-content: flex-end; }
+
+/* The trail inside a header is navigation, not header text: it never follows
+   the text's position. It starts at the left of the container, as it does
+   on every page without a picture, whether the text is left, centred or
+   right (the trail used to follow it, which moved it into the middle of a
+   centred header). */
+.page-hero .breadcrumb-bar .container{ text-align: start; }
 
 /* --- How large the title is ------------------------------------------------ */
 .page-hero--title-small h1{ font-size: var(--fs-h2); }
@@ -45,11 +49,23 @@
 .page-hero--text-large .lead{ font-size: var(--fs-h3); }
 
 /* --- The trail inside a header --------------------------------------------- */
-/* Only a header with a picture carries its page's trail. The header already
-   keeps the fixed site header clear (.page-hero in core.css), so the trail
-   drops the clearance it has on its own and keeps only its distance to the
-   text underneath. */
+/* Only a header with a picture carries its page's trail, as a zone of its own
+   at the top: over a picture behind the text, above both columns of a
+   picture beside it. The header already keeps the fixed site header clear
+   (.page-hero in core.css), so the trail drops the clearance it has on its
+   own and keeps only its distance to what follows. */
 .page-hero .breadcrumb-bar{ padding-top: 0; padding-bottom: var(--sp-3); }
+
+/* --- More than one picture -------------------------------------------------- */
+/* A media sequence (assets/css/media-sequence.css) fills the header's own
+   picture box: the layer behind the text, or the frame beside it. Its pause
+   button sits in the lower right corner: of the band, lined up with the
+   container's edge, or of the frame. */
+.page-hero__figure--sequence{ position: relative; }
+.page-hero__sequence-controls .media-sequence__pause{
+  right: max(var(--sp-3), calc((100% - var(--container)) / 2 + var(--sp-4)));
+  bottom: var(--sp-3);
+}
 
 /* --- A picture behind the header ------------------------------------------- */
 /* ONE BAND, TWO LAYERS. The picture is an absolutely placed layer that fills

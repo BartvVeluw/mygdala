@@ -15,8 +15,9 @@ use App\Service\Media\MediaUsageProvider;
  * images), the cards of a Kaarten-carrousel, the image behind a Paginakop,
  * the Homepage Hero's image and video, the icons of Kenmerken in kaartjes,
  * the background picture of an Oproep met knop, the picture or video of a
- * Mediabanner with its poster, and both pictures of every card of a Hover
- * kaarten grid.
+ * Mediabanner with its poster, both pictures of every card of a Hover
+ * kaarten grid, and every further item of a media sequence (a Paginakop's
+ * and a Mediabanner's, App\Service\Media\MediaSequence).
  *
  * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
@@ -92,6 +93,13 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
 
             UNION ALL
 
+            SELECT hs.media_id, \'Paginakop (diavoorstelling)\', \'page-hero\', h.page_slug, NULL, NULL
+              FROM page_hero_images hs
+              JOIN page_heroes h ON h.id = hs.page_hero_id
+             WHERE hs.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
             SELECT hh.media_id, \'Homepage Hero (afbeelding)\', \'homepage-hero\', hh.page_slug, NULL, NULL
               FROM homepage_hero hh
              WHERE hh.media_id IN (' . $placeholders . ')
@@ -126,6 +134,13 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             SELECT mb.poster_media_id, \'Mediabanner (poster)\', \'media-banner\', mb.page_slug, mb.section_key, NULL
               FROM media_banners mb
              WHERE mb.poster_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT mi.media_id, \'Mediabanner (reeks)\', \'media-banner\', mb.page_slug, mb.section_key, NULL
+              FROM media_banner_items mi
+              JOIN media_banners mb ON mb.id = mi.media_banner_id
+             WHERE mi.media_id IN (' . $placeholders . ')
 
             UNION ALL
 

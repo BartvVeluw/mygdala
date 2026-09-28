@@ -6,6 +6,7 @@ namespace App\Service\Blocks;
 
 use App\Repository\MediaBannerRepository;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
 use App\Service\MediaBannerContent;
@@ -14,8 +15,9 @@ require_once dirname(__DIR__, 3) . '/partials/section-media-banner.php';
 
 /**
  * Mediabanner: one picture or one video from the Media Library as a section of
- * its own, inside the container or across the whole page, in one of four
- * heights (CONTENT-BLOCKS.md, "Mediabanner"). No words, so nothing of it is in
+ * its own — or several, one after the other (App\Service\Media\MediaSequence)
+ * — inside the container or across the whole page, in one of four heights
+ * (CONTENT-BLOCKS.md, "Mediabanner"). No words, so nothing of it is in
  * block_translations: the picture's alt text is the library's, and every
  * setting is the same in every language.
  *
@@ -43,7 +45,7 @@ final class MediaBannerBlock extends BlockDefinition
 
     public function description(): string
     {
-        return 'Een grote afbeelding of video uit de mediabibliotheek, over de breedte van de inhoud of van de hele pagina, in een hoogte die je kiest. Zonder tekst erover.';
+        return 'Een grote afbeelding of video uit de mediabibliotheek, of meerdere na elkaar, over de breedte van de inhoud of van de hele pagina, in een hoogte die je kiest. Zonder tekst erover.';
     }
 
     public function category(): string
@@ -119,6 +121,10 @@ final class MediaBannerBlock extends BlockDefinition
             'autoplay' => false,
             'loop' => false,
             'controls' => false,
+            'items' => [],
+            'transition' => MediaSequence::DEFAULT_TRANSITION,
+            'duration' => MediaSequence::DEFAULT_DURATION,
+            'nav' => MediaSequence::DEFAULT_CONTROLS,
         ];
     }
 
@@ -136,14 +142,15 @@ final class MediaBannerBlock extends BlockDefinition
         return $item === null ? '' : $item->displayName();
     }
 
+    /** The banner's own sizes, and the media sequence it shares with the Paginakop. */
     public function styles(): array
     {
-        return ['assets/css/blocks/media-banner.css'];
+        return ['assets/css/media-sequence.css', 'assets/css/blocks/media-banner.css'];
     }
 
     public function scripts(): array
     {
-        return ['assets/js/blocks/media-banner.js'];
+        return ['assets/js/media-sequence.js', 'assets/js/blocks/media-banner.js'];
     }
 
     public function editUrl(array $pageSection): ?string
