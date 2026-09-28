@@ -450,16 +450,21 @@ p{ margin: 0; }
 .main-nav__submenu a::after{ display: none; }
 
 /* Level 2 with a submenu of its own: the link fills the row, the toggle sits
-   at its end, and level 3 flies out beside the panel. Closed, the chevron
-   points to the side the flyout opens on; open, it turns back. */
-.main-nav__submenu .main-nav__row{ gap: 0.2rem; }
+   at its end, and level 3 flies out beside the panel. The chevron points to
+   the side the flyout opens on and STAYS there: only a level-1 chevron turns
+   when its submenu opens (it points down to a panel below it); a deeper one
+   already points at where its flyout appears, and turning it back would
+   point away from the open flyout. The open state is the rules below: the
+   row stays lit, and the flyout joins the panel. */
+.main-nav__submenu .main-nav__row{ gap: 0.2rem; border-radius: 6px; transition: background var(--dur-fast) var(--ease-out); }
 .main-nav__submenu .main-nav__row > .main-nav__link{ flex: 1 1 auto; }
 .main-nav__submenu .main-nav__toggle{ align-self: stretch; padding: 0.3rem 0.5rem; }
 .main-nav__submenu .main-nav__toggle:hover{ background: rgba(255,255,255,0.06); }
 .main-nav__submenu .main-nav__chevron{ transform: rotate(-90deg); }
-.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(90deg); }
-.main-nav__submenu .main-nav__item.opens-left > .main-nav__row .main-nav__chevron{ transform: rotate(90deg); }
-.main-nav__submenu .main-nav__item--has-children.opens-left.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(-90deg); }
+.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(-90deg); }
+.main-nav__submenu .main-nav__item.opens-left > .main-nav__row .main-nav__chevron,
+.main-nav__submenu .main-nav__item--has-children.opens-left.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(90deg); }
+.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row{ background: rgba(255,255,255,0.06); }
 .main-nav__submenu--level-3{
   top: calc(-0.4rem - 1px);
   left: calc(100% + 0.4rem + 1px);
@@ -469,6 +474,47 @@ p{ margin: 0; }
 .main-nav__submenu--level-3::before{ left: auto; right: 100%; top: 0; bottom: 0; width: calc(0.4rem + 2px); height: auto; }
 .main-nav__item.opens-left > .main-nav__submenu--level-3{ left: auto; right: calc(100% + 0.4rem + 1px); }
 .main-nav__item.opens-left > .main-nav__submenu--level-3::before{ right: auto; left: 100%; }
+
+/* ONE PANEL, TWO COLUMNS (desktop). A level-3 flyout is not a second box set
+   against the first: it joins it. Its containing block is the level-2
+   PANEL rather than its own row (the row is static), so it starts at the
+   panel's top edge, is at least as tall as the panel, and its border lies
+   exactly on the panel's: one hairline between two columns of the same
+   surface. The corners where the two meet are square, the flyout casts no
+   shadow back over the panel (clip-path cuts it off on that side only), and
+   the row it belongs to stays lit. Mirrored for a flyout that opens to the
+   left (.opens-left). Without JavaScript the same happens on :hover and
+   :focus-within. Mobile has no flyouts and none of this. */
+@media (min-width: 901px){
+  .main-nav__submenu .main-nav__item--has-children{ position: static; }
+  .main-nav__submenu--level-3{
+    top: -1px;
+    left: 100%;
+    min-height: calc(100% + 2px);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    clip-path: inset(-3rem -3rem -3rem 0);
+  }
+  .main-nav__submenu--level-3::before{ width: calc(0.4rem + 1px); }
+  .main-nav__item.opens-left > .main-nav__submenu--level-3{
+    left: auto;
+    right: 100%;
+    border-radius: 10px 0 0 10px;
+    clip-path: inset(-3rem 0 -3rem -3rem);
+  }
+  .main-nav__submenu:has(> .main-nav__item.is-open:not(.opens-left) > .main-nav__submenu--level-3),
+  .main-nav:not(.is-enhanced) .main-nav__submenu:has(> .main-nav__item:not(.opens-left):hover > .main-nav__submenu--level-3),
+  .main-nav:not(.is-enhanced) .main-nav__submenu:has(> .main-nav__item:not(.opens-left):focus-within > .main-nav__submenu--level-3){
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .main-nav__submenu:has(> .main-nav__item.is-open.opens-left > .main-nav__submenu--level-3),
+  .main-nav:not(.is-enhanced) .main-nav__submenu:has(> .main-nav__item.opens-left:hover > .main-nav__submenu--level-3),
+  .main-nav:not(.is-enhanced) .main-nav__submenu:has(> .main-nav__item.opens-left:focus-within > .main-nav__submenu--level-3){
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+}
 
 .header-actions{ display: flex; align-items: center; gap: var(--sp-2); }
 /* The header buttons (App\Service\NavigationService::buildButtons()): none,
@@ -658,8 +704,10 @@ p{ margin: 0; }
   .main-nav__submenu a{ font-size: 1.15rem; padding: 0.5rem; color: var(--color-text-muted); }
   .main-nav__submenu .main-nav__toggle{ align-self: center; padding: 0.3rem; }
   .main-nav__submenu .main-nav__toggle:hover{ background: none; }
-  .main-nav__submenu .main-nav__item--has-children > .main-nav__row .main-nav__chevron{ width: 18px; height: 18px; transform: none; }
-  .main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(180deg); }
+  /* A deeper chevron points down and stays so, open or closed: only level 1
+     turns (see the desktop rules above). Its row is lit while it is open. */
+  .main-nav__submenu .main-nav__item--has-children > .main-nav__row .main-nav__chevron,
+  .main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ width: 18px; height: 18px; transform: none; }
   .main-nav__submenu--level-3{
     padding: 0.25rem 1rem;
     border-radius: 10px;
