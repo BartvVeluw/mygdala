@@ -197,7 +197,9 @@ final class HoverCardGridBlock extends BlockDefinition
 
     public function styles(): array
     {
-        return ['assets/css/blocks/hover-card-grid.css'];
+        // The shared picture rules first (Responsive Media 2.0), as
+        // CardCarouselBlock does.
+        return ['assets/css/responsive-media.css', 'assets/css/blocks/hover-card-grid.css'];
     }
 
     public function scripts(): array

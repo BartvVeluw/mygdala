@@ -2270,6 +2270,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'block_hover_cards.image' => 'Image',
     'block_hover_cards.image_help' => 'Required. The alt text comes from the media library.',
     'block_hover_cards.hover_image' => 'Second image on hover (optional)',
+    'block_hover_cards.presentation_note' => 'Applies to the main picture. The picture shown on hover always fills the frame from its middle.',
     'block_hover_cards.hover_image_help' => 'Appears instead of the first when you move over the card or reach it with the keyboard. On a phone a tap shows it on a card without a link. Without a second image the first one zooms in.',
     'block_hover_cards.badge' => 'Label at the top (optional)',
     'block_hover_cards.card_title' => 'Title',

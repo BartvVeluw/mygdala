@@ -24,6 +24,10 @@
  *     (HoverCardGridContent::picture()); a video, a document or an id that
  *     names nothing is refused. The second picture is optional and follows
  *     the same rule; the same picture twice is stored once.
+ *   - how a card's main picture sits in its frame (Responsive Media 2.0):
+ *     App\Service\Media\ResponsiveImage::fromRequest(), refused part by
+ *     part next to the card (`cards.<key>.presentation.<part>`) and written
+ *     by App\Repository\ResponsiveImageRepository in the same transaction.
  *   - a card's link: App\Service\Routing\LinkChoice, the rule every block
  *     button shares. "Geen link" stores no address either (a type-less
  *     address would read as a link again, LinkChoice::storedType()).
@@ -61,7 +65,9 @@ use App\Service\HoverCardGridContent;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Routing\LinkChoice;
+use App\Repository\ResponsiveImageRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -144,9 +150,32 @@ foreach ($postedCards as $key => $fields) {
     }
 }
 $post = ['cards' => $postedCards] + $_POST;
-// The kind of link arrives already chosen on a new card: alone it does not
-// make it a card.
-$cards = EditorChildList::fromRequest($post, 'cards', 'hover_card_grid_items', array_keys($storedCards), EditorRows::parseAction($_POST['editor_action'] ?? null), ['link_type']);
+// The kind of link and the picture's presentation arrive already chosen on
+// a new card: alone they do not make it a card.
+$imageSlot = HoverCardGridContent::imageSlot();
+$preset = ['link_type'];
+foreach (['presentation', 'focus_x', 'focus_y', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'fit', 'mobile_fit'] as $part) {
+    $preset[] = $imageSlot->column($part);
+}
+$cards = EditorChildList::fromRequest($post, 'cards', 'hover_card_grid_items', array_keys($storedCards), EditorRows::parseAction($_POST['editor_action'] ?? null), $preset);
+
+/**
+ * How a card's main picture sits in its frame, and why a part of it was
+ * refused (Responsive Media 2.0). Worked out once per row: validation, the
+ * refused form and the save all ask.
+ *
+ * @return array{0: ResponsiveImage, 1: array<string, string>}
+ */
+$presentations = [];
+$presentationOf = static function (array $row) use (&$presentations, $storedCards, $imageSlot): array {
+    $storedCard = $storedCards[$row['id']] ?? null;
+
+    return $presentations[$row['key']] ??= ResponsiveImage::fromRequest(
+        $row['fields'],
+        $imageSlot,
+        $storedCard !== null ? ResponsiveImage::fromRow($storedCard, $imageSlot) : new ResponsiveImage()
+    );
+};
 
 /**
  * The link of one card, by the rule every block button shares. Worked out
@@ -172,12 +201,16 @@ $pictureId = static function (mixed $posted): ?int {
     return ctype_digit($posted) ? HoverCardGridContent::picture((int) $posted)?->id : null;
 };
 
-/** A card's own checks besides its words' lengths: its pictures and its link. */
-$cardProblems = static function (array $row) use ($pictureId, $linkOf, $languageCode, $defaultLanguage): array {
+/** A card's own checks besides its words' lengths: its pictures, their presentation and its link. */
+$cardProblems = static function (array $row) use ($pictureId, $linkOf, $presentationOf, $languageCode, $defaultLanguage): array {
     $problems = [];
 
     if ($pictureId($row['fields']['media_id'] ?? '') === null) {
         $problems['media_id'] = AdminTranslator::trans('block_hover_cards.error_image');
+    }
+
+    foreach ($presentationOf($row)[1] as $part => $message) {
+        $problems['presentation.' . $part] = $message;
     }
 
     $hover = trim((string) ($row['fields']['hover_media_id'] ?? ''));
@@ -242,7 +275,16 @@ if (!$languageIsWritable) {
     $fieldErrors += $cardErrors;
 }
 
-$old = ['language_code' => $languageCode] + $words + $settings + ['cards' => $cards->old()];
+// A refused save shows each card's presentation as it was understood: the
+// phone's picture only when "Eigen afbeelding" was chosen, and so on.
+$oldCards = $cards->old();
+foreach ($oldCards as $index => $oldCard) {
+    if (isset($presentations[$oldCard['key']])) {
+        $oldCards[$index]['fields'] = $presentations[$oldCard['key']][0]->toRow($imageSlot) + $oldCard['fields'];
+    }
+}
+
+$old = ['language_code' => $languageCode] + $words + $settings + ['cards' => $oldCards];
 
 if ($errors !== []) {
     $_SESSION['admin_hover_cards_errors'] = $errors;
@@ -261,10 +303,19 @@ try {
     $repository->updateSettings($gridId, $settings);
     BlockLocalization::save(HoverCardGridContent::TABLE, $gridId, $languageCode, $words);
 
+    $presentationRepository = new ResponsiveImageRepository();
     $cards->save(
         $languageCode,
-        static fn (array $row): int => $repository->createItem($gridId, $valuesOf($row)),
-        static fn (int $id, array $row) => $repository->updateItem($id, $valuesOf($row)),
+        static function (array $row) use ($repository, $gridId, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): int {
+            $id = $repository->createItem($gridId, $valuesOf($row));
+            $presentationRepository->save(HoverCardGridContent::ITEMS, $id, $imageSlot, $presentationOf($row)[0]);
+
+            return $id;
+        },
+        static function (int $id, array $row) use ($repository, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): void {
+            $repository->updateItem($id, $valuesOf($row));
+            $presentationRepository->save(HoverCardGridContent::ITEMS, $id, $imageSlot, $presentationOf($row)[0]);
+        },
         static fn (int $id) => $repository->deleteItem($id),
         static fn (array $order) => $repository->reorderItems($gridId, $order)
     );

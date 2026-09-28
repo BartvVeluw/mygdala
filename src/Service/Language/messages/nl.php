@@ -2278,6 +2278,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'block_hover_cards.image' => 'Afbeelding',
     'block_hover_cards.image_help' => 'Verplicht. De alt-tekst komt uit de mediabibliotheek.',
     'block_hover_cards.hover_image' => 'Tweede afbeelding bij hover (optioneel)',
+    'block_hover_cards.presentation_note' => 'Geldt voor de hoofdafbeelding. De afbeelding bij aanwijzen vult het kader altijd vanuit het midden.',
     'block_hover_cards.hover_image_help' => 'Verschijnt in plaats van de eerste als je over de kaart beweegt of er met het toetsenbord op komt. Op een telefoon toont een tik hem bij een kaart zonder link. Zonder tweede afbeelding zoomt de eerste in.',
     'block_hover_cards.badge' => 'Label bovenin (optioneel)',
     'block_hover_cards.card_title' => 'Titel',

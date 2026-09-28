@@ -301,7 +301,8 @@ final class HoverCardGridRenderTest extends TestCase
         self::assertSame(BlockCategories::MEDIA, $definition->category());
         self::assertSame('hover_card_grids', $definition->contentTable());
         self::assertSame(['hover_card_grid_items' => ['parent' => 'hover_card_grids', 'column' => 'hover_card_grid_id']], $definition->childTables());
-        self::assertSame(['assets/css/blocks/hover-card-grid.css'], $definition->styles());
+        // The shared picture rules first (Responsive Media 2.0).
+        self::assertSame(['assets/css/responsive-media.css', 'assets/css/blocks/hover-card-grid.css'], $definition->styles());
         self::assertSame(['assets/js/blocks/hover-card-grid.js'], $definition->scripts());
         self::assertSame([BlockPreview::HEADING, BlockPreview::TILES], $definition->preview());
         self::assertTrue($definition->meta()['allow_multiple']);

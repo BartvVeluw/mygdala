@@ -8,6 +8,8 @@ use App\Repository\HoverCardGridRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
 
@@ -101,6 +103,8 @@ final class HoverCardGridContent
      * @return array<string, mixed> 'state' (one of STATE_*); eyebrow, title and
      *     lead (a string each, '' when empty); the six choices, each a word of
      *     its list; and 'cards', a list of: image (src, alt, width, height),
+     *     picture (the main picture as partials/responsive-image.php prints
+     *     it: focus point, fit, a phone picture of its own),
      *     hover_image (null, or src, width, height), badge, title, body,
      *     link_label and href (a string each, href '' for a card that goes
      *     nowhere). Templates must check 'state' !== STATE_HIDDEN first; the
@@ -219,8 +223,10 @@ final class HoverCardGridContent
             $hover = null;
         }
 
+        $image = self::image($picture) + ['alt' => trim($picture->altText)];
         $card = [
-            'image' => self::image($picture) + ['alt' => trim($picture->altText)],
+            'image' => $image,
+            'picture' => ResponsiveImage::fromRow($item, self::imageSlot())->forRender($image),
             'hover_image' => $hover !== null ? self::image($hover) : null,
         ] + self::shownWords(self::ITEMS, $itemId, ['badge', 'title', 'body', 'link_label']);
 
@@ -235,6 +241,19 @@ final class HoverCardGridContent
         }
 
         return $card;
+    }
+
+    /**
+     * Where a card keeps its main picture's presentation (Responsive Media
+     * 2.0): the image_ columns of hover_card_grid_items, with a fit of its
+     * own — the picture sits in the grid's shape — and no phone height: the
+     * shape decides the frame on every screen. The second picture, shown on
+     * a hover, takes none: it is an alternative view that fills the same
+     * frame from its middle.
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id', fit: true);
     }
 
     /**

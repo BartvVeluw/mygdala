@@ -2551,6 +2551,22 @@ body.admin-login-page{
 [data-media-banner-form]:has([name="image_mobile_height"][value="normal"]:checked){ --admin-rm-mobile-ratio: 375 / 256; }
 [data-media-banner-form]:has([name="image_mobile_height"][value="large"]:checked){ --admin-rm-mobile-ratio: 375 / 416; }
 
+/* Hover kaarten (admin/hover-card-grid.php): the grid's shape decides every
+   card's frame, on a large screen and on a phone alike (hover-card-grid.css:
+   4:5, and a square for a circle, an organic blob or "Open kaarten"). A
+   circle's frame is round, so the crop shows what the card will show. */
+[data-hover-cards-form]{ --admin-rm-desktop-ratio: 4 / 5; --admin-rm-mobile-ratio: 4 / 5; }
+[data-hover-cards-form]:has([name="shape"]:is([value="circle"], [value="organic"]):checked),
+[data-hover-cards-form]:has([name="layout"][value="open"]:checked){ --admin-rm-desktop-ratio: 1 / 1; --admin-rm-mobile-ratio: 1 / 1; }
+[data-hover-cards-form]:has([name="shape"][value="circle"]:checked) .admin-rm__frame{ border-radius: 50%; }
+
+/* The homepage Hero (admin/homepage-hero.php): beside the text the image has
+   its 4:5 frame on every screen (core.css, .hero__media-frame); behind the
+   text it fills the whole Hero (homepage-hero.css: about 1280 x 830 in a
+   1280 x 800 window, 375 x 680 on a 375 x 812 phone). */
+[data-homepage-hero-form]{ --admin-rm-desktop-ratio: 4 / 5; --admin-rm-mobile-ratio: 4 / 5; }
+[data-homepage-hero-form]:has([name="layout"][value="background"]:checked){ --admin-rm-desktop-ratio: 1280 / 830; --admin-rm-mobile-ratio: 375 / 680; }
+
 /* A choice between a few named options inside a form: a fieldset whose
    legend names the group, around a segmented control (.admin-segmented). */
 .admin-segmented-field{ margin: 0; padding: 0; border: 0; min-width: 0; }

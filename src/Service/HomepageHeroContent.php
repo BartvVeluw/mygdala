@@ -7,6 +7,8 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
 
 /**
@@ -269,6 +271,16 @@ class HomepageHeroContent
             // Once a row exists, its media is authoritative: an empty
             // image_path means "this Hero has no image" — see hasMedia().
             'image_path' => $image['image_path'],
+            // How the image sits in its frame (Responsive Media 2.0), as
+            // partials/responsive-image.php prints it; null without an image.
+            // The frame is 4:5 whatever the file, so the width and height the
+            // Hero always printed stay.
+            'picture' => $image['image_path'] === '' ? null : ResponsiveImage::fromRow($row, self::imageSlot())->forRender([
+                'src' => $image['image_path'],
+                'alt' => $image['alt'],
+                'width' => 800,
+                'height' => 1000,
+            ]),
             // An empty or unknown media_type/layout is coerced onto a valid
             // one below: a structural value, never copy.
             'media_type' => (string) ($row['media_type'] ?? ''),
@@ -365,6 +377,17 @@ class HomepageHeroContent
         }
 
         return BlockImage::normalisePath((string) ($row['video_path'] ?? ''));
+    }
+
+    /**
+     * Where the Hero keeps its image's presentation (Responsive Media 2.0):
+     * the image_ columns of homepage_hero — a focus point, a phone picture and
+     * a phone point. No fit: the image always fills its frame, beside the
+     * text or behind it. A video ignores it; its image is only its poster.
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id');
     }
 
     /**

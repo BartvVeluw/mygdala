@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/responsive-image.php';
 
 use App\Service\HoverCardGridContent;
 use App\Service\Media\BlockImage;
@@ -32,6 +33,12 @@ use App\Service\Media\BlockImage;
  * without a link cannot be reached by the keyboard, so its text is always in
  * view (hover-card--open-text). The second picture is an alternative view:
  * alt="" and aria-hidden, since nothing essential may depend on a hover.
+ *
+ * THE MAIN PICTURE is printed by partials/responsive-image.php (Responsive
+ * Media 2.0): its focus point, its fit and a phone picture of its own. A card
+ * read without a presentation (the block library's sample) prints it plainly.
+ * The second picture keeps its plain <img>: it fills the frame from its
+ * middle whatever the main picture does.
  *
  * HEADINGS. The grid's title is an h2, like every block heading; under it a
  * card's title is an h3, and in a grid without a title it is an h2
@@ -112,7 +119,10 @@ function render_section_hover_card_grid(array $content, string $revealGroup = 'h
             <div class="hover-card__inner">
               <div class="hover-card__visual">
                 <div class="hover-card__frame">
-                  <img class="hover-card__image" src="<?= $h((string) $card['image']['src']) ?>" alt="<?= $h((string) ($card['image']['alt'] ?? '')) ?>"<?= BlockImage::dimensionAttributes($card['image']) ?> loading="lazy" decoding="async">
+                  <?php render_responsive_image(
+                      $card['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender($card['image']),
+                      ['class' => 'hover-card__image', 'loading' => 'lazy', 'decoding' => true]
+                  ); ?>
                   <?php if ($hover !== null): ?>
                   <img class="hover-card__image hover-card__image--hover" src="<?= $h((string) $hover['src']) ?>" alt=""<?= BlockImage::dimensionAttributes($hover) ?> loading="lazy" decoding="async" aria-hidden="true">
                   <?php endif; ?>

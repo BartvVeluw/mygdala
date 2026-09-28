@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/responsive-image.php';
 
 /**
  * Renders the Homepage Hero section (App\Service\HomepageHeroContent) —
@@ -20,6 +21,10 @@ require_once __DIR__ . '/eyebrow.php';
  * knows no language, no default and no fallback. All of it is plain text
  * except the headline, whose title and highlight are composed into one safe
  * fragment (HomepageHeroContent::renderTitleFragment()).
+ *
+ * The image is printed by partials/responsive-image.php (Responsive Media
+ * 2.0): its focus point and a phone picture and point of its own. It is the
+ * first thing on the page, so it loads eagerly, as it always did.
  *
  * @param array<string, mixed> $hero see HomepageHeroContent::current()
  */
@@ -94,7 +99,10 @@ function render_section_homepage_hero(array $hero): void
             <?php if ($hero['media_type'] === \App\Service\HomepageHeroContent::MEDIA_TYPE_VIDEO): ?>
             <video class="hero__media-video" src="<?= $h($hero['video_path']) ?>"<?= $hero['image_path'] !== '' ? ' poster="' . $h($hero['image_path']) . '"' : '' ?> autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video>
             <?php else: ?>
-            <img src="<?= $h($hero['image_path']) ?>" alt="<?= $h($hero['image_alt']) ?>" width="800" height="1000" loading="eager" />
+            <?php render_responsive_image(
+                $hero['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender(['src' => $hero['image_path'], 'alt' => $hero['image_alt'], 'width' => 800, 'height' => 1000]),
+                ['loading' => 'eager']
+            ); ?>
             <?php endif; ?>
           </div>
           <?php endif; ?>

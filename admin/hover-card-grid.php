@@ -11,6 +11,7 @@ require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 
 use App\Repository\HoverCardGridRepository;
 use App\Repository\PageRepository;
@@ -19,6 +20,7 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\HoverCardGridContent;
 use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Routing\LinkChoice;
 use App\Service\SectionRegistry;
 
@@ -46,7 +48,10 @@ use App\Service\SectionRegistry;
  * [data-nav-link-group] per card (admin/assets/navigation-item.js), with the
  * card's own link label beside it. The pictures come from the Media picker;
  * there is no upload field and no alt-text field (the library's alt text is
- * used, MEDIA.md).
+ * used, MEDIA.md). How the main picture sits in its frame is the shared
+ * "Afbeeldingsweergave" field (admin/_responsive_image_field.php, Responsive
+ * Media 2.0); its frames take the grid's shape (admin.css,
+ * [data-hover-cards-form]).
  *
  * ONE WEBSITE LANGUAGE AT A TIME (admin/_localized_fields.php): the heading
  * and each card's badge, title, text and link label show the language chosen
@@ -101,17 +106,18 @@ $word = static function (string $field) use ($old, $oldInThisLanguage, $gridId, 
 $settings = HoverCardGridContent::settings(is_array($old) ? $old : $grid);
 
 // The cards on screen: as a refused save handed them back, else as stored.
+$imageSlot = HoverCardGridContent::imageSlot();
 $cardRows = editor_rows_on_screen(
     $repository->findItemsByGridId($gridId),
     $oldInThisLanguage ? (array) ($old['cards'] ?? []) : null,
-    static function (array $item) use ($editLanguage): array {
+    static function (array $item) use ($editLanguage, $imageSlot): array {
         $fields = [
             'media_id' => (string) (int) ($item['media_id'] ?? 0),
             'hover_media_id' => isset($item['hover_media_id']) ? (string) (int) $item['hover_media_id'] : '',
             'link_type' => LinkChoice::storedType($item['link_type'] ?? null, (string) ($item['link_url'] ?? '')),
             'link_target' => (string) (int) ($item['link_target_id'] ?? 0),
             'link_url' => (string) ($item['link_url'] ?? ''),
-        ];
+        ] + ResponsiveImage::fromRow($item, $imageSlot)->toRow($imageSlot);
 
         foreach (array_keys(BlockLocalization::fields(HoverCardGridContent::ITEMS)) as $field) {
             $fields[$field] = BlockLocalization::raw(HoverCardGridContent::ITEMS, (int) $item['id'], $field, $editLanguage);
@@ -159,7 +165,7 @@ $choice = static function (string $name, array $values, string $chosen, string $
  *
  * @param array<string, mixed>|null $stored the stored row, null for a new card
  */
-$cardRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($h, $fieldErrors, $editLanguage): void {
+$cardRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($h, $fieldErrors, $editLanguage, $imageSlot): void {
     // A stored card follows the language on screen; a new one is written in
     // the default language (editor_row_word_hints()).
     $optional = admin_localized_optional_attr(ctype_digit($key) ? $editLanguage : admin_localized_default());
@@ -199,6 +205,28 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
     editor_field_error($fieldErrors, 'cards.' . $key . '.hover_media_id');
     echo '</div>';
     echo '</div>';
+
+    // How the main picture sits in the grid's shape, on a large screen and
+    // on a phone (Responsive Media 2.0).
+    $mainMedia = (int) ($fields['media_id'] ?? 0) > 0 ? MediaService::find((int) $fields['media_id']) : null;
+    $presentation = ResponsiveImage::fromRow($fields, $imageSlot);
+    $presentationErrors = [];
+    foreach ($fieldErrors as $errorKey => $message) {
+        if (str_starts_with((string) $errorKey, 'cards.' . $key . '.presentation.')) {
+            $presentationErrors[substr((string) $errorKey, strlen('cards.' . $key . '.presentation.'))] = (string) $message;
+        }
+    }
+    responsive_image_field([
+        'slot' => $imageSlot,
+        'value' => $presentation,
+        'id' => editor_row_id('cards', $key, 'picture'),
+        'name' => static fn (string $column): string => editor_row_name('cards', $key, $column),
+        'preview' => $mainMedia !== null ? $mainMedia->displayPath() : '',
+        'picker' => editor_row_name('cards', $key, 'media_id'),
+        'mobile_media' => MediaService::find($presentation->mobileMediaId),
+        'errors' => $presentationErrors,
+        'note' => admin_t('block_hover_cards.presentation_note'),
+    ]);
 
     editor_row_text('cards', $key, 'badge', admin_t('block_hover_cards.badge'), 60, $fields, $fieldErrors, $optional);
     editor_row_text('cards', $key, 'title', admin_t('block_hover_cards.card_title'), 255, $fields, $fieldErrors, $optional . ' data-row-list-title-source');
@@ -336,6 +364,7 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
 <?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/hover-card-grid.js') ?>" defer></script>
 <?php admin_collapse_script(); ?>
+<?php responsive_image_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

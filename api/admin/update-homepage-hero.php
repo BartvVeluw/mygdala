@@ -90,10 +90,12 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Routing\LinkChoice;
 use App\Service\SectionImageUploader;
 use App\Service\SectionVideoUploader;
 use App\Repository\HomepageHeroRepository;
+use App\Repository\ResponsiveImageRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -205,6 +207,15 @@ if ($videoChosen !== null) {
 }
 
 $imageIsNew = $image['media_id'] !== null && $image['media_id'] !== $storedMediaId;
+
+// How the image sits in its frame (Responsive Media 2.0), refused part by
+// part at the field (`presentation.<part>`). A form without it keeps what is
+// stored.
+$imageSlot = HomepageHeroContent::imageSlot();
+[$presentation, $presentationErrors] = ResponsiveImage::fromRequest($_POST, $imageSlot, ResponsiveImage::fromRow($current, $imageSlot));
+foreach ($presentationErrors as $part => $message) {
+    $fieldErrors['presentation.' . $part] = $message;
+}
 $libraryAlt = $imageChosen['media_id'] !== null ? trim((string) (MediaService::find($imageChosen['media_id'])?->altText ?? '')) : '';
 $submittedAlt = $words['image_alt'];
 
@@ -322,6 +333,7 @@ $old = ['language_code' => $languageCode, 'image_alt' => $submittedAlt] + $words
     'video_media_id' => (string) (int) $videoPosted,
     'remove_legacy_image' => isset($_POST['remove_legacy_image']) ? '1' : '',
     'remove_legacy_video' => isset($_POST['remove_legacy_video']) ? '1' : '',
+    'presentation' => $presentation->toRow($imageSlot),
     'stats' => $stats->old(),
 ];
 
@@ -367,6 +379,7 @@ try {
         + ['is_active' => true]
     );
     BlockLocalization::save('homepage_hero', $heroId, $languageCode, $words);
+    (new ResponsiveImageRepository())->save('homepage_hero', $heroId, $imageSlot, $presentation);
 
     $stats->save(
         $languageCode,

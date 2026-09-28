@@ -10,6 +10,7 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_link_target_field.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockDefinitions;
@@ -18,6 +19,7 @@ use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Routing\LinkChoice;
 use App\Repository\HomepageHeroRepository;
 
@@ -217,7 +219,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-homepage-hero.php" class="admin-product-form" data-nav-item-form data-save-name="<?= admin_te('block_hero.homepage_hero') ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+  <form method="post" action="/api/admin/update-homepage-hero.php" class="admin-product-form" data-nav-item-form data-homepage-hero-form data-save-name="<?= admin_te('block_hero.homepage_hero') ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <?php /* Enter in a text field presses the FIRST submit button of a form.
              This one is a plain save, so Enter never moves a stat. */ ?>
     <button type="submit" class="admin-visually-hidden" tabindex="-1" aria-hidden="true"><?= admin_te('common.save') ?></button>
@@ -353,6 +355,32 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
       $field('image_alt', admin_t('common.alt_text') . $marker, 255, $heroAlt['attributes'], 0, '', $heroAlt['value']);
       ?>
 
+      <?php
+      // How the image sits in its frame, on a large screen and on a phone
+      // (Responsive Media 2.0), as handed back or as stored. Only for an
+      // image: behind a video it is only the poster. The frames take the
+      // layout's shape (admin.css, [data-homepage-hero-form]).
+      $heroSlot = HomepageHeroContent::imageSlot();
+      $heroPresentation = ResponsiveImage::fromRow(is_array($old) && is_array($old['presentation'] ?? null) ? $old['presentation'] : $hero, $heroSlot);
+      $heroPresentationErrors = [];
+      foreach ($fieldErrors as $errorField => $errorMessage) {
+          if (str_starts_with((string) $errorField, 'presentation.')) {
+              $heroPresentationErrors[substr((string) $errorField, 13)] = (string) $errorMessage;
+          }
+      }
+      ?>
+      <div data-media-panel="image"<?= $mediaType !== 'image' ? ' hidden' : '' ?>>
+        <?php responsive_image_field([
+            'slot' => $heroSlot,
+            'value' => $heroPresentation,
+            'id' => 'hero-image',
+            'preview' => $heroMedia !== null ? $heroMedia->displayPath() : ($legacyImage !== '' ? '/' . ltrim($legacyImage, '/') : ''),
+            'picker' => 'media_id',
+            'mobile_media' => MediaService::find($heroPresentation->mobileMediaId),
+            'errors' => $heroPresentationErrors,
+        ]); ?>
+      </div>
+
       <div data-media-panel="video"<?= $mediaType !== 'video' ? ' hidden' : '' ?>>
         <h3><?= admin_te('block_hero.video_2') ?> <?= admin_help(admin_t('block_hero.video_2'), admin_t('help.block_hero.video')) ?></h3>
         <div class="admin-field">
@@ -408,6 +436,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php link_target_scripts(); ?>
 <?php media_picker_script(); ?>
+<?php responsive_image_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>
