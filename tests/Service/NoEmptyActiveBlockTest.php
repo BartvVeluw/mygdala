@@ -368,9 +368,11 @@ final class NoEmptyActiveBlockTest extends TestCase
         if ($type === 'text_image_split') {
             // An item with a layout and nothing else, every value off the
             // default, so a layout cannot pass for content.
-            (new TextImageSplitRepository())->createItem((int) $pageSection['section_id'], [
-                'image_side' => 'left', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top',
+            $itemId = (new TextImageSplitRepository())->createItem((int) $pageSection['section_id'], [
+                'image_side' => 'left', 'image_column' => '75', 'image_height' => 'large',
             ]);
+            // And a presentation off the middle (Responsive Media 2.0).
+            (new \App\Repository\ResponsiveImageRepository())->save('text_image_split_items', $itemId, \App\Service\TextImageSplitContent::imageSlot(), new \App\Service\Media\ResponsiveImage(50, 0, mobileHeight: 'large'));
         }
 
         return $pageSection;

@@ -301,7 +301,6 @@ final class DestinationPickerTest extends TestCase
             'lead_width' => 'narrow',
             'background_overlay' => 'medium',
             'text_panel_opacity' => 'strong',
-            'background_focus' => 'center',
         ]);
         self::assertStringContainsString('saved=1', $response['location'], $response['body']);
         $row = Database::connection()->query('SELECT primary_link_type, primary_link_target_id FROM cta_bands WHERE id = ' . (int) $bandId)->fetch();

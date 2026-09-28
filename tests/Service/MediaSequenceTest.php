@@ -116,13 +116,14 @@ final class MediaSequenceTest extends TestCase
 
     public function testTheFirstSlideIsInViewAndContentSlidesAreNamed(): void
     {
-        $html = $this->slides([$this->picture('/a.jpg', 'Eerste'), $this->picture('/b.jpg', 'Tweede'), $this->picture('/c.jpg', 'Derde')], ['transition' => 'fade', 'focus' => 'top']);
+        $html = $this->slides([$this->picture('/a.jpg', 'Eerste'), $this->picture('/b.jpg', 'Tweede'), $this->picture('/c.jpg', 'Derde')], ['transition' => 'fade', 'presentation' => new \App\Service\Media\ResponsiveImage(50, 0)]);
 
         self::assertStringContainsString('<div class="media-sequence media-sequence--fade" data-media-sequence-track>', $html);
         self::assertSame(1, substr_count($html, 'is-active'), 'one slide in view');
         self::assertMatchesRegularExpression('#<div class="media-sequence__slide is-active" data-media-sequence-slide data-kind="image" role="group" aria-roledescription="slide" aria-label="1 van 3">\s*<img src="/a.jpg" alt="Eerste"#', $html);
         self::assertStringContainsString('aria-label="3 van 3"', $html);
-        self::assertSame(3, substr_count($html, 'style="object-position: 50% 0%;"'), 'the focus point on every picture');
+        self::assertSame(3, substr_count($html, 'style="object-position: 50% 0%;"'), 'the focus point of the block on every picture');
+        self::assertStringNotContainsString('<source', $html, 'a slide never takes a phone picture');
         self::assertSame(3, substr_count($html, 'loading="lazy"'), 'nothing eager unless asked');
 
         RequestLanguage::set('en', true);

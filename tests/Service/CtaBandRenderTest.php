@@ -107,7 +107,6 @@ final class CtaBandRenderTest extends TestCase
             'lead_width' => 'huge',
             'panel' => 'transparent',
             'overlay' => $hostile,
-            'background_focus' => '10% 20%',
             'background' => ['image_path' => '/assets/media/x.jpg', 'width' => null, 'height' => null],
         ] + $this->legacy());
 
@@ -117,7 +116,8 @@ final class CtaBandRenderTest extends TestCase
         self::assertStringContainsString('cta-band__media--overlay-medium', $html);
         self::assertStringNotContainsString('onmouseover', $html);
         self::assertStringNotContainsString('100vw', $html);
-        self::assertStringNotContainsString('10% 20%', $html);
+        // A focus point is two clamped numbers (Responsive Media 2.0,
+        // Tests\Service\Media\ResponsiveImageTest); the middle prints nothing.
         self::assertStringNotContainsString('style=', $html, 'the default focus point prints no style at all');
     }
 

@@ -390,7 +390,8 @@ final class SimpleBlocksPolishHttpTest extends TestCase
     {
         return $fields + [
             'present' => '1', 'title' => 'Een item', 'body' => '', 'eyebrow' => '', 'alt' => '', 'media_id' => '',
-            'image_side' => 'left', 'image_column' => '50', 'image_height' => 'medium', 'image_focus' => 'center',
+            'image_side' => 'left', 'image_column' => '50', 'image_height' => 'medium',
+            'image_presentation' => '1', 'image_focus_x' => '50', 'image_focus_y' => '50', 'image_fit' => 'cover', 'image_mobile_source' => 'desktop',
             'button_label' => 'Lees meer', 'button_link_type' => 'none', 'button_url' => '',
         ];
     }
