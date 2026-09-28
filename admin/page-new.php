@@ -67,8 +67,9 @@ $parentRequest = $old !== null ? (int) ($old['parent_id'] ?? 0) : (int) (filter_
 $parentId = ($parentRequest > 0 && in_array($parentRequest, PageService::parentCandidates(null), true)) ? $parentRequest : null;
 $adminGroup = (string) ($old['admin_group'] ?? \App\Service\PageAdminGroup::WEBSITE);
 
-// The address line's base: the site root, plus the chosen parent's path.
-$previewParentPath = $parentId === null ? null : \App\Service\PagePath::for($parentId, $newPageLanguage);
+// The address line's base: the site root, plus what a page under the chosen
+// parent starts with (under the Shop: /shop, not its /shop.php).
+$previewParentPath = $parentId === null ? null : \App\Service\PagePath::childBase($parentId, $newPageLanguage);
 $previewBase = AppUrl::canonical($previewParentPath === null ? '/' : $previewParentPath . '/');
 
 // The SEO card folds shut — every field on it is optional — unless a refused

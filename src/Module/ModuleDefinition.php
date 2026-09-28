@@ -174,7 +174,24 @@ abstract class ModuleDefinition
      * switched on. A migration made the page where it was missing
      * (db/migrations/20260928150000); nothing here creates one.
      *
-     * @return array<string, array{route_path: string}> content key => the page
+     * PAGES UNDER IT (Pages & Destinations 3.0, docs/pages/NESTING.md), both
+     * optional:
+     *
+     *   child_prefix     the one URL segment every ordinary page under this
+     *                    system page starts with — 'portfolio' makes
+     *                    /portfolio/wolven. It must be one of this module's
+     *                    reservedSlugs(), so no root page can hold it; without
+     *                    it, nothing can be placed under the page.
+     *   child_conflicts  what the module itself serves one level under that
+     *                    prefix, as callable(list<string> $slugs):
+     *                    list<array{slug: string, label: string}> — every slug
+     *                    it already answers, with the admin's words for what
+     *                    holds it. Core asks before a page is saved directly
+     *                    under the system page; the module asks the other way
+     *                    round, App\Service\ModuleSystemPages::childPageHolding(),
+     *                    before it hands one of its own objects a slug.
+     *
+     * @return array<string, array{route_path: string, child_prefix?: string, child_conflicts?: callable(list<string>): list<array{slug: string, label: string}>}> content key => the page
      */
     public function systemPages(): array
     {

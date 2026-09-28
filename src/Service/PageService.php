@@ -59,7 +59,8 @@ class PageService
         PageRepository $repository,
         string $title,
         string $languageCode,
-        ?int $excludeId = null
+        ?int $excludeId = null,
+        ?int $parentId = null
     ): string {
         $base = self::sanitizeSlug($title);
 
@@ -69,14 +70,63 @@ class PageService
 
         $base = substr($base, 0, self::MAX_SLUG_LENGTH - 10);
 
+        // Directly under a module's system page an address is also free only
+        // when the module serves nothing there (moduleNamespaceProblem()).
+        $parent = $parentId === null ? null : PagePath::node($parentId);
+
         $slug = $base;
         $suffix = 2;
-        while (self::slugIsTaken($repository, $slug, $languageCode, $excludeId) || ReservedPaths::isReserved($slug)) {
+        while (
+            self::slugIsTaken($repository, $slug, $languageCode, $excludeId)
+            || ReservedPaths::isReserved($slug)
+            || ($parent !== null && ModuleSystemPages::childSlugConflicts($parent, [$slug]) !== [])
+        ) {
             $slug = $base . '-' . $suffix;
             $suffix++;
         }
 
         return $slug;
+    }
+
+    /**
+     * ONE NAMESPACE UNDER A MODULE'S PAGE (Pages & Destinations 3.0,
+     * docs/pages/NESTING.md "Pagina's onder Shop en Portfolio"). A page
+     * directly under the Portfolio page answers /portfolio/<slug>, where the
+     * Portfolio also answers its projects; a page with a project's slug there
+     * would be shadowed, or would shadow the project. So before a page is
+     * saved directly under such a page, every address it will have — in every
+     * language, since a project's slug is the same word under every prefix —
+     * is checked against what the module serves (the module's own answer,
+     * App\Service\ModuleSystemPages::childSlugConflicts()). The other direction
+     * is the module's to check (App\Service\PortfolioSlug::problem()).
+     *
+     * Only a DIRECT child shares the namespace: deeper paths are two levels
+     * down, where no module serves anything. Returns the message to show, or
+     * null.
+     *
+     * @param array<string, string> $slugsByLanguage language code => the page's address after the save
+     */
+    public static function moduleNamespaceProblem(?int $parentId, array $slugsByLanguage): ?string
+    {
+        $parent = $parentId === null ? null : PagePath::node($parentId);
+        if ($parent === null) {
+            return null;
+        }
+
+        $prefix = ModuleSystemPages::childPrefix($parent);
+        if ($prefix === null) {
+            return null;
+        }
+
+        $conflicts = ModuleSystemPages::childSlugConflicts($parent, array_values($slugsByLanguage));
+        if ($conflicts === []) {
+            return null;
+        }
+
+        return AdminTranslator::trans('validation.page_slug_module_conflict', [
+            'path' => '/' . $prefix . '/' . $conflicts[0]['slug'],
+            'holder' => $conflicts[0]['label'],
+        ]);
     }
 
     /**
@@ -221,7 +271,10 @@ class PageService
             return 'De gekozen bovenliggende pagina bestaat niet (meer).';
         }
 
-        if (PageContent::isRouteBound($parent)) {
+        // A fixed URL has no slug to build a child's path on — except a
+        // module's system page that names the word its subtree starts with
+        // (App\Service\ModuleSystemPages::childPrefix(): /shop/…, /portfolio/…).
+        if (PageContent::isRouteBound($parent) && ModuleSystemPages::childPrefix($parent) === null) {
             return "Onder een pagina met een vast webadres kunnen geen andere pagina's staan.";
         }
 
@@ -249,8 +302,10 @@ class PageService
     /**
      * Every page that may be offered as the parent of $page (null: a page
      * being created), for the editor's list: not the page itself, nothing
-     * below it, and no page with a fixed URL. validateParent() refuses exactly
-     * the same set, and a little more — a choice that would nest too deep.
+     * below it, and no page with a fixed URL but a module's system page that
+     * keeps pages under it (the Shop, the Portfolio). validateParent() refuses
+     * exactly the same set, and a little more — a choice that would nest too
+     * deep.
      *
      * @param array<string, mixed>|null $page
      * @return list<int> page ids
@@ -266,7 +321,7 @@ class PageService
 
         $candidates = [];
         foreach (PagePath::nodes() as $id => $node) {
-            if (isset($excluded[$id]) || PageContent::isRouteBound($node)) {
+            if (isset($excluded[$id]) || (PageContent::isRouteBound($node) && ModuleSystemPages::childPrefix($node) === null)) {
                 continue;
             }
 

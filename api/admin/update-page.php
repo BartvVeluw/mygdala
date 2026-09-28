@@ -147,6 +147,7 @@ $adminGroupInput = is_string($_POST['admin_group'] ?? null) ? trim($_POST['admin
 $confirmedParent = is_string($_POST['confirmed_parent'] ?? null) ? trim($_POST['confirmed_parent']) : '';
 
 $errors = [];
+$parentError = null;
 
 if ($parentId !== $currentParentId) {
     $parentError = PageService::validateParent($page, $parentId);
@@ -250,7 +251,7 @@ if ($hasFixedUrl) {
         && $title !== ''
         && PageService::currentSlug($page, $languageCode) === null
     ) {
-        $slug = PageService::generateSlug($repository, $title, $languageCode, $id);
+        $slug = PageService::generateSlug($repository, $title, $languageCode, $id, $parentError === null ? $parentId : null);
     }
 
     if ($slug === '' && $isDefaultLanguage) {
@@ -269,6 +270,25 @@ foreach ([
 ] as $label => [$value, $max]) {
     if (mb_strlen($value) > $max) {
         $errors[] = $label . ' mag maximaal ' . $max . ' tekens zijn.';
+    }
+}
+
+/**
+ * ONE NAMESPACE UNDER A MODULE'S PAGE (docs/pages/NESTING.md): a page that
+ * sits — or is being moved — directly under the Portfolio page shares
+ * /portfolio/<slug> with its projects, in every language. Every address the
+ * page will have after this save is checked, not just the one typed now: a
+ * move takes its addresses in all languages along.
+ */
+if (!$hasFixedUrl && $languageIsWritable && $parentError === null) {
+    $slugsAfter = \App\Service\ModuleSystemPages::slugsOf($page);
+    if ($slug !== '') {
+        $slugsAfter[$languageCode] = $slug;
+    }
+
+    $namespaceError = PageService::moduleNamespaceProblem($parentId, $slugsAfter);
+    if ($namespaceError !== null) {
+        $errors[] = $namespaceError;
     }
 }
 

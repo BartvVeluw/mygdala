@@ -24,12 +24,15 @@ use App\Service\Redirects\SlugChangeRedirects;
  * lowercase, runs of anything else become one hyphen), so a project and a page
  * named alike get the same spelling.
  *
- * UNIQUE ACROSS THE PORTFOLIO, and only there. The address lives under the
+ * UNIQUE ACROSS THE PORTFOLIO'S NAMESPACE. The address lives under the
  * module's own /portfolio/ namespace, which App\Service\ReservedRoutes already
- * keeps away from pages, posts and the Redirect Manager, and nothing else is
- * routed below it (App\Module\PortfolioModule::publicRoutes()). So the site's
+ * keeps away from root pages, posts and the Redirect Manager. So the site's
  * reserved words do not apply here: /portfolio/contact is a project, never the
- * contact page. What a slug must not be is empty, or another item's.
+ * contact page. What a slug must not be is empty, another item's — or, since
+ * Pages & Destinations 3.0, the address of a CMS page placed directly under
+ * the Portfolio page, in any language (App\Service\ModuleSystemPages::
+ * childPageHolding()): /portfolio/<slug> is one namespace for both, and
+ * whoever saves second is refused rather than silently shadowed.
  */
 final class PortfolioSlug
 {
@@ -61,7 +64,7 @@ final class PortfolioSlug
 
         $slug = $base;
         $suffix = 2;
-        while ($repository->slugTakenByAnotherItem($slug, $excludeId)) {
+        while ($repository->slugTakenByAnotherItem($slug, $excludeId) || self::heldByPage($slug) !== null) {
             $slug = $base . '-' . $suffix;
             $suffix++;
         }
@@ -83,7 +86,23 @@ final class PortfolioSlug
             return AdminTranslator::trans('validation.portfolio_slug_taken', ['slug' => $slug]);
         }
 
+        $page = self::heldByPage($slug);
+        if ($page !== null) {
+            return AdminTranslator::trans('validation.portfolio_slug_held_by_page', ['slug' => $slug, 'page' => $page['name']]);
+        }
+
         return null;
+    }
+
+    /**
+     * The CMS page directly under the Portfolio page that answers
+     * /portfolio/<slug> in some language, or null.
+     *
+     * @return array{id: int, name: string}|null
+     */
+    private static function heldByPage(string $slug): ?array
+    {
+        return ModuleSystemPages::childPageHolding(PortfolioUrls::OVERVIEW_CONTENT_KEY, $slug);
     }
 
     /**

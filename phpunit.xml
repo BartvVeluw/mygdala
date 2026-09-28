@@ -732,6 +732,7 @@
             <file>tests/Service/Secrets/SecretStoreTest.php</file>
             <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
             <file>tests/Service/ModuleSystemPagesTest.php</file>
+            <file>tests/Service/ModuleChildPagesTest.php</file>
         </testsuite>
 
         <testsuite name="shop">

@@ -232,11 +232,25 @@ class PageContent
      *
      * Derived from the page's own `route_path` and the module registry —
      * never from a page name. See App\Module\ModuleRegistry.
+     *
+     * A PAGE UNDER A MODULE'S SYSTEM PAGE (/shop/zakelijk, /portfolio/wolven;
+     * App\Service\ModuleSystemPages) is the module's subtree: with that module
+     * off it answers 404 like the system page itself, drops out of the
+     * sitemap, the menus and every link, and keeps its row. The module being
+     * on is the only condition: a placeholder or a paused storefront above it
+     * does not take a published child page off the website.
      */
     public static function isServedByAnEnabledModule(array $page): bool
     {
         if (!self::isRouteBound($page)) {
-            return true;
+            // A root page is a tree of its own, and only a page with a fixed
+            // URL can be a module's: nothing to look up, so the many root
+            // pages a menu links cost no query here.
+            if ((int) ($page['parent_id'] ?? 0) < 1) {
+                return true;
+            }
+
+            return !ModuleSystemPages::inDisabledModuleSubtree((int) ($page['id'] ?? 0));
         }
 
         // A module's placeholder page (App\Service\ModuleSystemPages): the

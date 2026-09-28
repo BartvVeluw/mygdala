@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Breadcrumbs;
 
+use App\Service\ModuleSystemPages;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
 use App\Service\PagePath;
+use App\Service\RouteRegistry;
 use App\Service\Routing\RequestLanguage;
 
 /**
@@ -81,6 +83,17 @@ final class PageBreadcrumb
                 continue;
             }
 
+            // A module's system page above this one (Home / Shop / Zakelijk):
+            // named and linked the way a module's own trail names it
+            // (BreadcrumbTrail::toPage()) — its title and its route while it
+            // is a page of its own and served, the module's overview route
+            // while it is a placeholder, no link while nothing answers there.
+            // Never its slug: /shop is not the Shop's address, /shop.php is.
+            if (ModuleSystemPages::forPage($ancestor) !== null) {
+                $trail = $trail->toPage((string) $ancestor['content_key'], self::routeKeyFor((string) ($ancestor['route_path'] ?? '')));
+                continue;
+            }
+
             $trail = $trail->to(BreadcrumbItem::link(
                 PageLocalization::title($ancestorId, $language),
                 PageContent::isPublished($ancestor) ? PageContent::publicUrl($ancestor, $language) : null
@@ -92,6 +105,28 @@ final class PageBreadcrumb
         // text on a public page works. The page a visitor is standing on is
         // never a link to itself.
         return $trail->to(BreadcrumbItem::current(PageLocalization::title((int) $page['id'], $language)));
+    }
+
+    /**
+     * The application route a module's system page stands in for when it is
+     * not a page of its own (a placeholder): the route whose address is the
+     * page's own fixed address — the Shop's /shop.php, the Portfolio's
+     * /portfolio — or null. Read from App\Service\RouteRegistry, which only
+     * lists a route while it answers, so a trail never points at a 404.
+     */
+    private static function routeKeyFor(string $routePath): ?string
+    {
+        if ($routePath === '') {
+            return null;
+        }
+
+        foreach (RouteRegistry::all() as $key => $route) {
+            if ((string) ($route['url'] ?? '') === $routePath) {
+                return (string) $key;
+            }
+        }
+
+        return null;
     }
 
     /**

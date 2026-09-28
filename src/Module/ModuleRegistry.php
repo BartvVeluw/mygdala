@@ -289,6 +289,17 @@ final class ModuleRegistry
             if (in_array($path, $module->publicPaths(), true)) {
                 return $key;
             }
+
+            // Anything below the word a system page's subtree starts with
+            // (ModuleDefinition::systemPages() child_prefix: /shop/zakelijk,
+            // /portfolio/wolven): the module's too, so a redirect aimed there
+            // waits for the module instead of leading to its 404.
+            foreach ($module->systemPages() as $page) {
+                $prefix = is_array($page) ? ($page['child_prefix'] ?? null) : null;
+                if (is_string($prefix) && $prefix !== '' && str_starts_with($path, '/' . $prefix . '/')) {
+                    return $key;
+                }
+            }
         }
 
         return null;

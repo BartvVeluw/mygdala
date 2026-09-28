@@ -25,7 +25,10 @@ use Tests\Support\SiteLanguageFixture;
  *       └ 3 Aluminium visitekaartjes /…/aluminium-visitekaartjes /en/…/aluminium-business-cards
  *     4 Over ons                    /over-ons                  (no English address)
  *     └ 5 Team                      /over-ons/team             none: its parent has no English one
- *     6 Shop (fixed URL)            /shop.php
+ *     6 Shop (fixed URL)            /shop.php — no content key here, so an ordinary
+ *                                   fixed-URL page; the module's own system page,
+ *                                   which does keep pages under it, is
+ *                                   Tests\Service\ModuleChildPagesTest's
  *     7 Voorwaarden (service root)  /algemene-voorwaarden
  *     └ 8 Retourneren               /algemene-voorwaarden/retourneren
  *
@@ -122,7 +125,8 @@ final class PagePathTest extends TestCase
         self::assertSame('/shop.php', PageContent::localizedPath(self::node(6), 'nl'));
         self::assertSame('/en/shop.php', PageContent::localizedPath(self::node(6), 'en'));
 
-        // A row edited in SQL to sit under the Shop has no path at all.
+        // A row edited in SQL to sit under a fixed-URL page that is no
+        // module's system page has no path at all.
         self::assertNull(PagePath::path(['id' => 99, 'parent_id' => 6, 'slug' => 'onder-de-shop'], 'nl'));
     }
 

@@ -37,11 +37,25 @@ use App\Service\Routing\RouteTable;
  * unavailable, and neither hreflang nor the sitemap names it — exactly what
  * happens to a page that has no English slug of its own.
  *
- * A PAGE WITH A FIXED URL IS NEVER PART OF A TREE: the homepage, the Shop and
- * the other pages served by their own template have a route instead of a
- * slug. They cannot be a parent (App\Service\PageService::validateParent())
- * and their own path ignores `parent_id`. A chain that nevertheless meets one
- * (a row edited in SQL) has no path.
+ * A PAGE WITH A FIXED URL IS NEVER PART OF A TREE: the homepage and the other
+ * pages served by their own template have a route instead of a slug. They
+ * cannot be a parent (App\Service\PageService::validateParent()) and their
+ * own path ignores `parent_id`. A chain that nevertheless meets one (a row
+ * edited in SQL) has no path.
+ *
+ * ONE EXCEPTION, AT THE ROOT: a module's system page that names a child
+ * prefix (Pages & Destinations 3.0, App\Service\ModuleSystemPages). Pages under
+ * the Shop start with `shop`, pages under the Portfolio with `portfolio`:
+ *
+ *     Shop (/shop.php)          /shop.php — its own route, unchanged
+ *     └── Zakelijk              /shop/zakelijk
+ *         └── Offerte           /shop/zakelijk/offerte
+ *
+ * The prefix is a word the module reserves, the same in every language
+ * (/en/shop/business), and deliberately NOT the system page's route: that may
+ * be a file (/shop.php), and a path is never the parent's URL with a slug
+ * glued on. Such a system page is always a root, so the prefix is always the
+ * first segment and counts as one level.
  *
  * DEFENSIVE ABOUT CYCLES. PageService refuses to store one, but a chain is
  * walked with a visited set and a depth limit all the same: a loop that
@@ -316,6 +330,30 @@ final class PagePath
     }
 
     /**
+     * What the path of a page directly under $parentId starts with, in one
+     * language and with that language's prefix: the parent's own path, or —
+     * under a module's system page — its child prefix (/shop, /en/shop),
+     * never its route (/shop.php). Null when the parent has no path there.
+     * What an editor's address preview is built on (admin/page-new.php).
+     */
+    public static function childBase(int $parentId, string $language): ?string
+    {
+        $node = self::node($parentId);
+
+        if ($node === null) {
+            return null;
+        }
+
+        if (PageContent::isRouteBound($node)) {
+            $prefix = ModuleSystemPages::childPrefix($node);
+
+            return $prefix === null ? null : \App\Service\Routing\LocalizedUrl::path('/' . $prefix, $language);
+        }
+
+        return self::for($parentId, $language);
+    }
+
+    /**
      * Every unprefixed path of these pages in every active language, taken
      * BEFORE a save that may move them, so the paths after it can be compared
      * one by one (App\Service\Redirects\SlugChangeRedirects::recordMoves()).
@@ -412,11 +450,23 @@ final class PagePath
         self::loadSlugs();
 
         $segments = [];
-        foreach ($chain as $ancestorId) {
+        foreach ($chain as $position => $ancestorId) {
             $ancestor = self::node($ancestorId);
 
-            if ($ancestor === null || PageContent::isRouteBound($ancestor)) {
+            if ($ancestor === null) {
                 return null;
+            }
+
+            if (PageContent::isRouteBound($ancestor)) {
+                // Only a module's system page at the very top stands above
+                // other pages, and it contributes its prefix, never its route.
+                $prefix = $position === 0 ? ModuleSystemPages::childPrefix($ancestor) : null;
+                if ($prefix === null) {
+                    return null;
+                }
+
+                $segments[] = $prefix;
+                continue;
             }
 
             $slug = PageContent::localizedSlug($ancestor, $language);

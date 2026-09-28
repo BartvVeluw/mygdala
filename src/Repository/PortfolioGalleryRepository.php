@@ -296,6 +296,31 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
+     * The items that have one of these slugs, whatever their visibility or
+     * project page: what a CMS page directly under the Portfolio page would
+     * collide with at /portfolio/<slug> (App\Module\PortfolioModule::systemPages()).
+     *
+     * @param list<string> $slugs
+     * @return list<array{id: int, slug: string}>
+     */
+    public function itemsWithSlugs(array $slugs): array
+    {
+        $slugs = array_values(array_unique(array_filter(array_map('strval', $slugs), static fn (string $slug): bool => $slug !== '')));
+        if ($slugs === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($slugs), '?'));
+        $stmt = $this->db->prepare('SELECT id, slug FROM portfolio_gallery_items WHERE slug IN (' . $placeholders . ') ORDER BY id');
+        $stmt->execute($slugs);
+
+        return array_map(
+            static fn (array $row): array => ['id' => (int) $row['id'], 'slug' => (string) $row['slug']],
+            $stmt->fetchAll()
+        );
+    }
+
+    /**
      * Every item whose project page can be public, as the Portfolio's
      * sitemap collector needs it: slug, last-modified timestamp, and the page
      * the item links to now.

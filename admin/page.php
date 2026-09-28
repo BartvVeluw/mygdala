@@ -390,6 +390,12 @@ $urlFieldOpen = !$hasFixedUrl
         <p><?= admin_te('page.module_placeholder', ['module' => $modulePage['module_label']]) ?></p>
       <?php endif; ?>
     </div>
+  <?php elseif (($moduleSubtree = \App\Service\ModuleSystemPages::forSubtreeOf($pageId)) !== null && !$moduleSubtree['enabled']): ?>
+    <?php /* A page under a module's page shares its fate: with the module off
+             it is off the website too, and stays exactly as it is here. */ ?>
+    <div class="admin-alert admin-alert--warning" role="status">
+      <p><?= admin_te('page.module_subtree_off', ['module' => $moduleSubtree['module_label']]) ?></p>
+    </div>
   <?php endif; ?>
 
   <?php /* The three tabs. Their order on screen is the order of this list —

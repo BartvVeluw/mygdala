@@ -23,8 +23,9 @@ use App\Service\Routing\LocalizedUrl;
  *
  * THE LIST CANNOT MAKE A LOOP. It offers exactly
  * App\Service\PageService::parentCandidates(): not the page itself, nothing
- * below it, no page with a fixed URL. The endpoint refuses the same set, so a
- * hand-made POST cannot get further than a click.
+ * below it, no page with a fixed URL but the Shop's and the Portfolio's
+ * system pages (App\Service\ModuleSystemPages). The endpoint refuses the same
+ * set, so a hand-made POST cannot get further than a click.
  *
  * THE ADDRESS PREVIEW is the path in the language being edited, the same
  * App\Service\PagePath every link uses. Each option carries its page's path
@@ -89,7 +90,11 @@ function page_placement_fields(?array $page, string $language, ?int $parentId, s
                   continue;
               }
               $node = PagePath::node($id) ?? [];
-              $path = PagePath::path($node, $language);
+              // A module's system page has a route, not a slug: what its
+              // subtree starts with is its child prefix (/shop/…), the same
+              // word in every language (App\Service\ModuleSystemPages).
+              $childPrefix = PageContent::isRouteBound($node) ? \App\Service\ModuleSystemPages::childPrefix($node) : null;
+              $path = $childPrefix !== null ? '/' . $childPrefix : PagePath::path($node, $language);
               $label = str_repeat("\u{00A0}\u{00A0}\u{00A0}", $row['depth']) . PageLocalization::name($id);
               if (!PageContent::isPublished($node)) {
                   $label .= ' (' . admin_t('page.status_draft') . ')';

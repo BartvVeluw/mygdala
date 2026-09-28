@@ -26,6 +26,13 @@ final class PortfolioUrls
 {
     public const OVERVIEW_PATH = '/portfolio';
 
+    /**
+     * The module root's one word: the first segment of every project address
+     * and of every CMS page placed under the overview page (/portfolio/<slug>,
+     * one namespace — App\Module\PortfolioModule::systemPages()).
+     */
+    public const ROOT_SEGMENT = 'portfolio';
+
     public const LEGACY_OVERVIEW_PATH = '/portfolio.php';
 
     /** The content key of the CMS page that, when it exists, is the overview. */

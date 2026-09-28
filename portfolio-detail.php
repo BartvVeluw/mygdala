@@ -23,13 +23,15 @@ require_once __DIR__ . '/partials/section-item-gallery.php';
  * App\Service\PortfolioGalleryContent::itemForDetailPage(). V1 is structured
  * content, deliberately not a page builder: no blocks here.
  *
- * Three answers, in this order:
+ * Four answers, in this order:
  *
  *   1. the item still links to a published ordinary page (phase 4B): a
  *      temporary redirect (302) to that page, before anything else is read
  *      (PortfolioGalleryContent::legacyProjectRedirectUrl());
  *   2. a visible item with its project page switched on: that page;
- *   3. otherwise the Redirect Manager, for an address a rename left behind
+ *   3. a CMS page placed directly under the Portfolio page with this address
+ *      (Pages & Destinations 3.0): pagina.php renders it;
+ *   4. otherwise the Redirect Manager, for an address a rename left behind
  *      (App\Service\PortfolioSlug::recordRename()), and then the 404 below.
  *
  * ONE LIGHTBOX (assets/js/lightbox.js, partials/lightbox.php): the main
@@ -66,6 +68,23 @@ if ($projectPageUrl !== null) {
 }
 
 $portfolioItem = \App\Service\PortfolioGalleryContent::itemForDetailPage($slug);
+
+// /portfolio/<slug> is ONE namespace for the projects and the CMS pages placed
+// directly under the Portfolio page (Pages & Destinations 3.0,
+// App\Service\ModuleSystemPages). No project answers this address, so the page
+// that does, if there is one, is rendered by pagina.php exactly like every
+// other page — before the Redirect Manager, since a live page beats an old
+// address. Saving either side refuses a slug the other already holds, so this
+// order never decides between two real answers.
+if ($portfolioItem === null) {
+    $childPage = \App\Service\PageContent::forPath([\App\Service\PortfolioUrls::ROOT_SEGMENT, $slug]);
+    if ($childPage !== null) {
+        $_GET['slug'] = \App\Service\PortfolioUrls::ROOT_SEGMENT . '/' . $slug;
+        require __DIR__ . '/pagina.php';
+        exit;
+    }
+}
+
 $relatedProjects = $portfolioItem !== null
     ? \App\Service\PortfolioRelatedProjects::forItemId((int) $portfolioItem['id'])
     : null;

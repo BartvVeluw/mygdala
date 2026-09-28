@@ -274,7 +274,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                   if ($modulePage !== null) {
                       $publicUrl = \App\Service\Routing\LocalizedUrl::path($modulePage['route_path']);
                   }
-                  $moduleOff = $modulePage !== null && !$modulePage['enabled'];
+                  // With its module off, a module's page answers nothing, and
+                  // neither does any page under it (/shop/…, /portfolio/…).
+                  $moduleOff = ($modulePage !== null && !$modulePage['enabled'])
+                      || \App\Service\ModuleSystemPages::inDisabledModuleSubtree($pageId);
+                  // A fixed URL has no slug to build on, but the Shop's and the
+                  // Portfolio's pages keep pages under them (docs/pages/NESTING.md).
+                  $canHaveChildren = !$hasFixedUrl || \App\Service\ModuleSystemPages::childPrefix($page) !== null;
                   // The rows this row folds: its direct children in this list.
                   $childRowIds = [];
                   foreach ($rows as $other) {
@@ -355,7 +361,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                       <?php else: ?>
                         <a class="admin-page-tree__action admin-page-tree__action--view" href="/admin/page-preview.php?id=<?= $pageId ?>" target="_blank" rel="noopener"><?= admin_te('pages.preview') ?><span class="admin-visually-hidden">: <?= $h($pageName) ?></span></a>
                       <?php endif; ?>
-                      <?php if (!$hasFixedUrl): ?>
+                      <?php if ($canHaveChildren): ?>
                         <?php /* Two labels: the whole one, and "+ Subpagina" that a
                                  narrower screen shows instead. The short one is
                                  hidden from a screen reader, which always hears

@@ -55,6 +55,14 @@ if ($page !== null && \App\Service\PageContent::hasOwnTemplate($page)) {
     $page = null;
 }
 
+// A page under a module's system page belongs to that module's subtree
+// (/shop/zakelijk, /portfolio/wolven): with the module off it answers the
+// same 404 as the module's own addresses, and keeps its row for when the
+// module comes back (App\Service\ModuleSystemPages, MODULES.md).
+if ($page !== null && !\App\Service\PageContent::isServedByAnEnabledModule($page)) {
+    $page = null;
+}
+
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
 if ($page === null) {

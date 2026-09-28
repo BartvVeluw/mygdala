@@ -314,10 +314,17 @@ final class ShopModule extends ModuleDefinition
      * The storefront page, content key "shop", at /shop.php: in Pagina's on
      * every installation (App\Service\ModuleSystemPages). Whether /shop.php
      * shows it is Shop-instellingen → Productoverzicht (App\Service\ShopOverview).
+     *
+     * Ordinary pages may sit under it at /shop/<slug> (Pages & Destinations
+     * 3.0). The storefront itself stays at /shop.php: `shop` is only the word
+     * its subtree's paths start with, the Shop's own reserved word. Nothing of
+     * the Shop lives under /shop/ — a product is /product.php?id=, a
+     * collection /collecties/<slug> — so there is no child_conflicts: a page
+     * there cannot clash with anything the Shop serves.
      */
     public function systemPages(): array
     {
-        return ['shop' => ['route_path' => '/shop.php']];
+        return ['shop' => ['route_path' => '/shop.php', 'child_prefix' => 'shop']];
     }
 
     /**

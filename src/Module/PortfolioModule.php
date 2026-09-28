@@ -163,10 +163,36 @@ final class PortfolioModule extends ModuleDefinition
      * Pagina's on every installation (App\Service\ModuleSystemPages). While it
      * has no block of its own, /portfolio shows the module's own overview
      * (App\Service\PortfolioUrls::overviewPage()).
+     *
+     * Ordinary pages may sit under it at /portfolio/<slug> (Pages &
+     * Destinations 3.0) — the very namespace of the project pages. One
+     * namespace, so the check runs both ways: here, which slugs a project
+     * already has, for a page about to be saved there; and in
+     * App\Service\PortfolioSlug::problem(), which page already has a slug a
+     * project is about to get. Every item's slug counts, visible or not and
+     * with its project page on or off: switching one on later must not take
+     * an address a page is using.
      */
     public function systemPages(): array
     {
-        return [PortfolioUrls::OVERVIEW_CONTENT_KEY => ['route_path' => PortfolioUrls::OVERVIEW_PATH]];
+        return [PortfolioUrls::OVERVIEW_CONTENT_KEY => [
+            'route_path' => PortfolioUrls::OVERVIEW_PATH,
+            'child_prefix' => PortfolioUrls::ROOT_SEGMENT,
+            'child_conflicts' => static function (array $slugs): array {
+                $conflicts = [];
+                foreach ((new \App\Repository\PortfolioGalleryRepository())->itemsWithSlugs($slugs) as $item) {
+                    $name = trim(\App\Service\PortfolioLocalization::itemName((int) $item['id']));
+                    $conflicts[] = [
+                        'slug' => (string) $item['slug'],
+                        'label' => $name === ''
+                            ? \App\Service\Language\AdminTranslator::trans('validation.page_slug_held_by_untitled_project')
+                            : \App\Service\Language\AdminTranslator::trans('validation.page_slug_held_by_project', ['name' => $name]),
+                    ];
+                }
+
+                return $conflicts;
+            },
+        ]];
     }
 
     /**

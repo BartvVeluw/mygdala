@@ -118,7 +118,9 @@ if (!PageContent::isValidStatus($status)) {
 $slug = '';
 $slugNotice = null;
 if ($slugInput === '' || $slugIsAutomatic) {
-    $slug = $title !== '' ? PageService::generateSlug($repository, $title, $pageLanguage) : '';
+    // Under the Portfolio page an address made from the title also steps
+    // around a project's (PageService::moduleNamespaceProblem()).
+    $slug = $title !== '' ? PageService::generateSlug($repository, $title, $pageLanguage, null, $parentError === null ? $parentId : null) : '';
     // "Portfolio" cannot be /portfolio: say why it became /portfolio-2.
     $slugNotice = $slug !== '' ? PageService::generatedSlugNotice($title, $slug) : null;
 } else {
@@ -130,6 +132,15 @@ if ($slugInput === '' || $slugIsAutomatic) {
         if ($slugError !== null) {
             $errors[] = $slugError;
         }
+    }
+}
+
+// Directly under a module's page (/portfolio/<slug>) the address is shared
+// with what that module serves there: refused, never silently shadowed.
+if ($slug !== '' && $parentError === null) {
+    $namespaceError = PageService::moduleNamespaceProblem($parentId, [$pageLanguage => $slug]);
+    if ($namespaceError !== null) {
+        $errors[] = $namespaceError;
     }
 }
 
