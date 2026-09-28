@@ -95,7 +95,10 @@ function navigation_row(array $item, int $position, int $count, int $childCount,
     $isHidden = !(bool) $item['is_visible'];
     $isChild = $item['parent_id'] !== null;
     $isButton = NavigationPresentation::isButton($item);
-    $label = NavigationLocalization::name($id);
+    // An item that follows its page has no words of its own: the row is
+    // called what the menu shows, the page's name.
+    $follows = NavigationLocalization::followsDestination($item);
+    $label = NavigationLocalization::adminName($item);
     $isReachable = admin_link_is_reachable($item);
     ?>
     <div class="admin-section-row admin-nav-item-row<?= $isChild ? ' admin-nav-item-row--child' : '' ?><?= $isHidden ? ' is-hidden-section' : '' ?>" id="nav-item-<?= $id ?>" data-nav-item-id="<?= $id ?>">
@@ -103,6 +106,9 @@ function navigation_row(array $item, int $position, int $count, int $childCount,
       <div class="admin-section-row__body">
         <p class="admin-section-row__name">
           <?= $h($label) ?>
+          <?php if ($follows): ?>
+            <span class="admin-badge admin-badge--muted"><?= admin_te('navigation.badge_follows_title') ?></span>
+          <?php endif; ?>
           <?php if ($isHidden): ?>
             <span class="admin-badge admin-badge--muted"><?= admin_te('common.hidden') ?></span>
           <?php elseif (!$isReachable): ?>

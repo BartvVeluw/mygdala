@@ -16,6 +16,14 @@ declare(strict_types=1);
  *     The label is required only in the default language, where every other
  *     language falls back to. It is stored through
  *     App\Service\NavigationLocalization, never in nav_items;
+ *   - "Gebruik titel van bestemming" (`label_follows`, Pages & Destinations
+ *     3.0): for a PAGE link only, the item keeps no words at all and shows its
+ *     page's title in every language (NavigationLocalization::labelFor()), so
+ *     no label is required and the endpoint clears every stored one. Any other
+ *     kind needs words of its own, whatever the switch said. Switching it off
+ *     from another language than the default is refused until the default
+ *     language has a text, since that language decides whether an item has
+ *     words (MULTILINGUAL.md);
  *   - the destination: App\Service\LinkResolver::validate(), the one check
  *     every link in the header and footer goes through;
  *   - the presentation and button variant: App\Service\NavigationPresentation,
@@ -93,17 +101,29 @@ function validateNavItemInput(
         ? $text('button_variant')
         : ($existing !== null ? NavigationPresentation::variantOf($existing) : NavigationPresentation::VARIANT_PRIMARY);
 
+    // Only a page has a title to follow; the switch means nothing for any
+    // other kind of destination.
+    $labelFollows = ($input['label_follows'] ?? '') === '1' && $linkType === 'page';
+
     $errors = [];
 
     if (!$languageIsWritable) {
         $errors[] = AdminTranslator::trans('validation.language_unknown');
-    } else {
+    } elseif (!$labelFollows) {
         $problems = NavigationLocalization::items()->problems($languageCode, [NavigationLocalization::LABEL => $label], [NavigationLocalization::LABEL]);
         if (($problems[NavigationLocalization::LABEL] ?? null) === 'missing') {
             $errors[] = AdminTranslator::trans('validation.label_verplicht');
         }
         if (($problems[NavigationLocalization::LABEL] ?? null) === 'too_long') {
             $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
+        }
+
+        // An item that follows its page has no words in the default
+        // language; words of its own start there.
+        if ($existing !== null
+            && $languageCode !== $defaultLanguage
+            && !NavigationLocalization::hasDefaultLabel((int) $existing['id'])) {
+            $errors[] = AdminTranslator::trans('validation.nav_label_default_first');
         }
     }
 
@@ -149,6 +169,7 @@ function validateNavItemInput(
 
     $data = [
         'label' => $label,
+        'label_follows' => $labelFollows,
         'language_code' => $languageCode,
         'link_type' => $linkType,
         // Only the companion field of the chosen kind is stored, so a row can
@@ -166,6 +187,7 @@ function validateNavItemInput(
     $old = [
         'language_code' => $languageCode,
         'label' => $label,
+        'label_follows' => ($input['label_follows'] ?? '') === '1',
         'link_type' => $linkType,
         'target_page_id' => $targetPageIdRaw,
         'target_route' => $targetRoute,

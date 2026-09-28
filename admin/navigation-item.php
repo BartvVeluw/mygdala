@@ -24,10 +24,13 @@ AdminAuth::requirePermission('pages.manage');
  * button. One screen for all three because they are one model
  * (App\Service\NavigationPresentation); what differs is which cards appear.
  *
- *   Tekst       the label, in ONE website language at a time
- *               (admin/_localized_fields.php): the language chosen in the CMS
- *               shell, as stored, required only in the default language. A
- *               NEW item is written in the default language, and says so.
+ *   Tekst       for a page link first "Gebruik titel van bestemming": the menu
+ *               shows the page's own title in every language and follows a
+ *               rename; a new item starts with it on. Otherwise the label, in
+ *               ONE website language at a time (admin/_localized_fields.php):
+ *               the language chosen in the CMS shell, as stored, required
+ *               only in the default language. A NEW item is written in the
+ *               default language, and says so.
  *   Bestemming  where it goes, in words: a page of this site, a fixed part of
  *               the site (RouteRegistry), another address, or — for a
  *               top-level menu link only — nowhere, as the heading of a
@@ -90,7 +93,7 @@ $isChild = $isNew ? ($presetParentId !== null) : ($item['parent_id'] !== null);
 $parentLabel = null;
 if ($isChild) {
     $parentRow = $repository->findById($isNew ? (int) $presetParentId : (int) $item['parent_id']);
-    $parentLabel = $parentRow !== null ? NavigationLocalization::name((int) $parentRow['id']) : null;
+    $parentLabel = $parentRow !== null ? NavigationLocalization::adminName($parentRow) : null;
 }
 $childCount = $isNew ? 0 : $repository->countChildren((int) $item['id']);
 
@@ -130,6 +133,19 @@ $field = static function (string $key) use ($old, $item): string {
 };
 
 $linkType = $field('link_type');
+
+/**
+ * "Gebruik titel van bestemming" (Pages & Destinations 3.0, HEADER-FOOTER.md
+ * "Tekst van een menu-item"): on for a new item, which starts as a page link;
+ * on for a stored page link without words of its own in the default language;
+ * off for every item that has them — so every item that existed before reads
+ * exactly as it did. The switch only means something for a page, so the
+ * script shows it only there; the endpoint ignores it for any other kind.
+ */
+$labelFollows = is_array($old)
+    ? !empty($old['label_follows'])
+    : ($isNew || NavigationLocalization::followsDestination($item));
+$labelFollowsNow = $labelFollows && $linkType === 'page';
 $presentation = NavigationPresentation::of(['presentation' => $field('presentation')]);
 $variant = NavigationPresentation::variantOf(['button_variant' => $field('button_variant')]);
 $openInNewTab = is_array($old) ? !empty($old['open_in_new_tab']) : (int) $item['open_in_new_tab'] === 1;
@@ -177,7 +193,8 @@ if ($isNew) {
         ? admin_t('navigation.new_child')
         : ($isButton ? admin_t('navigation.new_button') : admin_t('navigation.new_link'));
 } else {
-    $pageTitle = NavigationLocalization::name((int) $item['id']);
+    // An item that follows its page is called by that page's name.
+    $pageTitle = NavigationLocalization::adminName($item);
     if ($pageTitle === '') {
         $pageTitle = admin_t($isButton ? 'navigation.edit_button' : 'navigation.edit_link');
     }
@@ -239,15 +256,32 @@ if ($isNew) {
 
     <section class="admin-card">
       <h2><?= admin_te('navigation.text_heading') ?></h2>
-      <?php admin_localized_bar($editLanguage); ?>
-      <?php if ($isNew): ?>
-        <?php admin_localized_new_item_note(admin_localized_language()); ?>
-      <?php else: ?>
-        <?= admin_localized_input($editLanguage) ?>
-      <?php endif; ?>
-      <div class="admin-field">
-        <?= admin_field_label('nav-label', admin_t('navigation.text_label'), admin_t('help.navigation.text'), admin_localized_required($editLanguage) !== '') ?>
-        <input type="text" id="nav-label" name="label" maxlength="<?= NavigationLocalization::LABEL_MAX_LENGTH ?>"<?= admin_localized_required($editLanguage) ?> value="<?= $h($label) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
+      <?php /* The page's title in every language, following a rename, or
+               words of the item's own (NavigationLocalization::labelFor()). */ ?>
+      <div class="admin-field admin-field--inline" data-nav-link-field="page">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-switch" role="switch" name="label_follows" value="1" data-nav-label-follows<?= $labelFollows ? ' checked' : '' ?>>
+          <?= admin_te('navigation.label_follows') ?>
+        </label>
+        <?= admin_help(admin_t('navigation.label_follows'), admin_t('help.navigation.label_follows')) ?>
+      </div>
+      <p class="admin-text-muted" data-nav-label-preview aria-live="polite"<?= $labelFollowsNow ? '' : ' hidden' ?>>
+        <?= admin_te('navigation.label_preview') ?>
+        <strong data-nav-label-preview-title data-none="<?= admin_te('navigation.label_preview_none') ?>"><?= $h($field('target_page_id') !== '' ? \App\Service\PageLocalization::title((int) $field('target_page_id'), $editLanguage) : admin_t('navigation.label_preview_none')) ?></strong>
+      </p>
+      <div data-nav-label-own<?= $labelFollowsNow ? ' hidden' : '' ?>>
+        <?php admin_localized_bar($editLanguage); ?>
+        <?php if ($isNew): ?>
+          <?php admin_localized_new_item_note(admin_localized_language()); ?>
+        <?php else: ?>
+          <?= admin_localized_input($editLanguage) ?>
+        <?php endif; ?>
+        <div class="admin-field">
+          <?= admin_field_label('nav-label', admin_t('navigation.text_label'), admin_t('help.navigation.text'), admin_localized_required($editLanguage) !== '') ?>
+          <?php /* Required in the default language — unless the item follows
+                   its page, which the script switches as the editor does. */ ?>
+          <input type="text" id="nav-label" name="label" maxlength="<?= NavigationLocalization::LABEL_MAX_LENGTH ?>"<?= $labelFollowsNow ? '' : admin_localized_required($editLanguage) ?><?= admin_localized_required($editLanguage) !== '' ? ' data-nav-label-required' : '' ?> value="<?= $h($label) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
+        </div>
       </div>
     </section>
 
@@ -273,7 +307,9 @@ if ($isNew) {
           <?php foreach ($linkablePages as $option): ?>
             <?php /* A page above an offered one that is not offered itself
                      keeps the tree readable and cannot be chosen. */ ?>
-            <option value="<?= $option['id'] ?>"<?= $option['context'] ? ' disabled' : '' ?> <?= !$option['context'] && $field('target_page_id') === (string) $option['id'] ? 'selected' : '' ?>><?= $h($option['label']) ?><?= $option['context'] || PageContent::isPublished($option['page']) ? '' : ' ' . admin_te('navigation.destination_draft') ?></option>
+            <?php /* data-title: what the menu shows for this page in the
+                     language being edited, while the item follows its page. */ ?>
+            <option value="<?= $option['id'] ?>"<?= $option['context'] ? ' disabled' : '' ?> <?= !$option['context'] && $field('target_page_id') === (string) $option['id'] ? 'selected' : '' ?> data-title="<?= $h(\App\Service\PageLocalization::title($option['id'], $editLanguage)) ?>"><?= $h($option['label']) ?><?= $option['context'] || PageContent::isPublished($option['page']) ? '' : ' ' . admin_te('navigation.destination_draft') ?></option>
           <?php endforeach; ?>
         </select>
       </div>

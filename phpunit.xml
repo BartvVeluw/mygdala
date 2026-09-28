@@ -618,6 +618,7 @@
             <file>tests/Repository/LocalizedSiteSettingsTest.php</file>
             <file>tests/Service/LocalizedSiteSettingsEditorHttpTest.php</file>
             <file>tests/Service/NavigationFooterLocalizationEditorHttpTest.php</file>
+            <file>tests/Service/NavigationFollowsPageTitleHttpTest.php</file>
             <file>tests/Repository/NavigationRepositoryTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminAuthLoginTest.php</file>

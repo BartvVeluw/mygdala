@@ -79,7 +79,13 @@ try {
     // are one save.
     $db->beginTransaction();
     $repository->update($idParam, $data);
-    NavigationLocalization::save($idParam, $data['language_code'], $data['label']);
+    // "Gebruik titel van bestemming": no words of its own, in any language —
+    // the menu shows the page's title (NavigationLocalization::labelFor()).
+    if ($data['label_follows']) {
+        NavigationLocalization::clear($idParam);
+    } else {
+        NavigationLocalization::save($idParam, $data['language_code'], $data['label']);
+    }
     $db->commit();
 } catch (\Throwable $e) {
     if ($db->inTransaction()) {

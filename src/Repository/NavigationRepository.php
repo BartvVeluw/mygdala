@@ -99,14 +99,15 @@ class NavigationRepository extends Repository
      * for the list the page editor shows before a page's web address changes
      * (App\Service\PageUsage). Hidden items are included: they still point
      * at the page and still follow it. `presentation` tells a menu link from
-     * a header button.
+     * a header button; the link columns tell an item that shows the page's
+     * title (NavigationLocalization::adminName()).
      *
      * @return list<array<string, mixed>>
      */
     public function findByTargetPageId(int $pageId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT id, parent_id, is_visible, presentation FROM nav_items
+            "SELECT id, parent_id, is_visible, presentation, link_type, target_page_id FROM nav_items
               WHERE link_type = 'page' AND target_page_id = :page_id
               ORDER BY presentation DESC, sort_order ASC, id ASC"
         );

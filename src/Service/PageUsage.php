@@ -61,7 +61,7 @@ final class PageUsage
         foreach ($items as $item) {
             $place = [
                 'kind' => NavigationPresentation::isButton($item) ? self::KIND_HEADER_BUTTON : self::KIND_MENU,
-                'label' => NavigationLocalization::name((int) $item['id']),
+                'label' => NavigationLocalization::adminName($item),
                 'context' => '',
                 'hidden' => (int) $item['is_visible'] !== 1,
                 'edit_url' => '/admin/navigation-item.php?id=' . (int) $item['id'],

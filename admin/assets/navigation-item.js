@@ -28,6 +28,15 @@
  * have, so that option is disabled while "Knop" is chosen — and if it was
  * selected, the first real kind is selected instead, so the form never shows
  * a combination the server would refuse.
+ *
+ * "GEBRUIK TITEL VAN BESTEMMING" (header items only, [data-nav-label-follows]):
+ * while a page link follows its page, the item's own text is hidden and no
+ * longer required, and a line says what the menu will show — the chosen
+ * page's title in the language being edited (its option's data-title). Any
+ * other kind needs its own text, so the text is back the moment it is chosen.
+ * The one field the server already hides, so it does not flash: without this
+ * file, switching the follow off and saving brings it back, and the endpoint
+ * asks for the words.
  */
 (function () {
   "use strict";
@@ -74,15 +83,48 @@
     });
   }
 
+  var follows = form.querySelector("[data-nav-label-follows]");
+  var own = form.querySelector("[data-nav-label-own]");
+  var preview = form.querySelector("[data-nav-label-preview]");
+  var previewTitle = form.querySelector("[data-nav-label-preview-title]");
+  var pageSelect = form.querySelector('select[name="target_page_id"]');
+  var labelInput = own ? own.querySelector('input[name="label"]') : null;
+
+  function syncLabel() {
+    if (!follows || !own) return;
+
+    var following = !!(kind && kind.value === "page" && follows.checked);
+    own.hidden = following;
+    if (preview) preview.hidden = !following;
+
+    if (labelInput) {
+      if (following) {
+        labelInput.removeAttribute("required");
+      } else if (labelInput.hasAttribute("data-nav-label-required")) {
+        labelInput.setAttribute("required", "");
+      }
+    }
+
+    if (previewTitle && pageSelect) {
+      var option = pageSelect.selectedOptions[0];
+      previewTitle.textContent = option && option.value !== ""
+        ? (option.getAttribute("data-title") || "")
+        : (previewTitle.getAttribute("data-none") || "");
+    }
+  }
+
   // Listened for on the form, so a button in a row added later (a Tekst met
   // afbeelding item, admin/assets/row-list.js) follows its kind as well; an
   // added row is sorted out the moment it arrives.
   form.addEventListener("change", function (event) {
-    if (event.target && event.target.hasAttribute && event.target.hasAttribute("data-nav-link-type")) syncDestination();
+    var target = event.target;
+    if (target && target.hasAttribute && target.hasAttribute("data-nav-link-type")) syncDestination();
+    if (target === follows || target === pageSelect || (target && target.hasAttribute && target.hasAttribute("data-nav-link-type"))) syncLabel();
   });
   form.addEventListener("row-list:added", syncDestination);
   if (presentation) presentation.addEventListener("change", syncPresentation);
 
   syncPresentation();
   syncDestination();
+  syncLabel();
 })();

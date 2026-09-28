@@ -25,8 +25,12 @@ use App\Service\Routing\RequestLanguage;
  *
  * LABELS are App\Service\NavigationLocalization's: each item carries its
  * label as one string in the language of the request, already resolved by
- * the one fallback, loaded for the whole header in one query. Neither this
- * class nor the partial decides a fallback.
+ * the one fallback, loaded for the whole header in one query — or, for a page
+ * link without words of its own, its page's title in that language
+ * (NavigationLocalization::labelFor(), "Gebruik titel van bestemming"). An
+ * item with nothing to say is left out, a menu link as much as a button: an
+ * empty <a> helps nobody. Neither this class nor the partial decides a
+ * fallback.
  *
  * Static, try/catch-with-fallback, same convention as SiteSettings/
  * InformationPageContent — a navigation problem must never break every
@@ -108,9 +112,14 @@ class NavigationService
                 continue;
             }
 
+            $label = NavigationLocalization::labelFor($row, RequestLanguage::current());
+            if ($label === '') {
+                continue;
+            }
+
             $items[] = [
                 'id' => (int) $row['id'],
-                'label' => NavigationLocalization::label((int) $row['id'], RequestLanguage::current()),
+                'label' => $label,
                 'href' => $resolved['href'],
                 'open_in_new_tab' => $resolved['open_in_new_tab'],
                 'rel' => $resolved['rel'],
@@ -153,7 +162,10 @@ class NavigationService
 
         $result = [];
         foreach ($buttons as $row) {
-            if (!NavigationLocalization::hasDefaultLabel((int) $row['id'])) {
+            // Its own label in the default language, or the title of the page
+            // it follows; a translation alone never makes a button appear.
+            $label = NavigationLocalization::labelFor($row, RequestLanguage::current());
+            if ($label === '') {
                 continue;
             }
 
@@ -164,7 +176,7 @@ class NavigationService
 
             $result[] = [
                 'id' => (int) $row['id'],
-                'label' => NavigationLocalization::label((int) $row['id'], RequestLanguage::current()),
+                'label' => $label,
                 'href' => $resolved['href'],
                 'open_in_new_tab' => $resolved['open_in_new_tab'],
                 'rel' => $resolved['rel'],
