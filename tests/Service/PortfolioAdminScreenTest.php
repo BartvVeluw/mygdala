@@ -118,7 +118,7 @@ final class PortfolioAdminScreenTest extends TestCase
     {
         $item = self::source(self::ITEM_SCREEN);
 
-        foreach (['is_active', 'is_featured'] as $name) {
+        foreach (['is_active', 'related_enabled', 'related_show_text'] as $name) {
             $this->assertStringContainsString('class="admin-switch" role="switch" name="' . $name . '" value="1"', $item, $name);
         }
 
@@ -169,7 +169,8 @@ final class PortfolioAdminScreenTest extends TestCase
         $this->assertStringContainsString('<input type="search"', $overview);
 
         $toolbar = substr($overview, (int) strpos($overview, 'data-portfolio-toolbar'), 4000);
-        $this->assertSame(4, substr_count($toolbar, '<select class="admin-select"'), 'every filter is the shared select');
+        $this->assertSame(3, substr_count($toolbar, '<select class="admin-select"'), 'every filter is the shared select: category, visibility, project page');
+        $this->assertStringNotContainsString('data-portfolio-filter="home"', $overview, 'the homepage filter went with "Toon op homepage"');
         $this->assertStringContainsString('<option value="_none"', $toolbar, 'uncategorised items can be found');
 
         $script = self::source('admin/assets/portfolio-admin.js');
@@ -239,9 +240,10 @@ final class PortfolioAdminScreenTest extends TestCase
         $edit = self::form('update-portfolio-item.php');
 
         $this->assertMatchesRegularExpression(
-            '#<div class="admin-card-pair">\s*<section class="admin-card">\s*<h2><\?= admin_te\(\'portfolio\.categories_field\'\) \?></h2>\s*<\?= portfolioCategoryField\([\s\S]*?</section>\s*<section class="admin-card">\s*<h2><\?= admin_te\(\'portfolio\.visibility\'\) \?></h2>[\s\S]*?name="is_active"[\s\S]*?name="is_featured"[\s\S]*?</section>\s*</div>#',
+            '#<div class="admin-card-pair">\s*<section class="admin-card">\s*<h2><\?= admin_te\(\'portfolio\.categories_field\'\) \?></h2>\s*<\?= portfolioCategoryField\([\s\S]*?</section>\s*<section class="admin-card">\s*<h2><\?= admin_te\(\'portfolio\.visibility\'\) \?></h2>[\s\S]*?name="is_active"[\s\S]*?</section>\s*</div>#',
             $edit
         );
+        $this->assertStringNotContainsString('is_featured', $edit, '"Toon op homepage" is gone: a block chooses its own projects');
 
         $css = self::source('admin/assets/admin.css');
         $this->assertMatchesRegularExpression('/\.admin-card-pair\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/', $css);

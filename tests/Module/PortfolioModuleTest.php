@@ -214,7 +214,6 @@ final class PortfolioModuleTest extends TestCase
             'api/admin/create-portfolio-category.php',
             'api/admin/update-portfolio-category.php',
             'api/admin/delete-portfolio-category.php',
-            'api/admin/move-featured-gallery-item.php',
         ] as $expected) {
             $this->assertContains($expected, $endpoints);
         }
@@ -446,7 +445,9 @@ final class PortfolioModuleTest extends TestCase
     public function testAProjectsRowAlwaysNamesThePortfolioAndNoGallerySettingItLeavesOut(): void
     {
         $row = ProjectCardsBlock::rowValues([
-            'portfolio_scope' => ItemGalleryContent::SCOPE_FEATURED,
+            'portfolio_scope' => ItemGalleryContent::SCOPE_CATEGORY,
+            'portfolio_category_id' => 7,
+            'item_sort' => 'random',
             'max_items' => '6',
             'show_filter_bar' => true,
             'background' => 'soft',
@@ -487,7 +488,9 @@ final class PortfolioModuleTest extends TestCase
             ])
         );
 
-        $this->assertSame(ItemGalleryContent::SCOPE_FEATURED, $row['portfolio_scope']);
+        $this->assertSame(ItemGalleryContent::SCOPE_CATEGORY, $row['portfolio_scope']);
+        $this->assertSame(7, $row['portfolio_category_id']);
+        $this->assertSame('random', $row['item_sort']);
         $this->assertSame(6, $row['max_items']);
         $this->assertTrue($row['show_filter_bar']);
         $this->assertSame('soft', $row['background']);
@@ -497,11 +500,13 @@ final class PortfolioModuleTest extends TestCase
             [
                 'source_type' => PortfolioModule::GALLERY_SOURCE,
                 'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
+                'portfolio_category_id' => null,
                 'max_items' => null,
+                'item_sort' => 'source',
                 'show_filter_bar' => false,
             ],
-            array_intersect_key(ProjectCardsBlock::rowValues([]), array_flip(['source_type', 'portfolio_scope', 'max_items', 'show_filter_bar'])),
-            'a new block: every visible project, no maximum, no filter buttons'
+            array_intersect_key(ProjectCardsBlock::rowValues([]), array_flip(['source_type', 'portfolio_scope', 'portfolio_category_id', 'max_items', 'item_sort', 'show_filter_bar'])),
+            'a new block: every visible project, in the Portfolio\'s own order, no maximum, no filter buttons'
         );
     }
 
@@ -574,7 +579,7 @@ final class PortfolioModuleTest extends TestCase
             strpos($endpoint, 'Csrf::validate('),
             strpos($endpoint, "SectionRegistry::exists('project_cards')"),
             strpos($endpoint, "findBySectionTypeAndId('project_cards'"),
-            strpos($endpoint, 'ItemGalleryContent::isPortfolioScope('),
+            strpos($endpoint, 'ItemGallerySelection::fromRequest('),
             strpos($endpoint, 'ProjectCardsBlock::rowValues('),
         ];
         $this->assertNotContains(false, $positions, 'api/admin/update-project-cards.php is missing a guard');
@@ -670,8 +675,8 @@ final class PortfolioModuleTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * Every Portfolio write endpoint: the files named after it, plus the one
-     * that reorders the homepage selection and was named after the gallery.
+     * Every Portfolio write endpoint: the files named after it. The one that
+     * reordered the homepage selection went with "Toon op homepage".
      *
      * @return list<string>
      */
@@ -685,8 +690,6 @@ final class PortfolioModuleTest extends TestCase
                 $endpoints[] = 'api/admin/' . basename($path);
             }
         }
-
-        $endpoints[] = 'api/admin/move-featured-gallery-item.php';
 
         return $endpoints;
     }

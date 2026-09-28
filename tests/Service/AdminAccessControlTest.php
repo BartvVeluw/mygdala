@@ -129,6 +129,13 @@ final class AdminAccessControlTest extends TestCase
         // use behind their own pages.manage check. It lists only the library
         // items it is handed, and the editor's own endpoint stores the list.
         '_media_sequence_field.php',
+        // The choice of items of a gallery block (all, one category, picked
+        // by hand, the order) and its hand-picked list: output functions the
+        // Projecten, gallery and Portfolio item editors use behind their own
+        // pages.manage or portfolio.manage check. They list only the choices
+        // they are handed, and each editor's own endpoint checks and stores.
+        '_gallery_selection.php',
+        '_item_picker.php',
         // Where a page sits (docs/pages/NESTING.md): the parent list, the
         // admin group and the address line, printed by admin/page.php and
         // admin/page-new.php behind their own pages.manage check. The

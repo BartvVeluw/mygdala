@@ -47,6 +47,8 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
+            <file>tests/Service/PortfolioRelatedProjectsTest.php</file>
+            <file>tests/Service/RandomOrderTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
             <file>tests/Service/PersonalizationLocalizationTest.php</file>
             <file>tests/Service/OrderItemNameSnapshotTest.php</file>
@@ -134,6 +136,7 @@
             <file>tests/Module/ModuleConfigurationTest.php</file>
             <file>tests/Module/ModuleRegistryTest.php</file>
             <file>tests/Module/PortfolioModuleTest.php</file>
+            <file>tests/Module/PortfolioHomepageFlagRemovedTest.php</file>
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
             <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
@@ -207,6 +210,8 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
+            <file>tests/Service/PortfolioRelatedProjectsTest.php</file>
+            <file>tests/Service/RandomOrderTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
             <file>tests/Service/PersonalizationLocalizationTest.php</file>
             <file>tests/Service/OrderItemNameSnapshotTest.php</file>
@@ -231,6 +236,7 @@
             <file>tests/Module/ModuleConfigurationTest.php</file>
             <file>tests/Module/ModuleRegistryTest.php</file>
             <file>tests/Module/PortfolioModuleTest.php</file>
+            <file>tests/Module/PortfolioHomepageFlagRemovedTest.php</file>
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberFormatTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
@@ -413,6 +419,7 @@
             <file>tests/Install/MediaBannerMigrationTest.php</file>
             <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/HoverCardsAndMediaSequenceMigrationTest.php</file>
+            <file>tests/Install/PortfolioSelectionMigrationTest.php</file>
             <file>tests/Install/TextImageItemsMigrationTest.php</file>
             <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
@@ -486,6 +493,7 @@
             <file>tests/Service/FeaturedProductContractTest.php</file>
             <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/HoverCardsAndMediaSequenceMigrationTest.php</file>
+            <file>tests/Install/PortfolioSelectionMigrationTest.php</file>
             <file>tests/Service/HoverCardGridRenderTest.php</file>
             <file>tests/Service/HoverCardGridHttpTest.php</file>
             <file>tests/Service/MediaSequenceTest.php</file>
@@ -528,6 +536,9 @@
             <file>tests/Service/PageTemplateCreationTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/ProjectCardsBlockTest.php</file>
+            <file>tests/Module/ProjectCardsSelectionTest.php</file>
+            <file>tests/Service/RandomOrderTest.php</file>
+            <file>tests/Module/ProjectCardsEditorHttpTest.php</file>
             <file>tests/Service/RelatedProductsAdminTest.php</file>
             <file>tests/Service/RelatedProductsContentTest.php</file>
             <file>tests/Service/RelatedProductsEmptyStateTest.php</file>
@@ -685,6 +696,8 @@
             <file>tests/Service/PortfolioPageLinkTest.php</file>
             <file>tests/Service/PortfolioProjectPageTest.php</file>
             <file>tests/Service/PortfolioProjectGalleryTest.php</file>
+            <file>tests/Service/PortfolioRelatedProjectsTest.php</file>
+            <file>tests/Service/RandomOrderTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/RedirectRoutingTest.php</file>

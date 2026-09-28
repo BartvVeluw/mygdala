@@ -257,7 +257,7 @@ final class PortfolioTranslationTest extends TestCase
         PortfolioGalleryContent::clearCache();
 
         $card = static function () use ($id): ?array {
-            foreach (PortfolioGalleryContent::catalogueItems(false) as $card) {
+            foreach (PortfolioGalleryContent::catalogueItems() as $card) {
                 if (($card['id'] ?? null) === $id || $card['title'] === 'zz Houten bord' || $card['title'] === 'zz Wooden sign') {
                     return $card;
                 }

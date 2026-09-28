@@ -29,16 +29,18 @@ final class BlockTranslationSchemaTest extends TestCase
 
     /**
      * Child tables that cascade from a block with words but can never own a
-     * word themselves: a row is a Media Library id and a place, nothing a
-     * visitor reads (the further pictures of a Paginakop's media sequence use
-     * the library's alt text, db/migrations/20260928180000). No block
+     * word themselves: a row is a Media Library id or a project, and a place,
+     * nothing a visitor reads (the further pictures of a Paginakop's media
+     * sequence use the library's alt text, db/migrations/20260928180000; the
+     * projects a gallery or Projecten block picked by hand bring their own
+     * words from the Portfolio, db/migrations/20260928200000). No block
      * declares words for them — that is asserted — so there is nothing their
      * cascade could leave behind, and they are not a block's childTables(),
      * which name the tables whose rows own words
      * (Tests\Service\BlockDefinitionContractTest). A closed list, like
      * BlockDefinitionContractTest::WORDLESS_WITH_ROWS.
      */
-    private const WORDLESS_CHILD_TABLES = ['page_hero_images'];
+    private const WORDLESS_CHILD_TABLES = ['page_hero_images', 'item_gallery_portfolio_items'];
 
     public function testTheTableHasTheAgreedShape(): void
     {

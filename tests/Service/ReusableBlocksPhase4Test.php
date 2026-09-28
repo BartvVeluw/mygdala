@@ -403,21 +403,38 @@ final class ReusableBlocksPhase4Test extends TestCase
         $this->assertStringContainsString(self::titles($expected)[0], $html);
     }
 
-    public function testTheFeaturedScopeYieldsOnlyTheHomepageSelection(): void
+    /**
+     * A gallery on portfolio items may show projects picked by hand, in their
+     * picked order — what a homepage gallery that showed the old "Toon op
+     * homepage" selection became (db/migrations/20260928200000). It brings
+     * its own two projects (the fixture marker cleanUp() removes), so it runs
+     * on any database.
+     */
+    public function testTheManualScopeYieldsThePickedItemsInTheirOrder(): void
     {
-        [, $sectionKey] = $this->addBlock('item_gallery');
-        $this->configure($sectionKey, ['portfolio_scope' => ItemGalleryContent::SCOPE_FEATURED]);
+        $gallery = new PortfolioGalleryRepository();
+        $catalogueId = (int) $gallery->ensureCatalogue()['id'];
+        $first = $gallery->createItem($catalogueId, ['image_path' => self::TEST_ITEM_IMAGE]);
+        $second = $gallery->createItem($catalogueId, ['image_path' => self::TEST_ITEM_IMAGE]);
+        $language = PortfolioLocalization::defaultLanguage();
+        PortfolioLocalization::saveItem($first, $language, [PortfolioLocalization::TITLE => 'Fase 4 eerst gemaakt']);
+        PortfolioLocalization::saveItem($second, $language, [PortfolioLocalization::TITLE => 'Fase 4 later gemaakt']);
+        PortfolioLocalization::clearCache();
+        PortfolioGalleryContent::clearCache();
 
-        $all = PortfolioGalleryContent::catalogueItems(false);
-        $featured = PortfolioGalleryContent::catalogueItems(true);
-        if ($featured === []) {
-            $this->markTestSkipped('no portfolio items are flagged "Toon op homepage" in this database');
-        }
+        [, $sectionKey] = $this->addBlock('item_gallery');
+        $this->configure($sectionKey, ['portfolio_scope' => ItemGalleryContent::SCOPE_MANUAL]);
+        $galleryId = (int) (new ItemGalleryRepository())->findBySlugAndKey(self::TEST_KEY, $sectionKey)['id'];
+        \App\Service\ItemGallerySources::saveSelection(PortfolioModule::GALLERY_SOURCE, $galleryId, [$second, $first]);
+        ItemGalleryContent::clearCache();
 
         $content = ItemGalleryContent::forSection(self::TEST_KEY, $sectionKey);
 
-        $this->assertSame(self::titles($featured), self::titles($content['items']));
-        $this->assertLessThanOrEqual(count($all), count($content['items']));
+        $this->assertSame(
+            ['Fase 4 later gemaakt', 'Fase 4 eerst gemaakt'],
+            self::titles($content['items']),
+            'exactly the picked items, in the picked order'
+        );
     }
 
     public function testTheCollectionSourceYieldsThatCollectionsProducts(): void
@@ -502,14 +519,22 @@ final class ReusableBlocksPhase4Test extends TestCase
 
     public function testAnInvalidSourceIsRefusedInsteadOfExecuted(): void
     {
-        // The save endpoint validates against the closed list BEFORE writing.
+        // The save endpoint validates against the closed lists BEFORE
+        // writing: the source itself, and the scope through
+        // ItemGallerySelection, which the Projecten editor shares.
         $endpoint = $this->sourceOf('api/admin/update-item-gallery.php');
         $this->assertStringContainsString('ItemGalleryContent::isSource(', $endpoint);
-        $this->assertStringContainsString('ItemGalleryContent::isPortfolioScope(', $endpoint);
+        $this->assertStringContainsString('ItemGallerySelection::fromRequest(', $endpoint);
+        $this->assertStringContainsString('ItemGalleryContent::isPortfolioScope(', $this->sourceOf('src/Service/ItemGallerySelection.php'));
         $this->assertLessThan(
             strpos($endpoint, '->upsertSection('),
             strpos($endpoint, 'ItemGalleryContent::isSource('),
             'the source must be validated before it is stored'
+        );
+        $this->assertLessThan(
+            strpos($endpoint, '->upsertSection('),
+            strpos($endpoint, 'ItemGallerySelection::fromRequest('),
+            'the scope must be validated before it is stored'
         );
 
         // And a value that got into the database anyway (a hand-edited row)

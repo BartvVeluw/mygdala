@@ -560,7 +560,7 @@ final class PortfolioProjectPageTest extends TestCase
 
         $imagePath = (string) ((new PortfolioGalleryRepository())->findItemById($itemId)['image_path'] ?? '');
 
-        foreach (PortfolioGalleryContent::catalogueItems(false) as $card) {
+        foreach (PortfolioGalleryContent::catalogueItems() as $card) {
             if ($card['image_path'] === $imagePath) {
                 return $card;
             }

@@ -246,18 +246,17 @@ final class ProjectCardsBlockTest extends TestCase
     public function testWhichProjectsAndHowMany(): void
     {
         $marker = bin2hex(random_bytes(4));
-        $featuredId = $this->item('ZZ Uitgelicht ' . $marker);
-        $this->item('ZZ Niet uitgelicht ' . $marker);
+        $pickedId = $this->item('ZZ Gekozen ' . $marker);
+        $this->item('ZZ Niet gekozen ' . $marker);
 
-        Database::connection()
-            ->prepare('UPDATE portfolio_gallery_items SET is_featured = 1 WHERE id = :id')
-            ->execute(['id' => $featuredId]);
-
-        [$blockId, $sectionKey, $pageKey] = $this->projectsBlock(['portfolio_scope' => ItemGalleryContent::SCOPE_FEATURED]);
+        [$blockId, $sectionKey, $pageKey] = $this->projectsBlock(['portfolio_scope' => ItemGalleryContent::SCOPE_MANUAL]);
+        $galleryId = (int) (new ItemGalleryRepository())->findBySlugAndKey($pageKey, $sectionKey)['id'];
+        \App\Service\ItemGallerySources::saveSelection(\App\Module\PortfolioModule::GALLERY_SOURCE, $galleryId, [$pickedId]);
+        ItemGalleryContent::clearCache();
 
         $xpath = $this->xpath($this->renderBlock($blockId));
-        $this->cardElement($xpath, 'ZZ Uitgelicht ' . $marker);
-        $this->assertSame(0, $this->cardsTitled($xpath, 'ZZ Niet uitgelicht ' . $marker), 'only the homepage selection');
+        $this->cardElement($xpath, 'ZZ Gekozen ' . $marker);
+        $this->assertSame(0, $this->cardsTitled($xpath, 'ZZ Niet gekozen ' . $marker), 'only the projects picked for it');
 
         $this->configure($pageKey, $sectionKey, ['portfolio_scope' => ItemGalleryContent::SCOPE_ALL, 'max_items' => 2]);
 
@@ -396,6 +395,8 @@ final class ProjectCardsBlockTest extends TestCase
 
         $repository->upsertSection($pageKey, $sectionKey, ProjectCardsBlock::rowValues($settings + [
             'portfolio_scope' => (string) $current['portfolio_scope'],
+            'portfolio_category_id' => $current['portfolio_category_id'] === null ? null : (int) $current['portfolio_category_id'],
+            'item_sort' => (string) $current['item_sort'],
             'max_items' => $current['max_items'] === null ? null : (int) $current['max_items'],
             'show_filter_bar' => (bool) $current['show_filter_bar'],
             'background' => (string) $current['background'],

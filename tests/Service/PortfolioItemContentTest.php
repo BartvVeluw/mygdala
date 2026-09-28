@@ -136,7 +136,7 @@ final class PortfolioItemContentTest extends TestCase
         $without = $this->item([]);
 
         $byImage = [];
-        foreach (PortfolioGalleryContent::catalogueItems(false) as $item) {
+        foreach (PortfolioGalleryContent::catalogueItems() as $item) {
             $byImage[$item['image_path']] = $item;
         }
 

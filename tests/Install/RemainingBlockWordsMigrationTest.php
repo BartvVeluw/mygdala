@@ -123,6 +123,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'form_blocks' => ['header_align'],
         'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
         'page_heroes' => ['image_mode', 'hero_height', 'image_focus', 'slide_transition', 'slide_duration'],
+        'item_galleries' => ['portfolio_category_id', 'item_sort'],
     ];
 
     private static ?ScratchInstall $fresh = null;
@@ -582,7 +583,11 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         $gallery->execute([self::PAGE, 'zz-gallery', 'portfolio', 'all', 12, 1, 1, '/werk',
             'Werk', 'Work', 'Onze projecten', 'Our projects', 'Een greep.', null, 'En meer.', 'And more.',
             'Al het werk', 'All work', '/werk', 'soft', 1, 1]);
-        $gallery->execute([self::PAGE, 'zz-projects', 'portfolio', 'featured', null, 0, 0, null,
+        // A Projecten row on "all": one on the old "featured" is turned into a
+        // hand-picked list by 20260928200000, which catchUp() also runs and
+        // Tests\Install\PortfolioSelectionMigrationTest proves; here only its
+        // words matter.
+        $gallery->execute([self::PAGE, 'zz-projects', 'portfolio', 'all', null, 0, 0, null,
             '', '', 'Projecten', '', 'Wat wij maakten.', '', '', '',
             '', '', null, 'default', 0, 1]);
     }

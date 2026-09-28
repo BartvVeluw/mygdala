@@ -57,7 +57,7 @@ final class PortfolioLocalizationTest extends TestCase
 
         self::assertSame('portfolio_item_translations', $items->name);
         self::assertSame('portfolio_item_id', $items->ownerColumn);
-        self::assertSame(['title', 'subtitle', 'alt', 'intro', 'description'], $items->fieldNames());
+        self::assertSame(['title', 'subtitle', 'alt', 'intro', 'description', 'related_title', 'related_lead'], $items->fieldNames());
 
         self::assertSame('portfolio_item_image_translations', $images->name);
         self::assertSame('portfolio_item_image_id', $images->ownerColumn);
