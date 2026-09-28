@@ -122,6 +122,7 @@
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Service/ShopGalleryContractTest.php</file>
+            <file>tests/Service/FeaturedProductContractTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Blog/BlogLocalizationTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
@@ -335,6 +336,7 @@
             <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
             <file>tests/Service/InventoryContractTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
+            <file>tests/Service/FeaturedProductContractTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test
@@ -409,6 +411,7 @@
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
             <file>tests/Install/CtaBandMigrationTest.php</file>
             <file>tests/Install/MediaBannerMigrationTest.php</file>
+            <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/TextImageItemsMigrationTest.php</file>
             <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
@@ -477,6 +480,10 @@
             <file>tests/Service/CtaBandHttpTest.php</file>
             <file>tests/Service/MediaBannerRenderTest.php</file>
             <file>tests/Service/MediaBannerHttpTest.php</file>
+            <file>tests/Service/FeaturedProductBlockTest.php</file>
+            <file>tests/Service/FeaturedProductHttpTest.php</file>
+            <file>tests/Service/FeaturedProductContractTest.php</file>
+            <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>
@@ -787,6 +794,10 @@
             <file>tests/Service/ProductSpecificationsTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
             <file>tests/Install/ShopProductOrderingMigrationTest.php</file>
+            <file>tests/Service/FeaturedProductBlockTest.php</file>
+            <file>tests/Service/FeaturedProductHttpTest.php</file>
+            <file>tests/Service/FeaturedProductContractTest.php</file>
+            <file>tests/Service/ProductPurchasePathTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

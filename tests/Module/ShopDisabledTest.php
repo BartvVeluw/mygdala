@@ -74,6 +74,7 @@ final class ShopDisabledTest extends TestCase
 
         $this->assertTrue(BlockDefinitions::has('product_grid'));
         $this->assertTrue(BlockDefinitions::has('shop_collections'));
+        $this->assertTrue(BlockDefinitions::has('featured_product'));
         $this->assertTrue(ItemGallerySources::isAvailable(ShopModule::GALLERY_SOURCE_COLLECTION));
 
         $this->assertArrayHasKey('products', ModuleRegistry::collectMap('sitemapCollectors'));
@@ -246,7 +247,7 @@ final class ShopDisabledTest extends TestCase
     {
         $this->withShopOff();
 
-        foreach (['product_grid', 'shop_collections'] as $type) {
+        foreach (['product_grid', 'shop_collections', 'featured_product'] as $type) {
             $this->assertFalse(BlockDefinitions::has($type), $type . ' must not be registered');
             $this->assertFalse(SectionRegistry::exists($type));
             $this->assertNull(BlockDefinitions::get($type), 'an unregistered type must never resolve to a class');
@@ -276,6 +277,7 @@ final class ShopDisabledTest extends TestCase
 
         $this->assertSame('shop', SectionRegistry::disabledModuleFor('product_grid'));
         $this->assertSame('shop', SectionRegistry::disabledModuleFor('shop_collections'));
+        $this->assertSame('shop', SectionRegistry::disabledModuleFor('featured_product'));
         $this->assertNull(SectionRegistry::disabledModuleFor('__never_shipped__'));
         $this->assertNull(SectionRegistry::disabledModuleFor('rich_text'), 'a registered Core block is not "disabled"');
 
@@ -362,7 +364,8 @@ final class ShopDisabledTest extends TestCase
         $forbidden = [
             'ProductRepository', 'CollectionRepository', 'OrderRepository', 'DashboardRepository',
             'ProductPersonalizationRepository', 'ProductSeo', 'CollectionContent',
-            'ProductGridBlock', 'ShopCollectionsBlock', 'PersonalizationCatalog',
+            'ProductGridBlock', 'ShopCollectionsBlock', 'FeaturedProductBlock', 'FeaturedProductContent',
+            'ProductDetail', 'ProductPurchasePath', 'PersonalizationCatalog',
         ];
 
         $files = [

@@ -2382,6 +2382,12 @@ final class MultilingualBoundaryTest extends TestCase
         'src/Service/ProductDeletionService.php',
         'src/Service/SiteSettings.php',
         'src/Service/Blocks/ShopCollectionsBlock.php',
+        // Uitgelicht product: the one product payload, the block's read
+        // model, its partial and its editor.
+        'src/Service/ProductDetail.php',
+        'src/Service/FeaturedProductContent.php',
+        'partials/section-featured-product.php',
+        'admin/featured-product.php',
         'collectie.php',
         'partials/related-products.php',
         'partials/section-shop-collections.php',
