@@ -14,6 +14,10 @@
    Items of one block sit closer together than two blocks do (a section has
    var(--sp-7) of padding on both sides): that is the point of having several
    items in one block.
+
+   The block's own heading above its items is the shared .section-head of
+   core.css (an h2 and a lead, left like the items' text); under it an item's
+   title is an h3, with the h3 step of the type scale.
    ========================================================================== */
 
 .text-image{
@@ -67,7 +71,8 @@
 .text-image__media img{ display: block; width: 100%; height: 100%; object-fit: cover; }
 
 .text-image__text{ min-width: 0; }
-.text-image__text .eyebrow + h2{ margin-top: 0.75rem; }
+.text-image__text .eyebrow + h2,
+.text-image__text .eyebrow + h3{ margin-top: 0.75rem; }
 .text-image__text > * + .text-image__body{ margin-top: 1.25rem; }
 /* A title-less item opens with the lead paragraph, as a title-less block's
    first paragraph always did. */

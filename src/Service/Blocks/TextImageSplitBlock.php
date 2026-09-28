@@ -16,9 +16,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-text-image-split.php';
  * It is also the only block that cares about `$tightTop`: directly under a
  * hero it drops its own top spacing so the two do not stack twice.
  *
- * Every word belongs to an item and is stored per website language in
- * block_translations (BlockLocalization), each item's on its own row; the
- * block row itself only says whether the block shows.
+ * The words are stored per website language in block_translations
+ * (BlockLocalization): the block's own optional title and lead above all its
+ * items on the block row, and each item's on its own row. What the block row
+ * holds besides that is whether the block shows.
  */
 final class TextImageSplitBlock extends BlockDefinition
 {
@@ -69,17 +70,25 @@ final class TextImageSplitBlock extends BlockDefinition
     }
 
     /**
-     * Every word is an item's: the eyebrow, title, rich body, button label
-     * and the picture's own alt text, per website language. The picture, the
-     * layout, the button URL and the order are the same in every language and
-     * stay in the items table. Nothing is required on its own: an item needs
-     * text (an eyebrow, a title, a body or a whole button) or a picture,
-     * which the editor's endpoint checks as a whole. The body is as long as
-     * the Tekstblok's may be.
+     * The block's own heading above all its items — an optional title and an
+     * optional lead — and every item's words: the eyebrow, title, rich body,
+     * button label and the picture's own alt text, per website language. The
+     * picture, the layout, the button URL and the order are the same in every
+     * language and stay in the items table. Nothing is required on its own:
+     * the block needs no heading, and an item needs text (an eyebrow, a
+     * title, a body or a whole button) or a picture, which the editor's
+     * endpoint checks as a whole. The body is as long as the Tekstblok's may
+     * be. (The block's own row owned words before Tekst met afbeelding 2.0 as
+     * well; db/migrations/20260924100000 moved every one of them onto an item,
+     * so a title here starts empty on every existing block.)
      */
     public function translatableFields(): array
     {
         return [
+            'text_image_splits' => [
+                TranslatableField::plain('title', 255),
+                TranslatableField::plain('lead', 500),
+            ],
             'text_image_split_items' => [
                 TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255),
@@ -163,6 +172,8 @@ final class TextImageSplitBlock extends BlockDefinition
         ];
 
         return [
+            'title' => $samples->localized('short_title'),
+            'lead' => $samples->localized('lead'),
             'items' => [
                 $item('right', '50', 'medium', 'center') + [
                     'eyebrow' => $samples->localized('eyebrow'),
@@ -189,9 +200,14 @@ final class TextImageSplitBlock extends BlockDefinition
         render_section_text_image_split($content, false, $revealGroup);
     }
 
-    /** The first item's title, the name the page builder shows for this block. */
+    /** The block's own title, else its first item's: the name the page builder shows for this block. */
     public function instanceTitle(array $pageSection): string
     {
+        $title = BlockLocalization::name('text_image_splits', $this->sectionId($pageSection), 'title');
+        if ($title !== '') {
+            return $title;
+        }
+
         foreach ((new TextImageSplitRepository())->findItemsBySectionId($this->sectionId($pageSection)) as $item) {
             $title = BlockLocalization::name('text_image_split_items', (int) $item['id'], 'title');
             if ($title !== '') {

@@ -5,7 +5,8 @@
  *
  * Saves the WHOLE editor of one Tekst met afbeelding block
  * (admin/text-image-split.php?section=...) in one request: whether it shows,
- * and its items — each with its words, its picture, its layout and its button's
+ * its own optional title and lead above all items (the words of the block
+ * row, in the language on screen, only their length checked), and its items — each with its words, its picture, its layout and its button's
  * destination (LinkChoice) — their order, new ones and the ones marked for removal. One form,
  * one save (PAGE-EDITOR.md, "Eén formulier per blok-editor"); there is no
  * endpoint per item.
@@ -106,6 +107,13 @@ $repository = new TextImageSplitRepository();
 $redirect = '/admin/text-image-split.php?section=' . urlencode($sectionKey);
 
 $isActive = isset($_POST['is_active']);
+
+// The block's own heading: exactly the fields its row declares, never a name
+// taken from the request.
+$blockWords = [];
+foreach (array_keys(BlockLocalization::fields('text_image_splits')) as $field) {
+    $blockWords[$field] = is_scalar($_POST[$field] ?? null) ? trim((string) $_POST[$field]) : '';
+}
 
 $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
@@ -251,11 +259,14 @@ $fieldErrors = [];
 if (!$languageIsWritable) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 } else {
-    $fieldErrors = $items->problems($languageCode, $itemProblems);
-    $errors = $items->summary($fieldErrors, AdminTranslator::trans('block_textimage.item'));
+    $fieldErrors = EditorChildList::wordErrors('text_image_splits', $languageCode, $blockWords);
+    $errors = array_values(array_unique(array_values($fieldErrors)));
+    $itemErrors = $items->problems($languageCode, $itemProblems);
+    array_push($errors, ...$items->summary($itemErrors, AdminTranslator::trans('block_textimage.item')));
+    $fieldErrors += $itemErrors;
 }
 
-$old = ['language_code' => $languageCode, 'is_active' => $isActive, 'items' => $items->old()];
+$old = ['language_code' => $languageCode, 'is_active' => $isActive] + $blockWords + ['items' => $items->old()];
 
 if ($errors !== []) {
     $_SESSION['admin_tis_errors'] = $errors;
@@ -273,6 +284,10 @@ try {
 
     $repository->upsertSection($section['page_slug'], $section['section_key'], ['is_active' => $isActive]);
     $sectionId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
+    // A form from before the heading sends neither field: it keeps the stored words.
+    if (array_key_exists('title', $_POST) || array_key_exists('lead', $_POST)) {
+        BlockLocalization::save('text_image_splits', $sectionId, $languageCode, $blockWords);
+    }
 
     $items->save(
         $languageCode,

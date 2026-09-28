@@ -38,6 +38,10 @@ use App\Service\Routing\RequestLanguage;
  * is layered over the media item's own by BlockImage::fromOwner(). This
  * class decides no language itself.
  *
+ * THE BLOCK'S OWN HEADING, above all its items: an optional title and an
+ * optional lead, per website language on the block row. Like every optional
+ * word, each shows only when the default language has it.
+ *
  * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
  * CONTENT-BLOCKS.md, "Het inhoudscontract". `is_active = false` on an existing
@@ -100,7 +104,9 @@ class TextImageSplitContent
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*) and 'items': a
+     * @return array<string, mixed> 'state' (one of STATE_*), the block's
+     *                                own title and lead ('' when it has
+     *                                none) and 'items': a
      *                                list of image_side, image_column,
      *                                image_height, image_focus (keys),
      *                                eyebrow, title,
@@ -152,6 +158,11 @@ class TextImageSplitContent
         }
 
         $content = ['items' => []];
+        foreach (['title', 'lead'] as $field) {
+            $content[$field] = BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, $field)
+                ? BlockLocalization::text(self::TABLE, $sectionId, $field)
+                : '';
+        }
         foreach ($items as $item) {
             $shown = self::item($item);
             if ($shown !== null) {
@@ -258,6 +269,6 @@ class TextImageSplitContent
      */
     private static function emptyContent(): array
     {
-        return ['items' => []];
+        return ['title' => '', 'lead' => '', 'items' => []];
     }
 }

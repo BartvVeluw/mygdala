@@ -24,8 +24,8 @@ use App\Repository\TextImageSplitRepository;
 
 /**
  * Editor for one Tekst met afbeelding block (?section=<page content_key>:<section_key>):
- * whether it shows, and its items (Tekst met afbeelding 2.0,
- * App\Service\TextImageSplitContent). An item is an eyebrow, a title, a
+ * whether it shows, its own optional title and lead above all its items, and
+ * its items (Tekst met afbeelding 2.0, App\Service\TextImageSplitContent). An item is an eyebrow, a title, a
  * rich-text body and an optional button beside at most one picture, with the
  * picture's side, share of the row, height and focus point.
  *
@@ -125,6 +125,16 @@ BlockLocalization::preloadBlocks(['text_image_splits' => [$splitId]]);
 $isActive = is_array($old) ? !empty($old['is_active']) : (bool) $split['is_active'];
 
 $oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/** The block's own heading on screen: typed and handed back in this language, else stored in it. */
+$blockWord = static function (string $field) use ($old, $oldInThisLanguage, $splitId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('text_image_splits', $splitId, $field, $editLanguage);
+};
+$blockOptional = admin_localized_optional_attr($editLanguage);
 
 // The items on screen: as a refused save handed them back, else as stored.
 $itemRows = editor_rows_on_screen(
@@ -295,6 +305,20 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
 
     <section class="admin-card">
       <h2><?= admin_te('block_textimage.sectie') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('block_textimage.kop_uitleg') ?></p>
+
+      <div class="admin-field">
+        <?= admin_field_label('tis-block-title', admin_t('block_textimage.bloktitel'), admin_t('help.block_textimage.bloktitel')) ?>
+        <input type="text" id="tis-block-title" name="title" maxlength="255" value="<?= $h($blockWord('title')) ?>"<?= $blockOptional ?><?= editor_field_invalid($fieldErrors, 'title') ?>>
+        <?php editor_field_error($fieldErrors, 'title'); ?>
+      </div>
+
+      <div class="admin-field">
+        <?= admin_field_label('tis-block-lead', admin_t('block_textimage.bloklead')) ?>
+        <textarea id="tis-block-lead" name="lead" maxlength="500" rows="3"<?= $blockOptional ?><?= editor_field_invalid($fieldErrors, 'lead') ?>><?= $h($blockWord('lead')) ?></textarea>
+        <?php editor_field_error($fieldErrors, 'lead'); ?>
+      </div>
+
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_textimage.actief_uitgevinkt_hele_sectie') ?>

@@ -64,22 +64,23 @@ final class FeatureGridBlock extends BlockDefinition
     /**
      * The heading on the grid's row and the title and text on each card's
      * row, per website language; a card's icon is the same in every language
-     * and stays in feature_grid_items. What the editor always required in
-     * Dutch is required in the default language, except the eyebrow, which
-     * is optional on every block (partials/eyebrow.php), and a card's title:
-     * a card without one shows its icon and text and no heading. The lead
-     * never was required.
+     * and stays in feature_grid_items. Only a card's text is required, in the
+     * default language. The grid's heading is optional from top to bottom:
+     * the eyebrow is on every block (partials/eyebrow.php), the lead never
+     * was required, and the title (the H2) no longer is — a grid without one
+     * renders no empty heading (partials/section-feature-grid.php). A card's
+     * title is optional too: a card without one shows its icon and text and
+     * no heading.
      * The lengths are the ones the editor always allowed. A grid without a
      * heading of its own (FeatureGridContent::SECTIONS, has_heading) never
-     * has its heading validated or saved, so the required title does not
-     * apply to it.
+     * has its heading validated or saved.
      */
     public function translatableFields(): array
     {
         return [
             'feature_grids' => [
                 TranslatableField::plain('eyebrow', 150),
-                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('title', 255),
                 TranslatableField::plain('lead', 500),
             ],
             'feature_grid_items' => [

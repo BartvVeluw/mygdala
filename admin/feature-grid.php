@@ -9,6 +9,7 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_admin_collapse.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -30,6 +31,15 @@ use App\Repository\FeatureGridRepository;
  * (admin/assets/row-list.js); without JavaScript ↑ and ↓ submit the whole
  * form and one empty card waits at the end of the list
  * (App\Service\Blocks\EditorChildList, admin/_editor_rows.php).
+ *
+ * THE HEADING IS OPTIONAL, the title (H2) included: a grid without one shows
+ * its cards and no empty heading.
+ *
+ * EVERY CARD FOLDS ON ITS OWN, like the items of Tekst met afbeelding
+ * (editor_row_open() with $collapse): "Kaart 2 — Precisie" as its button,
+ * following the card's title while it is typed. A lone card, a new one and
+ * one with a message are open; the others of a longer list start folded and
+ * are remembered as the editor left them. Folding posts nothing.
  *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * the heading and every card's title and text show the language chosen in
@@ -132,6 +142,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 $required = admin_localized_required($editLanguage);
 $marker = $required !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
+$optional = admin_localized_optional_attr($editLanguage);
 
 /** One card; the template for a new one is the same markup with the key __KEY__. */
 $cardRow = static function (string $key, array $fields, int $position, int $count) use ($h, $marker, $placeholder, $fieldErrors): void {
@@ -140,7 +151,22 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
     // A new card starts on the first standard icon, as it always did.
     $chosenIcon = (string) ($fields['icon_key'] ?? (string) array_key_first(FeatureGridContent::ICON_KEYS));
     $iconMediaId = (int) ($fields['icon_media_id'] ?? 0);
-    editor_row_open('items', $key, admin_t('block_features.kaart'), $position, $count, ($fields['remove'] ?? '') !== '');
+
+    // Folded or open: a new card and one with a message are open (the
+    // message's card opens whatever was remembered), a lone card too, the
+    // others start folded and remember how the editor left them.
+    $hasMessage = false;
+    foreach (array_keys($fieldErrors) as $errorKey) {
+        if (str_starts_with((string) $errorKey, 'items.' . $key . '.')) {
+            $hasMessage = true;
+        }
+    }
+    $collapse = [
+        'title' => (string) ($fields['title'] ?? ''),
+        'open' => !ctype_digit($key) || $hasMessage || $count === 1,
+        'force' => $hasMessage,
+    ];
+    editor_row_open('items', $key, admin_t('block_features.kaart'), $position, $count, ($fields['remove'] ?? '') !== '', '', $collapse);
     ?>
         <div class="admin-field" data-feature-icon>
           <?= admin_field_label($iconId, admin_t('block_features.icoon')) ?>
@@ -166,10 +192,10 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
           </div>
         </div>
     <?php
-    editor_row_text('items', $key, 'title', admin_t('common.title'), 255, $fields, $fieldErrors, $hint !== '' ? $hint : ' placeholder="Optioneel"');
+    editor_row_text('items', $key, 'title', admin_t('common.title'), 255, $fields, $fieldErrors, ($hint !== '' ? $hint : ' placeholder="Optioneel"') . ' data-row-list-title-source');
     editor_row_text('items', $key, 'body', admin_t('block_features.tekst') . $star, 500, $fields, $fieldErrors, $hint, 3);
     editor_row_switch('items', $key, $fields, admin_t('common.visible'));
-    editor_row_close();
+    editor_row_close(true);
 };
 ?>
 <!doctype html>
@@ -220,8 +246,8 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
       </div>
 
       <div class="admin-field">
-        <?= admin_field_label('feature-grid-title', admin_t('block_features.titel_h2') . $marker) ?>
-        <input type="text" id="feature-grid-title" name="title" maxlength="255"<?= $required ?> value="<?= $h($sectionWord('title')) ?>"<?= $placeholder ?><?= editor_field_invalid($fieldErrors, 'title') ?>>
+        <?= admin_field_label('feature-grid-title', admin_t('block_features.titel_h2'), admin_t('help.block_features.titel_h2')) ?>
+        <input type="text" id="feature-grid-title" name="title" maxlength="255" value="<?= $h($sectionWord('title')) ?>"<?= $optional ?><?= editor_field_invalid($fieldErrors, 'title') ?>>
         <?php editor_field_error($fieldErrors, 'title'); ?>
       </div>
 
@@ -255,7 +281,7 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
       <?php endif; ?>
 
       <input type="hidden" name="items_present" value="1">
-      <div class="admin-row-cards" data-row-list="feature-grid-items">
+      <div class="admin-row-cards" data-row-list="feature-grid-items" data-admin-collapse-group="feature-grid-items" data-admin-collapse-scope="<?= $gridId ?>" data-admin-collapse-no-return>
         <?php foreach ($rows as $position => $row): ?>
           <?php $cardRow($row['key'], $row['fields'], $position, count($rows)); ?>
         <?php endforeach; ?>
@@ -278,6 +304,7 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/feature-grid.js') ?>" defer></script>
+<?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

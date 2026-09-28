@@ -9,7 +9,14 @@ require_once __DIR__ . '/eyebrow.php';
  * TextImageSplitContent::STATE_ACTIVE before calling this.
  *
  * Renders nothing when there is no item to show: an empty block leaves no
- * gap, the same rule as the Marquee and CTA band partials.
+ * gap, the same rule as the Marquee and CTA band partials. The block's own
+ * heading is the heading ABOVE its items, so without an item it is not
+ * shown either.
+ *
+ * THE HEADING: the block's optional title (an h2) and lead above all items,
+ * in the shared .section-head of every block heading. Under such a title
+ * each item's own title is an h3, one level down, so the outline of the page
+ * stays right; without it an item's title is the h2 it always was.
  *
  * ONE MARKUP PATH. The text comes first in the document, the picture second,
  * whatever side the picture is on: `text-image__item--image-left` only moves
@@ -47,9 +54,22 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $group = $revealGroup ?? 'text-image-split';
+    $blockTitle = (string) ($section['title'] ?? '');
+    $blockLead = (string) ($section['lead'] ?? '');
+    $itemHeading = $blockTitle !== '' ? 'h3' : 'h2';
     ?>
     <section class="text-image"<?= $tightTop ? ' style="padding-top:0;"' : '' ?>>
       <div class="container">
+        <?php if ($blockTitle !== '' || $blockLead !== ''): ?>
+        <div class="section-head text-image__head" data-reveal>
+          <?php if ($blockTitle !== ''): ?>
+          <h2><?= $h($blockTitle) ?></h2>
+          <?php endif; ?>
+          <?php if ($blockLead !== ''): ?>
+          <p class="lead"><?= $h($blockLead) ?></p>
+          <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <div class="text-image__items">
           <?php foreach ($items as $index => $item): ?>
             <?php
@@ -68,7 +88,7 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
             <div class="text-image__text"<?= $revealAttr ?>>
               <?php render_eyebrow($item['eyebrow']); ?>
               <?php if ($item['title'] !== ''): ?>
-              <h2><?= $h($item['title']) ?></h2>
+              <<?= $itemHeading ?>><?= $h($item['title']) ?></<?= $itemHeading ?>>
               <?php endif; ?>
               <?php if (trim($item['body']) !== ''): ?>
               <div class="rich-content text-image__body<?= $item['title'] === '' ? ' text-image__body--lead' : '' ?>"><?= $item['body'] ?></div>
