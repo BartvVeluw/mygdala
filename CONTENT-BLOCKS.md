@@ -992,6 +992,85 @@ er een kaart met een afbeelding is.
 carrousel die vanzelf draait, vrije CSS of eigen animatietijden, en meer dan
 één link per kaart.
 
+## Projecten 2.0: welke projecten, in welke volgorde
+
+`db/migrations/20260928200000`. Het blok **Projecten** (`project_cards`) en
+de **galerij** (`item_gallery`) op portfolio-items delen hun
+`item_galleries`-rij, en daarmee de keuze welke projecten ze tonen. Die keuze
+hoort bij de bron (`ItemGallerySources`), niet bij het blok: het blok bewaart
+woorden, de bron kiest en sorteert, en de partial tekent de kaarten die er al
+waren.
+
+| Instelling | Waar | Waarden (standaard eerst) |
+|---|---|---|
+| Bron | `item_galleries.portfolio_scope` | `all` (alle zichtbare projecten), `category` (de zichtbare projecten van één categorie), `manual` (handmatig gekozen) — `ItemGalleryContent::SCOPES` |
+| Categorie | `item_galleries.portfolio_category_id` | een Portfolio-categorie; `ON DELETE SET NULL`, zoals `collection_id` |
+| Volgorde | `item_galleries.item_sort` | `source` (de standaard Portfolio-volgorde), `newest`, `oldest`, `title_asc`, `title_desc`, `random` — `ItemGalleryContent::SORTS`; bij `manual` alleen `source` (de gekozen volgorde) en `random` |
+| Maximum | `item_galleries.max_items` | leeg (alles), in de editor 3, 4, 6, 8 of 12; een eerder opgeslagen ander getal blijft staan en krijgt een eigen optie |
+| Handmatige selectie | `item_gallery_portfolio_items` | galerij, project, volgorde; samengestelde sleutel, beide kanten `ON DELETE CASCADE`; geen woorden (een project brengt de zijne mee uit Portfolio), dus in `BlockTranslationSchemaTest::WORDLESS_CHILD_TABLES` |
+
+- **Alleen zichtbare projecten**, hoe ze ook gekozen worden. Een verborgen
+  project in een handmatige selectie wacht; een verwijderd project verdwijnt
+  eruit met de rij.
+- **Een verwijderde categorie** laat het blok los: de categorie wordt NULL,
+  de bron, de volgorde, het maximum en de woorden blijven, het blok toont
+  niets (ook geen kop), en de editor zegt *De gekozen categorie bestaat niet
+  meer* tot er een andere is gekozen. Opslaan met *Eén categorie* zonder
+  categorie weigert het endpoint.
+- **De titelvolgorde** leest de titel die de bezoeker ziet, in zijn taal, als
+  een mens sorteert (`strnatcasecmp`: 2 vóór 10); een project zonder titel
+  staat achteraan. Nieuwste en oudste gaan op `created_at`, bij een gelijke
+  tijd op het id.
+- **Meerdere blokken op één pagina** hebben elk hun eigen rij, dus elk hun
+  eigen bron, categorie, volgorde en selectie: Wolven, D&D en Onderzetters
+  onder elkaar.
+- **Met Portfolio uit** is de bron niet beschikbaar: het blok toont niets
+  (geen lege kop, geen lege categorie), de rij en de selectie blijven, en met
+  Portfolio weer aan staat alles terug (`MODULES.md`, "Portfolio").
+- **De galerij** (*Portfoliogalerij*) biedt dezelfde keuze in haar eigen
+  editor, voor elke bron die hem ondersteunt; een galerij die vroeger de
+  *Toon op homepage*-selectie toonde, is sinds `20260928200000` een handmatige
+  selectie van dezelfde projecten.
+
+**De editors** tonen de keuze met één gedeeld stuk (`admin/_gallery_selection.php`):
+*Bron*, *Categorie* (met per categorie het aantal zichtbare projecten),
+*Volgorde*, en bij *Handmatige selectie* de projectkiezer
+(`admin/_item_picker.php`) met *In willekeurige volgorde tonen*. De kiezer is
+het patroon van de productkiezer van een collectie: een rij per project met
+een vinkje, een miniatuur, de titel, de categorieën en *Verborgen* bij een
+verborgen project; de gekozen staan bovenaan in hun volgorde, ↑ en ↓ (het
+toetsenbord) en slepen verplaatsen ze, en de browser stuurt de vinkjes in
+die volgorde mee, dus een project kan maar één keer gekozen zijn. Zoeken is
+geen wijziging (de opslagbalk ziet het niet). Een regel zegt hoeveel er
+gekozen zijn en hoeveel het blok toont. Alles wordt gecontroleerd door één
+klasse voor beide endpoints, `App\Service\ItemGallerySelection`: een
+onbekend woord wordt geweigerd, een verouderd id stil weggelaten, en een
+formulier zonder een veld houdt wat er staat.
+
+### Willekeurige volgorde
+
+*Willekeurig* trekt bij elke echte paginarequest opnieuw, op de server, en
+alleen uit wat er getoond mag worden (`App\Service\RandomOrder`, PHP's eigen
+`\Random\Randomizer`):
+
+- **Eerst de ids, dan de kaarten.** De bron haalt de zichtbare rijen één keer
+  per request op (`PortfolioGalleryContent::visibleRows()`, zonder woorden),
+  filtert op categorie of selectie, trekt of sorteert de ids, en maakt pas
+  daarna kaarten van alleen de gekozen projecten, met de woorden, de
+  categorieën, de gekoppelde pagina's en de bibliotheekbeelden elk in één
+  query. Vier willekeurige uit tweehonderd kosten dus vier kaarten. Geen
+  `ORDER BY RAND()` en niets willekeurigs in de browser.
+- **Geen cache houdt de trekking vast.** Een publieke pagina stuurt geen
+  `Cache-Control` en er is geen opgeslagen uitvoer; de enige caches zijn per
+  request (`ItemGalleryContent`, `PortfolioGalleryContent`), dus één request
+  tekent een blok met één trekking en de volgende request trekt opnieuw.
+  Komt er ooit een paginacache voor, dan houdt die een willekeurige keuze vast
+  zolang hij geldt: dat is dan een keuze van die cache, niet van het blok.
+- **Testbaar zonder geluk.** `RandomOrder::useEngineForTests()` zet een
+  vaste seed en `calls()` telt de trekkingen, zodat een test bewijst dat er
+  per render getrokken wordt, uit de juiste pool, zonder dubbelen en binnen
+  het maximum — en nooit dat de volgende trekking anders *moet* zijn.
+
 ## Uitgelicht product
 
 `db/migrations/20260928160000`. Eén product uit de Shop groot op een gewone

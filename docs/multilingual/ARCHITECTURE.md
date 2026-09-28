@@ -876,7 +876,10 @@ dus geen woorden, en de terugval neemt het over. Eén sanitizer, geen tweede.
 
 **Wat taalneutraal blijft:** de slug van een categorie en van een item, de
 afbeelding en haar thumbnail, de gekoppelde pagina, de categorieën van een
-item, `is_active`, `is_featured` en elke sorteervolgorde. De slug van een
+item, `is_active`, de instellingen van de gerelateerde projecten en elke
+sorteervolgorde (`is_featured` bestaat sinds `20260928210000` niet meer).
+De kop en de introtekst boven de gerelateerde projecten zijn woorden
+(`related_title`, `related_lead` in `portfolio_item_translations`). De slug van een
 nieuwe categorie komt eenmalig uit de naam in de **standaardtaal** en wordt
 nooit hernoemd, dus een vertaling verplaatst nooit een adres. Gelokaliseerde
 URL's zijn fase 6.

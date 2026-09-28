@@ -432,3 +432,39 @@ zien, en een kaart zonder link (die het toetsenbord niet kan bereiken) toont
 zijn tekst altijd. De tweede afbeelding is daarom versiering (`alt=""`): wie
 hem nooit ziet, mist niets. De organische vorm is een `border-radius`-overgang
 zonder script of bibliotheek, en staat stil voor wie minder beweging vroeg.
+
+## Projecten 2.0: de keuze hoort bij de bron, en "Toon op homepage" werd een selectie per blok
+
+Projecten moest een categorie, zelf gekozen projecten, een volgorde en een
+willekeurige volgorde krijgen. Het blok is "de galerij met een vaste bron"
+(hierboven), zonder query, kaart of link van zichzelf, en dat bleef zo: de
+keuze is een instelling van de galerijrij (`portfolio_scope` all/category/manual,
+`portfolio_category_id`, `item_sort`) die de bron toepast, en de gekozen
+projecten zijn een relatie van de module (`item_gallery_portfolio_items`). De
+editors bereiken de categorieën en projecten via vier optionele bijdragen van
+de bron (`ItemGallerySources`), en één Core-klasse controleert voor beide
+endpoints (`ItemGallerySelection`). Zo krijgt de Portfoliogalerij dezelfde
+keuze zonder tweede implementatie.
+
+Een relatietabel met sleutels, geen lijst met ids in een kolom: een project
+kan niet dubbel gekozen worden, een verwijderd project verdwijnt vanzelf uit
+elke keuze, en een hergebruikt id kan nooit een oude keuze overnemen.
+
+*Toon op homepage* was één vlag per item met één lezer: de galerij op het
+bereik *featured*. Eén selectie voor de hele site is precies wat een
+handmatige selectie per blok ook is, maar dan op de plek waar hij getoond
+wordt, en zonder dat een tweede homepageblok dezelfde selectie moet delen.
+De migratie van het blok (`20260928200000`) zet elke featured-galerij om
+naar een handmatige selectie van dezelfde projecten in dezelfde volgorde, en
+de volgende (`20260928210000`) dropt de kolommen, zodat geen site er iets van
+ziet.
+
+## Gerelateerde projecten: eenvoudig en zonder snapshot
+
+Relevantie is het aantal gedeelde categorieën, met nieuwste en dan het id als
+vaste tiebreak: voorspelbaar voor een redacteur, zonder model of statistiek.
+De keuze wordt per request gemaakt uit de rijen van dat moment; een snapshot
+zou een verborgen of verwijderd project blijven tonen. Een tekort vult alleen
+aan als de redacteur dat kiest, anders verschijnen er onverwacht projecten
+die er niets mee te maken hebben. De kaarten zijn die van de galerij, dus er
+is geen tweede kaart om bij te houden.

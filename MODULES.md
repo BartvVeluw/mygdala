@@ -1078,7 +1078,7 @@ houdt.
 ### Portfolio (module `portfolio`)
 
 Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,
-`api/admin/*portfolio*.php` en `move-featured-gallery-item.php`), eigen
+`api/admin/*portfolio*.php`), eigen
 categorietaxonomie, eigen publieke routes (het overzicht `/portfolio`, het oude
 `/portfolio.php` dat daarheen doorstuurt, en de
 projectpagina's `/portfolio/<slug>` via `portfolio-detail.php`), de
@@ -1103,7 +1103,7 @@ lezer en schrijver; de rest van de module bewaart rijen, geen woorden.
 | Tabel | Eigenaar | Velden |
 |---|---|---|
 | `portfolio_category_translations` | `portfolio_category_id` | `name` |
-| `portfolio_item_translations` | `portfolio_item_id` | `title`, `subtitle`, `alt`, `intro` (rich), `description` (rich) |
+| `portfolio_item_translations` | `portfolio_item_id` | `title`, `subtitle`, `alt`, `intro` (rich), `description` (rich), `related_title`, `related_lead` (de kop van de gerelateerde projecten) |
 | `portfolio_item_image_translations` | `portfolio_item_image_id` | `alt` |
 
 **De afbeelding van een item komt uit de Mediabibliotheek** (Media Library
@@ -1118,7 +1118,8 @@ op die van het bibliotheekitem.
 Wat taalneutraal blijft: de slug van een categorie en van een item, de
 afbeelding en haar thumbnail, de galerijfoto's en hun volgorde, de schakelaar
 van de projectpagina, de legacy-koppeling naar een pagina, de categorieën van
-een item, `is_active`, `is_featured` en elke sorteervolgorde. De slug van een
+een item, `is_active`, de instellingen van de gerelateerde projecten en elke
+sorteervolgorde. De slug van een
 nieuwe categorie wordt eenmalig uit de naam in de **standaardtaal** gemaakt en
 daarna nooit hernoemd, dus een vertaling verplaatst nooit een adres.
 
@@ -1171,6 +1172,73 @@ die Portfolio vóór fase 4B had. De enige migratie is
 - **V1 is gestructureerde inhoud, geen paginabouwer.** Geen contentblokken,
   geen hero, geen kolommen of formulieren op een projectpagina. Blokken zijn
   een mogelijke latere uitbreiding.
+
+**Gerelateerde projecten** (`db/migrations/20260928190000`,
+`App\Service\PortfolioRelatedProjects`). Onder een projectpagina kan een rij
+andere projecten staan, als precies dezelfde kaarten als in elke
+Portfolio-galerij (`PortfolioGalleryContent::cards()`,
+`partials/section-item-gallery.php`), met een eigen kop. Het staat **per
+project uit** tot een redacteur het aanzet, dus een bestaande pagina verandert
+niet.
+
+| Instelling | Kolom op `portfolio_gallery_items` | Waarden (standaard eerst) |
+|---|---|---|
+| *Gerelateerde projecten tonen* | `related_enabled` | uit, aan |
+| *Selectie* | `related_mode` | `automatic`, `manual`, `hybrid` |
+| *Maximum aantal* | `related_max` | 3; de keuzes 2, 3, 4, 6, 8 |
+| *Volgorde (automatisch)* | `related_sort` | `relevance`, `newest`, `oldest`, `title`, `random` |
+| *Als er te weinig projecten uit dezelfde categorie zijn* | `related_fallback` | `available` (toon alleen wat er is), `fill` (vul aan met andere projecten) |
+| *Kaarten* | `related_layout` | `normal` (drie naast elkaar, zoals de galerij), `compact` (vier kleinere), `large` (twee grote) |
+| *Korte tekst op de kaarten tonen* | `related_show_text` | aan, uit |
+
+- **Automatisch** kiest projecten die minstens één categorie met dit project
+  delen. Bij *Meest relevant* gaan de projecten met de meeste gedeelde
+  categorieën voor, bij een gelijke stand het nieuwste (`created_at`) en dan
+  het hoogste id: een vaste volgorde, geen aanbevelingsmachine.
+- **Handmatig** toont precies de gekozen projecten, in hun volgorde
+  (`portfolio_related_items`: project, gekozen project, volgorde; de
+  samengestelde sleutel maakt twee keer hetzelfde project onmogelijk).
+- **Hybride** toont eerst de gekozen projecten en vult de overige plekken
+  automatisch aan; een gekozen project komt nooit nog eens uit de automatische
+  keuze, ook niet als het door het maximum niet paste.
+- **Altijd**: het project zelf verschijnt nooit (niet gekozen, niet
+  getrokken, niet aangevuld); alleen zichtbare projecten (`is_active`), dus
+  een verborgen project wacht in de lijst en een verwijderd project verdwijnt
+  eruit (`ON DELETE CASCADE`); nooit meer dan het maximum.
+- **Geen snapshot.** De rij wordt per request uit de rijen van dat moment
+  gekozen: een project dat verborgen, verwijderd of van categorie veranderd
+  wordt, verandert de rij mee. *Willekeurig* trekt bij elke echte request
+  opnieuw, op de server (`App\Service\RandomOrder`; zie CONTENT-BLOCKS.md,
+  "Willekeurige volgorde").
+- **De kop** is `related_title` in de taal van de bezoeker, met de gewone
+  terugval naar de standaardtaal, en zonder eigen titel de ingebouwde
+  *Gerelateerde projecten* / *Related projects*. `related_lead` is optioneel.
+  Beide zijn woorden in `portfolio_item_translations`.
+- **In de editor** is het een eigen, inklapbare sectie van het item
+  (`admin/portfolio-item.php`): de schakelaar, en alleen als die aan staat de
+  rest; de volgorde en de aanvulling alleen bij automatisch en hybride, de
+  projectkiezer (`admin/_item_picker.php`: zoeken, miniatuur, titel,
+  categorieën, *Verborgen*, ↑ ↓ en slepen) alleen bij handmatig en hybride.
+  Eén formulier en één *Opslaan*, met de opslagbalk; wat verborgen is gaat
+  gewoon mee, zodat heen en weer schakelen niets kwijtraakt
+  (`validatePortfolioRelated()`).
+- **Toegankelijk en responsief** omdat het de galerijkaart is: een echte
+  zoomknop met naam, *Bekijk project* als echte link, de h2 onder de h1 van de
+  projectpagina, en de galerijkolommen per breedte. Er is één lightbox-overlay
+  voor de hele pagina (`ItemGalleryContent::claimLightboxOverlay()`).
+
+**"Toon op homepage" bestaat niet meer** (`db/migrations/20260928210000`). Het
+was `is_featured` met een eigen volgorde `featured_sort_order`, met als enige
+lezer een galerij op de bron `portfolio` met het bereik *featured* — de
+homepage-teaser van een bestaande installatie, en een Projecten-blok dat erop
+stond. `20260928200000` maakt van elke zo'n galerij een **handmatige selectie
+van precies dezelfde projecten in precies dezelfde volgorde** (ook een
+verborgen project met de vlag, dat terugkomt zodra het weer zichtbaar is), en
+`20260928210000` dropt daarna beide kolommen. Een galerij op *alle* keek nooit naar de vlag, dus geen
+project verdwijnt ergens. Het schakeltje in de editor, de *Homepage-uitlichting*
+en het homepagefilter op het overzicht, `move-featured-gallery-item.php` en de
+bijbehorende CMS-teksten zijn weg; welke projecten een homepage toont, kies je
+voortaan in het blok zelf.
 
 **De galerij en de hoofdafbeelding.** De hoofdafbeelding staat apart en komt
 bovenaan; de galerij bevat de aanvullende foto's. Dezelfde
@@ -1315,10 +1383,12 @@ Waarom het toch een eigen bloktype is, staat in
 `docs/content-blocks/DECISIONS.md`.
 
 - De editor (`admin/project-cards.php`, met `pages.manage` zoals elke
-  blokeditor) vraagt alleen welke projecten (alle zichtbare, of die met *Toon
-  op homepage*), een maximum, filterknoppen per categorie, de achtergrond, een
-  optionele titel en introtekst, en of het blok actief is. De volgorde is die
-  van Portfolio.
+  blokeditor) vraagt welke projecten (Projecten 2.0, `CONTENT-BLOCKS.md`):
+  *Alle projecten*, *Eén categorie* of *Handmatige selectie*, in welke volgorde
+  (de standaard Portfolio-volgorde, nieuwste, oudste, A–Z, Z–A of
+  willekeurig), een maximum (3, 4, 6, 8, 12 of alles), filterknoppen per
+  categorie, de achtergrond, een optionele titel en introtekst, en of het blok
+  actief is.
 - De bron, een collectie, de lightbox, een link voor kaarten zonder pagina en
   een slottekst of knop legt `api/admin/update-project-cards.php` vast via
   `ProjectCardsBlock::rowValues()`. Een project zonder bestemming is een kaart
@@ -1326,8 +1396,13 @@ Waarom het toch een eigen bloktype is, staat in
 - Een `item_galleries`-rij wordt alleen bewerkt door de editor van het blok dat
   hem plaatste (`page_sections.section_type`): de galerij-editor weigert een
   Projecten-rij, en de Projecten-editor een galerij.
-- Op één categorie selecteren, zelf projecten aanwijzen of een eigen volgorde
-  per blok kan nog niet: de galerijcontracten hebben daar geen instelling voor.
+- De categorie, de gekozen projecten en de volgorde zijn instellingen van de
+  galerijrij (`item_galleries.portfolio_category_id`, `item_sort`) en een
+  relatie van de module (`item_gallery_portfolio_items`), bereikt via de
+  galerijbron (`ItemGallerySources`: `category_choices`, `item_choices`,
+  `selected_items`, `save_selection`). Het blok zelf heeft nog steeds geen
+  query, kaart of link van zichzelf (`PortfolioModuleTest`). Meerdere
+  Projecten-blokken op één pagina hebben elk hun eigen keuze.
 
 Uit betekent: geen zijbalk-item; geen houdbare `portfolio.manage`, dus beide
 schermen en elk schrijfendpoint weigeren op hun bestaande permissiecheck; een

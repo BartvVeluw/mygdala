@@ -94,6 +94,11 @@ en `GenericBlockDefaultsTest` bewaken beide.
   een tweede bloktype met dezelfde tabel of editor (`PAGE-EDITOR.md`).
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
+- **Toont je blok items uit een bron** (zoals de galerij en Projecten), laat
+  de bron dan kiezen en sorteren (`ItemGallerySources`), controleer de keuze
+  met `ItemGallerySelection` en toon hem met `admin/_gallery_selection.php`;
+  willekeur gaat via `App\Service\RandomOrder`, op de server
+  (`CONTENT-BLOCKS.md`, "Projecten 2.0").
 - **Een blok van een module met een eigen editor** (Uitgelicht product van de
   Shop) vraagt `pages.manage`, een Core-recht dat ook met de module uit
   gehouden wordt. Zet daarom `ModuleGuard::requireAdmin()` bovenaan de editor

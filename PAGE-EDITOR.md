@@ -730,6 +730,16 @@ afbeeldingenlijst van de productgalerij (`admin/assets/product-gallery.js`),
 dus geen tweede lijst-script. Kiezen, slepen en weghalen versturen niets; alles
 gaat mee met *Opslaan* van het blok (`CONTENT-BLOCKS.md`, "Mediareeks").
 
+**Welke projecten** een Projecten-blok of een galerij op portfolio-items
+toont, kiest de redacteur met één gedeeld stuk (`admin/_gallery_selection.php`,
+`admin/assets/gallery-selection.js`): *Bron* (alle, één categorie, handmatig),
+*Categorie* met het aantal zichtbare projecten, *Volgorde* en de projectkiezer
+(`admin/_item_picker.php`, `admin/assets/item-picker.js`) met een regel die
+zegt hoeveel er gekozen zijn en hoeveel het blok toont. Wat bij de gekozen bron
+niet hoort wordt verborgen maar gaat mee, dus heen en weer schakelen verliest
+niets; het is één formulier met de opslagbalk (`CONTENT-BLOCKS.md`,
+"Projecten 2.0").
+
 De Hover kaarten grid (`admin/hover-card-grid.php`) is een lijst kaarten in
 hetzelfde contract, met *Kaart toevoegen*, ↑/↓, *Verwijderen* en inklapbare
 kaarten. De keuze *Sluier achter de tekst* staat er alleen bij *Tekst over de

@@ -1191,6 +1191,24 @@ Voor Portfolio 2.0 verder, per suite:
 | `PortfolioRootInstallTest` | `migration`, `cms` | `/portfolio` over HTTP op een verse installatie (geen Portfolio-pagina, eigen overzicht 200, projectpagina, 301 van `/portfolio.php`, sitemap één keer, uit = 404 op alle drie, weer aan zonder nieuwe pagina, bootstrap twee keer idempotent, een gewone pagina *Portfolio* niet overgenomen) en op een legacy-installatie (haar eigen pagina op `/portfolio`, zelfde id, één keer in de sitemap) |
 | `PortfolioTwoMigrationTest` | `migration`, `cms` | `portfolio_item_images.media_id`: vers en na een upgrade, oude foto onaangeroerd, `RESTRICT`, cascade met het item, tweede run verandert niets |
 
+Voor de gerelateerde projecten, Projecten 2.0 en het verdwijnen van *Toon op
+homepage*:
+
+| Test | Suite | Wat |
+|---|---|---|
+| `PortfolioRelatedProjectsTest` | `unit`, `fast`, `cms` | de keuze zonder database: standaard uit, gesloten lijsten, automatisch op gedeelde categorieën (meest gedeeld eerst, nieuwste bij gelijkspel), handmatig in volgorde, hybride zonder dubbelen, nooit het project zelf, verborgen en verwijderd weg, maximum, aanvullen of niet, de andere volgordes, willekeurig alleen uit de geldige pool en één trekking per keuze |
+| `RandomOrderTest` | `unit`, `fast`, `blocks`, `cms` | elk item precies één keer, hoogstens het maximum, een trekking per aanroep, een vaste seed herhaalt zich |
+| `PortfolioRelatedProjectsPageTest` | `modules` | op de testdatabase en over HTTP: uit verandert niets, automatisch/handmatig/hybride, maximum en aanvullen, willekeurig per pagina, de kop per taal, de galerijkaarten onder een eigen h2 met het rasterpreset en één lightbox, Portfolio uit = 404 en de instelling bewaard |
+| `PortfolioRelatedEditorHttpTest` | `modules` | de inklapbare sectie en geen homepageschakelaar, één opslag van instellingen, volgorde en woorden van één taal, een onbekende keuze geweigerd en teruggegeven, zichzelf/dubbel/verwijderd weggelaten, een formulier zonder de sectie en een oud `is_featured` veranderen niets |
+| `ProjectCardsSelectionTest` | `modules`, `blocks` | alle, één categorie en handmatig, elke volgorde, willekeurig per render uit de juiste pool, een verwijderde categorie of project veilig, nooit dubbel, twee blokken op één pagina, Portfolio uit en weer aan |
+| `ProjectCardsEditorHttpTest` | `modules`, `blocks` | de keuze op het scherm (bron, categorieën met aantal, volgordes, kiezer met *Verborgen*, maximumlijst plus een oud getal), één opslag met de volgorde, weigeringen, de melding bij een verwijderde categorie, de galerij-editor met dezelfde keuze |
+| `PortfolioHomepageFlagRemovedTest` | `contract`, `fast`, `modules` | geen code, scherm, endpoint, script of CMS-tekst die de vlag nog kent, geen bereik `featured` |
+| `PortfolioSelectionMigrationTest` | `migration`, `blocks` | de drie migraties vers en na een upgrade met echte featured-data: hetzelfde schema zonder vlag, elke featured-galerij een handmatige selectie van dezelfde projecten in dezelfde volgorde, al het andere onveranderd, tweede run verandert niets, de sleutels |
+
+Willekeur wordt nooit getest op "de volgende trekking moet anders zijn": een
+test zet een vaste seed (`RandomOrder::useEngineForTests()`) en bewijst de
+pool, het aantal, geen dubbelen en een trekking per render (`calls()`).
+
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een
 `MediaUsageProvider` (`MEDIA.md`); `Tests\Service\MediaBoundaryTest`
 controleert dat elke geregistreerde provider een hele lijst id's in één keer
