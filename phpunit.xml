@@ -699,6 +699,7 @@
             <file>tests/Service/PageOptionsTest.php</file>
             <file>tests/Service/PageNestingTest.php</file>
             <file>tests/Service/PageNestingHttpTest.php</file>
+            <file>tests/Service/PagesOverviewLayoutTest.php</file>
             <file>tests/Service/PageTemplateCreationTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/PageUrlChangeTest.php</file>
