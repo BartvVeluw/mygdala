@@ -65,6 +65,8 @@ use App\Repository\PortfolioItemImageRepository;
  * the same `hidden`, and every part is sent anyway, so nothing is lost by
  * switching back and forth. One form, one Opslaan, with the save bar.
  *
+ * There is no "Toon op homepage" any more: which projects the homepage shows
+ * is chosen in the block that shows them.
  *
  * A LEGACY LINKED PAGE (phase 4B) is shown only on an item that has one: its
  * name and status, where the project's button and address go now, and the
@@ -137,9 +139,6 @@ $selectedCategoryIds = $old !== null
 $isActiveChecked = $old !== null && array_key_exists('is_active', $old)
     ? (bool) $old['is_active']
     : ($item === null || (int) $item['is_active'] === 1);
-$isFeaturedChecked = $old !== null && array_key_exists('is_featured', $old)
-    ? (bool) $old['is_featured']
-    : $item !== null && (int) $item['is_featured'] === 1;
 
 // The related projects: handed back after a refused save, else stored.
 $related = PortfolioRelatedProjects::settings($item ?? []);
@@ -451,13 +450,6 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
               <?= admin_te('portfolio.zichtbaar_portfolio_pagina') ?>
             </label>
             <?= admin_help(admin_t('portfolio.zichtbaar_portfolio_pagina'), admin_t('help.portfolio.visible')) ?>
-          </div>
-          <div class="admin-field admin-field--inline">
-            <label class="admin-checkbox-label">
-              <input type="checkbox" class="admin-switch" role="switch" name="is_featured" value="1" <?= $isFeaturedChecked ? 'checked' : '' ?>>
-              <?= admin_te('portfolio.toon_homepage') ?>
-            </label>
-            <?= admin_help(admin_t('portfolio.toon_homepage'), admin_t('help.portfolio.featured')) ?>
           </div>
         </section>
       </div>

@@ -52,6 +52,9 @@
  * (`related_submitted`, `related_items_submitted`); the heading and the lead
  * are words of this language like the others.
  *
+ * There is no "Toon op homepage" any more: which projects a homepage shows is
+ * the choice of the block that shows them (a Projecten block, or a gallery).
+ *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository) —
  * `categories[]` posts category ids, validated against what actually exists
  * (validatePortfolioCategoryIds()) and persisted via
@@ -151,7 +154,6 @@ $old = $words + [
     // The picture chosen in the picker, so a refused save shows it again.
     'media_id' => (int) filter_var($_POST['media_id'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'default' => 0]]),
     'is_active' => isset($_POST['is_active']),
-    'is_featured' => isset($_POST['is_featured']),
     'has_detail_page' => $hasDetailPage,
     'slug' => is_string($_POST['slug'] ?? null) ? trim($_POST['slug']) : '',
     'unlink_page' => ($_POST['unlink_page'] ?? '') === '1',
@@ -172,17 +174,7 @@ $media = portfolioLibraryImage($_POST['media_id'] ?? null);
 $replacesImage = $media !== null && $media->id !== $currentMediaId;
 $mainMediaId = $replacesImage ? $media->id : ($currentMediaId > 0 ? $currentMediaId : null);
 
-$wasFeatured = (int) $item['is_featured'] === 1;
-$isFeatured = isset($_POST['is_featured']);
 $isActive = isset($_POST['is_active']);
-
-if ($isFeatured && !$wasFeatured) {
-    $featuredSortOrder = $repository->nextFeaturedSortOrder((int) $item['portfolio_gallery_id']);
-} elseif (!$isFeatured) {
-    $featuredSortOrder = null;
-} else {
-    $featuredSortOrder = $item['featured_sort_order'];
-}
 
 $fields = ($replacesImage ? portfolioImageColumns($media) : [
     'media_id' => $currentMediaId > 0 ? $currentMediaId : null,
@@ -190,8 +182,6 @@ $fields = ($replacesImage ? portfolioImageColumns($media) : [
     'thumbnail_path' => $item['thumbnail_path'] ?? null,
 ]) + [
     'is_active' => $isActive,
-    'is_featured' => $isFeatured,
-    'featured_sort_order' => $featuredSortOrder,
 ];
 
 $removedPhotos = [];

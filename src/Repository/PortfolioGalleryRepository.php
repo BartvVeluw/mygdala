@@ -85,26 +85,6 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Items curated for the homepage teaser: visible (is_active = 1) AND
-     * marked is_featured = 1, in their own independent homepage order. An
-     * item hidden on the portfolio page is excluded here too, even if it
-     * still carries is_featured = 1 from before it was hidden.
-     *
-     * @return array<int, array<string, mixed>> ordered by featured_sort_order ASC, sort_order ASC, id ASC
-     */
-    public function findFeaturedItemsByGalleryId(int $galleryId): array
-    {
-        $stmt = $this->db->prepare(
-            'SELECT * FROM portfolio_gallery_items
-             WHERE portfolio_gallery_id = :portfolio_gallery_id AND is_active = 1 AND is_featured = 1
-             ORDER BY featured_sort_order ASC, sort_order ASC, id ASC'
-        );
-        $stmt->execute(['portfolio_gallery_id' => $galleryId]);
-
-        return $stmt->fetchAll();
-    }
-
-    /**
      * @return array<string, mixed>|null
      */
     public function findItemById(int $id): ?array
@@ -427,7 +407,7 @@ class PortfolioGalleryRepository extends Repository
      * media_id is the library item, or null for a picture that still lives
      * on Portfolio's own path from before the library.
      *
-     * @param array<string, string|bool|int|null> $values media_id, image_path, thumbnail_path, is_active, is_featured, featured_sort_order
+     * @param array<string, string|bool|int|null> $values media_id, image_path, thumbnail_path, is_active
      */
     public function updateItem(int $id, array $values): void
     {
@@ -437,8 +417,6 @@ class PortfolioGalleryRepository extends Repository
                 image_path = :image_path,
                 thumbnail_path = :thumbnail_path,
                 is_active = :is_active,
-                is_featured = :is_featured,
-                featured_sort_order = :featured_sort_order,
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -447,8 +425,6 @@ class PortfolioGalleryRepository extends Repository
             'image_path' => $values['image_path'],
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
             'is_active' => $values['is_active'] ? 1 : 0,
-            'is_featured' => $values['is_featured'] ? 1 : 0,
-            'featured_sort_order' => $values['featured_sort_order'] ?? null,
             'id' => $id,
         ]);
     }
@@ -619,40 +595,6 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Swaps featured_sort_order with the previous/next item within the
-     * homepage-featured subset only — same "swap with neighbour" approach as
-     * moveItem(), scoped to is_featured = 1 items in their own order.
-     */
-    public function moveFeaturedItem(int $galleryId, int $itemId, string $direction): void
-    {
-        $items = $this->findFeaturedItemsByGalleryId($galleryId);
-
-        $index = null;
-        foreach ($items as $i => $item) {
-            if ((int) $item['id'] === $itemId) {
-                $index = $i;
-                break;
-            }
-        }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($items)) {
-            return;
-        }
-
-        $a = $items[$index];
-        $b = $items[$swapWith];
-
-        $this->updateFeaturedSortOrder((int) $a['id'], (int) $b['featured_sort_order']);
-        $this->updateFeaturedSortOrder((int) $b['id'], (int) $a['featured_sort_order']);
-    }
-
-    /**
      * Persists a full new display order for a gallery's items (drag-and-drop
      * reordering in admin/portfolio.php). Only ids that actually belong to
      * $galleryId are honored; any of the gallery's items missing from
@@ -686,29 +628,6 @@ class PortfolioGalleryRepository extends Repository
         foreach ($ordered as $sortOrder => $id) {
             $this->updateSortOrder($id, $sortOrder);
         }
-    }
-
-    /**
-     * Next free featured_sort_order value within a gallery — used to append
-     * an item to the end of the homepage order the moment it is marked
-     * featured. Public because the caller (the admin save handler) needs it
-     * to decide the value before calling updateItem().
-     */
-    public function nextFeaturedSortOrder(int $galleryId): int
-    {
-        $stmt = $this->db->prepare(
-            'SELECT COALESCE(MAX(featured_sort_order), -1) + 1 AS next_sort_order
-             FROM portfolio_gallery_items WHERE portfolio_gallery_id = :portfolio_gallery_id'
-        );
-        $stmt->execute(['portfolio_gallery_id' => $galleryId]);
-
-        return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private function updateFeaturedSortOrder(int $id, int $featuredSortOrder): void
-    {
-        $stmt = $this->db->prepare('UPDATE portfolio_gallery_items SET featured_sort_order = :featured_sort_order, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['featured_sort_order' => $featuredSortOrder, 'id' => $id]);
     }
 
     /**

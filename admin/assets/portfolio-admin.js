@@ -31,7 +31,6 @@
     var categorySelect = toolbar.querySelector('[data-portfolio-filter="category"]');
     var visibilitySelect = toolbar.querySelector('[data-portfolio-filter="visibility"]');
     var detailSelect = toolbar.querySelector('[data-portfolio-filter="detail"]');
-    var homeSelect = toolbar.querySelector('[data-portfolio-filter="home"]');
     var countEl = document.querySelector("[data-portfolio-count]");
     var emptyEl = document.querySelector("[data-portfolio-empty]");
     var cards = Array.prototype.slice.call(grid.querySelectorAll("[data-portfolio-card]"));
@@ -42,7 +41,6 @@
         cat: categorySelect.value,
         vis: visibilitySelect.value,
         detail: detailSelect.value,
-        home: homeSelect.value,
       };
     }
 
@@ -59,8 +57,6 @@
       if (state.vis === "hidden" && card.getAttribute("data-active") !== "0") return false;
       if (state.detail === "yes" && card.getAttribute("data-detail") !== "1") return false;
       if (state.detail === "no" && card.getAttribute("data-detail") !== "0") return false;
-      if (state.home === "yes" && card.getAttribute("data-home") !== "1") return false;
-      if (state.home === "no" && card.getAttribute("data-home") !== "0") return false;
       return true;
     }
 
@@ -95,7 +91,6 @@
       if (state.cat !== "all") params.push("cat=" + encodeURIComponent(state.cat));
       if (state.vis !== "all") params.push("vis=" + encodeURIComponent(state.vis));
       if (state.detail !== "all") params.push("detail=" + encodeURIComponent(state.detail));
-      if (state.home !== "all") params.push("home=" + encodeURIComponent(state.home));
       var queryString = params.join("&");
 
       var newUrl = window.location.pathname + (queryString ? "?" + queryString : "");
@@ -104,7 +99,7 @@
       updateBackLinks(queryString);
     }
 
-    [searchInput, categorySelect, visibilitySelect, detailSelect, homeSelect].forEach(function (el) {
+    [searchInput, categorySelect, visibilitySelect, detailSelect].forEach(function (el) {
       if (!el) return;
       el.addEventListener("input", apply);
       el.addEventListener("change", apply);

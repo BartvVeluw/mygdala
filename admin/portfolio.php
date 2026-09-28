@@ -26,7 +26,6 @@ $categoryRepository = new PortfolioCategoryRepository();
 $gallery = $repository->ensureCatalogue();
 $galleryId = (int) $gallery['id'];
 $items = $repository->findItemsByGalleryId($galleryId);
-$featuredItems = $repository->findFeaturedItemsByGalleryId($galleryId);
 $categoriesWithCounts = $categoryRepository->findAllWithUsageCounts();
 $categorySlugsByItemId = $repository->categorySlugsByItemIds(array_map(
     static fn (array $item): int => (int) $item['id'],
@@ -49,8 +48,8 @@ $categorySaved = isset($_GET['category_saved']);
 
 $csrfToken = Csrf::token();
 
-// The current search/filter state lives in the URL (q, cat, vis, detail,
-// home) so it survives a reload and can be handed to the item editor's
+// The current search/filter state lives in the URL (q, cat, vis, detail) so
+// it survives a reload and can be handed to the item editor's
 // "back" link — see assets/portfolio-admin.js, which owns applying these
 // once the page has loaded (client-side filtering only, per the approved
 // design: ~100 lightweight cards is not enough to need a server round trip).
@@ -59,14 +58,12 @@ $initialQuery = trim((string) ($_GET['q'] ?? ''));
 $initialCategory = (string) ($_GET['cat'] ?? 'all');
 $initialVisibility = (string) ($_GET['vis'] ?? 'all');
 $initialDetail = (string) ($_GET['detail'] ?? 'all');
-$initialHome = (string) ($_GET['home'] ?? 'all');
 
 $backQueryString = http_build_query(array_filter([
     'q' => $initialQuery,
     'cat' => $initialCategory !== 'all' ? $initialCategory : null,
     'vis' => $initialVisibility !== 'all' ? $initialVisibility : null,
     'detail' => $initialDetail !== 'all' ? $initialDetail : null,
-    'home' => $initialHome !== 'all' ? $initialHome : null,
 ], static fn ($v) => $v !== null && $v !== ''));
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -82,8 +79,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
 
 /**
  * What an item is called in the CMS. A title is optional, so an item without
- * one still gets a name on its card, in its link and in the homepage list —
- * never an empty line.
+ * one still gets a name on its card and in its link — never an empty line.
  */
 $itemName = static function (array $row): string {
     $name = PortfolioLocalization::itemLabel((int) $row['id']);
@@ -101,7 +97,7 @@ PortfolioLocalization::preloadCategories(array_map(
 ));
 PortfolioLocalization::preloadItems(array_map(
     static fn (array $row): int => (int) $row['id'],
-    array_merge($items, $featuredItems)
+    $items
 ));
 ?>
 <!doctype html>
@@ -161,36 +157,6 @@ PortfolioLocalization::preloadItems(array_map(
         <?php endforeach; ?>
       </ul>
     </div>
-  <?php endif; ?>
-
-  <?php if ($featuredItems !== []): ?>
-  <details class="admin-card admin-portfolio-collapsible">
-    <summary><?= admin_t('portfolio.homepage_uitlichting', ['v1' => count($featuredItems)]) ?></summary>
-    <p class="admin-text-muted"><?= admin_te('portfolio.volgorde_items_greep_uit') ?></p>
-    <?php foreach ($featuredItems as $index => $item): ?>
-      <?php
-        $itemId = (int) $item['id'];
-        $isFirst = $index === 0;
-        $isLast = $index === count($featuredItems) - 1;
-      ?>
-      <div class="admin-section-row" style="margin-top:0.6rem;">
-        <img src="<?= $h($cardImageSrc($item)) ?>" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:var(--admin-radius-sm);">
-        <span class="admin-section-row__body"><?= $h($itemName($item)) ?></span>
-        <form method="post" action="/api/admin/move-featured-gallery-item.php" class="admin-inline-form">
-          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-          <input type="hidden" name="item_id" value="<?= $itemId ?>">
-          <input type="hidden" name="direction" value="up">
-          <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr;</button>
-        </form>
-        <form method="post" action="/api/admin/move-featured-gallery-item.php" class="admin-inline-form">
-          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-          <input type="hidden" name="item_id" value="<?= $itemId ?>">
-          <input type="hidden" name="direction" value="down">
-          <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr;</button>
-        </form>
-      </div>
-    <?php endforeach; ?>
-  </details>
   <?php endif; ?>
 
   <details class="admin-card admin-portfolio-collapsible" open>
@@ -281,12 +247,6 @@ PortfolioLocalization::preloadItems(array_map(
       <option value="no" <?= $initialDetail === 'no' ? 'selected' : '' ?>><?= admin_te('portfolio.zonder_projectpagina_2') ?></option>
     </select>
 
-    <select class="admin-select" aria-label="Filter op homepage" data-portfolio-filter="home">
-      <option value="all"><?= admin_t('portfolio.wel_homepage') ?></option>
-      <option value="yes" <?= $initialHome === 'yes' ? 'selected' : '' ?>><?= admin_te('portfolio.homepage') ?></option>
-      <option value="no" <?= $initialHome === 'no' ? 'selected' : '' ?>><?= admin_te('portfolio.homepage_2') ?></option>
-    </select>
-
     <span class="admin-text-muted" data-portfolio-count></span>
   </div>
 
@@ -307,7 +267,6 @@ PortfolioLocalization::preloadItems(array_map(
         <?php
           $itemId = (int) $item['id'];
           $isActive = (int) $item['is_active'] === 1;
-          $isFeatured = (int) $item['is_featured'] === 1;
           // "Projectpagina" is the item's own page at /portfolio/<slug>,
           // switched on with a slug to reach it by (Portfolio 2.0). An item
           // that still links to an ordinary page (phase 4B) gets a badge of
@@ -328,8 +287,7 @@ PortfolioLocalization::preloadItems(array_map(
                  data-title="<?= $h(mb_strtolower($title)) ?>"
                  data-categories="<?= $h($categoriesAttr) ?>"
                  data-active="<?= $isActive ? '1' : '0' ?>"
-                 data-detail="<?= $hasDetail ? '1' : '0' ?>"
-                 data-home="<?= $isFeatured ? '1' : '0' ?>">
+                 data-detail="<?= $hasDetail ? '1' : '0' ?>">
           <span class="admin-portfolio-card__handle" data-portfolio-drag-handle title="Sleep om te herordenen" aria-hidden="true">&#10021;</span>
           <a href="<?= $h($editUrl) ?>" class="admin-portfolio-card__link" aria-label="Bewerken: <?= $h($name) ?>">
             <div class="admin-portfolio-card__media">
@@ -345,7 +303,6 @@ PortfolioLocalization::preloadItems(array_map(
               ))) ?></p>
               <?php endif; ?>
               <div class="admin-portfolio-card__badges">
-                <?php if ($isFeatured): ?><span class="admin-badge admin-badge--info">Homepage</span><?php endif; ?>
                 <?php if ($hasDetail && !$hasLegacyPage): ?><span class="admin-badge admin-badge--editable">Projectpagina</span><?php endif; ?>
                 <?php if ($hasLegacyPage): ?><span class="admin-badge admin-badge--draft"><?= admin_te('portfolio.badge_old_project_page') ?></span><?php endif; ?>
               </div>

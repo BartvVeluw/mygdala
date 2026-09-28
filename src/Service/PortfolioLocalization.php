@@ -20,8 +20,8 @@ use App\Service\Language\TranslationTable;
  *
  * Everything else about a category, an item or a photo is language-neutral
  * and stays on its own row: the slug, the image and thumbnail paths, the page
- * an item links to, the categories it has, is_active, is_featured, the
- * settings of its related projects and every sort order. A category slug is generated once from its name in the DEFAULT
+ * an item links to, the categories it has, is_active, the settings of its
+ * related projects and every sort order. A category slug is generated once from its name in the DEFAULT
  * language and is never renamed (App\Repository\PortfolioCategoryRepository),
  * so a translation can never move an address.
  *

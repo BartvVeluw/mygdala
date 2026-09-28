@@ -73,7 +73,7 @@ use App\Service\Routing\RequestLanguage;
  * string each, in the language of the request, the fallback already applied.
  * Everything else about an
  * item — which page it links to, its categories, its image, whether it is
- * active or featured, its order — is language-neutral and unchanged. This
+ * active, its order — is language-neutral and unchanged. This
  * class decides no language itself, and a third language is a row in
  * `site_languages`.
  *
@@ -97,47 +97,20 @@ class PortfolioGalleryContent
     private static ?array $visibleRows = null;
 
     /**
-     * The catalogue's visible items, ready for a gallery block to render —
-     * every active item in its CMS order, or only the ones curated for a
-     * homepage-style teaser ("Toon op homepage" per item, in their own
-     * `featured_sort_order`).
+     * The catalogue's visible items, ready for a gallery to render: every
+     * active item in its CMS order — the module's own overview
+     * (builtinOverviewGallery()).
      *
      * Whatever comes back — including an empty list — is authoritative: the
      * items an administrator has left visible are the items to show.
      *
      * @return list<array<string, mixed>> see mapItemRow() for the shape
      */
-    public static function catalogueItems(bool $featuredOnly = false): array
+    public static function catalogueItems(): array
     {
-        $cacheKey = RequestLanguage::current() . '|' . ($featuredOnly ? 'featured' : 'all');
-        if (isset(self::$cache[$cacheKey])) {
-            return self::$cache[$cacheKey];
-        }
+        $cacheKey = RequestLanguage::current() . '|all';
 
-        try {
-            $repository = new PortfolioGalleryRepository();
-            $catalogue = $repository->findCatalogue();
-        } catch (\Throwable $e) {
-            error_log('[PortfolioGalleryContent] catalogue lookup failed: ' . $e->getMessage());
-
-            return self::$cache[$cacheKey] = [];
-        }
-
-        if ($catalogue === null) {
-            return self::$cache[$cacheKey] = [];
-        }
-
-        try {
-            $items = $featuredOnly
-                ? $repository->findFeaturedItemsByGalleryId((int) $catalogue['id'])
-                : $repository->findItemsByGalleryId((int) $catalogue['id'], true);
-        } catch (\Throwable $e) {
-            error_log('[PortfolioGalleryContent] item lookup failed: ' . $e->getMessage());
-
-            return self::$cache[$cacheKey] = [];
-        }
-
-        return self::$cache[$cacheKey] = self::cards($items);
+        return self::$cache[$cacheKey] ??= self::cards(array_values(self::visibleRows()));
     }
 
     /**
@@ -440,7 +413,7 @@ class PortfolioGalleryContent
     public static function builtinOverviewGallery(): array
     {
         return [
-            'items' => self::catalogueItems(false),
+            'items' => self::catalogueItems(),
             'filter_categories' => self::filterCategories(),
             'enable_lightbox' => true,
             'fallback_link_url' => '',
@@ -661,10 +634,6 @@ class PortfolioGalleryContent
      * One catalogue row as the normalised gallery item every source of
      * App\Service\ItemGalleryContent returns — so the rendering partial has
      * one code path and knows nothing about portfolios.
-     *
-     * Deliberately excludes is_featured/featured_sort_order: those are
-     * admin/homepage-selection concerns, not something a template needs to
-     * render a card.
      *
      * THE CARD CONTRACT (Portfolio 2.0, MODULES.md "Portfolio"):
      *
