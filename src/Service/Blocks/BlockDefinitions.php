@@ -62,6 +62,7 @@ final class BlockDefinitions
         'card_carousel' => CardCarouselBlock::class,
         'item_gallery' => ItemGalleryBlock::class,
         'media_banner' => MediaBannerBlock::class,
+        'hover_card_grid' => HoverCardGridBlock::class,
         'spacer' => SpacerBlock::class,
         // Fixed blocks — content a page template used to hardcode, now
         // positioned like any other block but never added or deleted by hand.

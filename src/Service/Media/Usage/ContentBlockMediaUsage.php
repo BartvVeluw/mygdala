@@ -14,8 +14,9 @@ use App\Service\Media\MediaUsageProvider;
  * item of a Tekst met afbeelding, Detailsectie (its main image and its extra
  * images), the cards of a Kaarten-carrousel, the image behind a Paginakop,
  * the Homepage Hero's image and video, the icons of Kenmerken in kaartjes,
- * the background picture of an Oproep met knop, and the picture or video of a
- * Mediabanner with its poster.
+ * the background picture of an Oproep met knop, the picture or video of a
+ * Mediabanner with its poster, and both pictures of every card of a Hover
+ * kaarten grid.
  *
  * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
@@ -125,13 +126,27 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             SELECT mb.poster_media_id, \'Mediabanner (poster)\', \'media-banner\', mb.page_slug, mb.section_key, NULL
               FROM media_banners mb
              WHERE mb.poster_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT hi.media_id, \'Hover kaarten grid\', \'hover-card-grid\', hg.page_slug, hg.section_key, NULL
+              FROM hover_card_grid_items hi
+              JOIN hover_card_grids hg ON hg.id = hi.hover_card_grid_id
+             WHERE hi.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT hi.hover_media_id, \'Hover kaarten grid (tweede afbeelding)\', \'hover-card-grid\', hg.page_slug, hg.section_key, NULL
+              FROM hover_card_grid_items hi
+              JOIN hover_card_grids hg ON hg.id = hi.hover_card_grid_id
+             WHERE hi.hover_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);
         // The same id list once per branch: a named placeholder cannot be
         // reused across a statement here, so each branch gets its own
         // positional set.
-        $stmt->execute(array_merge(...array_fill(0, 11, $ids)));
+        $stmt->execute(array_merge(...array_fill(0, substr_count($sql, 'UNION ALL') + 1, $ids)));
 
         $usages = [];
 

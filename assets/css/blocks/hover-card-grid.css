@@ -1,0 +1,473 @@
+/* ==========================================================================
+   Content block: Hover kaarten grid (partials/section-hover-card-grid.php)
+   Asked for by App\Service\Blocks\HoverCardGridBlock::styles().
+
+   A grid of picture cards that come alive when they are REACHED: by a mouse
+   (:hover, only where the device really hovers) or by the keyboard
+   (:focus-within). Reached, a card lifts a little, its picture zooms, a
+   second picture takes the first one's place, an organic card changes its
+   shape, and an overlay card with a link shows its text.
+
+   THE CHOICES arrive as classes on .hover-cards, and a default adds none:
+     layout   overlay (no class) | .hover-cards--open
+     shape    rounded (no class) | --square | --circle | --organic
+     columns  3 (no class) | --cols-2 | --cols-4, fewer on smaller screens
+     overlay  medium (no class) | --veil-light | --veil-dark (overlay only)
+     effect   normal (no class) | --subtle
+   Each only sets custom properties or swaps a layout; a length here is a
+   token of core.css, never a value from the database.
+
+   ONE LINK COVERS THE CARD. The card's one <a> (its call to action, else its
+   title) stretches its ::after over .hover-card__inner, so nothing between
+   that link and .hover-card__inner may become a containing block: no
+   transform, filter or position on .hover-card__content, .hover-card__more
+   or the link itself. The keyboard ring is drawn on that ::after, around the
+   whole card, in the card's own shape.
+
+   NOTHING IS ONLY FOR A MOUSE. Everything a hover brings, :focus-within
+   brings too. On a touch screen (hover: none) the text is simply there and
+   nothing waits for a hover; assets/js/blocks/hover-card-grid.js lets a tap
+   turn a card without a link to its second picture. With reduced motion
+   nothing moves: no lift, no zoom, no change of shape; what appears appears
+   at once.
+
+   NOT HERE: any colour of its own (the veil is the theme's photo scrim, the
+   badge the primary colour), the section heading (core.css, .section-head),
+   and any animation engine: a changing shape is a border-radius transition.
+   ========================================================================== */
+
+.hover-cards{
+  --hover-cards-columns: 3;
+  --hover-card-ratio: 4 / 5;
+  --hover-card-radius: var(--radius-lg);
+  --hover-card-radius-reached: var(--hover-card-radius);
+  --hover-card-focus-radius: var(--hover-card-radius);
+  --hover-card-zoom: 1.07;
+  --hover-card-lift: -6px;
+  --hover-card-ease: var(--ease-premium);
+  --hover-card-duration: var(--dur-premium);
+  --hover-card-shape-duration: 1.2s;
+
+  /* The veil behind an overlay card's words: at rest it only has to carry
+     the title at the bottom; reached, the text and the call to action as
+     well. Its dense part is where the words are, whatever the photograph:
+     0.7 or more behind the title, 0.8 or more behind the text, which keeps
+     the theme's text at 6:1 or better even over a white picture. */
+  --hover-card-veil-rest: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.84) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.7) 30%,
+    rgba(var(--color-media-scrim-rgb), 0) 62%);
+  --hover-card-veil-reached: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.88) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.82) 70%,
+    rgba(var(--color-media-scrim-rgb), 0.45) 100%);
+
+  display: grid;
+  grid-template-columns: repeat(var(--hover-cards-columns), minmax(0, 1fr));
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- The heading above the grid ----------------------------------------- */
+/* Left is the shared .section-head, no class. The lead is a narrower box of
+   its own, so it moves with the text instead of staying at the left edge. */
+.hover-cards__head--center{ margin-inline: auto; text-align: center; }
+.hover-cards__head--center .lead{ margin-inline: auto; }
+.hover-cards__head--right{ margin-left: auto; text-align: right; }
+.hover-cards__head--right .lead{ margin-left: auto; }
+
+/* --- Columns ---------------------------------------------------------------- */
+.hover-cards--cols-2{ --hover-cards-columns: 2; }
+.hover-cards--cols-4{ --hover-cards-columns: 4; gap: var(--sp-3); }
+
+/* --- Shapes ------------------------------------------------------------------ */
+/* A circle and an organic blob only look like themselves in a square, so they
+   always have one; the editor's help says they suit "Open kaarten" best. */
+.hover-cards--square{ --hover-card-radius: 0; }
+.hover-cards--circle{ --hover-card-radius: 50%; --hover-card-ratio: 1 / 1; }
+.hover-cards--organic{
+  --hover-card-ratio: 1 / 1;
+  --hover-card-radius: 44% 56% 62% 38% / 42% 45% 55% 58%;
+  --hover-card-radius-reached: 58% 42% 38% 62% / 56% 60% 40% 44%;
+  --hover-card-blob: 56% 44% 42% 58% / 48% 58% 42% 52%;
+  --hover-card-blob-reached: 40% 60% 58% 42% / 60% 42% 58% 40%;
+}
+
+/* --- How much a card moves -------------------------------------------------- */
+.hover-cards--subtle{ --hover-card-zoom: 1.035; --hover-card-lift: -3px; }
+.hover-cards--organic.hover-cards--subtle{
+  --hover-card-radius-reached: 50% 50% 55% 45% / 48% 50% 50% 52%;
+  --hover-card-blob-reached: 50% 50% 48% 52% / 52% 50% 50% 48%;
+}
+
+/* ==========================================================================
+   One card. The default layout is OVERLAY: the picture fills the card and the
+   words lie over its lower part, both in the same grid cell.
+   ========================================================================== */
+.hover-card{ min-width: 0; }
+
+.hover-card__inner{
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  height: 100%;
+  transition: transform var(--hover-card-duration) var(--hover-card-ease);
+}
+.hover-card__visual,
+.hover-card__content{ grid-area: 1 / 1; min-width: 0; }
+
+.hover-card__visual{ position: relative; }
+
+.hover-card__visual{ display: grid; }
+.hover-card__frame{
+  position: relative;
+  aspect-ratio: var(--hover-card-ratio);
+  /* At least its shape, and taller only when an overlay card's words need
+     more room than the shape gives them: then the picture grows with them
+     instead of the words running out of it. */
+  min-height: 100%;
+  border-radius: var(--hover-card-radius);
+  overflow: hidden;
+  /* What shows while the picture loads, and around a picture that does not fill the frame. */
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-soft);
+  /* Its own layer, so the zooming picture stays clipped to the rounded or
+     organic edge in every browser while the shape itself changes. */
+  transform: translateZ(0);
+  transition:
+    border-radius var(--hover-card-shape-duration) var(--hover-card-ease),
+    box-shadow var(--hover-card-duration) var(--hover-card-ease),
+    border-color var(--hover-card-duration) var(--hover-card-ease);
+}
+
+.hover-card__image{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    transform 900ms var(--hover-card-ease),
+    opacity 520ms var(--ease-out);
+}
+.hover-card__image--hover{ opacity: 0; }
+
+/* The veil, in two layers: ::after at rest, ::before when the card is
+   reached. A gradient cannot be animated, its opacity can. */
+.hover-card__frame::before,
+.hover-card__frame::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity var(--hover-card-duration) var(--hover-card-ease);
+}
+.hover-card__frame::after{ background: var(--hover-card-veil-rest); }
+.hover-card__frame::before{ background: var(--hover-card-veil-reached); opacity: 0; z-index: 2; }
+.hover-card--bare .hover-card__frame::before,
+.hover-card--bare .hover-card__frame::after{ display: none; }
+
+.hover-cards--veil-light{
+  --hover-card-veil-rest: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.8) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.62) 24%,
+    rgba(var(--color-media-scrim-rgb), 0) 50%);
+  --hover-card-veil-reached: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.84) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.76) 62%,
+    rgba(var(--color-media-scrim-rgb), 0.2) 100%);
+}
+.hover-cards--veil-dark{
+  --hover-card-veil-rest: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.9) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.78) 40%,
+    rgba(var(--color-media-scrim-rgb), 0.32) 100%);
+  --hover-card-veil-reached: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.92) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.88) 75%,
+    rgba(var(--color-media-scrim-rgb), 0.66) 100%);
+}
+
+.hover-card__badge{
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  z-index: 3;
+  max-width: calc(100% - 2 * var(--sp-2));
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--fs-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+/* --- The words over the picture -------------------------------------------- */
+.hover-card__content{
+  z-index: 2;
+  align-self: end;
+  padding: var(--sp-3);
+  color: var(--color-text);
+}
+.hover-card__title{
+  font-size: clamp(1.2rem, 0.6vw + 1rem, 1.5rem);
+  line-height: 1.2;
+  color: inherit;
+  overflow-wrap: anywhere;
+  transition: color var(--hover-card-duration) var(--hover-card-ease);
+}
+
+/* The text and the call to action fold away until the card is reached: a
+   grid row from 0fr to 1fr, so the title rises smoothly with them. Only a
+   card with a link folds, because only a card with a link can be reached by
+   the keyboard; the partial marks every other overlay card
+   hover-card--open-text. */
+.hover-card__more{
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--hover-card-duration) var(--hover-card-ease);
+}
+.hover-card__more-inner{
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--hover-card-duration) var(--hover-card-ease);
+}
+.hover-card__text{
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(var(--color-text-rgb), 0.9);
+  overflow-wrap: anywhere;
+}
+.hover-card__cta{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: var(--color-primary-bright);
+}
+.hover-card__cta svg{ width: 1rem; height: 1rem; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out); }
+
+.hover-card--open-text .hover-card__more{ grid-template-rows: 1fr; }
+.hover-card--open-text .hover-card__more-inner{ opacity: 1; }
+.hover-card--open-text .hover-card__frame::before{ opacity: 1; }
+
+/* --- The one link, over the whole card --------------------------------------- */
+.hover-card__link::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: var(--hover-card-focus-radius);
+}
+.hover-card__link:focus-visible{ outline: none; }
+.hover-card__link:focus-visible::after{
+  outline: 2.5px solid var(--color-primary-bright);
+  outline-offset: 4px;
+}
+
+/* ==========================================================================
+   REACHED: a hover where the device hovers, and keyboard focus everywhere.
+   The two selectors of each rule are the same state.
+   ========================================================================== */
+.hover-card:focus-within .hover-card__inner{ transform: translateY(var(--hover-card-lift)); }
+.hover-card:focus-within .hover-card__image{ transform: scale(var(--hover-card-zoom)); }
+.hover-card--swap:focus-within .hover-card__image--hover{ opacity: 1; }
+.hover-card:focus-within .hover-card__frame{
+  border-radius: var(--hover-card-radius-reached);
+  border-color: var(--color-line-strong);
+  box-shadow: var(--shadow-lift);
+}
+.hover-card:focus-within .hover-card__frame::before{ opacity: 1; }
+.hover-card:focus-within .hover-card__more{ grid-template-rows: 1fr; }
+.hover-card:focus-within .hover-card__more-inner{ opacity: 1; }
+.hover-card:focus-within .hover-card__cta svg{ transform: translateX(4px); }
+
+@media (hover: hover){
+  .hover-card:hover .hover-card__inner{ transform: translateY(var(--hover-card-lift)); }
+  .hover-card:hover .hover-card__image{ transform: scale(var(--hover-card-zoom)); }
+  .hover-card--swap:hover .hover-card__image--hover{ opacity: 1; }
+  .hover-card:hover .hover-card__frame{
+    border-radius: var(--hover-card-radius-reached);
+    border-color: var(--color-line-strong);
+    box-shadow: var(--shadow-lift);
+  }
+  .hover-card:hover .hover-card__frame::before{ opacity: 1; }
+  .hover-card--linked:hover .hover-card__more{ grid-template-rows: 1fr; }
+  .hover-card--linked:hover .hover-card__more-inner{ opacity: 1; }
+  .hover-card:hover .hover-card__cta svg{ transform: translateX(4px); }
+}
+
+/* ==========================================================================
+   A circle or an organic blob as an OVERLAY card: its corners are not part of
+   the picture, so the words move into the middle, well inside the edge, and
+   the veil is round. The badge sits at the top of the shape.
+   ========================================================================== */
+.hover-cards--circle,
+.hover-cards--organic{
+  --hover-card-veil-rest: radial-gradient(closest-side,
+    rgba(var(--color-media-scrim-rgb), 0.74) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.66) 55%,
+    rgba(var(--color-media-scrim-rgb), 0.38) 100%);
+  --hover-card-veil-reached: radial-gradient(closest-side,
+    rgba(var(--color-media-scrim-rgb), 0.86) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.8) 70%,
+    rgba(var(--color-media-scrim-rgb), 0.6) 100%);
+}
+.hover-cards--circle.hover-cards--veil-light,
+.hover-cards--organic.hover-cards--veil-light{
+  --hover-card-veil-rest: radial-gradient(closest-side,
+    rgba(var(--color-media-scrim-rgb), 0.7) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.58) 50%,
+    rgba(var(--color-media-scrim-rgb), 0.12) 100%);
+  --hover-card-veil-reached: radial-gradient(closest-side,
+    rgba(var(--color-media-scrim-rgb), 0.84) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.76) 65%,
+    rgba(var(--color-media-scrim-rgb), 0.4) 100%);
+}
+.hover-cards--circle.hover-cards--veil-dark,
+.hover-cards--organic.hover-cards--veil-dark{
+  --hover-card-veil-rest: radial-gradient(closest-side,
+    rgba(var(--color-media-scrim-rgb), 0.84) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.78) 60%,
+    rgba(var(--color-media-scrim-rgb), 0.6) 100%);
+  --hover-card-veil-reached: radial-gradient(closest-side,
+    rgba(var(--color-media-scrim-rgb), 0.92) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.88) 75%,
+    rgba(var(--color-media-scrim-rgb), 0.74) 100%);
+}
+.hover-cards--circle:not(.hover-cards--open) .hover-card__content,
+.hover-cards--organic:not(.hover-cards--open) .hover-card__content{
+  align-self: center;
+  justify-self: center;
+  max-width: 100%;
+  padding: 15%;
+  text-align: center;
+}
+.hover-cards--circle .hover-card__badge,
+.hover-cards--organic .hover-card__badge{
+  top: 7%;
+  left: 50%;
+  translate: -50% 0;
+  max-width: 70%;
+}
+
+/* The organic shape has a second, softer shape behind it — the theme's
+   primary wash — that turns the other way when the card is reached, so the
+   two flow past each other like water. */
+.hover-cards--organic .hover-card__visual::before{
+  content: "";
+  position: absolute;
+  inset: 5% -3% -4% 4%;
+  z-index: -1;
+  border-radius: var(--hover-card-blob);
+  background: var(--color-primary-wash);
+  border: 1px solid var(--color-line);
+  transition:
+    border-radius var(--hover-card-shape-duration) var(--hover-card-ease),
+    rotate var(--hover-card-shape-duration) var(--hover-card-ease);
+}
+.hover-cards--organic .hover-card:focus-within .hover-card__visual::before{ border-radius: var(--hover-card-blob-reached); rotate: -4deg; }
+@media (hover: hover){
+  .hover-cards--organic .hover-card:hover .hover-card__visual::before{ border-radius: var(--hover-card-blob-reached); rotate: -4deg; }
+}
+
+/* ==========================================================================
+   OPEN: the picture on its own in its shape, the words under it on the page
+   ground — a teaser, a product, a category. Everything is always in view;
+   reached, the picture moves and the title takes the highlight colour.
+   ========================================================================== */
+.hover-cards--open{ --hover-card-ratio: 1 / 1; --hover-card-focus-radius: var(--radius-md); }
+.hover-cards--open.hover-cards--circle,
+.hover-cards--open.hover-cards--organic{ --hover-card-focus-radius: var(--radius-lg); }
+.hover-cards--open .hover-card__inner{ display: flex; flex-direction: column; gap: var(--sp-2); }
+.hover-cards--open .hover-card__frame::before,
+.hover-cards--open .hover-card__frame::after{ display: none; }
+.hover-cards--open .hover-card__content{ align-self: stretch; padding: 0 0.15rem; color: var(--color-text); }
+.hover-cards--open .hover-card__more{ grid-template-rows: 1fr; }
+.hover-cards--open .hover-card__more-inner{ opacity: 1; }
+.hover-cards--open .hover-card__text{ color: var(--color-text-muted); }
+.hover-cards--open .hover-card__cta{ color: var(--color-primary); }
+.hover-cards--open.hover-cards--circle .hover-card__content,
+.hover-cards--open.hover-cards--organic .hover-card__content{ text-align: center; }
+.hover-cards--open .hover-card:focus-within .hover-card__title{ color: var(--color-primary-bright); }
+@media (hover: hover){
+  .hover-cards--open .hover-card:hover .hover-card__title{ color: var(--color-primary-bright); }
+}
+
+/* ==========================================================================
+   Smaller screens: fewer columns, never a sideways scroll.
+   ========================================================================== */
+@media (max-width: 1100px){
+  .hover-cards--cols-4{ --hover-cards-columns: 3; }
+}
+@media (max-width: 900px){
+  .hover-cards,
+  .hover-cards--cols-4{ --hover-cards-columns: 2; gap: var(--sp-3); }
+}
+@media (max-width: 560px){
+  .hover-cards,
+  .hover-cards--cols-2,
+  .hover-cards--cols-4{ --hover-cards-columns: 1; }
+}
+
+/* A TOUCH SCREEN never hovers: the text is simply there, on its veil. A tap
+   on a card without a link shows its second picture (hover-card-grid.js,
+   .is-flipped); a tap on a card with a link follows the link. */
+@media (hover: none){
+  .hover-card__more{ grid-template-rows: 1fr; }
+  .hover-card__more-inner{ opacity: 1; }
+  .hover-card__frame::before{ opacity: 1; }
+  .hover-card.is-flipped .hover-card__image--hover{ opacity: 1; }
+}
+
+/* LESS MOTION: nothing lifts, zooms or changes shape, and what a reached card
+   shows appears at once. */
+@media (prefers-reduced-motion: reduce){
+  .hover-card__inner,
+  .hover-card__frame,
+  .hover-card__frame::before,
+  .hover-card__frame::after,
+  .hover-card__image,
+  .hover-card__more,
+  .hover-card__more-inner,
+  .hover-card__title,
+  .hover-card__cta svg,
+  .hover-cards--organic .hover-card__visual::before{ transition: none; }
+
+  /* The same selectors as the reached state above, later, so they win. */
+  .hover-card:focus-within .hover-card__inner,
+  .hover-card:focus-within .hover-card__image,
+  .hover-card:focus-within .hover-card__cta svg{ transform: none; }
+  .hover-card:focus-within .hover-card__frame{ border-radius: var(--hover-card-radius); }
+  .hover-cards--organic .hover-card:focus-within .hover-card__visual::before{ border-radius: var(--hover-card-blob); rotate: none; }
+}
+@media (prefers-reduced-motion: reduce) and (hover: hover){
+  .hover-card:hover .hover-card__inner,
+  .hover-card:hover .hover-card__image,
+  .hover-card:hover .hover-card__cta svg{ transform: none; }
+  .hover-card:hover .hover-card__frame{ border-radius: var(--hover-card-radius); }
+  .hover-cards--organic .hover-card:hover .hover-card__visual::before{ border-radius: var(--hover-card-blob); rotate: none; }
+}
+
+/* High-contrast mode drops the veil but not the photograph, which would
+   leave system-coloured words on an arbitrary picture: the words go under
+   the picture instead, as in the open layout. */
+@media (forced-colors: active){
+  .hover-card__inner{ display: flex; flex-direction: column; gap: var(--sp-2); }
+  .hover-card__more{ grid-template-rows: 1fr; }
+  .hover-card__more-inner{ opacity: 1; }
+}

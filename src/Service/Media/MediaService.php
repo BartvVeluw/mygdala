@@ -205,6 +205,27 @@ final class MediaService
     }
 
     /**
+     * findMany() for the ids this request has not looked up yet: a list of
+     * rows each carrying a media id (a media sequence, the cards of a grid)
+     * is read in one query, after which find() answers each from the cache.
+     * An id already known — found, missing, or seeded by
+     * overrideForTests() — is left exactly as it is.
+     *
+     * @param list<int|null> $ids
+     */
+    public static function preload(array $ids): void
+    {
+        $missing = array_values(array_filter(
+            array_unique(array_map('intval', $ids)),
+            static fn (int $id): bool => $id > 0 && !array_key_exists($id, self::$cache)
+        ));
+
+        if ($missing !== []) {
+            self::findMany($missing);
+        }
+    }
+
+    /**
      * Whether this id names a real media item — the check every write
      * endpoint makes before storing a `media_id` a request supplied. A
      * picker returns an id, and an id from a request is never trusted to
