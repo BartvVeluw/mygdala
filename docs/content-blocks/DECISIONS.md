@@ -366,3 +366,69 @@ zonder nummer. Een kaart die verborgen was of geen titel had, toonde niets en
 kreeg ook niets. Het alternatief, een schakelaar "automatisch nummeren" per
 carrousel, is bewust niet gekozen: het had het oude gedrag als tweede
 toestand bewaard, terwijl de eigenaar nu gewoon het nummer typt dat hij wil.
+
+## Eén mediareeks voor twee blokken, en het eerste item blijft waar het stond
+
+De Paginakop wilde meer afbeeldingen na elkaar, de Mediabanner meer
+afbeeldingen en video's. Twee eigen sliders hadden twee keer dezelfde
+toegankelijkheid, dezelfde pauzeknop en dezelfde tijdlogica gevraagd, en
+twee plekken waar ze uit elkaar konden lopen.
+
+Besluit: **één gedeeld onderdeel**, de mediareeks (`App\Service\Media\MediaSequence`,
+`partials/media-sequence.php`, `assets/js/media-sequence.js`,
+`assets/css/media-sequence.css`; `CONTENT-BLOCKS.md`, "Mediareeks"). Het
+noemt geen blok en geen tabel; de blokken vragen het script en de stylesheet
+zelf, zoals de lightbox.
+
+- **Het eerste item blijft in zijn eigen kolom**, met zijn alt-tekst,
+  focuspunt en poster. Alleen de items dáárna staan in een kindtabel
+  (`page_hero_images`, `media_banner_items`). Zo is een blok met één beeld
+  exact de markup die het was, hoefde de migratie niets te verhuizen, en blijft
+  alles wat `media_id` al leest (gebruik in de bibliotheek, de
+  Contentblokken-bibliotheek, oude tests) kloppen. Een JSON-lijst in een kolom
+  was korter geweest, maar had geen `ON DELETE RESTRICT` en geen
+  gebruiksregistratie per item gehad.
+- **Wat vanzelf beweegt, kan stoppen.** Een reeks die vanzelf speelt, heeft
+  altijd een pauzeknop, ook zonder pijlen en bolletjes (WCAG 2.2.2), en voor
+  wie minder beweging vroeg begint hij gepauzeerd. Dat is geen instelling: een
+  redacteur kan het niet uitzetten.
+- **Een video speelt uit.** Een video in een reeks heeft geen eigen tijd: hij
+  speelt tot zijn einde, en de reeks herhaalt, nooit de video. Eén tijd per
+  reeks en geen tijd of overgang per item: dat is een keuze minder per beeld,
+  en het verschil zie je in een banner nauwelijks.
+- **De Paginakop heeft geen pijlen of bolletjes.** Achter de tekst is de reeks
+  versiering, en naast de tekst een sfeerbeeld bij een titel; een bezoeker
+  hoeft er niet doorheen te bladeren. Hij speelt dus altijd vanzelf en herhaalt,
+  met alleen de pauzeknop. De Mediabanner, waar de beelden de inhoud zíjn,
+  heeft wel knoppen, en zonder automatisch afspelen zijn die verplicht.
+
+## Het kruimelpad staat links, als eigen zone boven de kop
+
+Twee klachten over het pad in een Paginakop met een foto: bij gecentreerde
+tekst stond het pad ook in het midden, en bij een foto naast de tekst stond
+het in de tekstkolom, dus bij *beeld links* halverwege de pagina.
+
+De oorzaak waren twee regels die het pad als deel van de kop behandelden: een
+`justify-content` die het pad de uitlijning van de tekst gaf, en een plek
+binnen de tekstkolom (`render_breadcrumb($trail, false, true)`). Allebei zijn weg. Het
+pad is de weg naar de pagina en geen deel van de kop: het staat altijd links,
+in een eigen container, als eerste zone van de band (`HEADER-FOOTER.md`, "De
+plek op de pagina"). `render_breadcrumb()` kent daardoor geen vorm voor in een
+kolom meer.
+
+## Hover kaarten: één link over de kaart, en niets alleen voor de muis
+
+Een kaart die helemaal klikbaar is, zou je in één `<a>` kunnen zetten. Dan
+leest een schermlezer de hele kaart als de naam van de link (label, titel,
+tekst en linktekst achter elkaar), en kan er in de kaart niets anders
+interactief zijn. Daarom heeft een kaart precies één echte link, met een korte
+naam (de linktekst plus de titel, of de titel), die de stylesheet over de hele
+kaart uitrekt. Een link zonder woorden kan niet: het endpoint weigert een
+kaart met een link zonder titel of linktekst.
+
+Hover is geen voorwaarde voor inhoud. Alles wat een muis ziet, ziet het
+toetsenbord via `:focus-within`, een touchscherm krijgt de tekst gewoon te
+zien, en een kaart zonder link (die het toetsenbord niet kan bereiken) toont
+zijn tekst altijd. De tweede afbeelding is daarom versiering (`alt=""`): wie
+hem nooit ziet, mist niets. De organische vorm is een `border-radius`-overgang
+zonder script of bibliotheek, en staat stil voor wie minder beweging vroeg.

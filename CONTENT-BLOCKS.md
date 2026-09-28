@@ -485,6 +485,18 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   tekstkolom.
 - **Een item zonder titel** begint met de grotere lead-alinea, zoals de
   eerste alinea van een blok zonder titel altijd deed.
+- **Een kop boven de items.** Het blok zelf heeft een optionele titel en
+  introtekst: woorden met `text_image_splits` als eigenaar in
+  `block_translations` (255 en 500 tekens), dus zonder migratie. Is er een van
+  de twee, dan staat boven het eerste item de gedeelde `.section-head` van
+  `core.css` met een `<h2>` en de lead. Onder een bloktitel worden de titels
+  van de items `<h3>`, met de h3-stap van de typeschaal, zodat de opbouw van
+  de pagina klopt. Zonder bloktitel blijven ze de `<h2>` die ze altijd waren.
+  De standaardtaal beslist of de kop er is. Een blok zonder items rendert
+  niets, ook zijn kop niet. Het endpoint slaat de kop alleen op als het
+  formulier de velden meestuurt, zodat een ouder scherm hem nooit wist. In de
+  paginabouwer heet het blok naar zijn titel (`instanceTitle()`), anders naar
+  zijn eerste item. De velden staan in de kaart *Blok* van de editor.
 - **De knop** is het gedeelde linkveld (`admin/_link_target_field.php`). Een
   item van vóór het type heeft alleen `button_url`, en die blijft een adres
   zonder migratie. Kies je een doel, dan moet de knop een tekst hebben in de
@@ -506,6 +518,21 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   de kolommen `layout` en `button_url` van het blok blijven leeg of ongelezen
   staan (forward-only). Ze staan nog in `childTables()` omdat ze van het blok
   cascaden.
+
+## Kenmerken in kaartjes: de kop is optioneel
+
+De titel (H2) van *Kenmerken in kaartjes* (`feature_grid`) is niet meer
+verplicht (`FeatureGridBlock::translatableFields()` zonder `->required()`).
+Een raster zonder bovenlabel, titel en lead stond al zonder kop op de pagina
+(het oude raster van de homepage), dus de partial hoefde niet te veranderen.
+Wat de redacteur wel invult, verschijnt: alleen een lead of alleen een
+bovenlabel geeft een kop zonder `<h2>`. De kaarttitels blijven `<h3>`, met en
+zonder kop, zoals de kaarten van de Kaarten-carrousel en de Hover kaarten
+grid.
+
+In de editor klapt elke kaart apart in, precies zoals de items van Tekst met
+afbeelding (`editor_row_open()` met `$collapse`, `PAGE-EDITOR.md`): de kopregel
+is "Kaart 2 — Precisie", en de titel volgt het veld terwijl je typt.
 
 ## Weergavekeuzes van de eenvoudige blokken
 
@@ -629,6 +656,12 @@ of Tekst met afbeelding. Het blok heeft geen woorden en dus niets in
 `block_translations`: net als de Witruimte staat het in
 `BlockDefinitionContractTest::WORDLESS_WITH_ROWS`.
 
+Sinds `db/migrations/20260928180000` kan één banner ook **meerdere
+afbeeldingen en video's na elkaar** tonen, in dezelfde breedte en hoogte: een
+mediareeks, het onderdeel dat hij met de Paginakop deelt (zie *Mediareeks*
+hieronder en *Meer items na elkaar* aan het eind van dit hoofdstuk). Een
+banner met één item is precies wat hij was.
+
 | Bestand | Wat |
 |---|---|
 | `src/Service/Blocks/MediaBannerBlock.php` | Definitie, categorie *Beeld & media*, voorbeeldvorm `BlockPreview::MEDIA` |
@@ -656,6 +689,8 @@ video" die het met het item oneens kan zijn. De kiezer gebruikt het filter
 | `image_focus` | de negen punten van `ImageFocus`, `center` eerst | Alleen bij een afbeelding: welk deel in beeld blijft (`object-position`), hetzelfde veld als de Paginakop en de Oproep met knop. Een video staat altijd in het midden |
 | `video_autoplay`, `video_loop`, `video_controls` | `0`, `0`, `1` | Alleen bij een video. Zie *Het videocontract* |
 | `poster_media_id` | een afbeelding uit de bibliotheek of `NULL` | Alleen bij een video: het beeld zolang hij nog niet speelt. `ON DELETE RESTRICT` en een eigen tak in `ContentBlockMediaUsage` |
+| `slide_transition`, `slide_duration`, `slide_controls` | `fade`/`slide`/`none`; `5` (1–10); `both`/`arrows`/`dots`/`none` | Alleen bij meer dan één item: de overgang, de seconden per afbeelding en de knoppen voor de bezoeker (`MediaSequence`, zie *Mediareeks*) |
+| `media_banner_items` (kindtabel) | `media_id` + `sort_order` | De items ná het eerste, in hun volgorde. `ON DELETE CASCADE` van de banner, `ON DELETE RESTRICT` naar de bibliotheek, en een eigen tak in `ContentBlockMediaUsage` (*Mediabanner (reeks)*) |
 
 De videokolommen hebben een voorvoegsel omdat `LOOP` in MySQL een gereserveerd
 woord is.
@@ -739,18 +774,223 @@ die vanzelf speelt, zichzelf herhaalt en langer dan vijf seconden duurt, heeft
 bediening nodig om hem te kunnen stoppen (WCAG 2.2.2); de helptekst bij
 *Bediening tonen* zegt dat, het blok dwingt het niet af.
 
-**De editor** heeft drie kaarten: Media (één kiezer voor afbeelding of video,
-met het type naast de naam), Weergave (breedte, hoogte, en bij een afbeelding
-het focuspunt) en Video (automatisch afspelen, herhalen, bediening en de
-poster, alleen bij een video). `admin/assets/media-banner.js` toont wat bij
-het gekozen type hoort; de server print dezelfde `hidden` voor wat er
-opgeslagen is. Een nieuw blok begint leeg (geen media, inhoudsbreedte,
-middel, midden, bediening aan) en rendert niets tot er een afbeelding of
-video gekozen is. Tonen of verbergen doe je met het oog in de paginabouwer.
+**De editor** heeft vier kaarten: *Media* (één kiezer voor afbeelding of
+video, met het type naast de naam, en daaronder *Meer afbeeldingen en
+video's*), *Weergave* (breedte, hoogte, en bij een afbeelding het
+focuspunt), *Afspelen* (automatisch afspelen en herhalen bij een video of een
+reeks, de bediening zodra er een video in zit, de poster alleen als het eerste
+item een video is) en *Diavoorstelling* (overgang, tijd per afbeelding en
+knoppen, alleen bij meer dan één item). `admin/assets/media-banner.js` toont
+wat bij het eerste item en de soorten in de lijst hoort; de server print
+dezelfde `hidden` voor wat er opgeslagen is. Een nieuw blok begint leeg (geen
+media, inhoudsbreedte, middel, midden, bediening aan) en rendert niets tot er
+een afbeelding of video gekozen is. Tonen of verbergen doe je met het oog in
+de paginabouwer.
 
-**Niet in de Mediabanner 1.0**: tekst over het beeld, knoppen, YouTube of
-Vimeo, transcoderen, automatisch een poster maken, een ondertiteleditor, een
-vrije hoogte of vrije CSS, parallax, een diavoorstelling en paginathema's.
+### Meer items na elkaar
+
+Het eerste item blijft `media_id`, met alles wat daar al voor gold. De items
+erna staan in `media_banner_items`. `MediaBannerContent::fromRow()` maakt er
+één lijst `items` van, het eerste inbegrepen, en daarmee groeit het
+videocontract:
+
+- **Automatisch afspelen en herhalen gelden voor de reeks.** Een afbeelding
+  blijft `slide_duration` seconden staan, een video speelt tot zijn einde
+  (zonder geluid) en dan komt het volgende item. *Herhalen* begint na het
+  laatste item weer bij het eerste; een losse video in een reeks herhaalt
+  zichzelf nooit.
+- **Een reeks die niet vanzelf speelt, heeft pijlen of bolletjes.** Het
+  endpoint weigert *niet automatisch afspelen* met knoppen *Geen*, bij het
+  veld; het leesmodel maakt er in dat geval toch bolletjes van.
+- **Een video in een reeks die niet vanzelf speelt, heeft zijn bediening**,
+  dezelfde regel als bij één video. De poster is die van het eerste item als
+  dat een video is; het focuspunt geldt voor elke afbeelding.
+- Een verdwenen item, of een item dat geen afbeelding of video is, valt weg
+  uit de reeks. Zonder bruikbaar eerste item is er geen banner.
+- **Wat het endpoint bewaart** hangt af van wat er gekozen is: de
+  afspeelopties bij een video óf een reeks, de keuzes van de diavoorstelling
+  alleen bij een reeks. Wordt het eerste item gewist terwijl de lijst nog
+  items heeft, dan schuift het eerste daarvan door naar `media_id`; zonder
+  eerste item is er ook geen reeks.
+
+In de markup is een reeks een `role="region"` met
+`aria-roledescription="carousel"` en de naam *Diavoorstelling*, met de
+dia's en knoppen van de gedeelde partial. Speelt hij vanzelf, dan houdt een
+muis erop hem vast (`-hover-pause`), en met knoppen kan een bezoeker ook
+vegen. Een pauzeknop staat er alleen als hij vanzelf speelt.
+
+**Niet in de Mediabanner**: tekst over het beeld, knoppen in het beeld,
+YouTube of Vimeo, transcoderen, automatisch een poster maken, een
+ondertiteleditor, een vrije hoogte of vrije CSS, parallax, per item een eigen
+tijd of overgang, en paginathema's.
+
+## Mediareeks
+
+Een **mediareeks** is meer dan één afbeelding of video in één kader, na
+elkaar. Het is één gedeeld onderdeel, zodat geen blok een eigen slider
+schrijft. De Paginakop (alleen afbeeldingen) en de Mediabanner (afbeeldingen
+en video's) gebruiken het sinds `db/migrations/20260928180000`.
+
+| Bestand | Wat |
+|---|---|
+| `src/Service/Media/MediaSequence.php` | De gesloten lijsten en de regels: `TRANSITIONS` (`fade`, `slide`, `none`), `DURATIONS` (1–10 seconden, standaard 5), `CONTROLS` (`both`, `arrows`, `dots`, `none`), `MAX_ITEMS` (12, het eerste item inbegrepen), `idsFromTokens()` en `slide()`. Noemt geen blok, pagina of tabel |
+| `partials/media-sequence.php` | De markup, in drie stukken: `media_sequence_attributes()` op de wortel, `render_media_sequence_slides()` waar het beeld hoort, `render_media_sequence_controls()` ergens binnen de wortel |
+| `assets/js/media-sequence.js` | Het gedrag, één controller per `[data-media-sequence]` |
+| `assets/css/media-sequence.css` | Stapelen, de drie overgangen, de knoppen |
+| `admin/_media_sequence_field.php` | Het veld in de editor: de gedeelde afbeeldingenlijst en de keuzes |
+
+Het script en de stylesheet zijn gedeeld zoals `lightbox.js`: ze hebben geen
+eigen eigenaar, maar worden gevraagd door de blokken die ze printen
+(`PageHeroBlock` en `MediaBannerBlock`, `styles()` en `scripts()`).
+
+**Het eerste item blijft waar het stond.** Een blok met een reeks bewaart zijn
+eerste item in de kolom die het al had (`page_heroes.media_id`,
+`media_banners.media_id`), met alt-tekst, focuspunt en poster zoals ze waren.
+De items daarna staan in een kindtabel (`page_hero_images`,
+`media_banner_items`: `media_id` en `sort_order`, `ON DELETE CASCADE` van het
+blok, `ON DELETE RESTRICT` naar de bibliotheek, elk een eigen tak in
+`ContentBlockMediaUsage`). Zo is een blok met één item byte voor byte de
+markup die het altijd was, en had de migratie niets te verhuizen. Die
+kindtabellen hebben geen woorden en staan in
+`BlockTranslationSchemaTest::WORDLESS_CHILD_TABLES`.
+
+**Wat de bezoeker krijgt:**
+
+- **Zonder JavaScript** staat het eerste item er, precies zoals één beeld,
+  en blijven de knoppen `hidden`: een knop die niets kan, wordt niet
+  aangeboden.
+- **Vanzelf spelen.** Een afbeelding blijft de gekozen tijd staan, een video
+  speelt tot zijn einde en dan komt het volgende. Weigert de browser een video
+  te starten (een stroombesparingsstand), dan krijgt die zijn bediening en
+  telt hij als een afbeelding, zodat de reeks nooit vastloopt.
+- **Wat vanzelf beweegt, kan stoppen** (WCAG 2.2.2): een reeks die vanzelf
+  speelt, heeft altijd een pauzeknop, welke knoppen er verder ook zijn.
+  Pauzeren zet ook een spelende video stil. De reeks wacht verder vanzelf
+  zolang het tabblad niet zichtbaar is en zolang het toetsenbord op een pijl of
+  bolletje staat.
+- **Minder beweging.** Voor een bezoeker die daarom vroeg, begint de reeks
+  gepauzeerd (de knop zegt *Afspelen*) en wisselt hij daarna zonder vervagen
+  of schuiven.
+- **De knoppen**: pijlen aan de zijkanten, bolletjes onderin of allebei; de
+  pijltjestoetsen werken als het toetsenbord in de reeks staat. Een bolletje
+  zegt welk item het is ("2 van 4"), en `aria-current` wijst het getoonde aan.
+- **Toegankelijk.** Alleen het getoonde item is bereikbaar voor hulpmiddelen;
+  de andere zijn `aria-hidden` en `inert`. Elk item is een groep met de naam
+  "2 van 4". Een reeks die alleen versiering is (de beelden áchter de tekst
+  van een Paginakop), heeft `alt=""` en is als geheel verborgen.
+- Er komt niets uit de database in de CSS; de enige inline stijl is het
+  `object-position` van het focuspunt.
+
+**In de editor** is de reeks één lijst onder de gewone kiezer: *Meer
+afbeeldingen (en video's)*, met *Toevoegen*, slepen, ← en → en weghalen
+(`admin/assets/product-gallery.js`, de gedeelde `[data-picture-gallery]`-lijst
+van de productgalerij). Een video krijgt er een icoon. De keuzes (overgang,
+tijd per afbeelding en bij de Mediabanner de knoppen) verschijnen zodra de
+lijst een item heeft. De lijst post `media:<id>`-tokens
+in `sequence[]`, met `sequence_submitted` als teken dat de lijst op het
+formulier stond: een formulier zonder dat teken houdt de opgeslagen lijst.
+Elk id moet een item van de bibliotheek zijn van de soort die het blok
+toelaat, het eerste item mag er niet nog eens in, en er zijn er hoogstens 12;
+anders weigert het endpoint de opslag bij het veld en komt de lijst terug
+zoals hij getypt was.
+
+**De Paginakop** toont zijn reeks alleen met een eigen afbeelding (achter of
+naast de tekst). Achter de tekst is de hele reeks versiering, met de
+pauzeknop in de hoek van de band. Naast de tekst is elke afbeelding inhoud:
+het eigen beeld met de alt-tekst van de kop, de volgende met die van de
+bibliotheek, in een `<figure>` die een *Diavoorstelling* heet, met de
+pauzeknop in de hoek. De kop speelt altijd vanzelf en begint na de laatste
+weer bij de eerste; hij heeft geen pijlen of bolletjes. *Geen afbeelding*
+maakt ook de lijst leeg, en een gewist eigen beeld wordt vervangen door het
+eerste uit de lijst (met de alt-tekst van de bibliotheek).
+
+## Hover kaarten grid
+
+`db/migrations/20260928170000`. Een raster van kaarten met een afbeelding,
+die tot leven komen zodra een bezoeker ze bereikt: met de muis (alleen waar
+het apparaat echt hovert) of met het toetsenbord. Een kaart tilt dan een
+beetje op, de foto zoomt in of maakt plaats voor een tweede foto, een
+organische kaart verandert van vorm, en de tekst verschijnt. Categorie *Beeld
+& media*, voorbeeldvorm kop + tegels.
+
+| Bestand | Wat |
+|---|---|
+| `src/Service/Blocks/HoverCardGridBlock.php` | Definitie, woorden, voorbeeld (drie kaarten) |
+| `src/Service/HoverCardGridContent.php` | Het leesmodel en de gesloten lijsten |
+| `src/Repository/HoverCardGridRepository.php` | `hover_card_grids` en `hover_card_grid_items` |
+| `partials/section-hover-card-grid.php` | `render_section_hover_card_grid($content, $revealGroup)` |
+| `admin/hover-card-grid.php` + `admin/assets/hover-card-grid.js` | De editor |
+| `api/admin/update-hover-card-grid.php` | Het endpoint |
+| `assets/css/blocks/hover-card-grid.css`, `assets/js/blocks/hover-card-grid.js` | Vormen, sluiers en effecten; een tik op een touchscherm |
+
+**Woorden**, allemaal optioneel en per taal in `block_translations`: van het
+raster een bovenlabel, titel en introtekst (150, 255, 500 tekens), van een
+kaart een label, titel, tekst en linktekst (60, 255, 500, 150). De
+standaardtaal beslist of een woord er is.
+
+**Een kaart** heeft een afbeelding (`media_id`, verplicht, een afbeelding van
+de bibliotheek), een optionele tweede afbeelding (`hover_media_id`; twee keer
+dezelfde wordt één keer opgeslagen), een link via `LinkChoice`
+(`link_type`, `link_target_id`, `link_url`) en een volgorde. Beide afbeeldingen
+zijn `ON DELETE RESTRICT` met elk een eigen tak in `ContentBlockMediaUsage`:
+*Hover kaarten grid* en *Hover kaarten grid (tweede afbeelding)*. De alt-tekst
+is die van de bibliotheek; de tweede afbeelding is een andere blik op
+hetzelfde en dus `alt=""` en `aria-hidden`.
+
+| Kolom | Waarden (standaard eerst) | Wat het doet |
+|---|---|---|
+| `layout` | `overlay`, `open` | Tekst over de foto, op een sluier onderin, of tekst onder de foto |
+| `shape` | `rounded`, `square`, `circle`, `organic` | De vorm van de foto: de afgeronde hoeken van het thema, geen hoeken, een cirkel, of een organische vorm die bij bereiken langzaam van vorm verandert (een `border-radius`-overgang, geen animatiebibliotheek). Rond en organisch zijn altijd vierkant van verhouding |
+| `columns` | `3`, `2`, `4` | Kaarten naast elkaar op een breed scherm. Vier wordt drie onder 1100px; onder 900px zijn het er twee, onder 560px één. Nooit horizontaal scrollen |
+| `overlay` | `medium`, `light`, `dark` | Alleen bij `overlay`: hoeveel van de foto de sluier bedekt. Achter de woorden zelf blijft hij dicht genoeg voor 6:1 of meer, ook boven een witte foto |
+| `effect` | `normal`, `subtle` | Hoeveel een kaart beweegt: optillen, inzoomen, vormverandering |
+| `header_align` | `left`, `center`, `right` | Alleen de kop boven de kaarten |
+
+De keuzes worden klassen op de lijst, en een standaard voegt er geen toe. Wat
+een woord betekent, staat als custom property in de stylesheet; niets uit de
+database wordt CSS.
+
+**Eén link per kaart, over de hele kaart.** Een kaart met een link heeft
+precies één echte `<a>`: de linktekst als zichtbare knop onder de tekst (met
+de titel erachter, alleen voor een schermlezer, zodat twee keer *Bekijk* op een
+pagina twee verschillende links zijn), of anders de titel. De stylesheet
+rekt die link over de hele kaart uit, dus een klik waar dan ook volgt hem,
+terwijl een schermlezer één korte naam hoort in plaats van de hele kaart. De
+focusring staat om de hele kaart, in de vorm van de kaart. Een link heeft een
+naam nodig: het endpoint weigert een kaart met een link zonder titel of
+linktekst in de standaardtaal, en het leesmodel maakt er in dat geval geen
+link van. Een kaart zonder link heeft geen `<a>`, geen handje en niets om op
+te focussen.
+
+**Niets is alleen voor de muis.**
+
+- Alles wat hover brengt, brengt `:focus-within` ook, en hover telt alleen op
+  een apparaat dat echt hovert (`@media (hover: hover)`).
+- Een kaart met tekst over de foto en een link toont zijn tekst pas bij
+  bereiken. Een kaart **zonder** link kan het toetsenbord niet bereiken, dus
+  daar staat de tekst er altijd.
+- Op een **touchscherm** (`hover: none`) staat de tekst er gewoon. Een tik op
+  een kaart zonder link maar met een tweede foto wisselt naar die foto en terug
+  (`hover-card-grid.js`); een tik op een kaart met een link volgt de link.
+- **Minder beweging**: geen optillen, geen zoom, geen vormverandering; wat
+  verschijnt, staat er meteen. In *forced colors* (de contrastmodus van
+  Windows) bestaat geen sluier; daar staat de tekst onder de foto en altijd
+  in beeld.
+
+**Koppen.** De titel van het raster is een `<h2>`, een kaarttitel een `<h3>`,
+zoals bij de andere kaartblokken. Het raster is een lijst (`<ul role="list">`).
+Zonder één kaart om te tonen rendert het blok niets, zijn kop ook niet.
+
+**De editor** heeft drie kaarten: *Kop boven de kaarten*, *Weergave* (de
+keuzes; de sluier alleen bij tekst over de foto) en *Kaarten*. Elke kaart
+klapt apart in (`PAGE-EDITOR.md`, *Inklapbare rijen*) met "Kaart 2 — titel"
+als kopregel, en heeft de mediakiezer, de tweede afbeelding, de woorden en het
+gedeelde linkveld. Een nieuw raster begint zonder kaarten en rendert niets tot
+er een kaart met een afbeelding is.
+
+**Niet in de Hover kaarten grid**: video, een eigen kleur per kaart, een
+carrousel die vanzelf draait, vrije CSS of eigen animatietijden, en meer dan
+één link per kaart.
 
 ## Uitgelicht product
 

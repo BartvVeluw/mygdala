@@ -245,7 +245,7 @@ buiten die terugval een submenu of pijltje raakt.
 | Escape | Sluit het binnenste open submenu met de focus erin, focus terug op zijn pijltje; zonder focus erin gaan alle submenu's dicht | Idem; pas de volgende Escape sluit het mobiele menu |
 | Openen | Sluit de open broers en zussen op hetzelfde niveau, zoals voorheen | Idem |
 | Pijltje niveau 1 | Omlaag, open omhoog | Idem |
-| Pijltje niveau 2 | Wijst naar de kant waar de flyout opent; open draait het terug | Omlaag, open omhoog |
+| Pijltje niveau 2 | Wijst naar de kant waar de flyout opent, en blijft daar ook open naar wijzen; de rij blijft oplichten zolang de flyout open is | Omlaag, open of dicht; de rij licht op zolang hij open is |
 
 **Niveau 3 op desktop** vliegt uit naast het paneel van niveau 2: standaard
 naar rechts, en naar links als hij daar niet past en links meer ruimte is
@@ -256,6 +256,25 @@ aan niveau 2 hangt. Er is geen vaste regel zoals "het laatste item opent
 links". Een paneel op niveau 1 dat over de rechterrand zou lopen, lijnt op de
 rechterkant van zijn item uit. Een smalle onzichtbare strook tussen item en
 paneel hoort bij de tak, zodat de muis onderweg niets sluit.
+
+**Eén paneel, twee kolommen.** De flyout van niveau 3 staat niet als een
+tweede doos naast het paneel van niveau 2, maar sluit erop aan: hij begint op
+de bovenrand van het paneel (niet op die van zijn rij), is minstens even hoog,
+en zijn rand valt precies op die van het paneel, zodat er één haarlijn tussen
+twee kolommen van hetzelfde vlak staat. De hoeken waar ze elkaar raken zijn
+recht, de buitenhoeken houden hun ronding, en de flyout werpt geen schaduw
+terug over het paneel (`clip-path` snijdt hem aan die ene kant af). Opent de
+flyout links, dan is alles gespiegeld. Zonder JavaScript gebeurt hetzelfde op
+`:hover` en `:focus-within`. Het werkt met `position: static` op de rij, zodat
+het paneel het houvast van de flyout is, en met `:has()` voor de hoeken van het
+paneel; een browser zonder `:has()` toont de flyout op dezelfde plek, alleen
+houdt het paneel dan aan de naad zijn ronde hoeken. Mobiel heeft geen flyouts en niets hiervan.
+
+**Waarom het pijltje van niveau 2 niet draait.** Een pijltje op niveau 1
+wijst naar een paneel dat eronder verschijnt, en draait om als het open is.
+Een dieper pijltje wijst al naar waar zijn flyout verschijnt; terugdraaien zou
+het van de open flyout af laten wijzen. Of het open is, zeggen `aria-expanded`
+en de oplichtende rij.
 
 **Mobiel** kent geen flyouts: niveau 2 en 3 klappen verticaal uit onder hun
 eigen rij, elk met een eigen pijltje van minstens 44×44 px. Niveau 3 staat een
@@ -720,9 +739,15 @@ dat rendert of het het pad draagt (`App\Service\Blocks\CarriesBreadcrumb`):
 | Eerste blok | Kruimelpad |
 |---|---|
 | Paginakop met een foto **achter** de tekst | Bovenin de fotoband, óver de foto, direct onder de vaste siteheader. De band begint bovenaan de pagina; de lege balk erboven is weg. Over de foto krijgen de links de tekstkleur in plaats van de gedempte kleur, want de waas is lichter dan de grond waarvoor die gedempte kleur gemeten is (gemeten op een witte foto: 7,5:1 of meer) |
-| Paginakop met een foto **naast** de tekst | Bovenaan de tekstkolom, zonder eigen container, want de kolom lijnt het al uit |
+| Paginakop met een foto **naast** de tekst | Als eigen bovenste zone van de band, boven de tekst én de foto, in een eigen container |
 | Paginakop zonder foto, een verborgen Paginakop, of een ander blok | Ongewijzigd: een eigen `.breadcrumb-bar` vóór het blok, zoals hierboven |
 | Geen enkel blok | De balk op zichzelf |
+
+**Het pad staat altijd links**, uitgelijnd op de inhoud van de pagina, ook als
+de tekst van de kop in het midden of rechts staat: het is de weg naar deze
+pagina, geen deel van de kop. Met een foto achter de tekst staat het bovenin
+de band, met een foto ernaast boven de twee kolommen, zonder foto in de eigen
+balk; in alle drie begint het op de linkerrand van de container.
 
 Het pad staat dus altijd precies één keer op de pagina, en of het er staat
 blijft de keuze van de pagina (`pages.show_breadcrumb`). Alleen het eerste
@@ -752,14 +777,18 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite cms
 
 Het kruimelpad zit in `cms` (en in `blocks`, omdat de Paginakop meeveranderde):
 `Tests\Service\BreadcrumbTest` houdt de markup, de niveaus, de schakelaar en de
-onafhankelijkheid van de Paginakop vast, `Tests\Service\ProductBreadcrumbTest`
+onafhankelijkheid van de Paginakop vast, `Tests\Service\PageHeroImageModeTest`
+(suite `blocks`) dat het pad bij een foto naast de tekst boven de twee kolommen
+staat en bij elke uitlijning van de tekst links blijft, `Tests\Service\ProductBreadcrumbTest`
 (suite `shop`) dat het productpad server-side staat en `shop.js` het niet meer
 schrijft.
 
 `fast` bevat `NavigationServiceTest` (menu tot drie niveaus, knoppen en de
 actieve link, zonder database), `MainNavMarkupTest` (de menulijst uit een
-verzonnen boom: link en pijltje apart, de ARIA, geen vierde niveau, en de
-regels in `core.js` en `core.css` die de ene open-toestand bewaken),
+verzonnen boom: link en pijltje apart, de ARIA, geen vierde niveau, de
+regels in `core.js` en `core.css` die de ene open-toestand bewaken, alleen
+het pijltje van niveau 1 dat draait, en de flyout die op zijn paneel
+aansluit),
 `NavigationPresentationTest` (de twee gesloten lijsten en wat een
 knop niet mag), `HeaderFooterSettingsTest` (slotregel, het register van
 netwerken, de adrescontrole met de regressies van fase B, en wat

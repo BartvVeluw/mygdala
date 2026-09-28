@@ -643,7 +643,8 @@ velden zonder `required` (een gemarkeerde of lege rij mag het formulier nooit
 tegenhouden; de server controleert).
 
 **Inklapbare rijen.** Een lijst met lange rijen (de items van Tekst met
-afbeelding) geeft `editor_row_open()` een `$collapse` mee. Dan vouwen de
+afbeelding, de kaarten van Kenmerken in kaartjes en van de Hover kaarten
+grid) geeft `editor_row_open()` een `$collapse` mee. Dan vouwen de
 velden weg achter dezelfde `<details class="admin-collapse">` als de
 blokkenlijst hierboven, dus geen tweede accordion. De kopregel is de knop:
 "Item 2 — Over ons", met het nummer dat `row-list.js` na elke verschuiving
@@ -678,10 +679,11 @@ Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
 | Cijferbalk | `admin/stat-strip.php` (*Actief*, stats) | `api/admin/update-stat-strip.php` |
 | Stappenplan | `admin/step-list.php` (kop, *Actief*, stappen) | `api/admin/update-step-list-section.php` |
 | Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
-| Kaartenraster | `admin/feature-grid.php` (kop, *Actief*, kaarten met icoon) | `api/admin/update-feature-grid.php` |
-| Tekst met afbeelding | `admin/text-image-split.php` (*Actief*, inklapbare items: bovenschrift, titel, rich tekst, afbeelding uit de mediabibliotheek met alt-tekst, kant, breedte, hoogte, focuspunt, knop met linkdoel) | `api/admin/update-text-image-split-section.php` |
+| Kaartenraster | `admin/feature-grid.php` (kop, ook de titel optioneel, *Actief*, inklapbare kaarten met icoon) | `api/admin/update-feature-grid.php` |
+| Tekst met afbeelding | `admin/text-image-split.php` (*Actief*, optionele titel en introtekst boven de items, inklapbare items: bovenschrift, titel, rich tekst, afbeelding uit de mediabibliotheek met alt-tekst, kant, breedte, hoogte, focuspunt, knop met linkdoel) | `api/admin/update-text-image-split-section.php` |
 | Detailsectie | `admin/detail-section.php` (woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij) | `api/admin/update-detail-section.php` |
 | Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen met linkdoel, badge, media en lay-out, afbeelding en video uit de mediabibliotheek, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
+| Hover kaarten grid | `admin/hover-card-grid.php` (kop, weergave, inklapbare kaarten: afbeelding, tweede afbeelding, label, titel, tekst, link met linkdoel en linktekst) | `api/admin/update-hover-card-grid.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
 *Bewerken* en *Kaart toevoegen* slaan de carrousel eerst op.
@@ -707,16 +709,31 @@ In de Contentblokken-bibliotheek toont hij zijn standaardweergave
 (`CtaBandContent::presentation([])`): kaart, midden, twee knoppen.
 
 De Mediabanner (`admin/media-banner.php`, `api/admin/update-media-banner.php`)
-heeft ook geen rijen en volgt hetzelfde: één formulier met drie kaarten
-(*Media* met één kiezer voor een afbeelding of een video, *Weergave* met
-breedte, hoogte en bij een afbeelding het focuspunt, en *Video* met
-automatisch afspelen, herhalen, bediening en een beeld vóór het afspelen,
-alleen bij een video), één opslag en na een geweigerde opslag alles terug
-met de melding bij het veld. Er is geen keuze *afbeelding of video*: het
+heeft ook geen rijen en volgt hetzelfde: één formulier met vier kaarten
+(*Media* met één kiezer voor een afbeelding of een video en de lijst *Meer
+afbeeldingen en video's*, *Weergave* met breedte, hoogte en bij een afbeelding
+het focuspunt, *Afspelen* met automatisch afspelen, herhalen, bediening en een
+beeld vóór het afspelen, en *Diavoorstelling* met overgang, tijd en knoppen,
+alleen bij meer dan één item), één opslag en na een geweigerde opslag alles
+terug met de melding bij het veld, de lijst inbegrepen. Er is geen keuze *afbeelding of video*: het
 gekozen item beslist (`CONTENT-BLOCKS.md`, "Mediabanner"). In de
 blokkenkiezer is zijn vorm `BlockPreview::MEDIA`, een brede band met een
 landschapje; in de bibliotheek toont hij de voorbeeldafbeelding van
 `BlockSamples` over de inhoudsbreedte, in de middelste hoogte.
+
+**Meer beelden na elkaar** kiest de redacteur van de Paginakop en de
+Mediabanner met hetzelfde veld (`admin/_media_sequence_field.php`): een lijst
+onder de gewone kiezer, met *Toevoegen* (de kiezer neemt er meerdere tegelijk),
+slepen, ← en →, weghalen en een icoon op een video, en daaronder de keuzes van
+de reeks, die pas verschijnen als de lijst een item heeft. Het is de
+afbeeldingenlijst van de productgalerij (`admin/assets/product-gallery.js`),
+dus geen tweede lijst-script. Kiezen, slepen en weghalen versturen niets; alles
+gaat mee met *Opslaan* van het blok (`CONTENT-BLOCKS.md`, "Mediareeks").
+
+De Hover kaarten grid (`admin/hover-card-grid.php`) is een lijst kaarten in
+hetzelfde contract, met *Kaart toevoegen*, ↑/↓, *Verwijderen* en inklapbare
+kaarten. De keuze *Sluier achter de tekst* staat er alleen bij *Tekst over de
+foto* (`admin/assets/hover-card-grid.js`; de server print dezelfde `hidden`).
 
 De statistieken zijn een gewone rijenlijst: *Statistiek toevoegen*, ↑/↓ en
 *Verwijderen* werken op het scherm zonder herladen, en pas *Opslaan* bewaart

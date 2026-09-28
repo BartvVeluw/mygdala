@@ -67,7 +67,7 @@ adminpaneel is.
 | `src/Service/Translation/` | Automatisch vertalen: het providercontract, DeepL, de dienst die editors aanroepen en de vertaalstatus (`MULTILINGUAL.md`) |
 | `src/Service/Theme/` | De vormgeving van de website: instellingen, kleurenrekenwerk, lettertypecombinaties en het CSS-overrideblok. Hoe het CMS zelf eruitziet is `Service\AdminTheme` |
 | `src/Service/Redirects/` | De Redirect Manager: padnormalisatie, bestemmingen, opslaanregels, de opzoeking bij een verzoek |
-| `src/Service/Media/` | De Mediabibliotheek: het media-item, de uploadpijplijn, de kiezerlogica en wie welk item gebruikt |
+| `src/Service/Media/` | De Mediabibliotheek: het media-item, de uploadpijplijn, de kiezerlogica en wie welk item gebruikt, plus de regels van de mediareeks (`MediaSequence`) |
 | `src/Service/Forms/` | Core Forms: de veldtypes, het leesmodel, validatie, spam-afweer, verwerking en veilig verwijderen |
 | `src/Service/Blog/` | De Blog-module: het leesmodel, de statussen en hun klok, slugs en URL's, de metadata, de RSS-feed en het mediagebruik (`BLOG.md`) |
 | `src/Service/Breadcrumbs/` | Het kruimelpad: één niveau als waarde-object, het hele pad, en de keuze per pagina. De markup staat in `partials/breadcrumb.php` (`HEADER-FOOTER.md`) |
@@ -85,6 +85,7 @@ adminpaneel is.
 | `assets/css/blog/` | De Blog-frontend, alleen geladen op een Blog-route |
 | `assets/css/shop/`, `assets/js/shop/` | Shop-frontend: `cart.*` (de mini-winkelwagen in de gedeelde header, dus overal), `shop.*` (catalogus, product, afrekenen, bestelstatus; de productcode draait per `[data-product-detail]`, voor `product.php` en elk Uitgelicht product), `product-gallery.js` (de productgalerij: klikken, vegen, overgang; op `product.php` en in het blok Uitgelicht product), `featured-product.css` (alleen de layout van dat blok) en `personalization.css` |
 | `assets/js/lightbox.js` | De ene lightbox van de site, gevraagd door het galerijblok, het blok Projecten en een Portfolio-projectpagina |
+| `assets/js/media-sequence.js`, `assets/css/media-sequence.css` | De mediareeks: meer afbeeldingen en video's na elkaar in één kader, met pauzeknop, pijlen, bolletjes en vegen; gevraagd door de Paginakop en de Mediabanner. Markup in `partials/media-sequence.php`, regels in `App\Service\Media\MediaSequence`, het editorveld in `admin/_media_sequence_field.php` (`CONTENT-BLOCKS.md`, "Mediareeks") |
 | `assets/js/personalization.js`, `assets/js/cookie-consent.js` | Frontend van één route/onderdeel |
 | `assets/images/`, `assets/fonts/`, `assets/videos/` | Publieke media (uploads incl.) |
 | `assets/media/` | Wat de Mediabibliotheek zelf uploadt, plus de thumbnails die zij genereert. Oudere beelden zijn *op hun plek* overgenomen en staan dus nog in `assets/images/` (`MEDIA.md`) |
@@ -200,6 +201,7 @@ zelf om zijn bestanden. Er is geen globale `style.css`/`main.js` meer.
 | **Shop (mini-winkelwagen)** | `assets/{css,js}/shop/cart.*` | Overal zolang de Shop aan staat, want de gedeelde header rendert de mini-winkelwagen. Gevraagd door `ShopModule::shellStyles()`, niet door Core |
 | **Blog** | `assets/css/blog/blog.css` | Alleen `/blog` en de berichten/archieven eronder; gevraagd door die routes, nooit door de schil |
 | **Gedeeld** | `assets/js/lightbox.js` | Een pagina met een zoombare kaart of een Portfolio-projectpagina; gevraagd door de blokken en `portfolio-detail.php`, nooit door de schil |
+| **Gedeeld (mediareeks)** | `assets/js/media-sequence.js`, `assets/css/media-sequence.css` | Een pagina met een Paginakop of Mediabanner; gevraagd door `PageHeroBlock` en `MediaBannerBlock`, nooit door de schil |
 | **Route** | `assets/js/personalization.js` | Alleen die route |
 | **Thema** | `<style id="site-theme">`, server-gerenderd | Ná alle stylesheets, en alléén als de vormgeving van de standaard afwijkt (`THEMING.md`) |
 

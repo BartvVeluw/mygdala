@@ -800,7 +800,11 @@ de kiezer geeft bij *Selecteren* elk geselecteerd item (ook de net geüploade)
 door als een bubbelend `media-picker:choose`-event met het item als `detail`,
 en de upload in de modal neemt meerdere bestanden tegelijk. Wat de lijst ermee doet is haar zaak; de
 kiezer geeft nog steeds alleen bibliotheekitems door, en het endpoint achter
-de lijst controleert elk id opnieuw.
+de lijst controleert elk id opnieuw. Dezelfde lijst, en dus dezelfde
+verzamelmodus, is het veld van een mediareeks (`admin/_media_sequence_field.php`,
+`CONTENT-BLOCKS.md`, "Mediareeks"): de Paginakop verzamelt afbeeldingen, de
+Mediabanner afbeeldingen en video's (`MediaType::VISUAL`), en een video staat
+er met een icoon in, omdat er van een video geen stilstaand beeld is.
 
 ## Wat er in V1 is aangesloten
 
@@ -820,6 +824,9 @@ de lijst controleert elk id opnieuw.
 | Deel-afbeelding van product en collectie (Shop) | `products.og_media_id`, `collections.og_media_id`, oude `og_image_path` meegeschreven |
 | Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
 | Mediabanner (`media_banner`) | `media_banners.media_id`, een afbeelding of een video in één veld (`media_picker_field(…, MediaType::VISUAL)`), en `media_banners.poster_media_id`, het beeld vóór het afspelen van een video. Geen oud pad en geen eigen alt-tekst: een afbeelding krijgt de alt-tekst van de bibliotheek, leeg is decoratief. Twee takken in `ContentBlockMediaUsage`: *Mediabanner op "…"* en *Mediabanner (poster) op "…"*. Het endpoint leegt de poster zodra het item geen video is, dus een poster die niemand ziet telt niet als gebruik. `ON DELETE RESTRICT` op allebei |
+| Mediabanner: meer items na elkaar | `media_banner_items.media_id`, de afbeeldingen en video's na het eerste item, in hun volgorde. Alt-tekst van de bibliotheek. Tak *Mediabanner (reeks) op "…"*; `ON DELETE RESTRICT` |
+| Paginakop: meer afbeeldingen na elkaar | `page_hero_images.media_id`, de afbeeldingen na die van de kop zelf. Achter de tekst versiering (`alt=""`), naast de tekst de alt-tekst van de bibliotheek. Tak *Paginakop (diavoorstelling) op "…"*; `ON DELETE RESTRICT`. *Geen afbeelding* in de kop leegt ook deze lijst |
+| Hover kaarten grid (`hover_card_grid`) | `hover_card_grid_items.media_id` (verplicht, de alt-tekst van de bibliotheek) en `hover_card_grid_items.hover_media_id` (optioneel, de tweede afbeelding bij hover: `alt=""` en `aria-hidden`). Allebei alleen een afbeelding (`MediaService::findImage()`), zonder oud pad. Twee takken: *Hover kaarten grid op "…"* en *Hover kaarten grid (tweede afbeelding) op "…"*; `ON DELETE RESTRICT` op allebei |
 
 **Nog op een eigen pad**, ongewijzigd en werkend:
 

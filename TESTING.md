@@ -961,6 +961,42 @@ wijziging aan `admin-editor.js`, `product-variants.js`, `row-list.js` of
 
 Doe dat op een wegwerpkopie van de database, niet op ontwikkeling.
 
+**Wijziging aan de Hover kaarten grid, een mediareeks, de kop van Tekst met
+afbeelding of de flyouts van het menu** (`hover_card_grid`,
+`MediaSequence`, de Paginakop en de Mediabanner, `CONTENT-BLOCKS.md`)
+
+```
+--testsuite fast        MainNavMarkupTest: alleen het pijltje van niveau 1
+                        draait, de flyout sluit op zijn paneel aan
+--testsuite blocks      HoverCardGridRenderTest (keuzes als klassen, één
+                        link per kaart met een naam, de tweede afbeelding
+                        als versiering, lege kaarten en het lege blok) en
+                        HoverCardGridHttpTest (editor en endpoint over
+                        BuiltInServer: opslaan in één keer, weigeringen bij
+                        het veld, volgorde, verwijderen, taal);
+                        MediaSequenceTest (de gesloten lijsten, de tokens,
+                        de markup) en MediaSequenceHttpTest (Paginakop en
+                        Mediabanner met meer items: opslaan, doorschuiven,
+                        weigeren, de markup op de pagina, één item
+                        ongewijzigd); PageHeroImageModeTest (het kruimelpad
+                        links en boven de kolommen); TextImageSplitItemsTest
+                        (de kop boven de items, H3 eronder);
+                        HoverCardsAndMediaSequenceMigrationTest (ook in
+                        migration: vers en na een upgrade, met eigen
+                        wegwerpdatabases mygdala_scratch_hover_sequence_*)
+```
+
+Wat een reeks in een browser doet (de tijd per beeld, een video die
+uitspeelt en dan de volgende, pauzeren, pijlen, bolletjes, vegen) en wat een
+kaart doet bij hover, focus en een tik, bewijst geen van deze tests. Loop het
+na in de Browser-pane op een wegwerpkopie. Een verborgen pane heeft
+`document.hidden` op `true`, en dan wacht een reeks (zoals hij hoort te
+doen): zet voor een meting `document.hidden` en `visibilityState` met
+`Object.defineProperty` op zichtbaar en stuur een `visibilitychange`. Video's
+voor zo'n test maak je in de pane zelf met een `<canvas>`,
+`captureStream()` en `MediaRecorder` (WebM), en upload je met
+`/api/admin/media-upload.php`.
+
 **Wijziging aan een koppelpunt tussen Core en een module**
 
 Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,
