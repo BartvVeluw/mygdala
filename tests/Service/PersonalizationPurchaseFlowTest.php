@@ -285,13 +285,21 @@ final class PersonalizationPurchaseFlowTest extends TestCase
     /**
      * The ordinary add-to-cart path runs through the personalizer's check and
      * then through the server's — there is no branch that skips either.
+     *
+     * The product code is shared with the Uitgelicht product block, so the
+     * product page reads its configurator when it needs it, and a block never
+     * has one: App\Service\ProductPurchasePath sends a product with a
+     * configurator to its product page instead of offering an add row.
      */
     public function testTheAddToCartPathAlwaysConsultsThePersonalizer(): void
     {
         $main = (string) file_get_contents(dirname(__DIR__, 2) . '/assets/js/shop/shop.js');
         $checkout = (string) file_get_contents(dirname(__DIR__, 2) . '/api/checkout.php');
+        $purchasePath = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Service/ProductPurchasePath.php');
 
-        $this->assertStringContainsString('var personalizer = window.VVLPersonalization || null;', $main);
+        $this->assertStringContainsString('return inBlock ? null : (window.VVLPersonalization || null);', $main);
+        $this->assertStringContainsString('var personalizer = personalizerApi();', $main);
+        $this->assertStringContainsString("return ['path' => self::PERSONALIZE, 'personalization' => \$personalization];", $purchasePath);
         $this->assertStringContainsString('personalizer.validate();', $main);
         $this->assertStringContainsString('personalizer.showError(personalizationError);', $main);
 
