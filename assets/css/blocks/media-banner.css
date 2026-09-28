@@ -2,11 +2,13 @@
    Content block: Mediabanner (partials/section-media-banner.php)
    Asked for by App\Service\Blocks\MediaBannerBlock::styles().
 
-   One picture or video in a frame of a chosen height. The picture or video
-   always fills the frame (object-fit: cover): it is cropped, never stretched
-   and never letterboxed, so the height is the banner's and the width is
-   whatever the block has. A picture's focus point (ImageFocus) is the one
-   inline style, its object-position.
+   One picture or video in a frame of a chosen height. A video always fills
+   the frame (object-fit: cover), and so does a picture unless the editor
+   chose the whole picture: it is cropped or shown whole, never stretched, so
+   the height is the banner's and the width is whatever the block has. A
+   picture's presentation — its focus point and fit, and a phone's own — is
+   the inline style partials/responsive-image.php prints (MEDIA.md,
+   "Responsive Media").
 
    THE HEIGHTS are the four words of App\Service\MediaBannerContent::HEIGHTS.
    They grow with the width of the window between a floor and a ceiling, like
@@ -24,8 +26,9 @@
    a banner right after another banner drops its room above too, so two
    banners read as a pair instead of floating apart.
 
-   NOT HERE: any value an editor types, a text over the picture, and any
-   colour of its own.
+   NOT HERE: any value an editor types (a focus point is printed inline by
+   the shared partial, never written into this file), a text over the
+   picture, and any colour of its own.
    ========================================================================== */
 
 .media-banner-section{

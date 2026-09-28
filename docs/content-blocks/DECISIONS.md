@@ -321,9 +321,11 @@ heeft.
   de oude hoogte; op een smal scherm zijn alle drie lager, zodat groot geen
   heel scherm vult. De maten staan als `clamp()` in `page-hero.css`, nooit in
   de database.
-- `image_focus`: de bestaande negen punten van `App\Service\Media\ImageFocus`
+- Het focuspunt: eerst de negen punten van `App\Service\Media\ImageFocus`
   (de Kaarten-carrousel en Tekst met afbeelding), als `object-position`, met
-  in de editor hetzelfde veld (`media_focus_field()`). Geen tweede helper.
+  in de editor hetzelfde veld. Geen tweede helper. Sinds Responsive Media 2.0
+  is het een vrij punt met die negen als voorinstelling, en hetzelfde veld als
+  elke andere plek (zie hieronder).
 
 **Naast de tekst** is één vaste verhouding (tekst ongeveer 58%, beeld 42%, in
 een kader van 4:3 met `object-fit: cover`) zonder breedtekeuze. De tekst
@@ -483,3 +485,60 @@ zodat die verschuiving niets aan de pagina verandert: een redacteur die een
 titel weghaalt, ziet dezelfde kaarten. Tekst met afbeelding hield zijn eigen,
 al bestaande keuze (onder een titel de h3-stap van de typeschaal), omdat een
 item daar een hele rij tekst is en geen kaart.
+
+## Responsive Media 2.0: één waarde per plek, één breekpunt, één markup
+
+Het focuspunt was een woord uit negen, per blok in een eigen kolom. Wie een
+gezicht net boven het midden wilde, had geen woord. Het werd een vrij punt:
+twee hele procenten, precies wat `object-position` betekent, zodat de CSS
+niets hoeft te vertalen en een opgeslagen waarde niet kan liegen. De negen
+woorden bleven als voorinstellingen van één klik. De migratie zette elke
+sleutel om in exact het punt dat hij al toonde, en haalde de sleutelkolom
+weg: twee waarheden per beeld is er één te veel.
+
+**Kolommen per plek, geen JSON en geen tabel ernaast.** Elke plek krijgt
+dezelfde kolommen, alleen de prefix verschilt (`ResponsiveImageSlot`). Een
+JSON-kolom was één migratie minder geweest, maar dan kan een foreign key de
+telefoonafbeelding niet beschermen en ziet het mediagebruik haar niet. Een
+aparte tabel voor "weergaven" had een tweede boekhouding naast de rij van het
+blok gemaakt, die bij kopiëren, verwijderen en vertalen mee moet. Nu hoort
+de weergave bij de rij die het beeld al had, en gaat hij daarmee mee.
+
+**Eén breekpunt, 640px.** Een telefoon is ten hoogste 640px breed; een
+tablet krijgt de desktopafbeelding. Meer breekpunten zou meer afbeeldingen
+per plek vragen, en een redacteur kiest er niet drie. Het getal staat één
+keer in PHP en de CSS wordt ertegen getest. De eigen layout-breekpunten van
+een blok (de carrousel wordt plat onder 700px) bleven staan: die gaan over
+de vorm van het blok, niet over welk beeld het laadt.
+
+**`<picture>` alleen met een telefoonafbeelding.** Zonder is het de `<img>`
+die het blok altijd printte, zodat een bestaande pagina niet verandert en
+een test dat letterlijk kan vergelijken. Met is het één `<source>`: de
+browser kiest één bestand, en er is geen `srcset` met gegenereerde formaten
+(de uploader maakt die niet, en een half systeem is erger dan geen). Een
+eigen punt of weergave op een telefoon is een custom property plus een
+attribuut, met `!important` in één regel onder het breekpunt: de
+desktopwaarde staat inline, zoals altijd, en een stylesheet wint alleen zo
+van een inline stijl.
+
+**Slepen in het kader (UX B), met de schuiven als waarde.** Een kruisje op
+het beeld zetten (UX A) laat zien wáár het punt ligt, maar niet wat er
+overblijft; het kader met de vorm van de plek laat de uitsnede zelf zien, en
+slepen voelt als een foto verschuiven. Slepen is niet toegankelijk, dus het
+kader is `aria-hidden` en de twee schuiven zijn de echte velden: het
+toetsenbord, een schermlezer en een formulier zonder JavaScript gebruiken
+die. Het script zet alleen de schuiven.
+
+**Een reeks deelt de weergave van zijn blok.** Een punt per dia vroeg een
+editor per dia; de reeks is een lijst van keuzes uit de bibliotheek zonder
+eigen rij, en een tweede editor zou een tweede implementatie zijn. Om
+dezelfde reden krijgt een dia nooit de telefoonafbeelding: één beeld kan niet
+voor een hele reeks staan.
+
+**Waar een keuze niets zou doen, is ze er niet.** Geen *Hele afbeelding*
+achter tekst (Oproep met knop, een Paginakop met het beeld erachter, de
+Homepage-hero): dan staat de tekst op kale grond. Geen telefoonhoogte waar
+het blok geen hoogte heeft. De tweede afbeelding van een Hover-kaart is een
+andere blik, geen tweede plek om in te stellen. En de Kaarten-carrousel kiest
+één beeldverhouding voor al zijn kaarten in een rij, niet per kaart: een rij
+kaarten met verschillende vormen staat scheef.

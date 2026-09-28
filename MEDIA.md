@@ -44,14 +44,11 @@ created_at, updated_at
 `foto.jpg` zijn twee bestanden, net als op de schijf.
 
 Mappen staan in een eigen tabel, `media_folders` (`id`, `name`, tijden), en
-zijn **virtueel**: zie *Mappen*. Er zijn **geen** tags, EXIF, focuspunt of
-transformaties. Zie "Bewust niet gebouwd" onderaan. Een focuspunt bestaat alleen op de plek die
-een beeld toont (een carrouselkaart, een item van Tekst met afbeelding, de
-Paginakop), nooit op het item in de bibliotheek. Alle drie gebruiken dezelfde
-negen punten (`App\Service\Media\ImageFocus`) en hetzelfde veld in de editor
-(`media_focus_field()` in `admin/_image_focus.php`, met
-`admin/assets/image-focus.js`); elk scherm geeft het voorbeeld alleen de vorm
-van zijn eigen plek (`--admin-focus-frame-ratio`).
+zijn **virtueel**: zie *Mappen*. Er zijn **geen** tags, EXIF of
+transformaties op het item. Zie "Bewust niet gebouwd" onderaan. Hoe een beeld
+in zijn kader valt — een focuspunt, vullen of de hele afbeelding, een eigen
+afbeelding voor een telefoon — hoort bij de plek die het toont, nooit bij het
+item in de bibliotheek: zie *Responsive Media*.
 
 ## Waar de bestanden staan
 
@@ -487,7 +484,128 @@ tot iemand de bibliotheektekst verandert.
 Kent de bibliotheek `width`/`height`, dan printen de geïntegreerde blokken ze
 als attributen, zodat de browser de ruimte kan reserveren. Onbekend betekent:
 attributen weglaten — nooit gokken, nooit nul. `loading="lazy"` verandert
-niet, en er is geen `srcset`-machinerie bij gekomen.
+niet. Een plek kan voor een telefoon een eigen afbeelding krijgen (zie
+*Responsive Media*), maar er is geen `srcset`-machinerie met gegenereerde
+formaten bij gekomen.
+
+## Responsive Media
+
+Hoe een beeld in zijn kader valt is een keuze van de plek die het toont, niet
+van het bibliotheekitem: dezelfde foto kan in een carrouselkaart op een gezicht
+gericht staan en in een banner op de horizon. Sinds Responsive Media 2.0 heeft
+elke plek die een beeld bijsnijdt dezelfde keuzes, in één veld in de editor,
+*Afbeeldingsweergave* (`ADMIN-UI.md`):
+
+| Keuze | Opslag | Standaard |
+|---|---|---|
+| Focuspunt | `<prefix>focus_x`, `<prefix>focus_y`: hele procenten 0–100, precies wat CSS `object-position` betekent | 50 / 50, het midden |
+| Afbeelding op een telefoon | `<prefix>mobile_media_id`, een afbeelding uit de bibliotheek, `ON DELETE RESTRICT` | `NULL`: de desktopafbeelding |
+| Focuspunt op een telefoon | `<prefix>mobile_focus_x`, `<prefix>mobile_focus_y` | `NULL`: volgt het desktoppunt |
+| Weergave in het kader | `<prefix>fit`: `cover` (vullen, bijsnijden) of `contain` (de hele afbeelding); `<prefix>mobile_fit` | `cover`; op een telefoon `NULL`: zoals op een groot scherm |
+| Hoogte op een telefoon | `<prefix>mobile_height`: `compact`, `normal` of `large` | `NULL`: de eigen hoogte van het blok |
+
+De zeven plekken, en welke keuzes ze hebben:
+
+| Plek | Tabel, prefix | Weergave | Telefoonhoogte |
+|---|---|---|---|
+| Kaart van de Kaarten-carrousel | `carousel_cards`, `image_` | ja | nee: de carrousel kiest één *Beeldverhouding op een rij* voor al zijn kaarten (`card_carousels.flat_image_ratio`: zoals de hoogte, 1:1, 4:3, 3:4, 16:9), op een telefoon en bij *Kaarten naast elkaar* |
+| Item van Tekst met afbeelding | `text_image_split_items`, `image_` | ja | ja |
+| Paginakop | `page_heroes`, `image_` | ja, alleen naast de tekst | ja, alleen achter de tekst |
+| Oproep met knop, achtergrond | `cta_bands`, `background_` | nee: achter tekst altijd vullen | nee |
+| Mediabanner | `media_banners`, `image_` | ja | ja |
+| Hover kaarten grid, hoofdafbeelding | `hover_card_grid_items`, `image_` | ja | nee: de vorm van het grid |
+| Homepage-hero | `homepage_hero`, `image_` | nee | nee |
+
+**Eén model.** `App\Service\Media\ResponsiveImage` is de waarde: lezen uit
+een rij, een formulier valideren, en wat de partial krijgt.
+`ResponsiveImageSlot` noemt per tabel de kolommen (alleen de prefix
+verschilt), `App\Repository\ResponsiveImageRepository` schrijft ze, voor een
+gesloten lijst tabellen. De negen vaste punten van vroeger
+(`App\Service\Media\ImageFocus`) zijn nu voorinstellingen van één klik. De
+migratie `20260928220000` zette elke opgeslagen sleutel om in precies zijn
+punt (0, 50 of 100 per as; iets anders werd het midden) en haalde de
+sleutelkolom weg: één waarheid per beeld. `20260928230000` voegde de
+telefoonkolommen toe, voor een bestaande rij allemaal `NULL` of de
+standaard: zoals het was.
+
+**Eén breekpunt.** Een telefoon is ten hoogste 640px breed
+(`ResponsiveImage::MOBILE_MAX_WIDTH`). Hetzelfde getal staat in de
+`<source media>` van elke telefoonafbeelding, in
+`assets/css/responsive-media.css` en in de regels voor een telefoonhoogte
+(`page-hero.css`, `media-banner.css`, `text-image-split.css`).
+`Tests\Service\ResponsiveMediaContractTest` faalt zodra ze uit elkaar lopen.
+De eigen breekpunten van een blok voor zijn layout blijven wat ze waren: de
+Kaarten-carrousel wordt plat onder 700px, en tussen 641 en 699px staat daar
+dus de desktopafbeelding in de platte rij.
+
+**Eén markup.** `partials/responsive-image.php` print elk beeld van zo'n plek:
+
+- zonder telefooninstellingen één `<img>`, teken voor teken wat het blok
+  altijd printte: een punt buiten het midden als inline `object-position`,
+  `contain` als inline `object-fit`;
+- met een telefoonafbeelding een `<picture class="rm-picture">` met precies
+  één `<source media="(max-width: 640px)">` om dezelfde `<img>`. De browser
+  downloadt één van de twee, nooit allebei, en de alt-tekst staat alleen op
+  de `<img>`: het is dezelfde inhoud. `.rm-picture` heeft `display: contents`,
+  dus elke regel van een blok voor "de afbeelding in dit kader" blijft werken;
+- een eigen punt of weergave op een telefoon als custom property
+  (`--rm-mobile-position`, `--rm-mobile-fit`) plus een data-attribuut dat hem
+  onder het breekpunt aanzet. Daar is `!important` nodig, omdat de
+  desktopwaarde inline staat; het geldt alleen voor een `<img>` met dat
+  attribuut, en dat attribuut staat er alleen als een telefoon echt iets
+  anders toont.
+
+Geen andere partial print een `<source>` of een `object-position`, en elk blok
+dat deze partial gebruikt vraagt `assets/css/responsive-media.css` als eerste
+stylesheet aan (`App\Service\PageAssets`).
+
+**Validatie.** `ResponsiveImage::fromRequest()`: een punt dat een getal is
+wordt geklemd op 0–100 (een schuif kan niet meer sturen, een nagemaakt
+verzoek wel); al het andere wordt geweigerd met een zin bij het veld: een
+woord buiten zijn gesloten lijst, en een telefoonafbeelding die geen
+afbeelding uit de bibliotheek is. Dat laatste is strenger dan
+`MediaService::findImage()` (die alleen een video weigert): een
+telefoonafbeelding wordt de `srcset` van een `<source>`, en daar kan een
+browser alleen een afbeelding lezen (`MediaItem::isPicture()`). Een formulier
+zonder het veld houdt wat er stond. *Gebruik desktopafbeelding* laat een
+gekozen telefoonafbeelding los, ook als de kiezer hem nog vasthoudt.
+
+**Een reeks** (Paginakop en Mediabanner, `App\Service\Media\MediaSequence`):
+het punt en de weergave van het blok gelden voor elke dia. Een eigen
+telefoonafbeelding geldt alleen voor een blok met één beeld; een dia krijgt
+hem nooit, want één telefoonbeeld kan niet voor een hele reeks staan. Een
+punt per dia is bewust niet gebouwd: de reeks is een lijst van keuzes uit de
+bibliotheek zonder eigen rij per dia in de editor, en een tweede editor per
+dia zou een tweede implementatie zijn.
+
+**Hover kaarten**: alleen de hoofdafbeelding. De tweede afbeelding, bij
+aanwijzen, vult het kader altijd vanuit het midden; het veld zegt dat.
+
+**Niet aangesloten, en waarom.** Producten, varianten, collecties,
+Portfolio-projecten en blogberichten hebben hun eigen media en schermen;
+die vallen buiten deze fase. De hoofdafbeelding van een Detailsectie wordt
+niet bijgesneden (volle breedte, eigen verhouding), dus een focuspunt doet
+daar niets; haar galerij is een galerij. Een icoon (*Kenmerken in kaartjes*)
+is een SVG die nooit wordt bijgesneden. Het deelbeeld (`og_media_id`) staat
+niet op de site zelf.
+
+### Een plek aansluiten
+
+1. Migratie: de kolommen van een `ResponsiveImageSlot` op de tabel,
+   `<prefix>mobile_media_id` met `ON DELETE RESTRICT` naar `media`; de tabel
+   in de lijst van `ResponsiveImageRepository`.
+2. Inhoudsklasse: een `imageSlot()`, en
+   `ResponsiveImage::fromRow($row, $slot)->forRender($image)` naast het beeld.
+3. Partial: `render_responsive_image()`, met een terugval voor een inhoud
+   zonder weergave (het voorbeeld in de blokkenbibliotheek); het blok vraagt
+   `assets/css/responsive-media.css` als eerste aan.
+4. Editor: `responsive_image_field()`, de vorm van de plek als
+   `--admin-rm-desktop-ratio` en `--admin-rm-mobile-ratio`, en één keer
+   `responsive_image_field_script()`.
+5. Endpoint: `ResponsiveImage::fromRequest()`, fouten als
+   `presentation.<onderdeel>`, schrijven in dezelfde transactie.
+6. Een tak voor `<prefix>mobile_media_id` in `ContentBlockMediaUsage`.
+7. De plek in `ResponsiveMediaContractTest` en in de tabel hierboven.
 
 ## Waar wordt dit gebruikt?
 
@@ -827,6 +945,7 @@ er met een icoon in, omdat er van een video geen stilstaand beeld is.
 | Mediabanner: meer items na elkaar | `media_banner_items.media_id`, de afbeeldingen en video's na het eerste item, in hun volgorde. Alt-tekst van de bibliotheek. Tak *Mediabanner (reeks) op "…"*; `ON DELETE RESTRICT` |
 | Paginakop: meer afbeeldingen na elkaar | `page_hero_images.media_id`, de afbeeldingen na die van de kop zelf. Achter de tekst versiering (`alt=""`), naast de tekst de alt-tekst van de bibliotheek. Tak *Paginakop (diavoorstelling) op "…"*; `ON DELETE RESTRICT`. *Geen afbeelding* in de kop leegt ook deze lijst |
 | Hover kaarten grid (`hover_card_grid`) | `hover_card_grid_items.media_id` (verplicht, de alt-tekst van de bibliotheek) en `hover_card_grid_items.hover_media_id` (optioneel, de tweede afbeelding bij hover: `alt=""` en `aria-hidden`). Allebei alleen een afbeelding (`MediaService::findImage()`), zonder oud pad. Twee takken: *Hover kaarten grid op "…"* en *Hover kaarten grid (tweede afbeelding) op "…"*; `ON DELETE RESTRICT` op allebei |
+| Afbeelding voor een telefoon, op elk van de zeven plekken van *Responsive Media* | `<prefix>mobile_media_id` op `carousel_cards`, `text_image_split_items`, `page_heroes`, `cta_bands`, `media_banners`, `hover_card_grid_items` en `homepage_hero`. Alleen een afbeelding (`MediaItem::isPicture()`), zonder oud pad en zonder eigen alt-tekst: het is dezelfde inhoud als het beeld op een groot scherm. Eén tak per tabel in `ContentBlockMediaUsage`, met *(telefoon)* in het label; `ON DELETE RESTRICT` |
 
 **Nog op een eigen pad**, ongewijzigd en werkend:
 
@@ -931,6 +1050,8 @@ alt-tekst (`image_alt` als woord van het blok, leeg is die van het item), met
    (zie *Wie mag lezen wáár*).
 8. `deleteFiles()` van het blok blijft **leeg**: een gedeeld bestand is niet
    van jou.
+9. Snijdt het blok zijn beeld bij in een kader, sluit de plek dan ook aan op
+   *Responsive Media* ("Een plek aansluiten").
 
 ## Modulegrens
 
@@ -962,6 +1083,11 @@ docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 | `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`), en de namen die een upgrade meekrijgt |
 | `BrandingTest` | Media wint van het pad, en het pad blijft de terugval |
 | `Tests\Blog\BlogMediaAndSettingsTest` | de eerste module-provider: gebruik melden, niet kunnen verwijderen, niets melden met de module uit, en de berichttitel alleen noemen voor wie berichten mag bewerken (`blog.manage`) |
+| `Tests\Service\Media\ResponsiveImageTest` | Responsive Media: de waarde zonder database — onmogelijke waarden, een rij met vreemde cellen, de eigen kolommen van een plek, wat een formulier mag veranderen, wat de partial krijgt |
+| `ResponsiveImageRenderTest` | De markup: zonder telefooninstellingen de oude `<img>`, met een telefoonafbeelding één `<picture>` met één `<source>` en de alt-tekst één keer, custom properties voor punt en weergave, alles ge-escaped. Geen database |
+| `ResponsiveMediaContractTest` | Eén breekpunt, één markup, één stylesheet eerst, en dezelfde zeven plekken in repository, migraties en gebruik; niets leest de oude sleutelkolommen. Geen database |
+| `ResponsiveImageEditorHttpTest` | Het veld over echte HTTP: het scherm in het Nederlands en Engels, opslaan en de `<picture>` op de pagina, geweigerde telefoonafbeeldingen, klemmen, *Gebruik desktopafbeelding*, een telefoonafbeelding als gebruik, de beeldverhouding van de carrousel, een Hover-kaart en de Homepage-hero |
+| `Tests\Install\ResponsiveMediaMigrationTest` | De twee migraties van Responsive Media op een verse en een bijgewerkte database: elke sleutel wordt precies zijn punt, de rest van een rij blijft, geen telefooninstelling op een bestaande rij, `RESTRICT` overal, een tweede run verandert niets (`migration-backfill`) |
 
 Uploaden in een test gaat via `Tests\Support\TestMediaUploader`: de échte
 uploader met één naad open (`is_uploaded_file`/`move_uploaded_file` kunnen
@@ -1023,12 +1149,22 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
     *Nieuw bestand uploaden* opent het bestandsvenster één keer; het nieuwe
     bestand staat daarna in de bibliotheek en is geselecteerd; *Annuleren*
     verandert niets, *Selecteren* zet precies de keuze in het veld.
+25. Responsive Media, op een carrouselkaart: sleep de afbeelding in het kader,
+    kies een van de negen punten en gebruik de schuiven met de pijltjestoetsen;
+    na opslaan en herladen staat alles er nog. *Op een telefoon*: *Eigen
+    afbeelding*, een eigen punt, *Hele afbeelding*. Op de pagina toont 1440px
+    de desktopafbeelding en 375px de telefoonafbeelding, en in het
+    netwerkpaneel is er per breedte één download.
+26. Kies een telefoonafbeelding en probeer die daarna in de bibliotheek te
+    verwijderen: de melding noemt de plek met *(telefoon)*.
 
 ## Bewust niet gebouwd
 
 Submappen (zie *Waarom geen submappen*), tags/categorieën, andere
-bulkbewerkingen dan een selectie verplaatsen of verwijderen, uitsnede-editor,
-transformaties-UI, focuspunten, een `srcset`-framework, videotranscodering,
+bulkbewerkingen dan een selectie verplaatsen of verwijderen, uitsnede-editor
+(een focuspunt per plek wel: *Responsive Media*), een focuspunt per dia van een
+reeks, transformaties-UI, een `srcset`-framework met gegenereerde formaten,
+videotranscodering,
 posterframes, audio, PDF's/documenten, objectopslag, CDN, EXIF-browser,
 AI-alt-tekst, OCR, stockfoto's, mapbomen met slepen, facetzoeken, een leesbaar
 publiek adres per item (zie *Publieke adressen*), en detectie van *gelijkende*

@@ -8,8 +8,10 @@
      --column-25 / --column-50 / -75     the picture's share of the row
      --height-small / -medium / -large   how high the picture is
 
-   The picture fills its frame with object-fit: cover; which part stays in
-   view is the one inline value, its object-position (ImageFocus).
+   The picture fills its frame with object-fit: cover unless the item chose
+   the whole picture; which part stays in view, and a phone's own choices,
+   are the inline values partials/responsive-image.php prints (Responsive
+   Media 2.0, MEDIA.md).
 
    Items of one block sit closer together than two blocks do (a section has
    var(--sp-7) of padding on both sides): that is the point of having several

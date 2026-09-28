@@ -767,10 +767,11 @@ de kiezer niet kan tonen, blijft staan zolang het veld leeg terugkomt. Een
 item heeft wel tekst of een afbeelding nodig. Een rij die met *Item toevoegen*
 op het scherm komt, krijgt dezelfde rich-texteditor (`admin/assets/admin.js`
 luistert naar `row-list:added` van `row-list.js`), dezelfde mediakiezer
-(gedelegeerd) en hetzelfde focuspunt (`admin/assets/image-focus.js`, gedelegeerd,
-`media_focus_field()`) als een rij die de server printte. Het voorbeeld naast
-het focuspunt heeft de vorm die de afbeelding op een breed scherm krijgt, uit
-de gekozen breedte en hoogte (`.admin-tis-item` in `admin.css`).
+(gedelegeerd) en dezelfde *Afbeeldingsweergave* (`admin/assets/responsive-image.js`,
+gedelegeerd, `responsive_image_field()`, `ADMIN-UI.md`) als een rij die de server
+printte. Het kader heeft de vorm die de afbeelding op een breed scherm krijgt,
+uit de gekozen breedte en hoogte, en op een telefoon uit de hoogte
+(`.admin-tis-item` in `admin.css`).
 
 De hoofdafbeelding van de Detailsectie hoort bij het blok zelf en staat in
 hetzelfde formulier. *Wissen* in de kiezer haalt hem bij *Opslaan* weg, met

@@ -67,7 +67,7 @@ adminpaneel is.
 | `src/Service/Translation/` | Automatisch vertalen: het providercontract, DeepL, de dienst die editors aanroepen en de vertaalstatus (`MULTILINGUAL.md`) |
 | `src/Service/Theme/` | De vormgeving van de website: instellingen, kleurenrekenwerk, lettertypecombinaties en het CSS-overrideblok. Hoe het CMS zelf eruitziet is `Service\AdminTheme` |
 | `src/Service/Redirects/` | De Redirect Manager: padnormalisatie, bestemmingen, opslaanregels, de opzoeking bij een verzoek |
-| `src/Service/Media/` | De Mediabibliotheek: het media-item, de uploadpijplijn, de kiezerlogica en wie welk item gebruikt, plus de regels van de mediareeks (`MediaSequence`) |
+| `src/Service/Media/` | De Mediabibliotheek: het media-item, de uploadpijplijn, de kiezerlogica en wie welk item gebruikt, plus de regels van de mediareeks (`MediaSequence`) en de weergave van een beeld op zijn plek (`ResponsiveImage`, `ResponsiveImageSlot`; `MEDIA.md`, "Responsive Media") |
 | `src/Service/Forms/` | Core Forms: de veldtypes, het leesmodel, validatie, spam-afweer, verwerking en veilig verwijderen |
 | `src/Service/Blog/` | De Blog-module: het leesmodel, de statussen en hun klok, slugs en URL's, de metadata, de RSS-feed en het mediagebruik (`BLOG.md`) |
 | `src/Service/Breadcrumbs/` | Het kruimelpad: één niveau als waarde-object, het hele pad, en de keuze per pagina. De markup staat in `partials/breadcrumb.php` (`HEADER-FOOTER.md`) |
@@ -203,6 +203,7 @@ zelf om zijn bestanden. Er is geen globale `style.css`/`main.js` meer.
 | **Blog** | `assets/css/blog/blog.css` | Alleen `/blog` en de berichten/archieven eronder; gevraagd door die routes, nooit door de schil |
 | **Gedeeld** | `assets/js/lightbox.js` | Een pagina met een zoombare kaart of een Portfolio-projectpagina; gevraagd door de blokken en `portfolio-detail.php`, nooit door de schil |
 | **Gedeeld (mediareeks)** | `assets/js/media-sequence.js`, `assets/css/media-sequence.css` | Een pagina met een Paginakop of Mediabanner; gevraagd door `PageHeroBlock` en `MediaBannerBlock`, nooit door de schil |
+| **Gedeeld (Responsive Media)** | `assets/css/responsive-media.css` | Een pagina met een blok dat een beeld via `partials/responsive-image.php` print; gevraagd als eerste stylesheet door die blokken (Kaarten-carrousel, Tekst met afbeelding, Paginakop, Oproep met knop, Mediabanner, Hover kaarten, Homepage-hero), nooit door de schil |
 | **Route** | `assets/js/personalization.js` | Alleen die route |
 | **Thema** | `<style id="site-theme">`, server-gerenderd | Ná alle stylesheets, en alléén als de vormgeving van de standaard afwijkt (`THEMING.md`) |
 

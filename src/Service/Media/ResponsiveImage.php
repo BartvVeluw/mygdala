@@ -35,7 +35,7 @@ use App\Service\Language\AdminTranslator;
  * A PHONE IS AT MOST MOBILE_MAX_WIDTH PIXELS WIDE: the one breakpoint of this
  * contract. The <source media> of a mobile picture is built from it here, and
  * assets/css/responsive-media.css and the blocks' mobile rules use the same
- * number (Tests\Service\Media\ResponsiveMediaContractTest pins both). A
+ * number (Tests\Service\ResponsiveMediaContractTest pins both). A
  * tablet shows the desktop picture.
  *
  * WHERE THINGS HAPPEN. The row's own columns are read by fromRow() and

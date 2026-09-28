@@ -89,6 +89,12 @@ en `GenericBlockDefaultsTest` bewaken beide.
   afbeelding óf een video neemt, gebruikt één mediakiezer met
   `MediaType::VISUAL` en laat het gekozen item beslissen (`MEDIA.md`), nooit
   een eigen keuzelijst voor het type.
+- **Snijdt je blok een beeld bij in een kader?** Sluit de plek aan op
+  Responsive Media (`MEDIA.md`, "Een plek aansluiten"): een
+  `ResponsiveImageSlot`, `render_responsive_image()` in de partial,
+  `responsive_image_field()` in de editor en de plek in
+  `ResponsiveMediaContractTest`. Nooit een eigen `object-position` of
+  `<picture>`.
 - **Eén blok, meer kiezerkaarten?** Implementeer `OffersPickerPresets`
   (presets, zoals de galerij als Collectiegalerij en Portfoliogalerij), nooit
   een tweede bloktype met dezelfde tabel of editor (`PAGE-EDITOR.md`).

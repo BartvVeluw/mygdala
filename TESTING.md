@@ -1011,6 +1011,27 @@ afbeelding of de flyouts van het menu** (`hover_card_grid`,
                         wegwerpdatabases mygdala_scratch_hover_sequence_*)
 ```
 
+**Wijziging aan de weergave van een beeld: focuspunt, telefoonafbeelding,
+vullen of hele afbeelding, beeldverhouding op een rij** (Responsive Media,
+`MEDIA.md`)
+
+```
+--testsuite fast        ResponsiveImageTest en ResponsiveImageRenderTest
+                        (ook in unit en blocks): de waarde zonder database
+                        en de markup van partials/responsive-image.php;
+                        ResponsiveMediaContractTest (ook in contract en
+                        blocks): één breekpunt, één markup, de zeven
+                        plekken in repository, migraties en gebruik
+--testsuite blocks      ResponsiveImageEditorHttpTest (het veld over
+                        BuiltInServer: scherm in NL en EN, opslaan en de
+                        <picture> op de pagina, geweigerde
+                        telefoonafbeeldingen, gebruik, de beeldverhouding
+                        van de carrousel, Hover kaarten, Homepage-hero);
+                        ResponsiveMediaMigrationTest (ook in migration en
+                        migration-backfill: vers en na een upgrade, met
+                        wegwerpdatabases mygdala_scratch_responsive_media_*)
+```
+
 **Wijziging aan de koppen van een blok met kaarten**
 (`App\Service\Blocks\CardHeading`, `CONTENT-BLOCKS.md` "Koppen in kaarten")
 

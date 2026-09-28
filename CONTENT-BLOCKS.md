@@ -497,8 +497,10 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   modifier-class van. De standaard krijgt géén class, zodat een bestaande
   instantie na de migratie precies blijft zoals hij was, en een maat is een
   stap op de typeschaal in `core.css` (`--fs-*`). `page_hero` is het voorbeeld
-  (positie van de tekst, titel- en tekstgrootte, plaats van het beeld, hoogte
-  van de band en het focuspunt).
+  (positie van de tekst, titel- en tekstgrootte, plaats van het beeld en
+  hoogte van de band). Het focuspunt is sinds Responsive Media 2.0 geen woord
+  meer maar een punt: twee hele procenten, geklemd, en de enige inline waarde
+  (`MEDIA.md`, *Responsive Media*).
 - **Bestaande inhoud blijft behouden** bij migraties en refactors.
 
 ## Koppen in kaarten
@@ -563,12 +565,14 @@ onder elke sectie). Dat is de reden om meerdere items in één blok te zetten.
 | kant van de afbeelding | `image_side` | `left`, `right` |
 | breedte van de afbeelding | `image_column` | `25`, `50`, `75`: het deel van de rij in procenten, de tekst krijgt de rest |
 | hoogte van de afbeelding | `image_height` | `small`, `medium`, `large`: tokens in `assets/css/blocks/text-image-split.css` |
-| focuspunt | `image_focus` | de negen punten van `App\Service\Media\ImageFocus`, dezelfde als bij de carrouselkaart |
+| weergave van de afbeelding | `image_focus_x`, `image_focus_y`, `image_fit` en de telefoonkolommen `image_mobile_*` | het veld *Afbeeldingsweergave* van elke plek die bijsnijdt (`MEDIA.md`, *Responsive Media*): een focuspunt, *Vullen* of *Hele afbeelding*, en voor een telefoon een eigen afbeelding, punt, weergave en hoogte (*Compact*, *Normaal*, *Groot*) |
 | knopdoel | `button_link_type`, `button_link_target_id`, `button_url` | *Geen knop*, een pagina, blogbericht of product op id, of een getypt adres (`LinkChoice`, zie *Taal* hierboven) |
 
-De vier keuzes zijn gesloten lijsten in `TextImageSplitContent::layout()`: een
-onbekende waarde wordt de standaard. De partial zet er alleen klassen van neer.
-De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
+De drie lay-outkeuzes zijn gesloten lijsten in `TextImageSplitContent::layout()`:
+een onbekende waarde wordt de standaard. De partial zet er alleen klassen van
+neer. De enige inline waarden zijn die van de afbeeldingsweergave
+(`object-position`, en `object-fit` bij de hele afbeelding), geprint door
+`partials/responsive-image.php`.
 
 - **Een item heeft tekst of een afbeelding nodig.** Tekst is een
   bovenschrift, een titel, een tekst of een hele knop (label en adres). De
@@ -579,7 +583,9 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   over de volle breedte. Dat is de regel van de Detailsectie. De breedte en de
   kant gelden dan niet, en de hoogtes worden vaste, lagere waarden. Een
   gemigreerd blok met de afbeelding links toonde op een telefoon eerst de
-  afbeelding; nu komt eerst de tekst.
+  afbeelding; nu komt eerst de tekst. Op een telefoon (≤ 640px, het ene
+  breekpunt van Responsive Media) kan een item een eigen hoogte kiezen
+  (`image_mobile_height`); zonder keuze blijft het die vaste waarde.
 - **Een item met maar één helft gaat over de volle breedte.** Alleen tekst:
   de tekst is 100% breed. Alleen een afbeelding: de afbeelding vult het hele
   item, met zijn eigen hoogte en focuspunt. De breedte (`image_column`) en de
@@ -653,7 +659,8 @@ van de keuzes hangt aan een taal.
 | Tekstblok | `rich_text_sections.content_width` | `medium`, `large` (`RichTextContent::WIDTHS`) | `medium` is de smalle leeskolom (`.container--narrow`, `--container-narrow`). `large` is de gewone contentbreedte van de site (`.container`, `--container`), dezelfde als de andere brede blokken |
 | Formulier | `form_blocks.header_align` | `left`, `center`, `right` (`FormBlockContent::HEADER_ALIGNMENTS`) | Alleen de kop en de inleiding boven het formulier. Labels en velden blijven zoals ze zijn |
 | Kaarten-carrousel | `card_carousels.header_align` | `left`, `center`, `right` (`CardCarouselContent::HEADER_ALIGNMENTS`) | Bovenlabel, titel en lead boven de carrousel. De kaarten niet |
-| Kaarten-carrousel | `card_carousels.image_height` | `medium`, `small`, `large` (`CardCarouselContent::IMAGE_HEIGHTS`) | Eén beeldhoogte voor alle kaarten van de carrousel. De kaart groeit of krimpt precies zoveel als het beeld, dus de tekst houdt zijn ruimte. Het beeld wordt bijgesneden (`object-fit: cover`), nooit uitgerekt. Op een telefoon en bij *naast elkaar* is de kaarthoogte `auto` |
+| Kaarten-carrousel | `card_carousels.image_height` | `medium`, `small`, `large` (`CardCarouselContent::IMAGE_HEIGHTS`) | Eén beeldhoogte voor alle kaarten van de carrousel. De kaart groeit of krimpt precies zoveel als het beeld, dus de tekst houdt zijn ruimte. Het beeld wordt bijgesneden (`object-fit: cover`, of heel getoond als de kaart *Hele afbeelding* kiest), nooit uitgerekt. Op een telefoon en bij *naast elkaar* is de kaarthoogte `auto` |
+| Kaarten-carrousel | `card_carousels.flat_image_ratio` | `auto`, `1-1`, `4-3`, `3-4`, `16-9` (`ResponsiveImage::FLAT_RATIOS`) | *Beeldverhouding op een rij*: waar de kaarten naast elkaar staan (altijd op een telefoon, op grotere schermen bij *Kaarten naast elkaar*) krijgt elk beeld die vorm in plaats van de vaste hoogte; *Zoals de hoogte* (`auto`) is de standaard en geeft geen class. De draaiende carrousel houdt altijd de hoogte, want zijn podium wordt uit een vaste kaarthoogte berekend. Een kaart zonder beeld (het icoon) krijgt dezelfde vorm, zodat de kaarten van een rij even hoog blijven. Elke kaart houdt haar eigen afbeeldingsweergave (`MEDIA.md`, *Responsive Media*), en de kaders in de kaarteditor volgen de vorm die de kaart echt krijgt |
 | Witruimte | `spacers.size` | `medium`, `small`, `large`, `xlarge` (`SpacerContent::SIZES`) | Zie hieronder |
 
 **Ruimte boven en onder een Tekstblok.** Het Tekstblok heeft nu de ruimte van
@@ -700,7 +707,7 @@ per taal.
 | `lead_width` | `narrow`, `medium`, `wide`, `full` (`LEAD_WIDTHS`) | Alleen de maximale breedte van de lead, en van niets anders: niet van de titel, het bovenlabel, de knoppen of het tekstvlak. `narrow` is de `46ch` die elke `.lead` heeft (daarom was de lead smaller dan de titel), `medium` de leeskolom van de site (`--container-narrow`), `wide` `60rem`, `full` de hele tekstbreedte van de oproep. Op een smal scherm is elke keuze gewoon 100% |
 | `full_width` | `0`, `1` | *Achtergrond over de volledige paginabreedte*, met en zonder afbeelding. Zie hieronder |
 | `background_media_id` | een id uit de Mediabibliotheek of `NULL` | Decoratief: `alt=""` en `aria-hidden`, want de woorden zeggen alles. `ON DELETE RESTRICT`, en een tak in `ContentBlockMediaUsage` |
-| `background_focus` | de negen punten van `ImageFocus`, `center` eerst | Welk deel van de afbeelding in beeld blijft (`object-position`), met hetzelfde focusveld als de carrouselkaart en de Paginakop |
+| `background_focus_x`, `background_focus_y`, `background_mobile_*` | 0–100, `50` eerst; de telefoonkolommen `NULL` | Welk punt van de afbeelding in beeld blijft (`object-position`), en voor een telefoon een eigen afbeelding en punt: het veld *Afbeeldingsweergave* (`MEDIA.md`, *Responsive Media*). Geen keuze voor de hele afbeelding: achter tekst vult het beeld altijd |
 | `background_overlay` | `medium`, `none`, `light`, `dark` (`OVERLAYS`) | Alleen over een afbeelding. De scrimkleur van het thema (`--color-media-scrim-rgb`) op `0.35`, `0.62` en `0.8`. `medium` haalt voor de thematekst minstens 5:1, zelfs op wit |
 | `text_panel` + `text_panel_opacity` | `0`/`1`; `strong`, `subtle`, `medium`, `solid` (`PANEL_OPACITIES`) | Een vlak achter de woorden in het oppervlak van het thema (`--color-surface-veil-rgb` op `0.55`, `0.72`, `0.88`; `solid` is `--color-surface`). Het vlak omsluit bovenlabel, titel, lead en knoppen en is precies zo breed als de inhoudszone die ze al hebben: de binnenkant van de kaart, of de `.container` van een oproep over de volle breedte. Het neemt zijn breedte nooit van de lead, dus de titel houdt zijn breedte en een smalle lead staat in een breder vlak. Er is geen instelling voor de breedte van het vlak. De dekking blijft bewaard als het vlak uit staat |
 
@@ -741,7 +748,7 @@ maten (`CtaBandHttpTest`, `CtaBandRenderTest`, en in de browser gemeten tegen
 leent, vraagt het ook); de basiskaart bleef in `core.css`.
 
 **De editor** heeft vijf kaarten: Inhoud, Weergave, Achtergrond, Tekstvlak en
-Knoppen. Focuspunt en overlay staan er alleen met een afbeelding, de dekking
+Knoppen. De afbeeldingsweergave en de overlay staan er alleen met een afbeelding, de dekking
 alleen met het tekstvlak aan (`admin/assets/cta-band.js`; de server print
 dezelfde `hidden`). Er is geen eigen uploadveld: de afbeelding komt uit de
 mediakiezer.
@@ -791,7 +798,7 @@ video" die het met het item oneens kan zijn. De kiezer gebruikt het filter
 | `media_id` | een id uit de Mediabibliotheek of `NULL` | De afbeelding of video. `ON DELETE RESTRICT` en een tak in `ContentBlockMediaUsage` |
 | `width` | `content`, `full` (`WIDTHS`) | Binnen de `.container`, met de afgeronde hoeken van het thema (`--radius-lg`, zoals elk beeld in een blok), of over de volle paginabreedte zonder hoeken |
 | `height` | `medium`, `small`, `large`, `xlarge` (`HEIGHTS`) | Zie *Hoogtes* hieronder |
-| `image_focus` | de negen punten van `ImageFocus`, `center` eerst | Alleen bij een afbeelding: welk deel in beeld blijft (`object-position`), hetzelfde veld als de Paginakop en de Oproep met knop. Een video staat altijd in het midden |
+| `image_focus_x`, `image_focus_y`, `image_fit`, `image_mobile_*` | 0–100, `50` eerst; `cover` eerst; de telefoonkolommen `NULL` | Alleen bij een afbeelding: de *Afbeeldingsweergave* (`MEDIA.md`, *Responsive Media*), hetzelfde veld als de Paginakop en de Oproep met knop: een focuspunt, *Vullen* of *Hele afbeelding*, en voor een telefoon een eigen afbeelding, punt, weergave en hoogte. Een video staat altijd in het midden en vult het kader |
 | `video_autoplay`, `video_loop`, `video_controls` | `0`, `0`, `1` | Alleen bij een video. Zie *Het videocontract* |
 | `poster_media_id` | een afbeelding uit de bibliotheek of `NULL` | Alleen bij een video: het beeld zolang hij nog niet speelt. `ON DELETE RESTRICT` en een eigen tak in `ContentBlockMediaUsage` |
 | `slide_transition`, `slide_duration`, `slide_controls` | `fade`/`slide`/`none`; `5` (1–10); `both`/`arrows`/`dots`/`none` | Alleen bij meer dan één item: de overgang, de seconden per afbeelding en de knoppen voor de bezoeker (`MediaSequence`, zie *Mediareeks*) |
@@ -860,7 +867,7 @@ ruimte-instelling: daarvoor is de Witruimte.
   een video snijden, en daarom toont de kiezer bij een video ook een icoon.
 
 **Wat een keuze betekent, beslist het gekozen item.** Bij een afbeelding
-slaat het endpoint het focuspunt op en laat het de geposte video-opties
+slaat het endpoint de afbeeldingsweergave op en laat het de geposte video-opties
 liggen: de opgeslagen opties blijven staan, zodat een banner die weer een
 video krijgt ze terug heeft, en een afbeelding krijgt nooit video-instellingen
 die ze niet kan tonen. Bij een video is het omgekeerd. De poster wordt geleegd
@@ -881,8 +888,8 @@ bediening nodig om hem te kunnen stoppen (WCAG 2.2.2); de helptekst bij
 
 **De editor** heeft vier kaarten: *Media* (één kiezer voor afbeelding of
 video, met het type naast de naam, en daaronder *Meer afbeeldingen en
-video's*), *Weergave* (breedte, hoogte, en bij een afbeelding het
-focuspunt), *Afspelen* (automatisch afspelen en herhalen bij een video of een
+video's*), *Weergave* (breedte, hoogte, en bij een afbeelding de
+afbeeldingsweergave), *Afspelen* (automatisch afspelen en herhalen bij een video of een
 reeks, de bediening zodra er een video in zit, de poster alleen als het eerste
 item een video is) en *Diavoorstelling* (overgang, tijd per afbeelding en
 knoppen, alleen bij meer dan één item). `admin/assets/media-banner.js` toont
@@ -909,7 +916,9 @@ videocontract:
   veld; het leesmodel maakt er in dat geval toch bolletjes van.
 - **Een video in een reeks die niet vanzelf speelt, heeft zijn bediening**,
   dezelfde regel als bij één video. De poster is die van het eerste item als
-  dat een video is; het focuspunt geldt voor elke afbeelding.
+  dat een video is; het focuspunt en de weergave gelden voor elke
+  afbeelding, een eigen telefoonafbeelding niet (die geldt alleen zonder
+  reeks, `MEDIA.md`, *Responsive Media*).
 - Een verdwenen item, of een item dat geen afbeelding of video is, valt weg
   uit de reeks. Zonder bruikbaar eerste item is er geen banner.
 - **Wat het endpoint bewaart** hangt af van wat er gekozen is: de
@@ -983,8 +992,11 @@ kindtabellen hebben geen woorden en staan in
   de andere zijn `aria-hidden` en `inert`. Elk item is een groep met de naam
   "2 van 4". Een reeks die alleen versiering is (de beelden áchter de tekst
   van een Paginakop), heeft `alt=""` en is als geheel verborgen.
-- Er komt niets uit de database in de CSS; de enige inline stijl is het
-  `object-position` van het focuspunt.
+- Er komt niets uit de database in de CSS; de enige inline stijl is die van
+  de afbeeldingsweergave van het blok (`object-position`, en `object-fit` bij
+  de hele afbeelding), voor elke dia dezelfde, geprint door
+  `partials/responsive-image.php`. Een dia krijgt nooit de eigen
+  telefoonafbeelding van het blok.
 
 **In de editor** is de reeks één lijst onder de gewone kiezer: *Meer
 afbeeldingen (en video's)*, met *Toevoegen*, slepen, ← en → en weghalen
@@ -1040,7 +1052,11 @@ dezelfde wordt één keer opgeslagen), een link via `LinkChoice`
 zijn `ON DELETE RESTRICT` met elk een eigen tak in `ContentBlockMediaUsage`:
 *Hover kaarten grid* en *Hover kaarten grid (tweede afbeelding)*. De alt-tekst
 is die van de bibliotheek; de tweede afbeelding is een andere blik op
-hetzelfde en dus `alt=""` en `aria-hidden`.
+hetzelfde en dus `alt=""` en `aria-hidden`. De hoofdafbeelding heeft de
+*Afbeeldingsweergave* van elke plek die bijsnijdt (`image_focus_x`,
+`image_focus_y`, `image_fit` en `image_mobile_*`, `MEDIA.md`, *Responsive
+Media*); de tweede vult het kader altijd vanuit het midden. De kaders in de
+editor volgen de vorm van het grid.
 
 | Kolom | Waarden (standaard eerst) | Wat het doet |
 |---|---|---|
@@ -1089,8 +1105,9 @@ Zonder één kaart om te tonen rendert het blok niets, zijn kop ook niet.
 **De editor** heeft drie kaarten: *Kop boven de kaarten*, *Weergave* (de
 keuzes; de sluier alleen bij tekst over de foto) en *Kaarten*. Elke kaart
 klapt apart in (`PAGE-EDITOR.md`, *Inklapbare rijen*) met "Kaart 2 — titel"
-als kopregel, en heeft de mediakiezer, de tweede afbeelding, de woorden en het
-gedeelde linkveld. Een nieuw raster begint zonder kaarten en rendert niets tot
+als kopregel, en heeft de mediakiezer, de tweede afbeelding, de
+*Afbeeldingsweergave* van de hoofdafbeelding, de woorden en het gedeelde
+linkveld. Een nieuw raster begint zonder kaarten en rendert niets tot
 er een kaart met een afbeelding is.
 
 **Niet in de Hover kaarten grid**: video, een eigen kleur per kaart, een

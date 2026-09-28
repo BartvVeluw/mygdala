@@ -189,8 +189,8 @@
 /* One band with two columns: the text in the wider one (about 58%), the
    picture in the narrower one (about 42%), both centred on each other. The
    picture keeps one fixed shape, cropped with object-fit: cover around its
-   focus point, so a short text never gets a giant picture and nothing is
-   ever stretched. The text comes first in the markup either way; left or
+   focus point (or shown whole, when the editor chose so), so a short text
+   never gets a giant picture and nothing is ever stretched. The text comes first in the markup either way; left or
    right only decides which column the picture takes. */
 .page-hero__split{
   display: grid;

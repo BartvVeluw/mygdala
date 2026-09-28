@@ -8,7 +8,7 @@
 
    A PHONE IS AT MOST 640PX WIDE: ResponsiveImage::MOBILE_MAX_WIDTH, the same
    number the <source media> of a phone picture is built from.
-   Tests\Service\Media\ResponsiveMediaContractTest fails when the two differ.
+   Tests\Service\ResponsiveMediaContractTest fails when the two differ.
 
    WHY !important. A picture's desktop point and fit are an inline style on
    the <img> (what the block always printed), and a stylesheet rule only beats
