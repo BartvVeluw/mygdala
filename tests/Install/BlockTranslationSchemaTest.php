@@ -27,6 +27,19 @@ final class BlockTranslationSchemaTest extends TestCase
      */
     private const RETIRED_CHILD_TABLES = ['text_image_split_paragraphs', 'text_image_split_images'];
 
+    /**
+     * Child tables that cascade from a block with words but can never own a
+     * word themselves: a row is a Media Library id and a place, nothing a
+     * visitor reads (the further pictures of a Paginakop's media sequence use
+     * the library's alt text, db/migrations/20260928180000). No block
+     * declares words for them — that is asserted — so there is nothing their
+     * cascade could leave behind, and they are not a block's childTables(),
+     * which name the tables whose rows own words
+     * (Tests\Service\BlockDefinitionContractTest). A closed list, like
+     * BlockDefinitionContractTest::WORDLESS_WITH_ROWS.
+     */
+    private const WORDLESS_CHILD_TABLES = ['page_hero_images'];
+
     public function testTheTableHasTheAgreedShape(): void
     {
         $columns = [];
@@ -157,6 +170,10 @@ final class BlockTranslationSchemaTest extends TestCase
                     [$table]
                 ) as $row) {
                     if (in_array($row['child'], self::RETIRED_CHILD_TABLES, true)) {
+                        continue;
+                    }
+                    if (in_array($row['child'], self::WORDLESS_CHILD_TABLES, true)) {
+                        self::assertSame([], \App\Service\Blocks\BlockLocalization::fields($row['child']), "{$row['child']} is listed as wordless and has words");
                         continue;
                     }
                     self::assertSame(

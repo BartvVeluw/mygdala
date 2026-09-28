@@ -122,7 +122,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'feature_grid_items' => ['icon_media_id'],
         'form_blocks' => ['header_align'],
         'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
-        'page_heroes' => ['image_mode', 'hero_height', 'image_focus'],
+        'page_heroes' => ['image_mode', 'hero_height', 'image_focus', 'slide_transition', 'slide_duration'],
     ];
 
     private static ?ScratchInstall $fresh = null;

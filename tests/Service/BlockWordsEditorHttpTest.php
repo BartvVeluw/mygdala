@@ -116,7 +116,9 @@ final class BlockWordsEditorHttpTest extends TestCase
             'address' => 'section',
             'settings' => ['is_active' => '1'],
             'words' => ['eyebrow' => 'Waarom wij', 'title' => 'Wat je van ons krijgt', 'lead' => 'Kort gezegd.'],
-            'required' => ['title'],
+            // The H2 is optional since the heading of a grid is (a grid
+            // without one renders its cards and no empty heading).
+            'required' => [],
         ],
         'faq' => [
             'table' => 'faq_sections',

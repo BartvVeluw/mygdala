@@ -296,8 +296,14 @@ final class PageHeroImageModeTest extends TestCase
         );
     }
 
+    /**
+     * Beside a picture the trail is the header's own top zone, above BOTH
+     * columns and in a container of its own, so it starts at the left
+     * whichever side the picture is on — it used to sit in the text column,
+     * which put it on the right beside a picture on the left.
+     */
     #[DataProvider('sides')]
-    public function testBesideAPictureTheTrailIsAtTheTopOfTheText(string $mode): void
+    public function testBesideAPictureTheTrailIsTheTopZoneAboveBothColumns(string $mode): void
     {
         $this->storeHeader(['media_id' => $this->mediaItem('Foto'), 'image_mode' => $mode]);
 
@@ -305,10 +311,37 @@ final class PageHeroImageModeTest extends TestCase
 
         $this->assertSame(1, substr_count($html, '<nav class="breadcrumb-bar"'));
         $this->assertMatchesRegularExpression(
-            '#^\s*<section class="page-hero page-hero--split[^"]*">\s*<div class="container page-hero__split">\s*<div class="page-hero__text">\s*<nav class="breadcrumb-bar" aria-label="Kruimelpad">\s*<ol class="breadcrumb">#s',
+            '#^\s*<section class="page-hero page-hero--split[^"]*">\s*<nav class="breadcrumb-bar" aria-label="Kruimelpad">\s*<div class="container">\s*<ol class="breadcrumb">.*?</nav>\s*<div class="container page-hero__split">\s*<div class="page-hero__text">\s*<p class="eyebrow">#s',
             $html,
-            'inside the text column, which already lines it up: no container of its own'
+            'the trail first, in its own container, then the two columns'
         );
+        $this->assertDoesNotMatchRegularExpression('#page-hero__text">(?:(?!</div>).)*breadcrumb#s', $html, 'nothing of the trail in the text column');
+    }
+
+    /**
+     * The trail is navigation, not header text: with the text centred or on
+     * the right, with a picture behind or beside it, the trail keeps its own
+     * container and starts at the left of it. The stylesheet has no rule that
+     * moves a trail with the text any more (the centred header used to
+     * centre its trail too).
+     */
+    public function testTheTrailStaysLeftWhateverTheTextsPosition(): void
+    {
+        foreach (['background', 'left', 'right'] as $mode) {
+            foreach (['center', 'right'] as $position) {
+                $this->removeHeader();
+                $this->storeHeader(['media_id' => $this->mediaItem('Foto'), 'image_mode' => $mode, 'content_position' => $position]);
+
+                $html = $this->renderPage($this->trail());
+                $this->assertContains('page-hero--content-' . $position, $this->sectionClasses($html), $mode . '/' . $position);
+                $this->assertMatchesRegularExpression('#<nav class="breadcrumb-bar" aria-label="Kruimelpad">\s*<div class="container">\s*<ol class="breadcrumb">#', $html, $mode . '/' . $position . ': its own plain container');
+            }
+        }
+
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/blocks/page-hero.css'));
+        $this->assertStringContainsString('.page-hero .breadcrumb-bar .container{ text-align: start; }', $css, 'the text\'s alignment never reaches the trail');
+        $this->assertDoesNotMatchRegularExpression('/\.breadcrumb\s*\{[^}]*justify-content/', $css, 'no rule moves the trail with the text');
+        $this->assertDoesNotMatchRegularExpression('/content-(center|right)[^{]*\.breadcrumb/', $css);
     }
 
     public function testWithoutAPictureTheTrailStaysBeforeTheHeader(): void

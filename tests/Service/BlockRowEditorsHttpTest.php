@@ -607,6 +607,75 @@ final class BlockRowEditorsHttpTest extends TestCase
     }
 
     /**
+     * Tekst met afbeelding's own heading above all its items: an optional
+     * title and lead, saved in the language on screen in the one save with
+     * the items, both allowed to stay empty, their length checked; a form
+     * without the fields keeps what is stored. The editor shows both, neither
+     * required.
+     */
+    public function testTheTextImageBlocksOwnHeadingIsOptionalAndSavedWithItsItems(): void
+    {
+        $this->place('text_image_split_items');
+        $session = $this->signIn(null);
+        [$a] = $this->seed($session, 'text_image_split_items', 1);
+        $row = $this->row('text_image_split_items');
+
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', ['title' => 'Wat wij doen', 'lead' => 'Drie dingen.'], [(string) $a => $row]));
+        self::assertSame(['title' => 'Wat wij doen', 'lead' => 'Drie dingen.'], $this->stored('text_image_splits', $this->parentId, 'nl'));
+
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [(string) $a => $row]), 'a form without the heading');
+        self::assertSame(['title' => 'Wat wij doen', 'lead' => 'Drie dingen.'], $this->stored('text_image_splits', $this->parentId, 'nl'), 'keeps it');
+
+        $screen = $this->screen($session, 'text_image_split_items');
+        self::assertMatchesRegularExpression('#<input type="text" id="tis-block-title" name="title" maxlength="255" value="Wat wij doen"(?![^>]*required)[^>]*>#', $screen, 'on screen, not required');
+        self::assertMatchesRegularExpression('#<textarea id="tis-block-lead" name="lead" maxlength="500"(?![^>]*required)[^>]*>Drie dingen.</textarea>#', $screen);
+
+        $this->assertRefused($this->save($session, 'text_image_split_items', 'nl', ['title' => str_repeat('x', 256), 'lead' => ''], [(string) $a => $row]), 'too long');
+
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', ['title' => '', 'lead' => ''], [(string) $a => $row]), 'both empty');
+        self::assertSame([], $this->stored('text_image_splits', $this->parentId, 'nl'));
+
+    }
+
+    /**
+     * Kenmerken in kaartjes: the grid's H2 is optional now — a grid saves and
+     * shows without one — and every card folds on its own in the editor,
+     * named after its title.
+     */
+    public function testAFeatureGridNeedsNoTitleAndEveryCardFolds(): void
+    {
+        $this->place('feature_grid');
+        $session = $this->signIn(null);
+        [$a, $b] = $this->seed($session, 'feature_grid', 2);
+
+        $this->assertSaved($this->save($session, 'feature_grid', 'nl', ['eyebrow' => '', 'title' => '', 'lead' => ''], [
+            (string) $a => ['title' => 'Snel'] + $this->row('feature_grid'),
+            (string) $b => $this->row('feature_grid'),
+        ]), 'no title');
+        self::assertSame([], $this->stored('feature_grids', $this->parentId, 'nl'));
+
+        \App\Service\FeatureGridContent::clearCache();
+        [, $key] = explode(':', $this->section, 2);
+        $content = \App\Service\FeatureGridContent::forSection(self::KEY, $key);
+        require_once dirname(__DIR__, 2) . '/partials/section-feature-grid.php';
+        ob_start();
+        render_section_feature_grid($content, 'feature-grid-test');
+        $html = (string) ob_get_clean();
+        self::assertStringNotContainsString('<h2', $html, 'no empty heading');
+        self::assertStringNotContainsString('section-head', $html);
+        self::assertSame(2, substr_count($html, 'class="feature-card"'), 'the cards are there');
+
+        $xpath = $this->xpath($this->screen($session, 'feature_grid'));
+        self::assertSame(0, $xpath->query('//input[@id="feature-grid-title" and @required]')->length, 'the H2 is optional');
+        $rows = '//*[@data-row-list="feature-grid-items"]/fieldset[@data-row-list-row]';
+        self::assertSame(2, $xpath->query($rows . '/details[contains(@class, "admin-row-card__collapse")]')->length, 'every card folds');
+        self::assertSame(0, $xpath->query($rows . '/details[@open]')->length, 'a stored card of a longer list starts folded');
+        self::assertSame(1, $xpath->query('//*[@data-row-list="feature-grid-items" and @data-admin-collapse-group="feature-grid-items"]')->length);
+        self::assertStringContainsString('— Snel', (string) $xpath->query($rows . '/details/summary')->item(0)?->textContent, 'named after its title');
+        self::assertSame(2, $xpath->query($rows . '//input[contains(@name, "[title]") and @data-row-list-title-source]')->length);
+    }
+
+    /**
      * An item's layout is the same in every language: changed on the English
      * screen it changes for Dutch too, and the Dutch words stay as they were.
      * An alt text sent back exactly as the library has it is the library's,

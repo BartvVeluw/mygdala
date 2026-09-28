@@ -445,7 +445,7 @@ final class MediaBannerHttpTest extends TestCase
         $url = '/admin/media-banner.php?section=' . urlencode($section);
 
         $xpath = $this->xpath(self::$server->request('GET', $url, $session)['body']);
-        self::assertSame(3, $xpath->query('//form[@data-media-banner-form]/section[contains(@class, "admin-card")]/h2')->length, 'Media, Weergave, Video');
+        self::assertSame(4, $xpath->query('//form[@data-media-banner-form]/section[contains(@class, "admin-card")]/h2')->length, 'Media, Weergave, Afspelen, Diavoorstelling');
         self::assertSame(0, $xpath->query('//input[@type="file" and not(ancestor::*[@data-media-modal])]')->length, 'no upload field of its own');
         self::assertSame(1, $xpath->query('//*[@data-media-picker and @data-media-picker-kind="visual"]//input[@name="media_id"]')->length, 'one picker for a picture or a video');
         self::assertSame(1, $xpath->query('//*[@data-media-picker and @data-media-picker-kind="image"]//input[@name="poster_media_id"]')->length, 'the poster is a picture');
@@ -458,13 +458,15 @@ final class MediaBannerHttpTest extends TestCase
             self::assertSame($list, $values, $name . ': exactly the closed list');
         }
         self::assertSame(ImageFocus::keys(), array_map(static fn (\DOMElement $radio): string => $radio->getAttribute('value'), iterator_to_array($xpath->query('//input[@name="image_focus"]'))));
-        self::assertSame(2, $xpath->query('//*[@data-media-banner-needs and @hidden]')->length, 'nothing chosen: neither the focus point nor the video options');
+        self::assertSame(0, $xpath->query('//*[@data-media-banner-needs and not(@hidden)]')->length, 'nothing chosen: no focus point, no playing options, no further items');
 
         $picture = $this->libraryItem('image/jpeg', 'jpg');
         $this->assertSaved($this->save($session, $section, ['media_id' => (string) $picture]));
         $xpath = $this->xpath(self::$server->request('GET', $url, $session)['body']);
         self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="image" and not(@hidden)]')->length);
-        self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="video" and @hidden]')->length);
+        self::assertSame(0, $xpath->query('//*[@data-media-banner-needs="video" and not(@hidden)]')->length);
+        self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="play" and @hidden]')->length, 'one picture does not play');
+        self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="main" and not(@hidden)]')->length, 'more items can follow the first');
         self::assertSame('Afbeelding', trim((string) $xpath->query('//*[@data-media-picker-kind="visual"]//*[contains(@class, "admin-media-picker__kind")]')->item(0)?->textContent));
         self::assertSame('image', $xpath->query('//*[@data-media-picker-kind="visual"]')->item(0)?->getAttribute('data-media-picker-chosen'));
 
@@ -472,7 +474,10 @@ final class MediaBannerHttpTest extends TestCase
         $this->assertSaved($this->save($session, $section, ['media_id' => (string) $video]));
         $xpath = $this->xpath(self::$server->request('GET', $url, $session)['body']);
         self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="image" and @hidden]')->length);
-        self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="video" and not(@hidden)]')->length);
+        self::assertSame(0, $xpath->query('//*[@data-media-banner-needs="video" and @hidden]')->length);
+        self::assertSame(0, $xpath->query('//*[@data-media-banner-needs="play" and @hidden]')->length);
+        self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="main-video" and not(@hidden)]')->length, 'the poster belongs to the first video');
+        self::assertSame(1, $xpath->query('//*[@data-media-banner-needs="sequence" and @hidden]')->length, 'one item is no sequence');
         self::assertSame('Video', trim((string) $xpath->query('//*[@data-media-picker-kind="visual"]//*[contains(@class, "admin-media-picker__kind")]')->item(0)?->textContent));
         foreach (['video_autoplay', 'video_loop', 'video_controls'] as $name) {
             self::assertSame(1, $xpath->query('//input[@type="checkbox" and @role="switch" and @name="' . $name . '" and @value="1"]')->length, $name);

@@ -257,6 +257,58 @@ final class MainNavMarkupTest extends TestCase
     }
 
     /**
+     * Only a level-1 chevron turns when its submenu opens (it points down to a
+     * panel below it). A deeper one already points at where its flyout
+     * appears and stays so, open or closed: to the right, to the left for a
+     * flyout that opens there, and down on a phone.
+     */
+    public function testOnlyALevelOneChevronTurnsWhenItsSubmenuOpens(): void
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', (string) file_get_contents(self::ROOT . '/assets/css/core.css'));
+
+        $this->assertStringContainsString('.main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(180deg); }', $css, 'level 1 turns');
+        $this->assertStringContainsString('.main-nav__submenu .main-nav__chevron{ transform: rotate(-90deg); }', $css, 'a deeper one points to its flyout');
+        $this->assertStringContainsString('.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(-90deg); }', $css, 'and keeps pointing there when it is open');
+        $this->assertMatchesRegularExpression('/\.main-nav__submenu \.main-nav__item\.opens-left > \.main-nav__row \.main-nav__chevron,\s*\.main-nav__submenu \.main-nav__item--has-children\.opens-left\.is-open > \.main-nav__row \.main-nav__chevron\{ transform: rotate\(90deg\); \}/', $css, 'a flyout to the left: the same direction open and closed');
+        $this->assertMatchesRegularExpression('/\.main-nav__submenu \.main-nav__item--has-children > \.main-nav__row \.main-nav__chevron,\s*\.main-nav__submenu \.main-nav__item--has-children\.is-open > \.main-nav__row \.main-nav__chevron\{ width: 18px; height: 18px; transform: none; \}/', $css, 'on a phone a deeper chevron points down and stays so');
+
+        // Nothing else turns a deeper chevron: every rule on one is one of the above.
+        preg_match_all('/([^{}]*\.main-nav__submenu[^{}]*\.main-nav__chevron[^{}]*)\{([^}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        $this->assertNotSame([], $rules);
+        foreach ($rules as [, $selector, $body]) {
+            if (!str_contains($body, 'transform')) {
+                continue;
+            }
+            $this->assertMatchesRegularExpression('/transform: (rotate\(-90deg\)|rotate\(90deg\)|none);/', $body, trim($selector));
+            if (str_contains($selector, 'rotate(90deg)') || str_contains($body, 'rotate(90deg)')) {
+                $this->assertStringContainsString('opens-left', $selector, 'only a flyout to the left points left');
+            }
+        }
+    }
+
+    /**
+     * A level-3 flyout joins its level-2 panel on a wide screen: it hangs off
+     * the panel rather than its own row, starts at the panel's top edge, is at
+     * least as tall, shares its border, has square corners where the two meet
+     * and casts no shadow back over the panel. Mirrored for .opens-left.
+     */
+    public function testANestedFlyoutJoinsItsPanelIntoOneBlockOnAWideScreen(): void
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', (string) file_get_contents(self::ROOT . '/assets/css/core.css'));
+        $this->assertSame(1, preg_match('/@media \(min-width: 901px\)\{(.*?)\n\}/s', $css, $wide), 'a wide-screen block');
+        $wide = $wide[1];
+
+        $this->assertStringContainsString('.main-nav__submenu .main-nav__item--has-children{ position: static; }', $wide, 'the flyout hangs off the panel');
+        foreach (['top: -1px;', 'left: 100%;', 'min-height: calc(100% + 2px);', 'border-top-left-radius: 0;', 'border-bottom-left-radius: 0;', 'clip-path: inset(-3rem -3rem -3rem 0);'] as $declaration) {
+            $this->assertMatchesRegularExpression('/\.main-nav__submenu--level-3\{[^}]*' . preg_quote($declaration, '/') . '/', $wide, $declaration);
+        }
+        $this->assertMatchesRegularExpression('/\.main-nav__item\.opens-left > \.main-nav__submenu--level-3\{[^}]*right: 100%;[^}]*border-radius: 10px 0 0 10px;[^}]*clip-path: inset\(-3rem 0 -3rem -3rem\);/', $wide, 'mirrored to the left');
+        $this->assertMatchesRegularExpression('/\.main-nav__submenu:has\(> \.main-nav__item\.is-open:not\(\.opens-left\) > \.main-nav__submenu--level-3\)[^{]*\{\s*border-top-right-radius: 0;\s*border-bottom-right-radius: 0;/', $wide, 'the panel squares the corners the flyout meets');
+        $this->assertMatchesRegularExpression('/\.main-nav__submenu:has\(> \.main-nav__item\.is-open\.opens-left > \.main-nav__submenu--level-3\)[^{]*\{\s*border-top-left-radius: 0;\s*border-bottom-left-radius: 0;/', $wide);
+        $this->assertStringContainsString('.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row{ background: rgba(255,255,255,0.06); }', $css, 'the row of the open flyout stays lit');
+    }
+
+    /**
      * A :hover or :focus-within that opens a submenu or turns a chevron would
      * be a second state beside .is-open. It is allowed only as the fallback
      * for a page without JavaScript, which never has .is-enhanced.

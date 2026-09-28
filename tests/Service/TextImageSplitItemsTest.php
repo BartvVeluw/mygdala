@@ -218,6 +218,46 @@ final class TextImageSplitItemsTest extends TestCase
         }
     }
 
+    // ------------------------------------------------------ the heading
+
+    public function testTheBlocksOwnHeadingIsOptionalAndSitsAboveAllItems(): void
+    {
+        $withBoth = self::renderBlock(['title' => 'Wat wij doen', 'lead' => 'Drie dingen.'], [self::item(), self::item(['title' => 'Tweede'])]);
+        self::assertMatchesRegularExpression('#<div class="container">\s*<div class="section-head text-image__head" data-reveal>\s*<h2>Wat wij doen</h2>\s*<p class="lead">Drie dingen.</p>\s*</div>\s*<div class="text-image__items">#', $withBoth, 'above every item');
+        self::assertSame(1, substr_count($withBoth, '<h2>'), 'one h2: the block\'s');
+        self::assertSame(2, substr_count($withBoth, '<h3>'), 'under it every item title is an h3');
+
+        $leadOnly = self::renderBlock(['title' => '', 'lead' => 'Alleen een inleiding.'], [self::item()]);
+        self::assertStringContainsString('<p class="lead">Alleen een inleiding.</p>', $leadOnly);
+        self::assertMatchesRegularExpression('#<div class="section-head text-image__head" data-reveal>\s*<p class="lead">#', $leadOnly, 'no empty heading');
+        self::assertStringContainsString('<h2>Het verhaal</h2>', $leadOnly, 'without a block title an item title is the h2 it always was');
+
+        $neither = self::renderBlock(['title' => '', 'lead' => ''], [self::item()]);
+        self::assertStringNotContainsString('text-image__head', $neither);
+        self::assertSame(self::render([self::item()]), $neither, 'without a heading the markup is what it always was');
+
+        self::assertSame('', trim(self::renderBlock(['title' => 'Een kop', 'lead' => 'Een lead'], [])), 'no item, no block: the heading is the items\' heading');
+    }
+
+    public function testTheBlocksOwnHeadingIsPerLanguageAndTheDefaultLanguageDecides(): void
+    {
+        $this->begin();
+        SiteLanguageFixture::useBilingual('nl');
+        $blockId = $this->block();
+        $item = (new TextImageSplitRepository())->createItem($blockId, TextImageSplitContent::DEFAULTS);
+        BlockLocalization::save('text_image_split_items', $item, 'nl', ['title' => 'Een item']);
+
+        RequestLanguage::set('nl', true);
+        self::assertSame(['', ''], [$this->content()['title'], $this->content()['lead']], 'an existing block has no heading');
+
+        BlockLocalization::save('text_image_splits', $blockId, 'nl', ['title' => 'Wat wij doen']);
+        BlockLocalization::save('text_image_splits', $blockId, 'en', ['title' => 'What we do', 'lead' => 'Only in English']);
+
+        self::assertSame(['Wat wij doen', ''], [$this->content()['title'], $this->content()['lead']]);
+        RequestLanguage::set('en', true);
+        self::assertSame(['What we do', ''], [$this->content()['title'], $this->content()['lead']], 'a lead only the translation has does not show');
+    }
+
     // ------------------------------------------------------------ media
 
     public function testEveryItemsPictureIsAUsageAndAPictureInUseCannotBeDeleted(): void
@@ -349,6 +389,22 @@ final class TextImageSplitItemsTest extends TestCase
             static fn (array $m): string => $declared[$m[1]] ?? $m[0],
             $declared['grid-template-columns'] ?? ''
         );
+    }
+
+    /**
+     * @param array{title: string, lead: string} $heading
+     * @param list<array<string, mixed>>         $items
+     */
+    private static function renderBlock(array $heading, array $items): string
+    {
+        ob_start();
+        try {
+            render_section_text_image_split(['state' => TextImageSplitContent::STATE_ACTIVE] + $heading + ['items' => $items], false, 'tis-test');
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        return $html;
     }
 
     /** @param list<array<string, mixed>> $items */

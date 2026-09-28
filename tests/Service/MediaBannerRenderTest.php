@@ -260,8 +260,8 @@ final class MediaBannerRenderTest extends TestCase
         self::assertNotNull($definition);
         self::assertSame('media_banners', $definition->contentTable());
         self::assertSame([], $definition->translatableFields(), 'no words');
-        self::assertSame(['assets/css/blocks/media-banner.css'], $definition->styles());
-        self::assertSame(['assets/js/blocks/media-banner.js'], $definition->scripts());
+        self::assertSame(['assets/css/media-sequence.css', 'assets/css/blocks/media-banner.css'], $definition->styles(), 'its own sizes after the shared media sequence');
+        self::assertSame(['assets/js/media-sequence.js', 'assets/js/blocks/media-banner.js'], $definition->scripts());
         self::assertSame([BlockPreview::MEDIA], $definition->preview());
         self::assertTrue($definition->meta()['allow_multiple']);
 

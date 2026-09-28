@@ -120,7 +120,7 @@ final class PageHeroEditorHttpTest extends TestCase
         $this->assertSame(PageHeroContent::SIZES, $form['options']['text_size'] ?? null);
 
         $this->assertSame(
-            ['image_mode' => 'none', 'content_position' => 'right', 'title_size' => 'large', 'text_size' => 'small'],
+            ['image_mode' => 'none', 'slide_transition' => 'fade', 'slide_duration' => '5', 'content_position' => 'right', 'title_size' => 'large', 'text_size' => 'small'],
             $form['selected']
         );
         $this->assertSame((string) $mediaId, $form['values']['media_id'] ?? null, 'the picker carries the chosen item');
@@ -162,7 +162,7 @@ final class PageHeroEditorHttpTest extends TestCase
         $form = $this->editorForm($session);
 
         $this->assertSame(
-            ['image_mode' => 'none', 'content_position' => 'center', 'title_size' => 'large', 'text_size' => 'small'],
+            ['image_mode' => 'none', 'slide_transition' => 'fade', 'slide_duration' => '5', 'content_position' => 'center', 'title_size' => 'large', 'text_size' => 'small'],
             $form['selected'],
             'a request without a place leaves the stored one alone'
         );

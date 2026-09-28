@@ -302,7 +302,7 @@ final class PageHeroHeaderTest extends TestCase
     {
         $definition = BlockDefinitions::get('page_hero');
         $this->assertNotNull($definition);
-        $this->assertSame(['assets/css/blocks/page-hero.css'], $definition->styles());
+        $this->assertSame(['assets/css/media-sequence.css', 'assets/css/blocks/page-hero.css'], $definition->styles(), 'its own choices after the shared media sequence');
 
         $printed = ['page-hero--background', 'page-hero__media'];
         foreach (self::choices() as [, , $modifiers]) {

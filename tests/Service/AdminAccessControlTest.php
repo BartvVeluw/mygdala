@@ -124,6 +124,11 @@ final class AdminAccessControlTest extends TestCase
         // afbeelding item): an output function the calling editor uses
         // behind its own pages.manage check. No URL and no data of its own.
         '_image_focus.php',
+        // The further items of a media sequence and its choices (the
+        // Paginakop's and the Mediabanner's): output functions those editors
+        // use behind their own pages.manage check. It lists only the library
+        // items it is handed, and the editor's own endpoint stores the list.
+        '_media_sequence_field.php',
         // Where a page sits (docs/pages/NESTING.md): the parent list, the
         // admin group and the address line, printed by admin/page.php and
         // admin/page-new.php behind their own pages.manage check. The

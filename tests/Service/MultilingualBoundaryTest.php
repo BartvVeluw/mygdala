@@ -1141,6 +1141,12 @@ final class MultilingualBoundaryTest extends TestCase
             'src/Service/Blocks/TextImageSplitBlock.php', 'src/Repository/TextImageSplitRepository.php', 'src/Service/TextImageSplitContent.php',
             'partials/section-text-image-split.php', 'admin/text-image-split.php', 'api/admin/update-text-image-split-section.php',
         ],
+        // Born on per-language storage (Content Blocks next): held to the
+        // same rules from its first line.
+        'hover_card_grid' => [
+            'src/Service/Blocks/HoverCardGridBlock.php', 'src/Repository/HoverCardGridRepository.php', 'src/Service/HoverCardGridContent.php',
+            'partials/section-hover-card-grid.php', 'admin/hover-card-grid.php', 'api/admin/update-hover-card-grid.php',
+        ],
         'detail_section' => [
             'src/Service/Blocks/DetailSectionBlock.php', 'src/Repository/DetailSectionRepository.php', 'src/Service/DetailSectionContent.php',
             'partials/section-detail-section.php', 'admin/detail-section.php', 'api/admin/update-detail-section.php',
@@ -1186,6 +1192,7 @@ final class MultilingualBoundaryTest extends TestCase
         'text_image_split_items' => ['api/admin/update-text-image-split-section.php', 'items'],
         'detail_section_points' => ['api/admin/update-detail-section.php', 'points'],
         'detail_section_images' => ['api/admin/update-detail-section.php', 'images'],
+        'hover_card_grid_items' => ['api/admin/update-hover-card-grid.php', 'cards'],
     ];
 
     /** Child tables whose rows are only ever deleted with their parent, or by an endpoint listed with the next wave. */
@@ -1487,12 +1494,12 @@ final class MultilingualBoundaryTest extends TestCase
         // Every public script outside the Shop's; those three (cart, shop,
         // personalization) are held to the same rule, plus their catalogue
         // and cart-format contract, in Tests\Service\ShopScriptTextContractTest.
-        $scripts = ['assets/js/core.js', 'assets/js/lightbox.js', 'assets/js/cookie-consent.js', 'assets/js/block-preview.js'];
+        $scripts = ['assets/js/core.js', 'assets/js/lightbox.js', 'assets/js/cookie-consent.js', 'assets/js/block-preview.js', 'assets/js/media-sequence.js'];
         foreach (self::glob('assets/js/blocks/*.js') as $file) {
             $scripts[] = 'assets/js/blocks/' . basename($file);
         }
         self::assertSame(
-            ['assets/js/block-preview.js', 'assets/js/cookie-consent.js', 'assets/js/core.js', 'assets/js/lightbox.js', 'assets/js/personalization.js'],
+            ['assets/js/block-preview.js', 'assets/js/cookie-consent.js', 'assets/js/core.js', 'assets/js/lightbox.js', 'assets/js/media-sequence.js', 'assets/js/personalization.js'],
             array_map(static fn (string $file): string => 'assets/js/' . basename($file), self::glob('assets/js/*.js')),
             'a new top-level public script is added to this list or to the Shop contract'
         );
