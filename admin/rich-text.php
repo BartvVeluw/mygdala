@@ -206,7 +206,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   </form>
 </main>
 <?php save_bar(); ?>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<?php link_target_scripts(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

@@ -357,7 +357,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<?php link_target_scripts(); ?>
 <?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 </body>

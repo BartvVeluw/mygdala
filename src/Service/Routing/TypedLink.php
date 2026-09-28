@@ -45,6 +45,14 @@ final class TypedLink
     public static function href(string $typed, ?string $language = null): string
     {
         $typed = trim($typed);
+
+        // Never a link that runs code or smuggles a scheme past the eye
+        // (App\Service\Routing\SafeUrl): '' is no link, also for a value
+        // stored before every field checked it.
+        if ($typed !== '' && !SafeUrl::isSafe($typed, SafeUrl::SCHEMES_LINK)) {
+            return '';
+        }
+
         if ($typed === '' || !str_starts_with($typed, '/') || str_starts_with($typed, '//')) {
             return $typed;
         }

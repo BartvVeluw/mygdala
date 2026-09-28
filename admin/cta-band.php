@@ -335,7 +335,7 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
 </main>
 <?php save_bar(); ?>
 <?php media_picker_modal(); ?>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<?php link_target_scripts(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>

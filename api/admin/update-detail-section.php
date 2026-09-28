@@ -196,6 +196,14 @@ if (!$languageIsWritable) {
     $fieldErrors += $pointErrors + $imageErrors;
 }
 
+// The one rule for a typed address (App\Service\Routing\SafeUrl): never a
+// javascript: or a hidden control character on the website.
+$urlProblem = \App\Service\Routing\SafeUrl::optionalFieldMessage($settings['cta_url']);
+if ($urlProblem !== null) {
+    $errors[] = $urlProblem;
+    $fieldErrors['cta_url'] = $urlProblem;
+}
+
 $old = ['language_code' => $languageCode] + $words + $settings + [
     'main_media_id' => $mainPosted,
     'remove_legacy_main_image' => isset($_POST['remove_legacy_main_image']),

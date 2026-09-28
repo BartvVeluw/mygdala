@@ -34,14 +34,21 @@ use App\Service\Language\AdminTranslator;
  * leftover address is indistinguishable from such an old row and would bring
  * the button back. Rows that were saved that way before this rule are left
  * alone, since no migration can tell them from the old ones.
+ *
+ * A TYPED ADDRESS passes App\Service\Routing\SafeUrl, the one rule for every
+ * address an editor types: no javascript: and the like, and no control
+ * character that a browser would drop to turn an address into one.
+ *
+ * A DESTINATION THAT CAN NO LONGER BE CHOSEN — the item was deleted, a page is
+ * now under a module that is off, a module's whole type is off — is KEPT when
+ * the form sends it back unchanged: the editor warns about it and the website
+ * leaves the button out (href() gives ''), and nothing the editor did not
+ * touch is lost or blocks the rest of the save (Destination Picker 2.0).
  */
 final class LinkChoice
 {
     public const NONE = 'none';
     public const URL = 'url';
-
-    /** Schemes a typed address may carry; a relative one needs none. */
-    private const URL_SCHEMES = ['http', 'https', 'mailto', 'tel'];
 
     /**
      * The type a stored row really has: its own, or 'url' for a row written
@@ -88,21 +95,28 @@ final class LinkChoice
         }
 
         if ($type === self::URL) {
-            $error = null;
-            if ($url === '') {
-                $error = AdminTranslator::trans('link_choice.error_url_empty');
-            } elseif (preg_match('/^([a-z][a-z0-9+.-]*):/i', $url, $scheme) === 1 && !in_array(strtolower($scheme[1]), self::URL_SCHEMES, true)) {
-                $error = AdminTranslator::trans('link_choice.error_url_scheme');
-            }
+            $error = match (SafeUrl::problem(SafeUrl::normalise($url), SafeUrl::SCHEMES_LINK)) {
+                null => null,
+                SafeUrl::PROBLEM_EMPTY => AdminTranslator::trans('link_choice.error_url_empty'),
+                SafeUrl::PROBLEM_CONTROL => AdminTranslator::trans('link_choice.error_url_control'),
+                default => AdminTranslator::trans('link_choice.error_url_scheme'),
+            };
 
             return ['link_type' => self::URL, 'link_target_id' => null, 'error' => $error];
         }
 
         if (LinkTargets::isAvailable($type)) {
+            $choosable = $targetId > 0 && LinkTargets::exists($type, $targetId);
+
+            // The stored destination, sent back unchanged although it can no
+            // longer be chosen: kept, with the editor's warning. Compared with
+            // what the ROW says, never with anything else the form sent.
+            $unchanged = $type === $storedType && $targetId > 0 && $targetId === $storedTargetId;
+
             return [
                 'link_type' => $type,
                 'link_target_id' => $targetId,
-                'error' => $targetId < 1 || !LinkTargets::exists($type, $targetId) ? AdminTranslator::trans('link_choice.error_target') : null,
+                'error' => $choosable || $unchanged ? null : AdminTranslator::trans('link_choice.error_target'),
             ];
         }
 

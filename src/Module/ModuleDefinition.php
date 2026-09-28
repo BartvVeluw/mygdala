@@ -321,13 +321,20 @@ abstract class ModuleDefinition
     }
 
     /**
-     * The items of this module a block's button can point at by id, in
-     * App\Service\Routing\LinkTargets' shape: a label for the editor, an
-     * `order` among Core's 'page' (10) and the other modules' types, the
-     * editor's choices, and the href of one item in the language being read
-     * (null when a visitor cannot open it).
+     * The DESTINATIONS of this module a link can point at by id (the
+     * Destination Picker, App\Service\Routing\LinkTargets — read that class's
+     * docblock for the shape): a label for the editor (Dutch, or per CMS
+     * language), an `order` among Core's 'page' (10) and the other modules'
+     * kinds, the editor's choices (with a `note` for what a visitor cannot
+     * open yet and, for the searchable list, a `thumbnail`), the href of one
+     * item in the language being read (null when a visitor cannot open it),
+     * optionally how it is picked (`picker`: 'search', the default for a
+     * module) and its visible `title` in one language.
      *
-     * @return array<string, array{label: string, order: int, choices: callable(): list<array{id: int, label: string, note?: string}>, href: callable(int): ?string}>
+     * Only a kind with a public address of its own belongs here: a
+     * destination nobody can open is no destination.
+     *
+     * @return array<string, array{label: string|array<string, string>, order: int, choices: callable(): list<array{id: int, label: string, note?: string, thumbnail?: string}>, href: callable(int): ?string, picker?: string, title?: callable(int, string): ?string}>
      */
     public function linkTargets(): array
     {

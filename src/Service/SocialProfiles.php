@@ -255,6 +255,12 @@ final class SocialProfiles
             return false;
         }
 
+        // The one rule every typed address passes first
+        // (App\Service\Routing\SafeUrl); a profile adds its network's own below.
+        if (\App\Service\Routing\SafeUrl::problem($url, \App\Service\Routing\SafeUrl::SCHEMES_WEB) !== null) {
+            return false;
+        }
+
         if (!str_starts_with(strtolower($url), 'https://')) {
             return false;
         }

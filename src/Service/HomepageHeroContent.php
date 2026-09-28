@@ -284,6 +284,14 @@ class HomepageHeroContent
             $content['secondary_url'] = '';
         }
 
+        // The primary button likewise renders only with somewhere to go: a
+        // destination that is gone, not public yet or of a module that is off
+        // gives no button, never an href="" that reloads the page it is on
+        // (Destination Picker 2.0, CONTENT-BLOCKS.md).
+        if ($content['primary_url'] === '') {
+            $content['primary_label'] = '';
+        }
+
         // The badge only renders when it has both a title and a body text —
         // a half-filled badge would look broken.
         if (!BlockLocalization::hasDefaultWords(self::TABLE, $heroId, 'badge_title')

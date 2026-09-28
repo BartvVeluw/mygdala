@@ -367,4 +367,62 @@ final class PortfolioModule extends ModuleDefinition
     {
         return [new PortfolioMediaUsage()];
     }
+
+    /**
+     * A project as the destination of a link (App\Service\Routing\LinkTargets,
+     * the Destination Picker): stored by id and linked at /portfolio/<slug>
+     * in the language being read, only while its project page is public
+     * (PortfolioSlug::isPublic()). Offered: every item with an address of its
+     * own, a hidden one or one with its project page off marked so; an item
+     * without a slug has no address to link. A CATEGORY is not a destination:
+     * it has no public address of its own, only a filter on a gallery.
+     */
+    public function linkTargets(): array
+    {
+        return [
+            'portfolio_project' => [
+                'label' => ['nl' => 'Portfolioproject', 'en' => 'Portfolio project'],
+                'order' => 40,
+                'picker' => \App\Service\Routing\LinkTargets::PICKER_SEARCH,
+                'choices' => static function (): array {
+                    $repository = new \App\Repository\PortfolioGalleryRepository();
+                    $catalogue = $repository->findCatalogue();
+                    $items = array_values(array_filter(
+                        $catalogue === null ? [] : $repository->findItemsByGalleryId((int) $catalogue['id']),
+                        static fn (array $item): bool => trim((string) ($item['slug'] ?? '')) !== ''
+                    ));
+                    \App\Service\PortfolioLocalization::preloadItems(array_map(static fn (array $item): int => (int) $item['id'], $items));
+
+                    $choices = [];
+                    foreach ($items as $item) {
+                        $name = trim(\App\Service\PortfolioLocalization::itemName((int) $item['id']));
+                        $choice = ['id' => (int) $item['id'], 'label' => $name !== '' ? $name : '/portfolio/' . $item['slug']];
+                        if (!\App\Service\PortfolioSlug::isPublic((bool) $item['is_active'], (bool) $item['has_detail_page'], (string) $item['slug'])) {
+                            $choice['note'] = 'hidden';
+                        }
+                        $picture = (string) ($item['thumbnail_path'] ?? '') !== '' ? (string) $item['thumbnail_path'] : (string) ($item['image_path'] ?? '');
+                        if ($picture !== '') {
+                            $choice['thumbnail'] = '/' . ltrim($picture, '/');
+                        }
+                        $choices[] = $choice;
+                    }
+
+                    usort($choices, static fn (array $a, array $b): int => strnatcasecmp($a['label'], $b['label']));
+
+                    return $choices;
+                },
+                'href' => static function (int $id): ?string {
+                    $item = (new \App\Repository\PortfolioGalleryRepository())->findItemById($id);
+                    if ($item === null || !\App\Service\PortfolioSlug::isPublic((bool) $item['is_active'], (bool) $item['has_detail_page'], $item['slug'] ?? null)) {
+                        return null;
+                    }
+
+                    return \App\Service\Routing\LocalizedUrl::path(PortfolioGalleryContent::publicPath((string) $item['slug']));
+                },
+                'title' => static fn (int $id, string $language): ?string => (new \App\Repository\PortfolioGalleryRepository())->findItemById($id) === null
+                    ? null
+                    : \App\Service\PortfolioLocalization::item($id, \App\Service\PortfolioLocalization::TITLE, $language),
+            ],
+        ];
+    }
 }

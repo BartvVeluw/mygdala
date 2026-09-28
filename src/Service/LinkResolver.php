@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\PageRepository;
+use App\Service\Routing\SafeUrl;
 
 /**
  * Single shared link-target resolver for both nav_items and footer_links —
@@ -120,7 +121,9 @@ class LinkResolver
 
             case 'external':
                 $url = trim((string) ($row['external_url'] ?? ''));
-                if ($url === '') {
+                // Never a link that runs code, also for a row written before
+                // every save checked it (App\Service\Routing\SafeUrl).
+                if ($url === '' || !SafeUrl::isSafe($url, SafeUrl::SCHEMES_WEB)) {
                     return null;
                 }
 
@@ -259,10 +262,16 @@ class LinkResolver
      * Accepts an absolute http(s) URL or a root-relative site path (e.g.
      * "/diensten.php#hout") — the latter is how internal anchor links are
      * stored (see the Materialen footer column backfill), since those
-     * aren't a registered route or CMS page of their own.
+     * aren't a registered route or CMS page of their own. First, the one
+     * rule for every typed address (App\Service\Routing\SafeUrl): no hidden
+     * control character, no scheme but the web's.
      */
     public static function isValidUrl(string $url): bool
     {
+        if (SafeUrl::problem($url, SafeUrl::SCHEMES_WEB) !== null) {
+            return false;
+        }
+
         if (str_starts_with($url, '/')) {
             return !str_starts_with($url, '//');
         }

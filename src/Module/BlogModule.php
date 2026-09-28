@@ -364,8 +364,9 @@ final class BlogModule extends ModuleDefinition
     {
         return [
             'blog_post' => [
-                'label' => 'Blogbericht',
+                'label' => ['nl' => 'Blogbericht', 'en' => 'Blog post'],
                 'order' => 20,
+                'picker' => \App\Service\Routing\LinkTargets::PICKER_SEARCH,
                 'choices' => static function (): array {
                     $posts = (new BlogPostRepository())->findForAdmin([], 500);
                     BlogLocalization::preloadPosts(array_map(static fn (array $post): int => (int) $post['id'], $posts));
@@ -386,6 +387,7 @@ final class BlogModule extends ModuleDefinition
 
                     return $post === null ? null : BlogContent::postUrl($post);
                 },
+                'title' => static fn (int $id, string $language): ?string => BlogLocalization::post($id, BlogLocalization::TITLE, $language),
             ],
         ];
     }

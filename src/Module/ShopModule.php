@@ -512,16 +512,19 @@ final class ShopModule extends ModuleDefinition
     }
 
     /**
-     * A product as the target of a block's button (App\Service\Routing\LinkTargets):
-     * stored by id and linked at /product.php?id=… in the language being
-     * read, only while the product is active.
+     * A product and a collection as the destination of a link
+     * (App\Service\Routing\LinkTargets, the Destination Picker): stored by id
+     * and linked in the language being read — a product at /product.php?id=…,
+     * a collection at its own /collecties/<slug> — only while it is active.
+     * Both are chosen from a searchable list with their picture.
      */
     public function linkTargets(): array
     {
         return [
             'product' => [
-                'label' => 'Product',
+                'label' => ['nl' => 'Product', 'en' => 'Product'],
                 'order' => 30,
+                'picker' => \App\Service\Routing\LinkTargets::PICKER_SEARCH,
                 'choices' => static function (): array {
                     $products = (new ProductRepository())->findAllForAdmin();
                     \App\Service\ShopLocalization::preloadProducts(array_map(static fn (array $product): int => (int) $product['id'], $products));
@@ -531,6 +534,9 @@ final class ShopModule extends ModuleDefinition
                         $choice = ['id' => (int) $product['id'], 'label' => \App\Service\ShopLocalization::productName((int) $product['id'])];
                         if (!(bool) $product['active']) {
                             $choice['note'] = 'inactive';
+                        }
+                        if ((string) ($product['image_path'] ?? '') !== '') {
+                            $choice['thumbnail'] = '/' . ltrim((string) $product['image_path'], '/');
                         }
                         $choices[] = $choice;
                     }
@@ -542,6 +548,44 @@ final class ShopModule extends ModuleDefinition
                 'href' => static fn (int $id): ?string => (new ProductRepository())->findActiveById($id) === null
                     ? null
                     : ProductSeo::publicPath($id),
+                'title' => static fn (int $id, string $language): ?string => (new ProductRepository())->findByIdForAdmin($id) === null
+                    ? null
+                    : \App\Service\ShopLocalization::product($id, \App\Service\ShopLocalization::NAME, $language),
+            ],
+            'collection' => [
+                'label' => ['nl' => 'Collectie', 'en' => 'Collection'],
+                'order' => 35,
+                'picker' => \App\Service\Routing\LinkTargets::PICKER_SEARCH,
+                'choices' => static function (): array {
+                    $collections = (new \App\Repository\CollectionRepository())->findAll();
+                    \App\Service\ShopLocalization::preloadCollections(array_map(static fn (array $collection): int => (int) $collection['id'], $collections));
+
+                    $choices = [];
+                    foreach ($collections as $collection) {
+                        $choice = ['id' => (int) $collection['id'], 'label' => \App\Service\ShopLocalization::collectionName((int) $collection['id'])];
+                        if (!(bool) $collection['is_active']) {
+                            $choice['note'] = 'inactive';
+                        }
+                        if ((string) ($collection['image_path'] ?? '') !== '') {
+                            $choice['thumbnail'] = '/' . ltrim((string) $collection['image_path'], '/');
+                        }
+                        $choices[] = $choice;
+                    }
+
+                    usort($choices, static fn (array $a, array $b): int => strnatcasecmp($a['label'], $b['label']));
+
+                    return $choices;
+                },
+                // collectie.php answers 404 for an inactive collection, so no
+                // link points at one.
+                'href' => static function (int $id): ?string {
+                    $collection = (new \App\Repository\CollectionRepository())->findById($id);
+
+                    return $collection === null || !(bool) $collection['is_active'] ? null : \App\Service\CollectionContent::urlFor($collection);
+                },
+                'title' => static fn (int $id, string $language): ?string => (new \App\Repository\CollectionRepository())->findById($id) === null
+                    ? null
+                    : \App\Service\ShopLocalization::collection($id, \App\Service\ShopLocalization::NAME, $language),
             ],
         ];
     }

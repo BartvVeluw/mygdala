@@ -359,7 +359,7 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
 <?php save_bar(); ?>
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
 <?php save_bar_script(); ?>

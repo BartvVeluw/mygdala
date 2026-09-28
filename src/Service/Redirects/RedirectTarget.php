@@ -126,6 +126,12 @@ final class RedirectTarget
             return null;
         }
 
+        // The one rule every typed address passes first
+        // (App\Service\Routing\SafeUrl); a destination adds its own below.
+        if (\App\Service\Routing\SafeUrl::problem($value, \App\Service\Routing\SafeUrl::SCHEMES_WEB) !== null) {
+            return null;
+        }
+
         if (preg_match('/[\x00-\x20\x7F]/', $value) === 1) {
             return null;
         }

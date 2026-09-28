@@ -156,6 +156,15 @@ if ($fields['max_items'] !== null && ($fields['max_items'] < 1 || $fields['max_i
     $errors[] = AdminTranslator::trans('validation.maximum_aantal_items_tussen_1');
 }
 
+// The one rule for a typed address (App\Service\Routing\SafeUrl): never a
+// javascript: or a hidden control character on the website.
+foreach (['fallback_link_url', 'button_url'] as $urlField) {
+    $urlProblem = \App\Service\Routing\SafeUrl::optionalFieldMessage($fields[$urlField]);
+    if ($urlProblem !== null && !in_array($urlProblem, $errors, true)) {
+        $errors[] = $urlProblem;
+    }
+}
+
 if ($fields['collection_id'] !== null) {
     try {
         if ((new CollectionRepository())->findById($fields['collection_id']) === null) {

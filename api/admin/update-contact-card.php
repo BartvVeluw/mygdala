@@ -100,6 +100,13 @@ if (!$languageIsWritable) {
     }
 }
 
+// The one rule for a typed address (App\Service\Routing\SafeUrl): never a
+// javascript: or a hidden control character on the website.
+$urlProblem = \App\Service\Routing\SafeUrl::optionalFieldMessage($settings['button_url']);
+if ($urlProblem !== null) {
+    $errors[] = $urlProblem;
+}
+
 $old = ['language_code' => $languageCode] + $words + $settings;
 $redirect = '/admin/contact-card.php?section=' . urlencode($sectionParam);
 
