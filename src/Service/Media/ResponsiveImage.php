@@ -242,7 +242,7 @@ final class ResponsiveImage
                 $mobileMediaId = null;
             } elseif ($source === self::SOURCE_OWN) {
                 $posted = trim((string) (is_scalar($input[$field('mobile_media_id')] ?? null) ? $input[$field('mobile_media_id')] : ''));
-                $media = ctype_digit($posted) ? MediaService::findImage((int) $posted) : null;
+                $media = ctype_digit($posted) ? self::phonePicture((int) $posted) : null;
                 if ($media === null) {
                     $errors['mobile_media'] = AdminTranslator::trans($posted === '' ? 'media.responsive.error_mobile_media_missing' : 'media.responsive.error_mobile_media');
                 } else {
@@ -345,7 +345,7 @@ final class ResponsiveImage
     {
         $mobile = null;
         if ($withMobileImage && $this->mobileMediaId !== null) {
-            $item = MediaService::findImage($this->mobileMediaId);
+            $item = self::phonePicture($this->mobileMediaId);
             if ($item !== null) {
                 $mobile = [
                     'src' => $item->publicPath(),
@@ -413,6 +413,21 @@ final class ResponsiveImage
     }
 
     // ------------------------------------------------------------ helpers
+
+    /**
+     * A library item a phone can be shown: a picture, raster or SVG
+     * (MediaItem::isPicture()). Stricter than MediaService::findImage(), which
+     * only turns a video away: a phone picture becomes the srcset of a
+     * <source>, and a browser can only decode a picture there. The uploader
+     * takes nothing else today; a row that came into the library another way
+     * is simply no phone picture.
+     */
+    private static function phonePicture(int $id): ?MediaItem
+    {
+        $item = MediaService::findImage($id);
+
+        return $item !== null && $item->isPicture() ? $item : null;
+    }
 
     private static function clamp(int $percent): int
     {
