@@ -68,7 +68,6 @@ class CtaBandRepository extends Repository
         'lead_width' => 'narrow',
         'full_width' => false,
         'background_media_id' => null,
-        'background_focus' => 'center',
         'background_overlay' => 'medium',
         'text_panel' => false,
         'text_panel_opacity' => 'strong',
@@ -79,7 +78,9 @@ class CtaBandRepository extends Repository
      * what is the same in every language. The band's words are stored per
      * website language through App\Service\Blocks\BlockLocalization
      * (db/migrations/20260917170000). The caller has already checked every
-     * value (api/admin/update-cta-band.php); this only writes.
+     * value (api/admin/update-cta-band.php); this only writes. How the
+     * background sits in the band (Responsive Media 2.0) is
+     * App\Repository\ResponsiveImageRepository's.
      *
      * @param array{primary_url: string, secondary_url: string, is_active: bool}&array<string, mixed> $values
      *        plus any key of DEFAULTS
@@ -92,12 +93,12 @@ class CtaBandRepository extends Repository
             'INSERT INTO cta_bands
                 (page_slug, section_key, primary_url, primary_link_type, primary_link_target_id,
                  secondary_url, secondary_link_type, secondary_link_target_id,
-                 content_align, lead_width, full_width, background_media_id, background_focus,
+                 content_align, lead_width, full_width, background_media_id,
                  background_overlay, text_panel, text_panel_opacity, is_active, created_at, updated_at)
              VALUES
                 (:page_slug, :section_key, :primary_url, :primary_link_type, :primary_link_target_id,
                  :secondary_url, :secondary_link_type, :secondary_link_target_id,
-                 :content_align, :lead_width, :full_width, :background_media_id, :background_focus,
+                 :content_align, :lead_width, :full_width, :background_media_id,
                  :background_overlay, :text_panel, :text_panel_opacity, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 primary_url = VALUES(primary_url),
@@ -110,7 +111,6 @@ class CtaBandRepository extends Repository
                 lead_width = VALUES(lead_width),
                 full_width = VALUES(full_width),
                 background_media_id = VALUES(background_media_id),
-                background_focus = VALUES(background_focus),
                 background_overlay = VALUES(background_overlay),
                 text_panel = VALUES(text_panel),
                 text_panel_opacity = VALUES(text_panel_opacity),
@@ -131,7 +131,6 @@ class CtaBandRepository extends Repository
             'lead_width' => $values['lead_width'],
             'full_width' => $values['full_width'] ? 1 : 0,
             'background_media_id' => $values['background_media_id'],
-            'background_focus' => $values['background_focus'],
             'background_overlay' => $values['background_overlay'],
             'text_panel' => $values['text_panel'] ? 1 : 0,
             'text_panel_opacity' => $values['text_panel_opacity'],

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/responsive-image.php';
 
 /**
  * Renders ONE "Kaarten-carrousel" block instance
@@ -17,7 +18,9 @@ require_once __DIR__ . '/eyebrow.php';
  *
  * A card without an image gets the theme's fixed icon instead of a photo —
  * the presentation the Acryl & glas card has always had, decided purely on
- * whether image_path is empty.
+ * whether image_path is empty. A card WITH one prints it through
+ * partials/responsive-image.php (Responsive Media 2.0): its focus point and
+ * fit, and on a phone its own picture, point and fit when it has them.
  *
  * The number above a card's title is the card's own label, or its position
  * ("01") when it has none — CardCarouselContent decides, this file prints.
@@ -101,13 +104,17 @@ function render_section_card_carousel(array $content): void
                   <div class="orbit-card__inner">
                     <?php if ($card['image_path'] !== ''): ?>
                     <div class="orbit-card__media">
-                      <img
-                        src="<?= $h($card['image_path']) ?>"
-                        alt="<?= $h($card['image_alt']) ?>"
-                        <?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $card['image_width'] ?? null, 'height' => $card['image_height'] ?? null]) ?>
-                        <?php if (($card['image_position'] ?? '50% 50%') !== '50% 50%'): ?>style="object-position: <?= $h((string) $card['image_position']) ?>"<?php endif; ?>
-                        loading="lazy"
-                      />
+                      <?php
+                        // A card read without a presentation (the block
+                        // library's sample) prints its picture plainly: the
+                        // middle, cover, nothing for a phone.
+                        render_responsive_image($card['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender([
+                            'image_path' => $card['image_path'],
+                            'alt' => $card['image_alt'] ?? '',
+                            'width' => $card['image_width'] ?? null,
+                            'height' => $card['image_height'] ?? null,
+                        ]), ['loading' => 'lazy']);
+                      ?>
                     </div>
                     <?php else: ?>
                     <div class="orbit-card__media orbit-card__media--icon">

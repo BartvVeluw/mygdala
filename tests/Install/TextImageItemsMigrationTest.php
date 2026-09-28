@@ -60,7 +60,10 @@ final class TextImageItemsMigrationTest extends TestCase
             return;
         }
 
-        self::$fresh = ScratchInstall::fresh(self::FRESH);
+        // A new installation as it stood right after this migration: later
+        // ones (Responsive Media 2.0 turned image_focus into a point) have
+        // their own tests.
+        self::$fresh = ScratchInstall::upTo(self::FRESH, self::ITEMS);
 
         self::$upgraded = ScratchInstall::upTo(self::UPGRADED, self::BEFORE);
         self::seed(self::$upgraded);

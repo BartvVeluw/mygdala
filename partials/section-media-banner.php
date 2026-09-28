@@ -1,9 +1,9 @@
 <?php
 
 require_once __DIR__ . '/media-sequence.php';
+require_once __DIR__ . '/responsive-image.php';
 
 use App\Service\Language\SiteText;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaType;
 use App\Service\MediaBannerContent;
 
@@ -20,11 +20,14 @@ use App\Service\MediaBannerContent;
  * has; a frame inside the container has the theme's rounded corners, a frame
  * across the page has none, since its edges are the window's.
  *
- * NOTHING FROM THE DATABASE BECOMES CSS. The width, the height and the kind
- * are words of closed lists, checked again here, and become classes; the one
- * style attribute is a picture's object-position, from ImageFocus's own
- * closed list. The picture's alt text is the library's; an empty one makes it
- * decorative (alt=""), which is what the library means by it.
+ * NOTHING FROM THE DATABASE BECOMES CSS. The width, the height, a phone's own
+ * height and the kind are words of closed lists, checked again here, and
+ * become classes. A picture is printed by partials/responsive-image.php
+ * (Responsive Media 2.0): its focus point and fit as an inline style, and on
+ * a phone its own picture, point and fit when it has them, all whole numbers
+ * and closed-list words (App\Service\Media\ResponsiveImage). The picture's
+ * alt text is the library's; an empty one makes it decorative (alt=""),
+ * which is what the library means by it.
  *
  * THE VIDEO: native <video>, the file from the library, always playsinline so
  * a phone does not jump to full screen. Autoplay always comes with muted
@@ -70,7 +73,9 @@ function render_section_media_banner(array $content, bool $tightTop = false): vo
     $sectionClass = 'media-banner-section media-banner-section--' . $width . ($tightTop ? ' media-banner-section--tight-top' : '');
     $items = array_values($content['items'] ?? []);
     $isSequence = count($items) > 1;
-    $frameClass = 'media-banner media-banner--' . $height . ' media-banner--' . ($isSequence ? 'sequence' : $kind);
+    $mobileHeight = $content['mobile_height'] ?? null;
+    $frameClass = 'media-banner media-banner--' . $height . ' media-banner--' . ($isSequence ? 'sequence' : $kind)
+        . (is_string($mobileHeight) && in_array($mobileHeight, \App\Service\Media\ResponsiveImage::MOBILE_HEIGHTS, true) ? ' media-banner--mobile-' . $mobileHeight : '');
     $autoplay = !empty($content['autoplay']);
     $nav = (string) ($content['nav'] ?? 'both');
     ?>
@@ -87,7 +92,7 @@ function render_section_media_banner(array $content, bool $tightTop = false): vo
         ]) ?>>
           <?php render_media_sequence_slides($items, [
               'transition' => $content['transition'] ?? null,
-              'focus' => $content['focus'] ?? null,
+              'presentation' => $content['presentation'] ?? null,
               'media_class' => 'media-banner__media',
               'video_autoplay' => $autoplay,
               'video_controls' => !empty($content['controls']),
@@ -98,13 +103,16 @@ function render_section_media_banner(array $content, bool $tightTop = false): vo
         <?php else: ?>
         <div class="<?= $h($frameClass) ?>" data-reveal>
           <?php if ($kind === MediaType::IMAGE):
-              $focus = ImageFocus::normalise($content['focus'] ?? null);
-              $size = '';
-              if (($content['intrinsic_width'] ?? null) !== null && ($content['intrinsic_height'] ?? null) !== null) {
-                  $size = ' width="' . (int) $content['intrinsic_width'] . '" height="' . (int) $content['intrinsic_height'] . '"';
-              }
+              // A banner read without a presentation (an older caller)
+              // still shows its picture: the middle, no phone picture.
+              $picture = is_array($content['picture'] ?? null) ? $content['picture'] : (new \App\Service\Media\ResponsiveImage())->forRender([
+                  'image_path' => $src,
+                  'alt' => (string) ($content['alt'] ?? ''),
+                  'width' => $content['intrinsic_width'] ?? null,
+                  'height' => $content['intrinsic_height'] ?? null,
+              ]);
               ?>
-          <img class="media-banner__media" src="<?= $h($src) ?>" alt="<?= $h((string) ($content['alt'] ?? '')) ?>"<?= $size ?> loading="lazy" decoding="async"<?= $focus !== ImageFocus::DEFAULT ? ' style="object-position: ' . $h(ImageFocus::objectPosition($focus)) . ';"' : '' ?>>
+          <?php render_responsive_image($picture, ['class' => 'media-banner__media', 'loading' => 'lazy', 'decoding' => true]); ?>
           <?php else:
               $autoplay = !empty($content['autoplay']);
               // No video without a way to start it, whatever arrives here.

@@ -117,12 +117,12 @@ final class RemainingBlockWordsMigrationTest extends TestCase
      * words and not what this test is about.
      */
     private const LATER_COLUMNS = [
-        'card_carousels' => ['desktop_layout', 'header_align', 'image_height'],
-        'carousel_cards' => ['link_type', 'link_target_id', 'image_focus'],
+        'card_carousels' => ['desktop_layout', 'header_align', 'image_height', 'flat_image_ratio'],
+        'carousel_cards' => ['link_type', 'link_target_id', 'image_focus_x', 'image_focus_y', 'image_mobile_media_id', 'image_mobile_focus_x', 'image_mobile_focus_y', 'image_fit', 'image_mobile_fit'],
         'feature_grid_items' => ['icon_media_id'],
         'form_blocks' => ['header_align'],
-        'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
-        'page_heroes' => ['image_mode', 'hero_height', 'image_focus', 'slide_transition', 'slide_duration'],
+        'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id', 'image_focus_x', 'image_focus_y', 'image_mobile_media_id', 'image_mobile_focus_x', 'image_mobile_focus_y'],
+        'page_heroes' => ['image_mode', 'hero_height', 'image_focus_x', 'image_focus_y', 'image_mobile_media_id', 'image_mobile_focus_x', 'image_mobile_focus_y', 'image_fit', 'image_mobile_fit', 'image_mobile_height', 'slide_transition', 'slide_duration'],
         'item_galleries' => ['portfolio_category_id', 'item_sort'],
     ];
 

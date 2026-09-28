@@ -6,9 +6,8 @@ require_once __DIR__ . '/media-sequence.php';
 
 use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\Language\SiteText;
-use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaType;
+use App\Service\Media\ResponsiveImage;
 use App\Service\PageHeroContent;
 
 /**
@@ -61,9 +60,13 @@ use App\Service\PageHeroContent;
  *                stylesheet places the picture.
  *
  * Both load the picture eagerly, because it is the first thing on the page,
- * and print its size so the browser reserves the space. The focus point
- * (App\Service\Media\ImageFocus) becomes object-position, and only when it is
- * not the middle, which is what the browser does by itself.
+ * and print its size so the browser reserves the space. The picture goes
+ * through partials/responsive-image.php (Responsive Media 2.0,
+ * `presentation`): its focus point as object-position, and only when it is
+ * not the middle; beside the text its fit; on a phone its own picture, point
+ * and fit when it has them. Behind the text a picture always fills the band
+ * (ResponsiveImage::coverOnly()), and the band takes a phone's own height
+ * when one was chosen (page-hero--mobile-<height>).
  *
  * MORE THAN ONE PICTURE (`slides`, the pictures after the header's own) makes
  * the picture a media sequence in the same place (partials/media-sequence.php):
@@ -149,11 +152,13 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
         }
     }
 
-    $focus = ImageFocus::normalise($pageHero['image_focus'] ?? null);
-    $picture = static fn (string $alt): string => '<img src="' . $h((string) ($pageHero['image_path'] ?? '')) . '" alt="' . $h($alt) . '"'
-        . BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null])
-        . ($focus !== ImageFocus::DEFAULT ? ' style="object-position: ' . $h(ImageFocus::objectPosition($focus)) . ';"' : '')
-        . ' loading="eager" decoding="async" fetchpriority="high">';
+    $presentation = ($pageHero['presentation'] ?? null) instanceof ResponsiveImage ? $pageHero['presentation'] : new ResponsiveImage();
+    if (!$isBeside) {
+        $presentation = $presentation->coverOnly();
+    }
+    if ($isBackground && $presentation->mobileHeight !== null) {
+        $classes[] = 'page-hero--mobile-' . $presentation->mobileHeight;
+    }
 
     // The header's own picture and the ones after it, when there are more.
     $further = ($isBackground || $isBeside) ? array_values($pageHero['slides'] ?? []) : [];
@@ -176,8 +181,19 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
     $slideOptions = [
         'transition' => $pageHero['slide_transition'] ?? null,
         'eager' => true,
-        'focus' => $focus,
+        'presentation' => $presentation,
     ];
+    // One picture: the header's own, with a phone's own picture when it has
+    // one. A sequence prints its pictures through $slideOptions instead.
+    $picture = static fn (string $alt): string => responsive_image_html(
+        $presentation->forRender([
+            'image_path' => (string) ($pageHero['image_path'] ?? ''),
+            'alt' => $alt,
+            'width' => $pageHero['image_width'] ?? null,
+            'height' => $pageHero['image_height'] ?? null,
+        ]),
+        ['loading' => 'eager', 'decoding' => true, 'fetchpriority' => true]
+    );
     ?>
     <section class="<?= $h(implode(' ', $classes)) ?>"<?= $isBackground ? $sequence : '' ?>>
       <?php if ($isBackground): ?>

@@ -171,13 +171,19 @@ final class CtaBandHttpTest extends TestCase
             'lead_width' => '900px',
             'background_overlay' => '0.3',
             'text_panel_opacity' => 'rgba(0,0,0,.5)',
-            'background_focus' => '10% 20%',
         ] as $field => $value) {
             $response = $this->save($session, $section, [$field => $value]);
             $this->assertRefused($response, $field);
             self::assertArrayHasKey($field, (array) $this->accounts->read($session, 'admin_cta_band_field_errors'), $field . ': the message is at its field');
             self::assertSame($before, $this->row($section), $field . ': nothing stored');
         }
+
+        // The background's focus point (Responsive Media 2.0) is two numbers:
+        // anything else is refused at the presentation's own field.
+        $response = $this->save($session, $section, ['background_focus_x' => '10% 20%']);
+        $this->assertRefused($response, 'background_focus_x');
+        self::assertArrayHasKey('presentation.focus', (array) $this->accounts->read($session, 'admin_cta_band_field_errors'));
+        self::assertSame($before, $this->row($section), 'background_focus_x: nothing stored');
     }
 
     public function testAFormWithoutAChoiceKeepsWhatIsStored(): void
@@ -202,11 +208,11 @@ final class CtaBandHttpTest extends TestCase
         $first = $this->libraryItem('image/jpeg', 'jpg');
         $second = $this->libraryItem('image/webp', 'webp');
 
-        $this->assertSaved($this->save($session, $section, ['background_media_id' => (string) $first, 'background_focus' => 'top']));
+        $this->assertSaved($this->save($session, $section, ['background_media_id' => (string) $first, 'background_focus_x' => '50', 'background_focus_y' => '0']));
         self::assertSame($first, (int) $this->row($section)['background_media_id']);
         $content = $this->content($section);
         self::assertSame(MediaService::find($first)?->publicPath(), $content['background']['image_path']);
-        self::assertSame('top', $content['background_focus']);
+        self::assertSame('50% 0%', $content['picture']['position']);
 
         $html = $this->render($content);
         self::assertStringContainsString('<img src="' . MediaService::find($first)?->publicPath() . '" alt=""', $html, 'decorative');
@@ -471,7 +477,10 @@ final class CtaBandHttpTest extends TestCase
             'lead_width' => 'narrow',
             'background_overlay' => 'medium',
             'text_panel_opacity' => 'strong',
-            'background_focus' => 'center',
+            'background_presentation' => '1',
+            'background_focus_x' => '50',
+            'background_focus_y' => '50',
+            'background_mobile_source' => 'desktop',
             'background_media_id' => '',
         ];
     }

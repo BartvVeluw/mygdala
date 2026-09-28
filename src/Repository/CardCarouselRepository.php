@@ -186,10 +186,11 @@ class CardCarouselRepository extends Repository
      * updateCardImage()/clearCardImage(). The id never changes, so the words
      * of every language stay attached to it.
      *
-     * `image_focus` (App\Service\Media\ImageFocus, a key the caller has
-     * normalised) is left as stored when it is not given.
+     * The picture's presentation (its focus point, its fit, a phone's own
+     * picture and point) is App\Repository\ResponsiveImageRepository's, in
+     * the same transaction.
      *
-     * @param array<string, mixed> $values link_type, link_target_id, link_url, is_active, image_focus
+     * @param array<string, mixed> $values link_type, link_target_id, link_url, is_active
      */
     public function updateCard(int $id, array $values): void
     {
@@ -199,7 +200,6 @@ class CardCarouselRepository extends Repository
                 link_target_id = :link_target_id,
                 link_url = :link_url,
                 is_active = :is_active,
-                image_focus = COALESCE(:image_focus, image_focus),
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -208,7 +208,6 @@ class CardCarouselRepository extends Repository
             'link_target_id' => self::positiveOrNull($values['link_target_id'] ?? null),
             'link_url' => self::nullIfEmpty($values['link_url'] ?? null),
             'is_active' => ($values['is_active'] ?? false) ? 1 : 0,
-            'image_focus' => isset($values['image_focus']) ? (string) $values['image_focus'] : null,
             'id' => $id,
         ]);
     }

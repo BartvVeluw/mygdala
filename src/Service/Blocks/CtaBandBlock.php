@@ -85,7 +85,8 @@ final class CtaBandBlock extends BlockDefinition
 
     public function styles(): array
     {
-        return ['assets/css/blocks/cta-band.css'];
+        // The shared picture rules first (Responsive Media 2.0).
+        return ['assets/css/responsive-media.css', 'assets/css/blocks/cta-band.css'];
     }
 
     public function create(string $pageSlug): array

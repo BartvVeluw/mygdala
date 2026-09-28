@@ -44,8 +44,13 @@
  * (MEDIA.md). The alt text follows the library's until it is changed
  * (BlockImage::ownAltInRows()).
  *
- * THE LAYOUT is four closed lists of keys (TextImageSplitContent::layout());
- * anything else becomes the default. A half-filled button is not refused, as
+ * THE LAYOUT is three closed lists of keys (TextImageSplitContent::layout());
+ * anything else becomes the default. How the picture sits in its frame on a
+ * large screen and on a phone (Responsive Media 2.0: focus point, fit, a
+ * phone's own picture, point, fit and height) is each row's
+ * App\Service\Media\ResponsiveImage::fromRequest(), refused part by part
+ * next to the item (`items.<key>.presentation.<part>`), and written by
+ * App\Repository\ResponsiveImageRepository in the same transaction. A half-filled button is not refused, as
  * it never was: the editor says a label without a URL, or a URL without a
  * label, shows no button, and TextImageSplitContent drops it.
  */
@@ -65,6 +70,8 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ResponsiveImage;
+use App\Repository\ResponsiveImageRepository;
 use App\Service\Routing\LinkChoice;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
@@ -153,8 +160,31 @@ if (is_array($post['items'])) {
 // The layout radios and the button's kind arrive already chosen on a new
 // item: they alone do not make it an item.
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
-$preset = ['image_side', 'image_column', 'image_height', 'image_focus', 'button_link_type'];
+$imageSlot = TextImageSplitContent::imageSlot();
+$preset = ['image_side', 'image_column', 'image_height', 'button_link_type'];
+// The picture's presentation arrives filled in on a new item too.
+foreach (['presentation', 'focus_x', 'focus_y', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'fit', 'mobile_fit', 'mobile_height'] as $part) {
+    $preset[] = $imageSlot->column($part);
+}
 $items = EditorChildList::fromRequest($post, 'items', 'text_image_split_items', array_keys($storedItems), $action, $preset);
+
+/**
+ * How an item's picture sits in its frame, and why a part of it was refused
+ * (Responsive Media 2.0). Worked out once per row: validation, the refused
+ * form and the save all ask.
+ *
+ * @return array{0: ResponsiveImage, 1: array<string, string>}
+ */
+$presentations = [];
+$presentationOf = static function (array $row) use (&$presentations, $storedItems, $imageSlot): array {
+    $storedItem = $storedItems[$row['id']] ?? null;
+
+    return $presentations[$row['key']] ??= ResponsiveImage::fromRequest(
+        $row['fields'],
+        $imageSlot,
+        $storedItem !== null ? ResponsiveImage::fromRow($storedItem, $imageSlot) : new ResponsiveImage()
+    );
+};
 
 /**
  * The picture an item ends up with: the chosen library item, the stored
@@ -195,11 +225,19 @@ $linkOf = static function (array $row) use (&$links, $storedItems): array {
     );
 };
 
-/** An item's own checks besides its words: a known picture, a valid button, and something to show. */
-$itemProblems = static function (array $row) use ($pictureOf, $linkOf, $languageCode, $defaultLanguage): array {
+/** An item's own checks besides its words: a known picture, its presentation, a valid button, and something to show. */
+$itemProblems = static function (array $row) use ($pictureOf, $linkOf, $presentationOf, $languageCode, $defaultLanguage): array {
     $posted = $row['fields']['media_id'] ?? '';
     if ($posted !== '' && $posted !== '0' && BlockImage::fromRequest($posted)['media_id'] === null) {
         return ['media_id' => AdminTranslator::trans('editor_rows.error_media_unknown')];
+    }
+
+    $presentationErrors = [];
+    foreach ($presentationOf($row)[1] as $part => $message) {
+        $presentationErrors['presentation.' . $part] = $message;
+    }
+    if ($presentationErrors !== []) {
+        return $presentationErrors;
     }
 
     // The default language decides whether the item has words: typed when
@@ -266,7 +304,16 @@ if (!$languageIsWritable) {
     $fieldErrors += $itemErrors;
 }
 
-$old = ['language_code' => $languageCode, 'is_active' => $isActive] + $blockWords + ['items' => $items->old()];
+// A refused save shows each item's presentation as it was understood: the
+// phone's picture only when "Eigen afbeelding" was chosen, and so on.
+$oldItems = $items->old();
+foreach ($oldItems as $index => $oldItem) {
+    if (isset($presentations[$oldItem['key']])) {
+        $oldItems[$index]['fields'] = $presentations[$oldItem['key']][0]->toRow($imageSlot) + $oldItem['fields'];
+    }
+}
+
+$old = ['language_code' => $languageCode, 'is_active' => $isActive] + $blockWords + ['items' => $oldItems];
 
 if ($errors !== []) {
     $_SESSION['admin_tis_errors'] = $errors;
@@ -289,10 +336,19 @@ try {
         BlockLocalization::save('text_image_splits', $sectionId, $languageCode, $blockWords);
     }
 
+    $presentationRepository = new ResponsiveImageRepository();
     $items->save(
         $languageCode,
-        static fn (array $row): int => $repository->createItem($sectionId, $valuesOf($row)),
-        static fn (int $id, array $row) => $repository->updateItem($id, $valuesOf($row)),
+        static function (array $row) use ($repository, $sectionId, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): int {
+            $id = $repository->createItem($sectionId, $valuesOf($row));
+            $presentationRepository->save('text_image_split_items', $id, $imageSlot, $presentationOf($row)[0]);
+
+            return $id;
+        },
+        static function (int $id, array $row) use ($repository, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): void {
+            $repository->updateItem($id, $valuesOf($row));
+            $presentationRepository->save('text_image_split_items', $id, $imageSlot, $presentationOf($row)[0]);
+        },
         static fn (int $id) => $repository->deleteItem($id),
         static fn (array $order) => $repository->reorderItems($sectionId, $order)
     );

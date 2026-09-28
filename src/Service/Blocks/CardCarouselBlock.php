@@ -206,7 +206,9 @@ final class CardCarouselBlock extends BlockDefinition
 
     public function styles(): array
     {
-        return ['assets/css/blocks/card-carousel.css'];
+        // The shared picture rules first (Responsive Media 2.0), so the
+        // block's own frame rules can build on them.
+        return ['assets/css/responsive-media.css', 'assets/css/blocks/card-carousel.css'];
     }
 
     public function scripts(): array

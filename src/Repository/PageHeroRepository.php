@@ -9,7 +9,7 @@ namespace App\Repository;
 class PageHeroRepository extends Repository
 {
     /** The choices upsert() writes only when its caller names them. */
-    private const LATER_CHOICES = ['image_mode', 'hero_height', 'image_focus', 'slide_transition', 'slide_duration'];
+    private const LATER_CHOICES = ['image_mode', 'hero_height', 'slide_transition', 'slide_duration'];
 
     /**
      * @return array<string, mixed>|null null when no row exists for this slug
@@ -34,18 +34,19 @@ class PageHeroRepository extends Repository
      *
      * Every key is required, the image and the first three presentation
      * choices included: a caller that left one out would silently reset what
-     * an editor chose. The ones that came later — image_mode, hero_height
-     * and image_focus (db/migrations/20260924120000), slide_transition and
-     * slide_duration (db/migrations/20260928180000) — are the exception the
-     * other way round: a caller that does not name one leaves it as it is
-     * stored, and a new row gets the column's default (no picture, medium,
-     * centre, fade, five seconds). So nothing written before they existed
-     * can reset them. The values arrive checked — `media_id` resolved against
-     * the Media Library (BlockImage::fromRequest()) or null, each choice one
-     * of PageHeroContent's or MediaSequence's closed lists and the focus an
-     * ImageFocus key — so this only writes them.
+     * an editor chose. The ones that came later — image_mode and hero_height
+     * (db/migrations/20260924120000), slide_transition and slide_duration
+     * (db/migrations/20260928180000) — are the exception the other way round:
+     * a caller that does not name one leaves it as it is stored, and a new row
+     * gets the column's default (no picture, medium, fade, five seconds). So
+     * nothing written before they existed can reset them. The values arrive
+     * checked — `media_id` resolved against the Media Library
+     * (BlockImage::fromRequest()) or null, each choice one of PageHeroContent's
+     * or MediaSequence's closed lists — so this only writes them. How the
+     * picture sits in its place (Responsive Media 2.0) is
+     * App\Repository\ResponsiveImageRepository's.
      *
-     * @param array{media_id: int|null, content_position: string, title_size: string, text_size: string, image_mode?: string, hero_height?: string, image_focus?: string, slide_transition?: string, slide_duration?: int, is_active: bool} $values
+     * @param array{media_id: int|null, content_position: string, title_size: string, text_size: string, image_mode?: string, hero_height?: string, slide_transition?: string, slide_duration?: int, is_active: bool} $values
      */
     public function upsert(string $pageSlug, array $values): void
     {

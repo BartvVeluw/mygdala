@@ -407,9 +407,10 @@ final class RemainingBlocksRenderingTest extends TestCase
             $this->answerIn($language);
             $section = ['items' => [
                 BlockLocalization::words('text_image_split_items', 10) + [
-                    'image_side' => 'left', 'image_column' => '25', 'image_height' => 'small', 'image_focus' => 'bottom',
+                    'image_side' => 'left', 'image_column' => '25', 'image_height' => 'small',
                     'button_url' => '/contact',
-                    'image' => ['image_path' => '/assets/media/z.webp', 'width' => null, 'height' => null, 'alt' => BlockLocalization::text('text_image_split_items', 10, 'alt'), 'media_id' => null],
+                    'image' => $image = ['image_path' => '/assets/media/z.webp', 'width' => null, 'height' => null, 'alt' => BlockLocalization::text('text_image_split_items', 10, 'alt'), 'media_id' => null],
+                    'picture' => (new \App\Service\Media\ResponsiveImage(50, 100))->forRender($image),
                 ],
             ]];
 
@@ -423,7 +424,7 @@ final class RemainingBlocksRenderingTest extends TestCase
         self::assertStringNotContainsString('onerror', $dutch, 'sanitized on read');
         self::assertStringContainsString('alt="Een &quot;werkplaats&quot;"', $dutch);
         self::assertStringContainsString('text-image__item--image-left text-image__item--column-25 text-image__item--height-small', $dutch);
-        self::assertStringContainsString('object-position: 50% 100%;', $dutch, 'the focus point as ImageFocus says');
+        self::assertStringContainsString('object-position: 50% 100%;', $dutch, 'the focus point as its presentation says');
 
         $english = $render('en');
         self::assertStringContainsString('>The story</h2>', $english);

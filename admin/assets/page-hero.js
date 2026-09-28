@@ -14,9 +14,11 @@
  * Purely a display convenience. The server prints the same `hidden` for what
  * is stored, so the form looks the same on first load and without this
  * script, and the one form always posts every field; the endpoint decides
- * what a value means for the chosen place. The focus preview is the shared
- * field's (admin/assets/image-focus.js), and its shape follows the chosen
- * place and height through CSS alone (admin.css, [data-page-hero-form]).
+ * what a value means for the chosen place. The picture's presentation is the
+ * shared field's (Responsive Media 2.0, admin/assets/responsive-image.js); its
+ * frames follow the chosen place and heights through CSS alone (admin.css,
+ * [data-page-hero-form]), and its fit (beside the text) and phone height
+ * (behind it) are parts of a place like any other here.
  */
 (function () {
   "use strict";

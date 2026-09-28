@@ -8,14 +8,15 @@ require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_media_sequence_field.php';
 
 use App\Repository\MediaBannerRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaType;
 use App\Service\MediaBannerContent;
@@ -74,7 +75,6 @@ $source = is_array($old) ? $old : [
     'media_id' => (string) ($section['media_id'] ?? ''),
     'width' => $section['width'] ?? null,
     'height' => $section['height'] ?? null,
-    'image_focus' => $section['image_focus'] ?? null,
     'video_autoplay' => (bool) ($section['video_autoplay'] ?? false),
     'video_loop' => (bool) ($section['video_loop'] ?? false),
     'video_controls' => (bool) ($section['video_controls'] ?? true),
@@ -89,7 +89,16 @@ $posterId = (string) ($source['poster_media_id'] ?? '');
 $poster = MediaBannerContent::poster(ctype_digit($posterId) ? (int) $posterId : null);
 $width = MediaBannerContent::width($source['width'] ?? null);
 $height = MediaBannerContent::height($source['height'] ?? null);
-$focus = ImageFocus::normalise($source['image_focus'] ?? null);
+// How a picture sits in the frame (Responsive Media 2.0): handed back, else
+// stored.
+$imageSlot = MediaBannerContent::imageSlot();
+$presentation = ResponsiveImage::fromRow(is_array($old) && is_array($old['presentation'] ?? null) ? $old['presentation'] : $section, $imageSlot);
+$presentationErrors = [];
+foreach ($fieldErrors as $errorField => $errorMessage) {
+    if (str_starts_with((string) $errorField, 'presentation.')) {
+        $presentationErrors[substr((string) $errorField, 13)] = (string) $errorMessage;
+    }
+}
 $autoplay = !empty($source['video_autoplay']);
 $loop = !empty($source['video_loop']);
 $controls = !empty($source['video_controls']);
@@ -219,15 +228,19 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
       <?php $choice('height', MediaBannerContent::HEIGHTS, $height); ?>
 
       <div data-media-banner-needs="image"<?= $hasImage ? '' : ' hidden' ?>>
-        <?php media_focus_field(
-            'image_focus',
-            $focus,
-            $isImage ? $media->displayPath() : '',
-            admin_t('block_media_banner.focus'),
-            admin_t('help.block_media_banner.focus'),
-            admin_t('block_media_banner.focus_voorbeeld')
-        ); ?>
-        <?php editor_field_error($fieldErrors, 'image_focus'); ?>
+        <?php /* How a picture sits in the frame, on a large screen and on a
+                 phone (Responsive Media 2.0). The frames follow the width
+                 and height chosen above (admin.css, [data-media-banner-form]). */ ?>
+        <?php responsive_image_field([
+            'slot' => $imageSlot,
+            'value' => $presentation,
+            'id' => 'media-banner-picture',
+            'preview' => $isImage ? $media->displayPath() : '',
+            'picker' => 'media_id',
+            'mobile_media' => MediaService::find($presentation->mobileMediaId),
+            'errors' => $presentationErrors,
+            'note' => admin_t('media.responsive.sequence_note'),
+        ]); ?>
       </div>
     </section>
 
@@ -274,7 +287,7 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
 <?php media_sequence_script(); ?>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<?php responsive_image_field_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/media-banner.js') ?>" defer></script>
 </body>
 </html>

@@ -5,39 +5,38 @@ declare(strict_types=1);
 namespace App\Service\Media;
 
 /**
- * Which part of a cropped picture stays in view: a closed list of nine
- * points on a 3×3 grid, and the one place that turns a point into CSS.
+ * The nine points an editor can give a cropped picture with one click, on a
+ * 3×3 grid: the presets of a focus point (Responsive Media 2.0,
+ * App\Service\Media\ResponsiveImage).
  *
- * A picture shown with object-fit: cover loses its edges whenever its shape
- * differs from its frame. Its focus point says which edges: 'top' keeps the
- * top in view, 'bottom-right' the lower right corner, 'center' (the default,
- * and what the browser does by itself) the middle. The same value drives the
- * website and the editor's preview (object-position), so what an editor
- * picks is what a visitor gets.
+ * A focus point is stored as two whole percentages (image_focus_x and
+ * image_focus_y), exactly what CSS object-position means; a preset is one of
+ * the nine pairs below. Clicking one sets that pair, dragging the picture
+ * sets any other, and a pair that equals a preset shows that preset as the
+ * one chosen (keyFor()).
  *
- * Stored as the key, never as CSS: a value a request sends that is not a key
- * here becomes the default.
+ * Until 2026-09 a block stored the KEY of one of these points
+ * (carousel_cards.image_focus, …). db/migrations/20260928220000 turned every
+ * key into its pair with the same numbers as below — 0, 50 and 100 — so every
+ * picture kept exactly the object-position it had.
  *
- * First user: the Kaarten-carrousel cards (carousel_cards.image_focus).
+ * The editor's words for them are the CMS's own (media.focus.<key>).
  */
 final class ImageFocus
 {
     public const DEFAULT = 'center';
 
-    /**
-     * key => object-position, in reading order of the grid. The editor's
-     * words for them are the CMS's own (media.focus.<key>).
-     */
+    /** key => [x, y] in percent, in reading order of the grid. */
     private const POINTS = [
-        'top-left' => '0% 0%',
-        'top' => '50% 0%',
-        'top-right' => '100% 0%',
-        'left' => '0% 50%',
-        'center' => '50% 50%',
-        'right' => '100% 50%',
-        'bottom-left' => '0% 100%',
-        'bottom' => '50% 100%',
-        'bottom-right' => '100% 100%',
+        'top-left' => [0, 0],
+        'top' => [50, 0],
+        'top-right' => [100, 0],
+        'left' => [0, 50],
+        'center' => [50, 50],
+        'right' => [100, 50],
+        'bottom-left' => [0, 100],
+        'bottom' => [50, 100],
+        'bottom-right' => [100, 100],
     ];
 
     /** @return list<string> the nine keys, row by row */
@@ -46,15 +45,25 @@ final class ImageFocus
         return array_keys(self::POINTS);
     }
 
-    /** A stored or posted value as a key: itself when known, else the default. */
-    public static function normalise(mixed $value): string
+    /**
+     * The pair of a key, the middle for anything that is not one.
+     *
+     * @return array{0: int, 1: int}
+     */
+    public static function point(mixed $key): array
     {
-        return is_string($value) && isset(self::POINTS[$value]) ? $value : self::DEFAULT;
+        return is_string($key) && isset(self::POINTS[$key]) ? self::POINTS[$key] : self::POINTS[self::DEFAULT];
     }
 
-    /** The CSS object-position of a key (the default's for anything else). */
-    public static function objectPosition(mixed $value): string
+    /** The key of the preset at exactly this pair, or null for a point of its own. */
+    public static function keyFor(int $x, int $y): ?string
     {
-        return self::POINTS[self::normalise($value)];
+        foreach (self::POINTS as $key => [$presetX, $presetY]) {
+            if ($presetX === $x && $presetY === $y) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 }

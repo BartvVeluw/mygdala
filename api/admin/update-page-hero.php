@@ -12,9 +12,14 @@
  * (MEDIA.md): an id that names no item is saved as "no image", never kept as
  * a reference. A choice outside PageHeroContent's closed lists is refused
  * rather than corrected — the form cannot send one, so it can only come from
- * a crafted request, and then nothing is written. The focus point is the
- * exception, as for a carousel card: an unknown point is the middle
- * (ImageFocus::normalise()).
+ * a crafted request, and then nothing is written.
+ *
+ * HOW THE PICTURE SITS IN ITS PLACE (Responsive Media 2.0): its focus point,
+ * its fit (beside the text), a phone's own picture, point and fit, and the
+ * band's height on a phone, read by App\Service\Media\ResponsiveImage::fromRequest()
+ * from the fields admin/_responsive_image_field.php prints, refused part by
+ * part, and written by App\Repository\ResponsiveImageRepository in the same
+ * transaction. A form without those fields keeps what is stored.
  *
  * WHERE THE PICTURE GOES decides what the rest means. "Geen afbeelding" means
  * no picture, so a picture still chosen in the (hidden) picker is let go
@@ -22,8 +27,8 @@
  * the library, and its alt text goes with it. Between the places of a picture
  * the height and the alt text are kept: a picture behind the text ignores its
  * alt text and one beside it ignores the height, and an editor who switches
- * back finds them as they were. A request without `image_mode`, `hero_height`
- * or `image_focus` (a form from before they existed) leaves that stored value
+ * back finds them as they were. A request without `image_mode` or
+ * `hero_height` (a form from before they existed) leaves that stored value
  * alone (PageHeroRepository::upsert()).
  *
  * MORE PICTURES (a media sequence, App\Service\Media\MediaSequence): the
@@ -62,11 +67,12 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
 use App\Service\PageHeroContent;
 use App\Repository\PageHeroRepository;
+use App\Repository\ResponsiveImageRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -120,11 +126,19 @@ foreach (['image_mode', 'hero_height'] as $key) {
     }
 }
 
-if (array_key_exists('image_focus', $_POST)) {
-    $settings['image_focus'] = ImageFocus::normalise($_POST['image_focus']);
-}
-
 $errors = [];
+
+// How the picture sits in its place, on a large screen and on a phone.
+$imageSlot = PageHeroContent::imageSlot();
+$storedRow = (new PageHeroRepository())->findBySlug($slug);
+[$presentation, $presentationErrors] = ResponsiveImage::fromRequest(
+    $_POST,
+    $imageSlot,
+    $storedRow !== null ? ResponsiveImage::fromRow($storedRow, $imageSlot) : new ResponsiveImage()
+);
+foreach ($presentationErrors as $message) {
+    $errors[] = $message;
+}
 
 // The sequence's choices, only when the form sends them; a value outside its
 // closed list refuses the save.
@@ -227,6 +241,7 @@ foreach ($choices as $key => $allowed) {
 }
 
 $old = ['language_code' => $languageCode] + $words + $settings
+    + ['presentation' => $presentation->toRow($imageSlot), 'presentation_errors' => $presentationErrors]
     + ($sequencePosted ? ['sequence' => $sequenceHandback ?? array_map(static fn (int $id): string => 'media:' . $id, $sequence)] : []);
 
 if ($errors !== []) {
@@ -247,6 +262,7 @@ try {
     $repository = new PageHeroRepository();
     $repository->upsert($slug, $settings);
     $heroId = (int) $repository->findBySlug($slug)['id'];
+    (new ResponsiveImageRepository())->save('page_heroes', $heroId, $imageSlot, $presentation);
     BlockLocalization::save('page_heroes', $heroId, $languageCode, $words);
     // The list is written only when it was on the form; "Geen afbeelding"
     // empties it either way.

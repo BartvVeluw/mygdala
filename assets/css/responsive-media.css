@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Responsive Media 2.0 — one picture on a large screen and on a phone
+   (App\Service\Media\ResponsiveImage, partials/responsive-image.php,
+   MEDIA.md "Responsive Media").
+
+   Asked for by every block that prints a picture through
+   partials/responsive-image.php, in its styles(), before its own stylesheet.
+
+   A PHONE IS AT MOST 640PX WIDE: ResponsiveImage::MOBILE_MAX_WIDTH, the same
+   number the <source media> of a phone picture is built from.
+   Tests\Service\Media\ResponsiveMediaContractTest fails when the two differ.
+
+   WHY !important. A picture's desktop point and fit are an inline style on
+   the <img> (what the block always printed), and a stylesheet rule only beats
+   an inline style with !important. It applies only to an <img> that carries
+   one of the two data attributes, which partials/responsive-image.php prints
+   only when a phone really shows something else.
+
+   NOT HERE: the size or shape of any frame (each block's own stylesheet), a
+   colour behind a contained picture (the frame's own background shows), and
+   anything a visitor's browser does not need without a phone setting.
+   ========================================================================== */
+
+/* The wrapper around a phone picture takes no room of its own: the <img>
+   sits in its frame exactly as a bare one would, so every block rule for
+   "the picture in this frame" keeps working. */
+.rm-picture{ display: contents; }
+
+@media (max-width: 640px){
+  img[data-rm-mobile-position]{ object-position: var(--rm-mobile-position) !important; }
+  img[data-rm-mobile-fit]{ object-fit: var(--rm-mobile-fit) !important; }
+}

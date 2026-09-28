@@ -42,16 +42,16 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_media_sequence_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
+use App\Service\Media\ResponsiveImage;
 use App\Service\PageHeroContent;
 use App\Repository\PageHeroRepository;
 
@@ -102,7 +102,6 @@ if ($old !== null) {
         'text_size' => (string) ($row['text_size'] ?? PageHeroContent::SIZE_NORMAL),
         'image_mode' => (string) ($row['image_mode'] ?? PageHeroContent::IMAGE_NONE),
         'hero_height' => (string) ($row['hero_height'] ?? PageHeroContent::HEIGHT_MEDIUM),
-        'image_focus' => (string) ($row['image_focus'] ?? ImageFocus::DEFAULT),
         'slide_transition' => (string) ($row['slide_transition'] ?? MediaSequence::DEFAULT_TRANSITION),
         'slide_duration' => (int) ($row['slide_duration'] ?? MediaSequence::DEFAULT_DURATION),
         'is_active' => (bool) $row['is_active'],
@@ -179,7 +178,14 @@ $heightLabels = [
 $heroMedia = MediaService::find(isset($values['media_id']) ? (int) $values['media_id'] : null);
 $imageMode = in_array($values['image_mode'] ?? null, PageHeroContent::IMAGE_MODES, true) ? (string) $values['image_mode'] : PageHeroContent::IMAGE_NONE;
 $heroHeight = in_array($values['hero_height'] ?? null, PageHeroContent::HEIGHTS, true) ? (string) $values['hero_height'] : PageHeroContent::HEIGHT_MEDIUM;
-$imageFocus = ImageFocus::normalise($values['image_focus'] ?? null);
+// How the picture sits in its place (Responsive Media 2.0): handed back,
+// else stored, else the columns' defaults.
+$imageSlot = PageHeroContent::imageSlot();
+$presentation = ResponsiveImage::fromRow(
+    is_array($old) && is_array($old['presentation'] ?? null) ? $old['presentation'] : ($row ?? []),
+    $imageSlot
+);
+$presentationErrors = is_array($old) && is_array($old['presentation_errors'] ?? null) ? $old['presentation_errors'] : [];
 $isBeside = in_array($imageMode, [PageHeroContent::IMAGE_LEFT, PageHeroContent::IMAGE_RIGHT], true);
 
 // The alt text this picture really gets beside the text: its own, else the
@@ -322,20 +328,29 @@ function pageHeroOptions(array $labels, string $current): string
           </div>
         </div>
 
-        <?php /* The focus point: the shared field of every place with one
-                 (media_focus_field(), ImageFocus), with its preview kept in
-                 step by admin/assets/image-focus.js. Its frame takes the
-                 shape of the chosen place from admin.css
-                 ([data-page-hero-form]). */ ?>
+        <?php /* How the picture sits in its place, on a large screen and on a
+                 phone: the shared field of every picture with a focus point
+                 (Responsive Media 2.0, responsive_image_field()). Its frames
+                 take the shape of the chosen place from admin.css
+                 ([data-page-hero-form]); the fit is only offered beside the
+                 text and the phone height only behind it
+                 (data-page-hero-part, admin/assets/page-hero.js). */ ?>
         <div data-page-hero-needs-image<?= $heroMedia !== null ? '' : ' hidden' ?>>
-          <?php media_focus_field(
-              'image_focus',
-              $imageFocus,
-              $heroMedia !== null ? $heroMedia->displayPath() : '',
-              admin_t('block_pagehero.focus'),
-              admin_t('help.page_hero.focus'),
-              admin_t('block_pagehero.focus_voorbeeld')
-          ); ?>
+          <?php responsive_image_field([
+              'slot' => $imageSlot,
+              'value' => $presentation,
+              'id' => 'page-hero-picture',
+              'preview' => $heroMedia !== null ? $heroMedia->displayPath() : '',
+              'picker' => 'media_id',
+              'mobile_media' => MediaService::find($presentation->mobileMediaId),
+              'errors' => $presentationErrors,
+              'note' => admin_t('media.responsive.sequence_note'),
+              'part_attributes' => [
+                  'fit' => ' data-page-hero-part="left right"' . ($isBeside ? '' : ' hidden'),
+                  'mobile_fit' => ' data-page-hero-part="left right"' . ($isBeside ? '' : ' hidden'),
+                  'mobile_height' => ' data-page-hero-part="background"' . ($imageMode === PageHeroContent::IMAGE_BACKGROUND ? '' : ' hidden'),
+              ],
+          ]); ?>
         </div>
       </div>
 
@@ -380,7 +395,7 @@ function pageHeroOptions(array $labels, string $current): string
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
 <?php media_sequence_script(); ?>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<?php responsive_image_field_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/page-hero.js') ?>" defer></script>
 </body>
 </html>

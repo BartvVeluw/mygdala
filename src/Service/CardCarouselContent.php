@@ -5,7 +5,8 @@ namespace App\Service;
 use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
@@ -38,9 +39,10 @@ use App\Service\Routing\TypedLink;
  * card that showed one, so no site changed, and an owner can now leave a
  * label empty on purpose.
  *
- * `image_position` is the CSS object-position of the card's focus point
- * (App\Service\Media\ImageFocus): which part of the cropped picture stays
- * in view. The editor's preview uses the same value.
+ * `picture` is the card's picture as Responsive Media 2.0 prints it
+ * (App\Service\Media\ResponsiveImage::forRender(), partials/responsive-image.php):
+ * its focus point, its fit, and on a phone its own picture, point and fit
+ * when it has them. The columns are the card's own (imageSlot()).
  *
  * THE BUTTON points at what `link_type` says: 'url' is the address typed in
  * link_url, translated per render by TypedLink; 'page', 'blog_post' and
@@ -127,7 +129,7 @@ class CardCarouselContent
      *                                image_height (one of IMAGE_HEIGHTS),
      *                                index_label ('' for none), image_path
      *                                (+ image_alt, a string, image_width /
-     *                                image_height and image_position), title, body and
+     *                                image_height and picture), title, body and
      *                                link_label (a string each),
      *                                link_url (with link_label empty and
      *                                link_url '' together when there is no
@@ -233,7 +235,7 @@ class CardCarouselContent
             'image_path' => $image['image_path'],
             'image_width' => $image['width'],
             'image_height' => $image['height'],
-            'image_position' => ImageFocus::objectPosition($card['image_focus'] ?? null),
+            'picture' => ResponsiveImage::fromRow($card, self::imageSlot())->forRender($image),
         ] + BlockLocalization::words(self::CARDS, $cardId);
 
         $result['index_label'] = (string) ($result['number_label'] ?? '');
@@ -262,6 +264,17 @@ class CardCarouselContent
         }
 
         return $result;
+    }
+
+    /**
+     * Where a card keeps its picture's presentation (Responsive Media 2.0):
+     * the image_ columns of carousel_cards, with a fit of its own — a card's
+     * picture sits in a frame — and no phone height: the carousel as a whole
+     * decides the shape of its pictures in a flat row (flat_image_ratio).
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id', fit: true);
     }
 
     /** A stored layout, or the orbit for anything this class does not know. */

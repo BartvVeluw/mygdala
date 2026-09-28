@@ -50,7 +50,8 @@ use App\Service\Csrf;
 use App\Service\CtaBandContent;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Repository\ResponsiveImageRepository;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Repository\PageRepository;
@@ -105,7 +106,6 @@ $choices = [
     'lead_width' => [CtaBandContent::LEAD_WIDTHS, $stored['lead_width'], 'block_cta.error_lead_width'],
     'background_overlay' => [CtaBandContent::OVERLAYS, CtaBandContent::choice(CtaBandContent::OVERLAYS, $section['background_overlay'] ?? null), 'block_cta.error_overlay'],
     'text_panel_opacity' => [CtaBandContent::PANEL_OPACITIES, CtaBandContent::choice(CtaBandContent::PANEL_OPACITIES, $section['text_panel_opacity'] ?? null), 'block_cta.error_panel_opacity'],
-    'background_focus' => [ImageFocus::keys(), $stored['background_focus'], 'block_cta.error_focus'],
 ];
 $presentation = [];
 foreach ($choices as $name => [$list, $current, $message]) {
@@ -126,6 +126,15 @@ if ($backgroundPosted !== '' && $backgroundPosted !== '0' && $background === nul
     $fieldErrors['background_media_id'] = AdminTranslator::trans('editor_rows.error_media_unknown');
 }
 $presentation['background_media_id'] = $background?->id;
+
+// How the background sits in the band, on a large screen and on a phone
+// (Responsive Media 2.0): refused part by part, a part the form does not
+// carry keeps what is stored.
+$backgroundSlot = CtaBandContent::backgroundSlot();
+[$backgroundPresentation, $backgroundErrors] = ResponsiveImage::fromRequest($_POST, $backgroundSlot, ResponsiveImage::fromRow($section, $backgroundSlot));
+foreach ($backgroundErrors as $part => $message) {
+    $fieldErrors['presentation.' . $part] = $message;
+}
 
 // ----------------------------------------------------------------- buttons
 $storedDefault = static fn (string $field): string => BlockLocalization::raw('cta_bands', $sectionId, $field, BlockLocalization::defaultLanguage());
@@ -196,6 +205,7 @@ $old = [
     'language_code' => $languageCode,
     'is_active' => $settings['is_active'],
     'background_media_id' => $backgroundPosted,
+    'background_presentation' => $backgroundPresentation->toRow($backgroundSlot),
 ] + $words + $presentation;
 foreach (['primary', 'secondary'] as $button) {
     $old[$button . '_link_type'] = $linkTypes[$button];
@@ -220,6 +230,7 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($slug, $sectionKey, $settings);
+    (new ResponsiveImageRepository())->save('cta_bands', $sectionId, $backgroundSlot, $backgroundPresentation);
     BlockLocalization::save('cta_bands', $sectionId, $languageCode, $words);
 
     $db->commit();

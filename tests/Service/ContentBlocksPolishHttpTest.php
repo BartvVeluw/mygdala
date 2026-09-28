@@ -16,7 +16,6 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\CardCarouselContent;
 use App\Service\FeatureGridContent;
 use App\Service\Language\SiteLanguages;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaService;
 use App\Service\Media\Usage\ContentBlockMediaUsage;
 use App\Service\PageContent;
@@ -307,29 +306,39 @@ final class ContentBlocksPolishHttpTest extends TestCase
         $picture = $this->libraryItem('image/webp', 'webp');
         $save = fn (array $fields): array => $this->post($session, '/api/admin/update-carousel-card.php', ['card_id' => (string) $card, 'is_active' => '1', 'title' => 'Hout', 'link_type' => 'none', 'media_id' => (string) $picture] + $fields);
 
-        self::assertSame('center', $repository->findCardById($card)['image_focus'], 'a card starts in the middle');
+        $point = static fn (): array => array_map('intval', array_intersect_key($repository->findCardById($card), ['image_focus_x' => 0, 'image_focus_y' => 0]));
+        self::assertSame(['image_focus_x' => 50, 'image_focus_y' => 50], $point(), 'a card starts in the middle');
 
-        foreach (['top-left' => '0% 0%', 'bottom' => '50% 100%', 'right' => '100% 50%'] as $focus => $position) {
-            $this->assertSaved($save(['image_focus' => $focus]), $focus);
-            self::assertSame($focus, $repository->findCardById($card)['image_focus']);
+        // Responsive Media 2.0: a point is two whole percentages, a preset as
+        // much as one of its own (App\Service\Media\ResponsiveImage).
+        foreach ([[0, 0], [50, 100], [100, 50], [37, 64]] as [$x, $y]) {
+            $position = $x . '% ' . $y . '%';
+            $this->assertSaved($save(['image_presentation' => '1', 'image_focus_x' => (string) $x, 'image_focus_y' => (string) $y]), $position);
+            self::assertSame(['image_focus_x' => $x, 'image_focus_y' => $y], $point());
 
             CardCarouselContent::clearCache();
             $content = CardCarouselContent::forSection(self::KEY, explode(':', $section)[1]);
-            self::assertSame($position, $content['cards'][0]['image_position']);
-            self::assertStringContainsString('style="object-position: ' . $position . '"', $this->render(static fn () => render_section_card_carousel($content)));
+            self::assertSame($position, $content['cards'][0]['picture']['position']);
+            self::assertStringContainsString('style="object-position: ' . $position . ';"', $this->render(static fn () => render_section_card_carousel($content)));
 
             $screen = $this->xpath(self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body']);
-            self::assertSame(9, $screen->query('//fieldset[@data-image-focus]//input[@type="radio" and @name="image_focus"]')->length);
-            self::assertSame($focus, $screen->query('//input[@name="image_focus" and @checked]')->item(0)?->getAttribute('value'));
-            self::assertSame('object-position: ' . $position, $screen->query('//img[@data-image-focus-preview]')->item(0)?->getAttribute('style'), 'the preview uses the same setting');
+            self::assertSame(9, $screen->query('//fieldset[@data-rm]//*[@data-rm-focus="desktop"]//button[@data-rm-preset]')->length, 'the nine one-click points');
+            self::assertSame((string) $x, $screen->query('//input[@name="image_focus_x"]')->item(0)?->getAttribute('value'));
+            self::assertSame((string) $y, $screen->query('//input[@name="image_focus_y"]')->item(0)?->getAttribute('value'));
+            self::assertStringContainsString('object-position: ' . $position . ';', (string) $screen->query('//*[@data-rm-focus="desktop"]//img[@data-rm-preview]')->item(0)?->getAttribute('style'), 'the preview uses the same setting');
         }
 
-        $this->assertSaved($save(['image_focus' => 'everywhere']));
-        self::assertSame(ImageFocus::DEFAULT, $repository->findCardById($card)['image_focus'], 'an unknown point is the middle');
+        // A number outside 0-100 is clamped; what is no number is refused.
+        $this->assertSaved($save(['image_presentation' => '1', 'image_focus_x' => '140', 'image_focus_y' => '-5']));
+        self::assertSame(['image_focus_x' => 100, 'image_focus_y' => 0], $point(), 'a number outside the frame is clamped');
 
-        $this->assertSaved($save(['image_focus' => 'top']));
+        $refused = $save(['image_presentation' => '1', 'image_focus_x' => 'everywhere', 'image_focus_y' => '50']);
+        self::assertStringNotContainsString('saved=1', (string) $refused['location'], 'what is no number is refused');
+        self::assertSame(['image_focus_x' => 100, 'image_focus_y' => 0], $point(), 'and nothing is stored');
+
+        $this->assertSaved($save(['image_presentation' => '1', 'image_focus_x' => '50', 'image_focus_y' => '0']));
         $this->assertSaved($save([]));
-        self::assertSame('top', $repository->findCardById($card)['image_focus'], 'a form without the field keeps it');
+        self::assertSame(['image_focus_x' => 50, 'image_focus_y' => 0], $point(), 'a form without the field keeps it');
     }
 
     public function testAnEmptyNumberShowsNoLabel(): void

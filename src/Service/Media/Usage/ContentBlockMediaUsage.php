@@ -17,7 +17,9 @@ use App\Service\Media\MediaUsageProvider;
  * the background picture of an Oproep met knop, the picture or video of a
  * Mediabanner with its poster, both pictures of every card of a Hover
  * kaarten grid, and every further item of a media sequence (a Paginakop's
- * and a Mediabanner's, App\Service\Media\MediaSequence).
+ * and a Mediabanner's, App\Service\Media\MediaSequence) — and the phone's
+ * own picture of every one of them that has one (Responsive Media 2.0, the
+ * <prefix>mobile_media_id columns of App\Service\Media\ResponsiveImageSlot).
  *
  * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
@@ -155,6 +157,51 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
               FROM hover_card_grid_items hi
               JOIN hover_card_grids hg ON hg.id = hi.hover_card_grid_id
              WHERE hi.hover_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT i.image_mobile_media_id, \'Tekst + afbeelding (telefoon)\', \'text-image-split\', s.page_slug, s.section_key, NULL
+              FROM text_image_split_items i
+              JOIN text_image_splits s ON s.id = i.text_image_split_id
+             WHERE i.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT c.image_mobile_media_id, \'Carrousel-kaart (telefoon)\', \'carousel-card\', ca.page_slug, ca.section_key, c.id
+              FROM carousel_cards c
+              JOIN card_carousels ca ON ca.id = c.carousel_id
+             WHERE c.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT h.image_mobile_media_id, \'Paginakop (telefoon)\', \'page-hero\', h.page_slug, NULL, NULL
+              FROM page_heroes h
+             WHERE h.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT hh.image_mobile_media_id, \'Homepage Hero (telefoon)\', \'homepage-hero\', hh.page_slug, NULL, NULL
+              FROM homepage_hero hh
+             WHERE hh.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT cb.background_mobile_media_id, \'Oproep met knop (achtergrond, telefoon)\', \'cta-band\', cb.page_slug, cb.section_key, NULL
+              FROM cta_bands cb
+             WHERE cb.background_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT mb.image_mobile_media_id, \'Mediabanner (telefoon)\', \'media-banner\', mb.page_slug, mb.section_key, NULL
+              FROM media_banners mb
+             WHERE mb.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT hi.image_mobile_media_id, \'Hover kaarten grid (telefoon)\', \'hover-card-grid\', hg.page_slug, hg.section_key, NULL
+              FROM hover_card_grid_items hi
+              JOIN hover_card_grids hg ON hg.id = hi.hover_card_grid_id
+             WHERE hi.image_mobile_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);

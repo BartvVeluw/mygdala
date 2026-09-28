@@ -1,9 +1,9 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/responsive-image.php';
 
 use App\Service\CtaBandContent;
-use App\Service\Media\ImageFocus;
 
 /**
  * Renders the CTA Band section (App\Service\CtaBandContent) — identical
@@ -25,10 +25,11 @@ use App\Service\Media\ImageFocus;
  *
  * NOTHING FROM THE DATABASE BECOMES CSS. Every presentation value is a word
  * of a closed list, checked again here with CtaBandContent::choice(), and
- * becomes a class; the one style attribute is the object-position of the
- * picture's focus point, which comes from ImageFocus's own closed list, as on
- * the Paginakop. The picture is decorative (alt="" and hidden from assistive
- * technology): the words carry everything.
+ * becomes a class. The picture is printed by partials/responsive-image.php
+ * (Responsive Media 2.0, `picture`): its focus point as object-position, and
+ * on a phone its own picture and point when it has them, as on the Paginakop.
+ * The picture is decorative (alt="" and hidden from assistive technology):
+ * the words carry everything.
  *
  * @param array<string, mixed> $cta see CtaBandContent::forSection()
  */
@@ -59,14 +60,14 @@ function render_section_cta_band(array $cta): void
             return;
         }
 
-        $focus = ImageFocus::normalise($cta['background_focus'] ?? null);
-        $size = '';
-        if (($background['width'] ?? null) !== null && ($background['height'] ?? null) !== null) {
-            $size = ' width="' . (int) $background['width'] . '" height="' . (int) $background['height'] . '"';
-        }
+        // A band read without a presentation (an older caller) still shows
+        // its background: the middle, no phone picture.
+        $picture = is_array($cta['picture'] ?? null)
+            ? $cta['picture']
+            : (new \App\Service\Media\ResponsiveImage())->forRender($background + ['alt' => '']);
         ?>
         <div class="cta-band__media cta-band__media--overlay-<?= $h($overlay) ?>" aria-hidden="true">
-          <img src="<?= $h((string) $background['image_path']) ?>" alt=""<?= $size ?> loading="lazy" decoding="async"<?= $focus !== ImageFocus::DEFAULT ? ' style="object-position: ' . $h(ImageFocus::objectPosition($focus)) . ';"' : '' ?>>
+          <?php render_responsive_image($picture, ['loading' => 'lazy', 'decoding' => true, 'decorative' => true]); ?>
         </div>
         <?php
     };

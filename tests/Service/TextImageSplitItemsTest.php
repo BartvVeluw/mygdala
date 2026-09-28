@@ -9,6 +9,8 @@ use App\Repository\MediaRepository;
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Repository\ResponsiveImageRepository;
 use App\Service\Media\MediaService;
 use App\Service\Routing\RequestLanguage;
 use App\Service\TextImageSplitContent;
@@ -23,7 +25,8 @@ require_once dirname(__DIR__, 2) . '/partials/section-text-image-split.php';
  * point (App\Service\TextImageSplitContent, partials/section-text-image-split.php).
  *
  *  - the markup: text first in the document whatever the side, a class per
- *    choice and never a size, the focus point as ImageFocus's object-position,
+ *    choice and never a size, the focus point as its object-position
+ *    (Responsive Media 2.0, partials/responsive-image.php),
  *    no heading without a title, the body as it is, the picture lazy with
  *    its size, an item with only one half marked so, nothing for no items;
  *  - the read model, against the test database inside a transaction that is
@@ -75,16 +78,18 @@ final class TextImageSplitItemsTest extends TestCase
         }
     }
 
-    public function testEveryFocusPointIsTheObjectPositionImageFocusGives(): void
+    public function testEveryFocusPointIsTheObjectPositionOfItsPresentation(): void
     {
-        foreach (ImageFocus::keys() as $focus) {
+        $image = self::item()['image'];
+
+        foreach ([...array_map(static fn (string $key): array => ImageFocus::point($key), ImageFocus::keys()), [37, 64]] as [$x, $y]) {
             self::assertStringContainsString(
-                'style="object-position: ' . ImageFocus::objectPosition($focus) . ';"',
-                self::render([self::item(['image_focus' => $focus])])
+                'style="object-position: ' . $x . '% ' . $y . '%;"',
+                self::render([self::item(['picture' => (new ResponsiveImage($x, $y))->forRender($image)])])
             );
         }
 
-        self::assertStringContainsString('object-position: 50% 50%;', self::render([self::item(['image_focus' => 'nowhere'])]), 'an unknown key is the centre');
+        self::assertStringContainsString('object-position: 50% 50%;', self::render([self::item()]), 'an item without a presentation is the centre, printed as it always was');
     }
 
     public function testOnlyTextOnlyAPictureBothAndSeveralItems(): void
@@ -174,10 +179,11 @@ final class TextImageSplitItemsTest extends TestCase
         $blockId = $this->block();
         $repository = new TextImageSplitRepository();
 
-        $layoutOnly = $repository->createItem($blockId, ['image_side' => 'left', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top']);
+        $layoutOnly = $repository->createItem($blockId, ['image_side' => 'left', 'image_column' => '75', 'image_height' => 'large']);
         $second = $repository->createItem($blockId, TextImageSplitContent::DEFAULTS + ['button_url' => '/contact']);
         BlockLocalization::save('text_image_split_items', $second, 'nl', ['button_label' => 'Alleen een knop']);
-        $first = $repository->createItem($blockId, ['image_side' => 'left', 'image_column' => '25', 'image_height' => 'small', 'image_focus' => 'bottom']);
+        $first = $repository->createItem($blockId, ['image_side' => 'left', 'image_column' => '25', 'image_height' => 'small']);
+        (new ResponsiveImageRepository())->save('text_image_split_items', $first, TextImageSplitContent::imageSlot(), new ResponsiveImage(50, 100, mobileHeight: 'compact'));
         BlockLocalization::save('text_image_split_items', $first, 'nl', ['title' => 'Eerste', 'body' => '<p>Tekst</p>']);
         $halfButton = $repository->createItem($blockId, TextImageSplitContent::DEFAULTS);
         BlockLocalization::save('text_image_split_items', $halfButton, 'nl', ['button_label' => 'Knop zonder adres']);
@@ -187,7 +193,8 @@ final class TextImageSplitItemsTest extends TestCase
 
         self::assertCount(2, $items, 'an item with only a layout, or only half a button, shows nothing');
         self::assertSame('Eerste', $items[0]['title']);
-        self::assertSame(['left', '25', 'small', 'bottom'], [$items[0]['image_side'], $items[0]['image_column'], $items[0]['image_height'], $items[0]['image_focus']]);
+        self::assertSame(['left', '25', 'small', 'compact'], [$items[0]['image_side'], $items[0]['image_column'], $items[0]['image_height'], $items[0]['mobile_height']]);
+        self::assertNull($items[0]['picture'], 'an item without a picture has no picture to present');
         self::assertSame(['Alleen een knop', '/contact'], [$items[1]['button_label'], $items[1]['button_url']]);
     }
 
@@ -198,7 +205,8 @@ final class TextImageSplitItemsTest extends TestCase
         $blockId = $this->block();
         $repository = new TextImageSplitRepository();
 
-        $both = $repository->createItem($blockId, ['image_side' => 'left', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-right']);
+        $both = $repository->createItem($blockId, ['image_side' => 'left', 'image_column' => '75', 'image_height' => 'large']);
+        (new ResponsiveImageRepository())->save('text_image_split_items', $both, TextImageSplitContent::imageSlot(), new ResponsiveImage(100, 0, mobileHeight: 'large'));
         BlockLocalization::save('text_image_split_items', $both, 'nl', ['title' => 'Het verhaal', 'body' => '<p>Nederlands</p>']);
         BlockLocalization::save('text_image_split_items', $both, 'en', ['body' => '<p>English</p>']);
         $englishOnly = $repository->createItem($blockId, TextImageSplitContent::DEFAULTS);
@@ -213,7 +221,7 @@ final class TextImageSplitItemsTest extends TestCase
         self::assertCount(1, $english, 'an item with words only in a translation is not there');
         self::assertSame(['Het verhaal', '<p>Nederlands</p>'], [$dutch[0]['title'], $dutch[0]['body']]);
         self::assertSame(['Het verhaal', '<p>English</p>'], [$english[0]['title'], $english[0]['body']], 'the English body, the title falling back');
-        foreach (['image_side', 'image_column', 'image_height', 'image_focus'] as $key) {
+        foreach (['image_side', 'image_column', 'image_height', 'mobile_height'] as $key) {
             self::assertSame($dutch[0][$key], $english[0][$key], $key . ' is the same in every language');
         }
     }

@@ -4,7 +4,6 @@ namespace App\Service\Blocks;
 
 use App\Repository\PageHeroRepository;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaSequence;
 use App\Service\PageHeroContent;
 
@@ -191,7 +190,7 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
             'text_size' => PageHeroContent::SIZE_NORMAL,
             'image_mode' => PageHeroContent::IMAGE_BACKGROUND,
             'hero_height' => PageHeroContent::HEIGHT_MEDIUM,
-            'image_focus' => ImageFocus::DEFAULT,
+            'presentation' => new \App\Service\Media\ResponsiveImage(),
             'slide_transition' => MediaSequence::DEFAULT_TRANSITION,
             'slide_duration' => MediaSequence::DEFAULT_DURATION,
             'slides' => [],
@@ -211,7 +210,7 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
      */
     public function styles(): array
     {
-        return ['assets/css/media-sequence.css', 'assets/css/blocks/page-hero.css'];
+        return ['assets/css/responsive-media.css', 'assets/css/media-sequence.css', 'assets/css/blocks/page-hero.css'];
     }
 
     /** The shared media sequence: only a header with more than one picture has anything for it to do. */

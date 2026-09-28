@@ -2380,41 +2380,62 @@ body.admin-login-page{
 .admin-carousel-layout legend{ padding: 0; font-weight: 600; }
 .admin-carousel-layout .admin-template-grid{ margin-top: var(--admin-sp-2); }
 
-/* A picture's focus point (media_focus_field(), ImageFocus): nine points on
-   a 3x3 grid, and the place's own frame beside them, with the same
-   object-fit: cover, so the preview crops as the website does. The frame's
-   shape is --admin-focus-frame-ratio: a carousel card's by default (300 x 148,
-   card-carousel.css); a Tekst met afbeelding item sets its own below. */
-.admin-image-focus{ margin: var(--admin-sp-3) 0; padding: 0; border: 0; min-width: 0; }
-.admin-image-focus legend{ padding: 0; font-weight: 600; margin-bottom: var(--admin-sp-2); }
-.admin-image-focus__body{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--admin-sp-4); }
-.admin-image-focus__grid{
+/* A picture's presentation (Responsive Media 2.0, responsive_image_field(),
+   admin/_responsive_image_field.php, ADMIN-UI.md "Afbeeldingsweergave"): the
+   place's own frame with the picture in it, to drag; nine points beside it
+   and two sliders under them, which hold the value; and a closed "Op een
+   telefoon" part for the phone's own picture, point, fit and height.
+
+   THE FRAMES' SHAPES are custom properties: --admin-rm-desktop-ratio (a
+   carousel card's 300 x 148 by default, card-carousel.css) and
+   --admin-rm-mobile-ratio (that card on a 375px phone, 308 x 120). A screen,
+   a row or the field itself sets its own; the rules below for Tekst met
+   afbeelding and the Paginakop do so from the choices on screen. */
+.admin-rm{ margin: var(--admin-sp-3) 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--admin-sp-3); }
+.admin-rm > legend{ padding: 0; font-weight: 600; margin-bottom: var(--admin-sp-2); }
+.admin-rm__focus{ display: grid; gap: var(--admin-sp-2); }
+.admin-rm__label{ margin: 0; font-weight: 600; font-size: 0.9rem; }
+.admin-rm__editor{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--admin-sp-4); }
+.admin-rm__frame{
+  position: relative;
+  width: min(100%, 20rem);
+  aspect-ratio: var(--admin-rm-desktop-ratio, 300 / 148);
+  overflow: hidden;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-sunken);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.admin-rm__frame.is-dragging{ cursor: grabbing; border-color: var(--admin-accent); }
+.admin-rm__frame img{ display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.admin-rm__focus[data-rm-focus="mobile"] .admin-rm__frame{ width: min(100%, 12rem); aspect-ratio: var(--admin-rm-mobile-ratio, 308 / 120); }
+.admin-rm__controls{ display: grid; gap: var(--admin-sp-2); min-width: 0; flex: 1 1 14rem; }
+.admin-rm__presets{
   display: grid;
   grid-template-columns: repeat(3, 2.75rem);
   grid-auto-rows: 2.75rem;
   gap: 3px;
   padding: 3px;
+  width: max-content;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-sm);
   background: var(--admin-surface-sunken);
 }
-.admin-image-focus__point{
+.admin-rm__presets[hidden]{ display: none; }
+.admin-rm__preset{
   position: relative;
   display: grid;
   place-items: center;
-  border-radius: max(0px, calc(var(--admin-radius-sm) - 3px));
-  cursor: pointer;
-}
-.admin-image-focus__point input{
-  -webkit-appearance: none;
-  appearance: none;
-  position: absolute;
-  inset: 0;
   margin: 0;
-  border-radius: inherit;
+  padding: 0;
+  border: 0;
+  border-radius: max(0px, calc(var(--admin-radius-sm) - 3px));
+  background: transparent;
   cursor: pointer;
 }
-.admin-image-focus__point::after{
+.admin-rm__preset::after{
   content: "";
   width: 0.6rem;
   height: 0.6rem;
@@ -2422,39 +2443,70 @@ body.admin-login-page{
   border: 2px solid color-mix(in srgb, var(--admin-text-muted) 70%, var(--admin-surface));
   pointer-events: none;
 }
-.admin-image-focus__point:hover::after{ border-color: var(--admin-accent); }
-.admin-image-focus__point:has(input:checked){ background: var(--admin-accent-soft); }
-.admin-image-focus__point:has(input:checked)::after{ background: var(--admin-accent); border-color: var(--admin-accent); }
-.admin-image-focus__point input:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
-.admin-image-focus__preview{ margin: 0; display: grid; gap: var(--admin-sp-1); width: min(100%, 15rem); }
-.admin-image-focus__frame{
-  aspect-ratio: var(--admin-focus-frame-ratio, 300 / 148);
-  overflow: hidden;
-  border-radius: var(--admin-radius-sm);
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-sunken);
+.admin-rm__preset:hover::after{ border-color: var(--admin-accent); }
+.admin-rm__preset[aria-pressed="true"]{ background: var(--admin-accent-soft); }
+.admin-rm__preset[aria-pressed="true"]::after{ background: var(--admin-accent); border-color: var(--admin-accent); }
+.admin-rm__preset:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
+.admin-rm__axes{ display: grid; gap: var(--admin-sp-1); max-width: 20rem; }
+.admin-rm__axis{ display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; gap: var(--admin-sp-2); font-size: 0.875rem; }
+.admin-rm__axis input[type="range"]{ width: 100%; margin: 0; accent-color: var(--admin-accent); }
+.admin-rm__value, .admin-rm__hint, .admin-rm__contained{ margin: 0; font-size: 0.8125rem; }
+/* "Hele afbeelding" shows the whole picture: the point does nothing then,
+   so the controls step back and a line says why. Nothing is disabled or
+   lost; switching back to cover shows the point again. */
+.admin-rm__contained{ display: none; }
+.admin-rm__focus.is-contained .admin-rm__contained{ display: block; }
+.admin-rm__focus.is-contained .admin-rm__presets,
+.admin-rm__focus.is-contained .admin-rm__axes,
+.admin-rm__focus.is-contained .admin-rm__hint{ opacity: 0.55; }
+.admin-rm__focus.is-contained .admin-rm__frame{ cursor: default; }
+.admin-rm__mobile{ border: 1px solid var(--admin-border); border-radius: var(--admin-radius-sm); background: var(--admin-surface); }
+.admin-rm__mobile > summary{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--admin-sp-1) var(--admin-sp-2);
+  padding: var(--admin-sp-2) var(--admin-sp-3);
+  cursor: pointer;
+  font-weight: 600;
 }
-.admin-image-focus__frame img{ display: block; width: 100%; height: 100%; object-fit: cover; }
+.admin-rm__mobile > summary:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-rm__mobile-state{ font-weight: 400; font-size: 0.875rem; }
+.admin-rm__mobile-body{ display: grid; gap: var(--admin-sp-3); padding: 0 var(--admin-sp-3) var(--admin-sp-3); }
+.admin-rm__mobile-body .admin-field{ margin: 0; }
 @media (forced-colors: active){
-  .admin-image-focus__point input{ appearance: auto; position: static; }
-  .admin-image-focus__point::after{ display: none; }
+  .admin-rm__preset[aria-pressed="true"]{ outline: 2px solid Highlight; }
+  .admin-rm__preset::after{ border-color: ButtonText; }
+}
+@media (prefers-reduced-motion: reduce){
+  .admin-rm__frame{ transition: none; }
 }
 
 /* A Tekst met afbeelding item (admin/text-image-split.php): the focus
    preview takes the shape the picture has on a wide screen, from the item's
    own share of the row and height (assets/css/blocks/text-image-split.css at
    a 1280px window: 268, 536 or 804 wide; 307, 461 or 640 high). */
-.admin-tis-item{ --admin-focus-frame-ratio: 536 / 461; --admin-tis-frame-shape: 1.16; }
-.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="small"]:checked){ --admin-focus-frame-ratio: 268 / 307; --admin-tis-frame-shape: 0.87; }
-.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="medium"]:checked){ --admin-focus-frame-ratio: 268 / 461; --admin-tis-frame-shape: 0.58; }
-.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="large"]:checked){ --admin-focus-frame-ratio: 268 / 640; --admin-tis-frame-shape: 0.42; }
-.admin-tis-item:has([data-tis-column="50"]:checked):has([data-tis-height="small"]:checked){ --admin-focus-frame-ratio: 536 / 307; --admin-tis-frame-shape: 1.75; }
-.admin-tis-item:has([data-tis-column="50"]:checked):has([data-tis-height="large"]:checked){ --admin-focus-frame-ratio: 536 / 640; --admin-tis-frame-shape: 0.84; }
-.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="small"]:checked){ --admin-focus-frame-ratio: 804 / 307; --admin-tis-frame-shape: 2.62; }
-.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="medium"]:checked){ --admin-focus-frame-ratio: 804 / 461; --admin-tis-frame-shape: 1.74; }
-.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="large"]:checked){ --admin-focus-frame-ratio: 804 / 640; --admin-tis-frame-shape: 1.26; }
+.admin-tis-item{ --admin-rm-desktop-ratio: 536 / 461; --admin-tis-frame-shape: 1.16; }
+.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="small"]:checked){ --admin-rm-desktop-ratio: 268 / 307; --admin-tis-frame-shape: 0.87; }
+.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="medium"]:checked){ --admin-rm-desktop-ratio: 268 / 461; --admin-tis-frame-shape: 0.58; }
+.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="large"]:checked){ --admin-rm-desktop-ratio: 268 / 640; --admin-tis-frame-shape: 0.42; }
+.admin-tis-item:has([data-tis-column="50"]:checked):has([data-tis-height="small"]:checked){ --admin-rm-desktop-ratio: 536 / 307; --admin-tis-frame-shape: 1.75; }
+.admin-tis-item:has([data-tis-column="50"]:checked):has([data-tis-height="large"]:checked){ --admin-rm-desktop-ratio: 536 / 640; --admin-tis-frame-shape: 0.84; }
+.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="small"]:checked){ --admin-rm-desktop-ratio: 804 / 307; --admin-tis-frame-shape: 2.62; }
+.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="medium"]:checked){ --admin-rm-desktop-ratio: 804 / 461; --admin-tis-frame-shape: 1.74; }
+.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="large"]:checked){ --admin-rm-desktop-ratio: 804 / 640; --admin-tis-frame-shape: 1.26; }
 /* The frame is 10rem high where it fits, so a tall shape stays small. */
-.admin-tis-item .admin-image-focus__preview{ width: min(100%, calc(10rem * var(--admin-tis-frame-shape))); min-width: 6rem; }
+.admin-tis-item .admin-rm__focus[data-rm-focus="desktop"] .admin-rm__frame{ width: min(100%, calc(10rem * var(--admin-tis-frame-shape))); min-width: 6rem; }
+/* On a phone the picture is one column wide (about 343px on a 375px phone)
+   and as high as the item says: its own phone height, else the height its
+   large-screen choice becomes there (text-image-split.css: 12, 16 or 20rem;
+   a phone's own: 12, 16 or 24rem). */
+.admin-tis-item{ --admin-rm-mobile-ratio: 343 / 256; }
+.admin-tis-item:has([data-tis-height="small"]:checked){ --admin-rm-mobile-ratio: 343 / 192; }
+.admin-tis-item:has([data-tis-height="large"]:checked){ --admin-rm-mobile-ratio: 343 / 320; }
+.admin-tis-item:has([data-rm-mobile-height][value="compact"]:checked){ --admin-rm-mobile-ratio: 343 / 192; }
+.admin-tis-item:has([data-rm-mobile-height][value="normal"]:checked){ --admin-rm-mobile-ratio: 343 / 256; }
+.admin-tis-item:has([data-rm-mobile-height][value="large"]:checked){ --admin-rm-mobile-ratio: 343 / 384; }
 .admin-tis-layout{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-3) var(--admin-sp-5); margin: var(--admin-sp-3) 0; }
 /* An item's button: its heading, the shared destination field and the label,
    in the row's own rhythm. */
@@ -2462,15 +2514,42 @@ body.admin-login-page{
 .admin-tis-button > h3{ margin: 0; font-size: 1rem; }
 .admin-tis-button .admin-field{ margin: 0; }
 
-/* The Paginakop (admin/page-hero.php): the focus preview takes the shape of
+/* The Paginakop (admin/page-hero.php): the focus frames take the shape of
    the chosen place. A band behind the text is wide, and wider the lower it is
    (assets/css/blocks/page-hero.css in a 1280 x 900 window: about 1280 x 360,
    495 and 675 high); a picture beside the text has its own 4:3 frame. The
    last rule is the most specific, so beside the text wins over any height. */
-[data-page-hero-form]{ --admin-focus-frame-ratio: 23 / 9; }
-[data-page-hero-form]:has([name="hero_height"][value="small"]:checked){ --admin-focus-frame-ratio: 32 / 9; }
-[data-page-hero-form]:has([name="hero_height"][value="large"]:checked){ --admin-focus-frame-ratio: 17 / 9; }
-[data-page-hero-form]:has(select[name="image_mode"] option:is([value="left"], [value="right"]):checked){ --admin-focus-frame-ratio: 4 / 3; }
+[data-page-hero-form]{ --admin-rm-desktop-ratio: 23 / 9; }
+[data-page-hero-form]:has([name="hero_height"][value="small"]:checked){ --admin-rm-desktop-ratio: 32 / 9; }
+[data-page-hero-form]:has([name="hero_height"][value="large"]:checked){ --admin-rm-desktop-ratio: 17 / 9; }
+[data-page-hero-form]:has(select[name="image_mode"] option:is([value="left"], [value="right"]):checked){ --admin-rm-desktop-ratio: 4 / 3; }
+/* On a 375 x 812 phone the band is 375px wide and as high as page-hero.css
+   makes it there (about 352, 512 or 576px; a phone's own height about 320,
+   448 or 608px); a picture beside the text sits above it at 16:10. */
+[data-page-hero-form]{ --admin-rm-mobile-ratio: 375 / 512; }
+[data-page-hero-form]:has([name="hero_height"][value="small"]:checked){ --admin-rm-mobile-ratio: 375 / 352; }
+[data-page-hero-form]:has([name="hero_height"][value="large"]:checked){ --admin-rm-mobile-ratio: 375 / 576; }
+[data-page-hero-form]:has([name="image_mobile_height"][value="compact"]:checked){ --admin-rm-mobile-ratio: 375 / 320; }
+[data-page-hero-form]:has([name="image_mobile_height"][value="normal"]:checked){ --admin-rm-mobile-ratio: 375 / 448; }
+[data-page-hero-form]:has([name="image_mobile_height"][value="large"]:checked){ --admin-rm-mobile-ratio: 375 / 608; }
+[data-page-hero-form]:has(select[name="image_mode"] option:is([value="left"], [value="right"]):checked){ --admin-rm-mobile-ratio: 16 / 10; }
+
+/* The Mediabanner (admin/media-banner.php): its frames take the shape of the
+   chosen width and height (media-banner.css in a 1280px window: about 1152
+   wide in the container or 1280 across the page, 282, 384, 538 or 666 high;
+   on a 375px phone 375 wide and 192, 240, 304 or 384 high, a phone's own
+   192, 256 or 416). */
+[data-media-banner-form]{ --admin-rm-desktop-ratio: 1152 / 384; --admin-rm-mobile-ratio: 375 / 240; }
+[data-media-banner-form]:has([name="height"][value="small"]:checked){ --admin-rm-desktop-ratio: 1152 / 282; --admin-rm-mobile-ratio: 375 / 192; }
+[data-media-banner-form]:has([name="height"][value="large"]:checked){ --admin-rm-desktop-ratio: 1152 / 538; --admin-rm-mobile-ratio: 375 / 304; }
+[data-media-banner-form]:has([name="height"][value="xlarge"]:checked){ --admin-rm-desktop-ratio: 1152 / 666; --admin-rm-mobile-ratio: 375 / 384; }
+[data-media-banner-form]:has([name="width"][value="full"]:checked){ --admin-rm-desktop-ratio: 1280 / 384; }
+[data-media-banner-form]:has([name="width"][value="full"]:checked):has([name="height"][value="small"]:checked){ --admin-rm-desktop-ratio: 1280 / 282; }
+[data-media-banner-form]:has([name="width"][value="full"]:checked):has([name="height"][value="large"]:checked){ --admin-rm-desktop-ratio: 1280 / 538; }
+[data-media-banner-form]:has([name="width"][value="full"]:checked):has([name="height"][value="xlarge"]:checked){ --admin-rm-desktop-ratio: 1280 / 666; }
+[data-media-banner-form]:has([name="image_mobile_height"][value="compact"]:checked){ --admin-rm-mobile-ratio: 375 / 192; }
+[data-media-banner-form]:has([name="image_mobile_height"][value="normal"]:checked){ --admin-rm-mobile-ratio: 375 / 256; }
+[data-media-banner-form]:has([name="image_mobile_height"][value="large"]:checked){ --admin-rm-mobile-ratio: 375 / 416; }
 
 /* A choice between a few named options inside a form: a fieldset whose
    legend names the group, around a segmented control (.admin-segmented). */

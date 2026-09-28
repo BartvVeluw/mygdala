@@ -67,3 +67,13 @@
     --media-banner-height-xlarge: min(24rem, 80vh);
   }
 }
+
+/* A phone's own height for the frame (Responsive Media 2.0,
+   media_banners.image_mobile_height; none is "automatic": the heights
+   above). A phone is at most 640px wide, the one breakpoint of
+   assets/css/responsive-media.css. */
+@media (max-width: 640px){
+  .media-banner.media-banner--mobile-compact{ --media-banner-height: 12rem; }
+  .media-banner.media-banner--mobile-normal{ --media-banner-height: 16rem; }
+  .media-banner.media-banner--mobile-large{ --media-banner-height: min(26rem, 80vh); }
+}

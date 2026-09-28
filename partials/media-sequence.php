@@ -1,10 +1,11 @@
 <?php
 
+require_once __DIR__ . '/responsive-image.php';
+
 use App\Service\Language\SiteText;
-use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaType;
+use App\Service\Media\ResponsiveImage;
 
 /**
  * THE markup of a media sequence (App\Service\Media\MediaSequence): more than
@@ -35,8 +36,13 @@ use App\Service\Media\MediaType;
  * keeps alt="" and the whole track is hidden from assistive technology.
  * Otherwise every slide is a group named "2 van 4", and the script hides the
  * ones not in view. Every word here is code-owned text in the language of the
- * request (SiteText); nothing from the database becomes CSS, and the only
- * inline style is a picture's object-position from ImageFocus.
+ * request (SiteText).
+ *
+ * EVERY PICTURE IS PRINTED BY partials/responsive-image.php (Responsive Media
+ * 2.0), with the block's one presentation: its focus point, its fit and a
+ * phone's own point and fit apply to every picture of the sequence. A phone's
+ * own PICTURE does not: that belongs to one picture, and a slide keeps its
+ * own (MEDIA.md, "Responsive Media"). There is no second picture markup here.
  */
 
 /**
@@ -60,10 +66,11 @@ function media_sequence_attributes(array $options): string
  *
  * @param list<array{kind: string, src: string, mime?: string, alt?: string, width?: int|null, height?: int|null}> $slides
  *        MediaSequence::slide() shapes, in their order
- * @param array{transition: string, decorative?: bool, eager?: bool, focus?: string, media_class?: string,
+ * @param array{transition: string, decorative?: bool, eager?: bool, presentation?: ResponsiveImage, media_class?: string,
  *              video_autoplay?: bool, video_controls?: bool, poster?: string} $options
  *        eager: the first picture is the first thing on the page (a header);
- *        poster: the first item's poster, when it is a video
+ *        presentation: the block's (the middle, cover, nothing for a phone
+ *        when there is none); poster: the first item's poster, when it is a video
  */
 function render_media_sequence_slides(array $slides, array $options): void
 {
@@ -71,8 +78,7 @@ function render_media_sequence_slides(array $slides, array $options): void
     $decorative = !empty($options['decorative']);
     $mediaClass = (string) ($options['media_class'] ?? '');
     $classAttr = $mediaClass !== '' ? ' class="' . $h($mediaClass) . '"' : '';
-    $focus = ImageFocus::normalise($options['focus'] ?? null);
-    $position = $focus !== ImageFocus::DEFAULT ? ' style="object-position: ' . $h(ImageFocus::objectPosition($focus)) . ';"' : '';
+    $presentation = ($options['presentation'] ?? null) instanceof ResponsiveImage ? $options['presentation'] : new ResponsiveImage();
     $autoplay = !empty($options['video_autoplay']);
     // No video without a way to start it (MediaBannerContent's contract).
     $controls = !$autoplay || !empty($options['video_controls']);
@@ -91,7 +97,13 @@ function render_media_sequence_slides(array $slides, array $options): void
         <?php else:
             $eager = !empty($options['eager']) && $index === 0;
             ?>
-        <img<?= $classAttr ?> src="<?= $h((string) $slide['src']) ?>" alt="<?= $decorative ? '' : $h((string) ($slide['alt'] ?? '')) ?>"<?= BlockImage::dimensionAttributes(['width' => $slide['width'] ?? null, 'height' => $slide['height'] ?? null]) ?><?= $eager ? ' loading="eager" decoding="async" fetchpriority="high"' : ' loading="lazy" decoding="async"' ?><?= $position ?>>
+        <?php render_responsive_image($presentation->forRender($slide, false), [
+            'class' => $mediaClass,
+            'loading' => $eager ? 'eager' : 'lazy',
+            'decoding' => true,
+            'fetchpriority' => $eager,
+            'decorative' => $decorative,
+        ]); ?>
         <?php endif; ?>
       </div>
       <?php endforeach; ?>

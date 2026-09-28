@@ -10,13 +10,13 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\CtaBandContent;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Repository\PageRepository;
@@ -113,7 +113,6 @@ $source = is_array($old) ? $old : [
     'lead_width' => $row['lead_width'] ?? null,
     'background_overlay' => $row['background_overlay'] ?? null,
     'text_panel_opacity' => $row['text_panel_opacity'] ?? null,
-    'background_focus' => $row['background_focus'] ?? null,
     'full_width' => (bool) ($row['full_width'] ?? false),
     'text_panel' => (bool) ($row['text_panel'] ?? false),
     'background_media_id' => $row['background_media_id'] ?? '',
@@ -122,7 +121,19 @@ $align = CtaBandContent::choice(CtaBandContent::ALIGNMENTS, $source['content_ali
 $leadWidth = CtaBandContent::choice(CtaBandContent::LEAD_WIDTHS, $source['lead_width'] ?? null);
 $overlay = CtaBandContent::choice(CtaBandContent::OVERLAYS, $source['background_overlay'] ?? null);
 $panelOpacity = CtaBandContent::choice(CtaBandContent::PANEL_OPACITIES, $source['text_panel_opacity'] ?? null);
-$focus = ImageFocus::normalise($source['background_focus'] ?? null);
+// How the background sits in the band (Responsive Media 2.0): handed back,
+// else stored.
+$backgroundSlot = CtaBandContent::backgroundSlot();
+$backgroundPresentation = ResponsiveImage::fromRow(
+    is_array($old) && is_array($old['background_presentation'] ?? null) ? $old['background_presentation'] : ($row ?? []),
+    $backgroundSlot
+);
+$backgroundErrors = [];
+foreach ($fieldErrors as $errorField => $errorMessage) {
+    if (str_starts_with((string) $errorField, 'presentation.')) {
+        $backgroundErrors[substr((string) $errorField, 13)] = (string) $errorMessage;
+    }
+}
 $fullWidth = !empty($source['full_width']);
 $textPanel = !empty($source['text_panel']);
 $backgroundId = (string) ($source['background_media_id'] ?? '');
@@ -286,15 +297,19 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
       <?php editor_field_error($fieldErrors, 'background_media_id'); ?>
 
       <div data-cta-needs-image<?= $background !== null ? '' : ' hidden' ?>>
-        <?php media_focus_field(
-            'background_focus',
-            $focus,
-            $background !== null ? $background->displayPath() : '',
-            admin_t('block_cta.background_focus'),
-            admin_t('help.block_cta.background_focus'),
-            admin_t('block_cta.background_focus_voorbeeld')
-        ); ?>
-        <?php editor_field_error($fieldErrors, 'background_focus'); ?>
+        <?php /* How the background sits in the band, on a large screen and
+                 on a phone (Responsive Media 2.0). The frames are a band of
+                 about this shape: as tall as its words, so a guide. */ ?>
+        <?php responsive_image_field([
+            'slot' => $backgroundSlot,
+            'value' => $backgroundPresentation,
+            'id' => 'cta-background',
+            'preview' => $background !== null ? $background->displayPath() : '',
+            'picker' => 'background_media_id',
+            'mobile_media' => MediaService::find($backgroundPresentation->mobileMediaId),
+            'frame' => ['desktop' => '1152 / 400', 'mobile' => '343 / 480'],
+            'errors' => $backgroundErrors,
+        ]); ?>
         <?php $choice('background_overlay', 'block_cta.background_overlay', 'help.block_cta.background_overlay', CtaBandContent::OVERLAYS, $overlay); ?>
       </div>
     </section>
@@ -338,7 +353,7 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
 <?php link_target_scripts(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<?php responsive_image_field_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/cta-band.js') ?>" defer></script>
 </body>
 </html>

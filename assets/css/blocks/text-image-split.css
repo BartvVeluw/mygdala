@@ -91,3 +91,13 @@
   .text-image .text-image__item{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
   .text-image .text-image__item .text-image__media{ order: 0; }
 }
+
+/* A phone's own height for one item's picture (Responsive Media 2.0,
+   text_image_split_items.image_mobile_height; none is "automatic": the
+   heights above, from the height chosen for a large screen). A phone is at
+   most 640px wide, the one breakpoint of assets/css/responsive-media.css. */
+@media (max-width: 640px){
+  .text-image .text-image__item--mobile-compact{ --text-image-height: 12rem; }
+  .text-image .text-image__item--mobile-normal{ --text-image-height: 16rem; }
+  .text-image .text-image__item--mobile-large{ --text-image-height: 24rem; }
+}

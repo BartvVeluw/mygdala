@@ -182,7 +182,8 @@ final class PageHeroEditorHttpTest extends TestCase
             'media_id' => $this->mediaItem(),
             'image_mode' => PageHeroContent::IMAGE_BACKGROUND,
             'hero_height' => PageHeroContent::HEIGHT_LARGE,
-            'image_focus' => 'bottom-right',
+            'image_focus_x' => 100,
+            'image_focus_y' => 100,
         ]);
 
         $screen = $this->screen($session);
@@ -191,18 +192,24 @@ final class PageHeroEditorHttpTest extends TestCase
         $this->assertSame(['background'], $this->values($screen, '//select[@name="image_mode"]/option[@selected]/@value'));
         $this->assertSame(PageHeroContent::HEIGHTS, $this->values($screen, '//input[@name="hero_height"]/@value'));
         $this->assertSame(['large'], $this->values($screen, '//input[@name="hero_height"][@checked]/@value'));
-        $this->assertSame(\App\Service\Media\ImageFocus::keys(), $this->values($screen, '//input[@name="image_focus"]/@value'));
-        $this->assertSame(['bottom-right'], $this->values($screen, '//input[@name="image_focus"][@checked]/@value'));
+        // Responsive Media 2.0: the nine one-click points and the point itself.
+        $this->assertSame(9, $screen->query('//*[@data-rm-focus="desktop"]//button[@data-rm-preset]')->length);
+        $this->assertSame(['100'], $this->values($screen, '//input[@name="image_focus_x"]/@value'));
+        $this->assertSame(['100'], $this->values($screen, '//input[@name="image_focus_y"]/@value'));
+        $this->assertSame(['true'], $this->values($screen, '//*[@data-rm-focus="desktop"]//button[@data-rm-preset][@data-x="100"][@data-y="100"]/@aria-pressed'));
         $this->assertSame(
-            ['object-position: 100% 100%'],
-            $this->values($screen, '//img[@data-image-focus-preview]/@style'),
+            ['object-position: 100% 100%;'],
+            $this->values($screen, '//*[@data-rm-focus="desktop"]//img[@data-rm-preview]/@style'),
             'the preview crops the way the website does'
         );
 
         // Behind the text: the height and the focus show, the alt text and the
-        // note for a picture beside the text do not.
+        // note for a picture beside the text do not; the fit is only offered
+        // beside the text, a phone's own height only behind it.
         $this->assertFalse($this->hidden($screen, self::partOf('input[@name="hero_height"]')));
-        $this->assertFalse($this->hidden($screen, '//fieldset[@data-image-focus]'));
+        $this->assertFalse($this->hidden($screen, '//fieldset[@data-rm]/ancestor::*[@data-page-hero-needs-image][1]'));
+        $this->assertTrue($this->hidden($screen, '//input[@name="image_fit"]/ancestor::fieldset[@data-page-hero-part][1]'));
+        $this->assertFalse($this->hidden($screen, '//input[@name="image_mobile_height"]/ancestor::fieldset[@data-page-hero-part][1]'));
         $this->assertTrue($this->hidden($screen, self::partOf('input[@name="image_alt"]')));
         $this->assertFalse($this->hidden($screen, self::partOf('*[@data-media-picker]')));
     }
@@ -229,7 +236,7 @@ final class PageHeroEditorHttpTest extends TestCase
 
         $this->assertTrue($this->hidden($screen, self::partOf('*[@data-media-picker]')), 'no picker for a header without a picture');
         $this->assertSame(1, $screen->query('//script[contains(@src, "/admin/assets/page-hero.js")]')->length);
-        $this->assertSame(1, $screen->query('//script[contains(@src, "/admin/assets/image-focus.js")]')->length);
+        $this->assertSame(1, $screen->query('//script[contains(@src, "/admin/assets/responsive-image.js")]')->length);
     }
 
     public function testASaveStoresThePlaceTheHeightAndTheFocusPoint(): void
@@ -241,12 +248,20 @@ final class PageHeroEditorHttpTest extends TestCase
             'media_id' => (string) $mediaId,
             'image_mode' => PageHeroContent::IMAGE_RIGHT,
             'hero_height' => PageHeroContent::HEIGHT_SMALL,
-            'image_focus' => 'top-left',
+            'image_presentation' => '1',
+            'image_focus_x' => '0',
+            'image_focus_y' => '0',
+            'image_fit' => 'contain',
+            'image_mobile_source' => 'desktop',
+            'image_mobile_height' => 'compact',
         ]);
 
         $this->assertStringEndsWith('&saved=1', $response['location']);
         $row = $this->storedHeader();
-        $this->assertSame([$mediaId, 'right', 'small', 'top-left'], [(int) $row['media_id'], $row['image_mode'], $row['hero_height'], $row['image_focus']]);
+        $this->assertSame(
+            [$mediaId, 'right', 'small', 0, 0, 'contain', 'compact', null],
+            [(int) $row['media_id'], $row['image_mode'], $row['hero_height'], (int) $row['image_focus_x'], (int) $row['image_focus_y'], $row['image_fit'], $row['image_mobile_height'], $row['image_mobile_media_id']]
+        );
     }
 
     public function testChoosingNoPictureLetsTheChosenOneGo(): void
@@ -271,14 +286,18 @@ final class PageHeroEditorHttpTest extends TestCase
         $this->assertNotNull(MediaService::find($mediaId), 'the library item stays');
     }
 
-    public function testAnUnknownFocusPointIsTheMiddle(): void
+    public function testAFocusPointThatIsNoNumberIsRefusedAndOneOutsideTheFrameIsClamped(): void
     {
         [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $this->storeHeader(['image_mode' => PageHeroContent::IMAGE_BACKGROUND]);
 
-        $response = $this->post($session, $csrf, ['image_mode' => PageHeroContent::IMAGE_BACKGROUND, 'image_focus' => '10% 20%']);
+        $refused = $this->post($session, $csrf, ['image_mode' => PageHeroContent::IMAGE_BACKGROUND, 'image_focus_x' => '10% 20%', 'image_focus_y' => '50']);
+        $this->assertStringNotContainsString('saved=1', $refused['location']);
+        $this->assertSame([50, 50], [(int) $this->storedHeader()['image_focus_x'], (int) $this->storedHeader()['image_focus_y']]);
 
-        $this->assertStringEndsWith('&saved=1', $response['location']);
-        $this->assertSame('center', $this->storedHeader()['image_focus']);
+        $clamped = $this->post($session, $csrf, ['image_mode' => PageHeroContent::IMAGE_BACKGROUND, 'image_focus_x' => '180', 'image_focus_y' => '-3']);
+        $this->assertStringEndsWith('&saved=1', $clamped['location']);
+        $this->assertSame([100, 0], [(int) $this->storedHeader()['image_focus_x'], (int) $this->storedHeader()['image_focus_y']]);
     }
 
     public function testAFormWithoutTheNewChoicesLeavesThemAlone(): void
@@ -289,15 +308,15 @@ final class PageHeroEditorHttpTest extends TestCase
             'media_id' => $mediaId,
             'image_mode' => PageHeroContent::IMAGE_LEFT,
             'hero_height' => PageHeroContent::HEIGHT_LARGE,
-            'image_focus' => 'top',
         ]);
+        (new \App\Repository\ResponsiveImageRepository())->save('page_heroes', (int) $this->storedHeader()['id'], PageHeroContent::imageSlot(), new \App\Service\Media\ResponsiveImage(50, 0));
 
         // post() sends what the form sent before these choices existed.
         $response = $this->post($session, $csrf, ['media_id' => (string) $mediaId]);
 
         $this->assertStringEndsWith('&saved=1', $response['location']);
         $row = $this->storedHeader();
-        $this->assertSame(['left', 'large', 'top'], [$row['image_mode'], $row['hero_height'], $row['image_focus']]);
+        $this->assertSame(['left', 'large', 50, 0], [$row['image_mode'], $row['hero_height'], (int) $row['image_focus_x'], (int) $row['image_focus_y']]);
     }
 
     public function testAnAltTextThatIsOnlyTheLibrarysIsStoredAsInheritedAndAnOwnOneAsItsOwn(): void
@@ -530,16 +549,26 @@ final class PageHeroEditorHttpTest extends TestCase
         return $node->hasAttribute('hidden');
     }
 
-    /** @param array<string, mixed> $overrides */
+    /**
+     * A stored header. `image_focus_x` and `image_focus_y` in $overrides are
+     * its focus point, stored where Responsive Media 2.0 stores it.
+     *
+     * @param array<string, mixed> $overrides
+     */
     private function storeHeader(array $overrides): void
     {
+        $point = [(int) ($overrides['image_focus_x'] ?? 50), (int) ($overrides['image_focus_y'] ?? 50)];
+        unset($overrides['image_focus_x'], $overrides['image_focus_y']);
+
         $repository = new PageHeroRepository();
         $repository->upsert(self::TEST_PAGE, array_merge(
             PageHeroContent::startingValues(),
             ['is_active' => true],
             $overrides
         ));
-        BlockLocalization::save('page_heroes', (int) $repository->findBySlug(self::TEST_PAGE)['id'], 'nl', ['title' => 'Een opgeslagen kop']);
+        $heroId = (int) $repository->findBySlug(self::TEST_PAGE)['id'];
+        (new \App\Repository\ResponsiveImageRepository())->save('page_heroes', $heroId, PageHeroContent::imageSlot(), new \App\Service\Media\ResponsiveImage($point[0], $point[1]));
+        BlockLocalization::save('page_heroes', $heroId, 'nl', ['title' => 'Een opgeslagen kop']);
 
         PageHeroContent::clearCache();
     }

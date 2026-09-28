@@ -250,3 +250,13 @@
 @media (forced-colors: active){
   .page-hero__media{ display: none; }
 }
+
+/* A phone's own height for a band with a picture behind the text
+   (Responsive Media 2.0, page_heroes.image_mobile_height; none is
+   "automatic": the heights above). A phone is at most 640px wide, the one
+   breakpoint of assets/css/responsive-media.css. */
+@media (max-width: 640px){
+  .page-hero--background.page-hero--mobile-compact{ --page-hero-height: clamp(16rem, 45vh, 20rem); }
+  .page-hero--background.page-hero--mobile-normal{ --page-hero-height: clamp(22rem, 60vh, 28rem); }
+  .page-hero--background.page-hero--mobile-large{ --page-hero-height: clamp(28rem, 80vh, 38rem); }
+}

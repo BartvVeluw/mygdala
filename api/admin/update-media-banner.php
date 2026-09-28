@@ -4,8 +4,9 @@
  * POST /api/admin/update-media-banner.php
  *
  * Saves one Mediabanner block (admin/media-banner.php?section=...): the
- * picture or video, the items after it, the width, the height, a picture's
- * focus point, the playing options and the choices of a sequence. The same
+ * picture or video, the items after it, the width, the height, how a
+ * picture sits in the frame, the playing options and the choices of a
+ * sequence. The same
  * `<page>:<key>` gate as api/admin/update-spacer.php: the page must exist by
  * its immutable content_key AND the block's row must already exist (created
  * by App\Service\SectionRegistry::create()), before anything is read or
@@ -22,9 +23,13 @@
  *     keeps the stored list). Each must be a picture or a video of the
  *     library, the first item is not repeated, and there are at most
  *     MediaSequence::MAX_ITEMS in all.
- *   - width, height, image_focus, slide_transition, slide_duration,
- *     slide_controls: words and numbers of closed lists. A form without the
- *     field keeps what is stored, an unknown value is refused.
+ *   - width, height, slide_transition, slide_duration, slide_controls: words
+ *     and numbers of closed lists. A form without the field keeps what is
+ *     stored, an unknown value is refused.
+ *   - how a picture sits in the frame (Responsive Media 2.0): its focus
+ *     point, its fit, a phone's own picture, point, fit and height, read by
+ *     App\Service\Media\ResponsiveImage::fromRequest() and refused part by
+ *     part (`presentation.<part>`).
  *   - the three video switches: a checkbox posts "1", and an absent one is
  *     off. Anything else ("yes", an array) is refused, never read as on.
  *   - a video that does not play by itself must have controls: otherwise a
@@ -35,7 +40,7 @@
  *   - poster_media_id: empty, or a picture of the library.
  *
  * WHAT IS KEPT. The chosen items decide which settings mean anything. With a
- * picture among them the focus point is stored; with a video, or with more
+ * picture among them its presentation is stored (App\Repository\ResponsiveImageRepository); with a video, or with more
  * than one item, the playing options are, and the stored ones stay as they
  * are otherwise, so a banner that goes back to a video gets them back and a
  * single picture never gains options it cannot show. The sequence's choices
@@ -59,7 +64,8 @@ use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Repository\ResponsiveImageRepository;
 use App\Service\Media\MediaSequence;
 use App\Service\MediaBannerContent;
 
@@ -161,9 +167,6 @@ $choices = [
     'width' => [MediaBannerContent::WIDTHS, MediaBannerContent::width($section['width'] ?? null)],
     'height' => [MediaBannerContent::HEIGHTS, MediaBannerContent::height($section['height'] ?? null)],
 ];
-if ($hasImage) {
-    $choices['image_focus'] = [ImageFocus::keys(), ImageFocus::normalise($section['image_focus'] ?? null)];
-}
 if ($isSequence) {
     $choices['slide_transition'] = [MediaSequence::TRANSITIONS, MediaSequence::transition($section['slide_transition'] ?? null)];
     $choices['slide_duration'] = [array_map('strval', MediaSequence::DURATIONS), (string) MediaSequence::duration($section['slide_duration'] ?? null)];
@@ -226,6 +229,18 @@ if ($isVideo && ($posterPosted === null || ($posterPosted !== '' && $posterPoste
 $settings['media_id'] = $media?->id;
 $settings['poster_media_id'] = $isVideo ? $poster?->id : null;
 
+// How a picture sits in the frame, on a large screen and on a phone
+// (Responsive Media 2.0): stored only with a picture among the items, and a
+// part the form does not carry keeps what is stored.
+$imageSlot = MediaBannerContent::imageSlot();
+$presentation = ResponsiveImage::fromRow($section, $imageSlot);
+if ($hasImage) {
+    [$presentation, $presentationErrors] = ResponsiveImage::fromRequest($_POST, $imageSlot, $presentation);
+    foreach ($presentationErrors as $part => $message) {
+        $fieldErrors['presentation.' . $part] = $message;
+    }
+}
+
 // What a refused save hands back: everything as posted, so the editor reopens
 // on what was chosen.
 $old = [
@@ -233,7 +248,7 @@ $old = [
     'poster_media_id' => (string) $posterPosted,
     'width' => $settings['width'],
     'height' => $settings['height'],
-    'image_focus' => $settings['image_focus'] ?? ImageFocus::normalise($posted('image_focus')),
+    'presentation' => $presentation->toRow($imageSlot),
     'video_autoplay' => $video['video_autoplay'] === true,
     'video_loop' => $video['video_loop'] === true,
     'video_controls' => $video['video_controls'] === true,
@@ -257,6 +272,7 @@ try {
     $db->beginTransaction();
 
     $repository->update((int) $section['id'], $settings);
+    (new ResponsiveImageRepository())->save('media_banners', (int) $section['id'], $imageSlot, $presentation);
     if ($sequencePosted || $media === null) {
         $repository->replaceItems((int) $section['id'], $sequence);
     }

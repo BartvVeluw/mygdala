@@ -115,7 +115,8 @@ final class TextImageSplitBlock extends BlockDefinition
 
     public function styles(): array
     {
-        return ['assets/css/blocks/text-image-split.css'];
+        // The shared picture rules first (Responsive Media 2.0).
+        return ['assets/css/responsive-media.css', 'assets/css/blocks/text-image-split.css'];
     }
 
     public function create(string $pageSlug): array
@@ -164,18 +165,17 @@ final class TextImageSplitBlock extends BlockDefinition
     public function sampleContent(BlockSamples $samples): ?array
     {
         $image = $samples->image() + ['media_id' => null];
-        $item = static fn (string $side, string $column, string $height, string $focus): array => [
+        $item = static fn (string $side, string $column, string $height): array => [
             'image_side' => $side,
             'image_column' => $column,
             'image_height' => $height,
-            'image_focus' => $focus,
         ];
 
         return [
             'title' => $samples->localized('short_title'),
             'lead' => $samples->localized('lead'),
             'items' => [
-                $item('right', '50', 'medium', 'center') + [
+                $item('right', '50', 'medium') + [
                     'eyebrow' => $samples->localized('eyebrow'),
                     'title' => $samples->localized('title'),
                     'body' => $samples->localizedRichText(),
@@ -183,7 +183,7 @@ final class TextImageSplitBlock extends BlockDefinition
                     'button_url' => BlockSamples::LINK,
                     'image' => $image,
                 ],
-                $item('left', '25', 'small', 'center') + [
+                $item('left', '25', 'small') + [
                     'eyebrow' => '',
                     'title' => '',
                     'body' => '<p>' . htmlspecialchars($samples->localized('body'), ENT_NOQUOTES, 'UTF-8') . '</p>',

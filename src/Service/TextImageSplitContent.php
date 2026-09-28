@@ -5,7 +5,8 @@ namespace App\Service;
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
 
@@ -18,11 +19,12 @@ use App\Service\Routing\RequestLanguage;
  *
  * AN ITEM has, the same in every language: its picture (a Media Library
  * item), which side the picture is on, the picture's share of the row, how
- * high the picture is, which part of a cropped picture stays in view, and a
- * button address. Per website language (BlockLocalization): an eyebrow, a
- * title, a rich-text body, a button label and the picture's own alt text.
- * The layout is four closed lists of keys (SIDES, COLUMNS, HEIGHTS and
- * App\Service\Media\ImageFocus); what they look like is
+ * high the picture is, how the picture sits in that frame on a large screen
+ * and on a phone (Responsive Media 2.0: its focus point, its fit, a phone's
+ * own picture, point, fit and height; imageSlot()), and a button address. Per
+ * website language (BlockLocalization): an eyebrow, a title, a rich-text
+ * body, a button label and the picture's own alt text. The layout is three
+ * closed lists of keys (SIDES, COLUMNS, HEIGHTS); what they look like is
  * assets/css/blocks/text-image-split.css's, never stored CSS.
  *
  * AN ITEM SHOWS when it has a picture, or text in the default language: an
@@ -73,7 +75,6 @@ class TextImageSplitContent
         'image_side' => 'right',
         'image_column' => '50',
         'image_height' => 'medium',
-        'image_focus' => ImageFocus::DEFAULT,
     ];
 
     /**
@@ -108,12 +109,16 @@ class TextImageSplitContent
      *                                own title and lead ('' when it has
      *                                none) and 'items': a
      *                                list of image_side, image_column,
-     *                                image_height, image_focus (keys),
+     *                                image_height (keys), mobile_height
+     *                                (a phone's own height key, or null),
      *                                eyebrow, title,
      *                                body (sanitized HTML), button_label,
      *                                button_url (both '' when there is no
-     *                                button) and image: null, or image_path,
-     *                                alt, width, height and media_id.
+     *                                button), image: null, or image_path,
+     *                                alt, width, height and media_id, and
+     *                                picture: null, or what
+     *                                partials/responsive-image.php prints
+     *                                (ResponsiveImage::forRender()).
      *                                Templates must only render the section
      *                                when 'state' === STATE_ACTIVE; 'items'
      *                                is still present (empty) otherwise.
@@ -181,7 +186,11 @@ class TextImageSplitContent
      * here, so nothing else ever reaches the database or the markup.
      *
      * @param array<string, mixed> $values
-     * @return array{image_side: string, image_column: string, image_height: string, image_focus: string}
+     * How the picture sits in its frame (its focus point, its fit, a phone's
+     * own picture, point, fit and height) is not a layout key: it is the
+     * item's Responsive Media presentation (imageSlot()).
+     *
+     * @return array{image_side: string, image_column: string, image_height: string}
      */
     public static function layout(array $values): array
     {
@@ -192,8 +201,18 @@ class TextImageSplitContent
             'image_side' => $pick($values['image_side'] ?? null, self::SIDES, self::DEFAULTS['image_side']),
             'image_column' => $pick($values['image_column'] ?? null, self::COLUMNS, self::DEFAULTS['image_column']),
             'image_height' => $pick($values['image_height'] ?? null, self::HEIGHTS, self::DEFAULTS['image_height']),
-            'image_focus' => ImageFocus::normalise($values['image_focus'] ?? null),
         ];
+    }
+
+    /**
+     * Where an item keeps its picture's presentation (Responsive Media 2.0):
+     * the image_ columns of text_image_split_items, with a fit of its own —
+     * the picture fills a frame of the item's chosen height — and a phone
+     * height of its own (text-image-split.css).
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id', fit: true, mobileHeight: true);
     }
 
     /**
@@ -251,8 +270,11 @@ class TextImageSplitContent
         }
 
         $layout = self::layout($item);
+        $presentation = ResponsiveImage::fromRow($item, self::imageSlot());
 
         return $layout + [
+            'mobile_height' => $presentation->mobileHeight,
+            'picture' => $image === null ? null : $presentation->forRender($image),
             'eyebrow' => $words['eyebrow'],
             'title' => $words['title'],
             'body' => $hasBody ? $words['body'] : '',

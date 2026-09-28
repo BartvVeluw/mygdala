@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/responsive-image.php';
 
 /**
  * Renders a Tekst met afbeelding block (App\Service\TextImageSplitContent):
@@ -27,11 +28,11 @@ require_once __DIR__ . '/eyebrow.php';
  * (core.css, `.service-detail__head--image-left`), so a heading is never
  * buried under its picture and a stack of items keeps one rhythm.
  *
- * Everything that is a choice is a class naming a key (side, column, height;
- * assets/css/blocks/text-image-split.css turns them into sizes). The one
- * inline value is the picture's object-position, which
- * App\Service\Media\ImageFocus::objectPosition() derives from the item's
- * focus key, one of a closed list of nine points.
+ * Everything that is a choice is a class naming a key (side, column, height,
+ * a phone's own height; assets/css/blocks/text-image-split.css turns them
+ * into sizes). The picture is printed by partials/responsive-image.php
+ * (Responsive Media 2.0): its focus point as an inline object-position, its
+ * fit, and a phone's own picture, point and fit when it has them.
  *
  * An item without a title opens its body with the larger lead paragraph, as
  * the first paragraph of a title-less block always did. The body is
@@ -81,6 +82,7 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
                 . ' text-image__item--image-' . $item['image_side']
                 . ' text-image__item--column-' . $item['image_column']
                 . ' text-image__item--height-' . $item['image_height']
+                . (($item['mobile_height'] ?? null) !== null ? ' text-image__item--mobile-' . $item['mobile_height'] : '')
                 . ($image === null ? ' text-image__item--text-only' : '')
                 . (!$hasText ? ' text-image__item--image-only' : '');
             $revealAttr = ' data-reveal data-reveal-group="' . $h($group . '-' . $index) . '"';
@@ -104,7 +106,11 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
             <?php endif; ?>
             <?php if ($image !== null): ?>
             <div class="text-image__media"<?= $revealAttr ?>>
-              <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy" style="object-position: <?= $h(\App\Service\Media\ImageFocus::objectPosition($item['image_focus'])) ?>;">
+              <?php
+                // An item read without a presentation (the block library's
+                // sample) prints its picture plainly: the middle, cover.
+                render_responsive_image($item['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender($image), ['loading' => 'lazy', 'position' => 'always']);
+              ?>
             </div>
             <?php endif; ?>
           </div>

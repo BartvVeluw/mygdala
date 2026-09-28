@@ -158,18 +158,21 @@ final class MediaBannerRenderTest extends TestCase
     public function testTheFocusPointMovesAPictureAndNeverAVideo(): void
     {
         foreach (ImageFocus::keys() as $focus) {
-            $html = $this->render($this->content(['media_id' => self::PICTURE, 'image_focus' => $focus]));
+            [$x, $y] = ImageFocus::point($focus);
+            $html = $this->render($this->content(['media_id' => self::PICTURE, 'image_focus_x' => $x, 'image_focus_y' => $y]));
             if ($focus === ImageFocus::DEFAULT) {
                 self::assertStringNotContainsString('style=', $html);
                 continue;
             }
-            self::assertStringContainsString('style="object-position: ' . ImageFocus::objectPosition($focus) . ';"', $html, $focus);
+            self::assertStringContainsString('style="object-position: ' . $x . '% ' . $y . '%;"', $html, $focus);
         }
 
-        self::assertStringNotContainsString('style=', $this->render($this->content(['media_id' => self::PICTURE, 'image_focus' => '10% 20%'])), 'an unknown point is the centre');
+        // A point of its own, and a stored value that is no number reads as the middle.
+        self::assertStringContainsString('style="object-position: 37% 64%;"', $this->render($this->content(['media_id' => self::PICTURE, 'image_focus_x' => 37, 'image_focus_y' => 64])));
+        self::assertStringNotContainsString('style=', $this->render($this->content(['media_id' => self::PICTURE, 'image_focus_x' => '10% 20%'])), 'what is no number is the centre');
 
-        $video = $this->content(['media_id' => self::VIDEO, 'image_focus' => 'top-left']);
-        self::assertSame(ImageFocus::DEFAULT, $video['focus']);
+        $video = $this->content(['media_id' => self::VIDEO, 'image_focus_x' => 0, 'image_focus_y' => 0]);
+        self::assertSame([50, 50], [$video['presentation']->focusX, $video['presentation']->focusY]);
         self::assertStringNotContainsString('style=', $this->render($video));
     }
 
@@ -260,7 +263,7 @@ final class MediaBannerRenderTest extends TestCase
         self::assertNotNull($definition);
         self::assertSame('media_banners', $definition->contentTable());
         self::assertSame([], $definition->translatableFields(), 'no words');
-        self::assertSame(['assets/css/media-sequence.css', 'assets/css/blocks/media-banner.css'], $definition->styles(), 'its own sizes after the shared media sequence');
+        self::assertSame(['assets/css/responsive-media.css', 'assets/css/media-sequence.css', 'assets/css/blocks/media-banner.css'], $definition->styles(), 'its own sizes after the shared picture rules and media sequence');
         self::assertSame(['assets/js/media-sequence.js', 'assets/js/blocks/media-banner.js'], $definition->scripts());
         self::assertSame([BlockPreview::MEDIA], $definition->preview());
         self::assertTrue($definition->meta()['allow_multiple']);

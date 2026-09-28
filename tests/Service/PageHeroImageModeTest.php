@@ -102,7 +102,8 @@ final class PageHeroImageModeTest extends TestCase
             'media_id' => $withMedia ? $this->mediaItem('Een werkbank') : null,
             'image_mode' => $mode,
             'hero_height' => PageHeroContent::HEIGHT_LARGE,
-            'image_focus' => 'bottom-right',
+            'image_focus_x' => 100,
+            'image_focus_y' => 100,
         ]);
 
         $html = $this->renderHeader();
@@ -242,9 +243,11 @@ final class PageHeroImageModeTest extends TestCase
     #[DataProvider('focusPoints')]
     public function testTheFocusPointIsTheObjectPositionOfThePictureInEveryShape(string $focus): void
     {
+        [$x, $y] = ImageFocus::point($focus);
+
         foreach ([PageHeroContent::IMAGE_BACKGROUND, PageHeroContent::IMAGE_RIGHT] as $mode) {
             $this->removeHeader();
-            $this->storeHeader(['media_id' => $this->mediaItem('Foto'), 'image_mode' => $mode, 'image_focus' => $focus]);
+            $this->storeHeader(['media_id' => $this->mediaItem('Foto'), 'image_mode' => $mode, 'image_focus_x' => $x, 'image_focus_y' => $y]);
 
             $html = $this->renderHeader();
 
@@ -252,7 +255,7 @@ final class PageHeroImageModeTest extends TestCase
                 $this->assertStringNotContainsString('object-position', $html, 'the middle is what the browser does by itself');
             } else {
                 $this->assertMatchesRegularExpression(
-                    '#<img [^>]*style="object-position: ' . preg_quote(ImageFocus::objectPosition($focus), '#') . ';"#',
+                    '#<img [^>]*style="object-position: ' . $x . '% ' . $y . '%;"#',
                     $html,
                     $mode
                 );
@@ -265,15 +268,17 @@ final class PageHeroImageModeTest extends TestCase
         $this->storeHeader(['media_id' => $this->mediaItem('Foto'), 'image_mode' => PageHeroContent::IMAGE_BACKGROUND]);
 
         // Only a hand-edited row can hold these: the endpoint refuses them.
+        // A focus point outside 0-100 is clamped, a fit or a phone height
+        // that is no word of its list reads as none.
         Database::connection()->prepare(
-            'UPDATE page_heroes SET image_mode = :mode, hero_height = :height, image_focus = :focus WHERE page_slug = :slug'
-        )->execute(['mode' => 'diagonal', 'height' => '900px', 'focus' => '10% 20%', 'slug' => self::TEST_PAGE]);
+            'UPDATE page_heroes SET image_mode = :mode, hero_height = :height, image_focus_x = 255, image_fit = :fit, image_mobile_height = :mobile WHERE page_slug = :slug'
+        )->execute(['mode' => 'diagonal', 'height' => '900px', 'fit' => 'stretch', 'mobile' => '9999px', 'slug' => self::TEST_PAGE]);
         self::clearCaches();
 
         $content = PageHeroContent::forSlug(self::TEST_PAGE);
         $this->assertSame(
-            [PageHeroContent::IMAGE_NONE, PageHeroContent::HEIGHT_MEDIUM, ImageFocus::DEFAULT],
-            [$content['image_mode'], $content['hero_height'], $content['image_focus']]
+            [PageHeroContent::IMAGE_NONE, PageHeroContent::HEIGHT_MEDIUM, 100, 'cover', null],
+            [$content['image_mode'], $content['hero_height'], $content['presentation']->focusX, $content['presentation']->fit, $content['presentation']->mobileHeight]
         );
         $this->assertSame(['page-hero'], $this->sectionClasses($this->renderHeader()), 'an unknown place is no place: no picture markup at all');
     }
@@ -481,9 +486,11 @@ final class PageHeroImageModeTest extends TestCase
         $this->assertMatchesRegularExpression('/\.page-hero__media\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/', $rules, 'the picture is a layer, out of the flow');
         $this->assertMatchesRegularExpression('/\.page-hero--background \.page-hero__body\{\s*margin-block:\s*auto;\s*\}/', $rules, 'the text is centred in the room the band leaves');
 
-        // Every height is a clamp of rem and vh, never a number from the database.
+        // Every height is a clamp of rem and vh, never a number from the database:
+        // three steps on a wide and on a narrow screen, and a phone's own three
+        // (Responsive Media 2.0, page-hero--mobile-<height>).
         preg_match_all('/--page-hero-height:\s*([^;]+);/', $rules, $heights);
-        $this->assertCount(6, $heights[1], 'three steps, on a wide and on a narrow screen');
+        $this->assertCount(9, $heights[1], 'three steps, on a wide and on a narrow screen, and a phone\'s own');
         foreach ($heights[1] as $height) {
             $this->assertMatchesRegularExpression('/^clamp\(\d+(\.\d+)?rem, \d+vh, \d+(\.\d+)?rem\)$/', trim($height));
         }
@@ -516,10 +523,15 @@ final class PageHeroImageModeTest extends TestCase
             $this->attach('page_hero');
         }
 
+        // The focus point is stored where Responsive Media 2.0 stores it.
+        $point = [(int) ($values['image_focus_x'] ?? 50), (int) ($values['image_focus_y'] ?? 50)];
+        unset($values['image_focus_x'], $values['image_focus_y']);
+
         $repository = new PageHeroRepository();
         $repository->upsert(self::TEST_PAGE, array_merge(PageHeroContent::startingValues(), ['is_active' => true], $values));
 
         $id = (int) $repository->findBySlug(self::TEST_PAGE)['id'];
+        (new \App\Repository\ResponsiveImageRepository())->save('page_heroes', $id, PageHeroContent::imageSlot(), new \App\Service\Media\ResponsiveImage($point[0], $point[1]));
         BlockLocalization::save('page_heroes', $id, 'nl', array_merge(
             ['eyebrow' => 'Bovenschrift', 'title' => 'Een paginakop', 'lead' => 'Een inleiding.', 'image_alt' => ''],
             $words

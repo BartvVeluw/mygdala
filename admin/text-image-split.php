@@ -9,7 +9,7 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_admin_collapse.php';
 
@@ -18,6 +18,7 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
+use App\Service\Media\ResponsiveImage;
 use App\Service\Routing\LinkChoice;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
@@ -36,8 +37,9 @@ use App\Repository\TextImageSplitRepository;
  * "Opslaan" (or the save bar) stores all of it. Choosing a picture only fills
  * the item's field. ↑, ↓, Verwijderen and "Item toevoegen" work on screen
  * (admin/assets/row-list.js); a new item gets the rich-text editor
- * (admin/assets/admin.js) and the focus preview (admin/assets/image-focus.js)
- * like the ones the server printed. Without JavaScript ↑ and ↓ submit the
+ * (admin/assets/admin.js) and the picture's presentation editor
+ * (Responsive Media 2.0, admin/assets/responsive-image.js) like the ones the
+ * server printed. Without JavaScript ↑ and ↓ submit the
  * whole form, one empty item waits at the end of the list, and the body is a
  * plain textarea of HTML.
  *
@@ -137,16 +139,17 @@ $blockWord = static function (string $field) use ($old, $oldInThisLanguage, $spl
 $blockOptional = admin_localized_optional_attr($editLanguage);
 
 // The items on screen: as a refused save handed them back, else as stored.
+$imageSlot = TextImageSplitContent::imageSlot();
 $itemRows = editor_rows_on_screen(
     $repository->findItemsBySectionId($splitId),
     $oldInThisLanguage ? (array) ($old['items'] ?? []) : null,
-    static function (array $item) use ($editLanguage): array {
+    static function (array $item) use ($editLanguage, $imageSlot): array {
         $fields = [
             'media_id' => (string) (int) ($item['media_id'] ?? 0),
             'button_link_type' => LinkChoice::storedType($item['button_link_type'] ?? null, (string) ($item['button_url'] ?? '')),
             'button_link_target' => (string) (int) ($item['button_link_target_id'] ?? 0),
             'button_url' => (string) ($item['button_url'] ?? ''),
-        ] + TextImageSplitContent::layout($item);
+        ] + TextImageSplitContent::layout($item) + ResponsiveImage::fromRow($item, $imageSlot)->toRow($imageSlot);
 
         foreach (array_keys(BlockLocalization::fields('text_image_split_items')) as $field) {
             $fields[$field] = BlockLocalization::raw('text_image_split_items', (int) $item['id'], $field, $editLanguage);
@@ -177,7 +180,7 @@ $heights = [
  *
  * @param array<string, mixed>|null $stored the stored row, null for a new item
  */
-$itemRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($placeholder, $fieldErrors, $h, $sides, $columns, $heights): void {
+$itemRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($placeholder, $fieldErrors, $h, $sides, $columns, $heights, $imageSlot): void {
     [, $hint] = editor_row_word_hints($key, '', $placeholder);
     $layout = TextImageSplitContent::layout($fields);
 
@@ -228,14 +231,26 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
     echo '</div>';
     echo '<p class="admin-text-muted">' . admin_te('block_textimage.layout_uitleg') . '</p>';
 
-    media_focus_field(
-        editor_row_name('items', $key, 'image_focus'),
-        $layout['image_focus'],
-        $previewSrc,
-        admin_t('block_textimage.focus'),
-        admin_t('help.block_textimage.focus'),
-        admin_t('block_textimage.focus_voorbeeld')
-    );
+    // How the picture sits in its frame, on a large screen and on a phone
+    // (Responsive Media 2.0). The frames take the item's shape from its
+    // column and height choices (admin.css, .admin-tis-item).
+    $presentation = ResponsiveImage::fromRow($fields, $imageSlot);
+    $presentationErrors = [];
+    foreach ($fieldErrors as $errorKey => $message) {
+        if (str_starts_with((string) $errorKey, 'items.' . $key . '.presentation.')) {
+            $presentationErrors[substr((string) $errorKey, strlen('items.' . $key . '.presentation.'))] = (string) $message;
+        }
+    }
+    responsive_image_field([
+        'slot' => $imageSlot,
+        'value' => $presentation,
+        'id' => editor_row_id('items', $key, 'picture'),
+        'name' => static fn (string $column): string => editor_row_name('items', $key, $column),
+        'preview' => $previewSrc,
+        'picker' => editor_row_name('items', $key, 'media_id'),
+        'mobile_media' => MediaService::find($presentation->mobileMediaId),
+        'errors' => $presentationErrors,
+    ]);
 
     // The button: the shared destination field every block button has, in a
     // group of its own so each item's label follows its own kind
@@ -356,7 +371,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<?php responsive_image_field_script(); ?>
 <?php link_target_scripts(); ?>
 <?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>

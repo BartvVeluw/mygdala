@@ -45,6 +45,13 @@
  * picker removes the card's image and its alt text in every language, so the
  * card shows the fixed icon. An image that predates the library (a path and
  * no media item) is kept unless `remove_legacy_image` is ticked.
+ *
+ * HOW THE PICTURE SITS IN THE CARD (Responsive Media 2.0): its focus point,
+ * its fit, and a phone's own picture, point and fit, read by
+ * App\Service\Media\ResponsiveImage::fromRequest() from the fields
+ * admin/_responsive_image_field.php prints, refused part by part
+ * (`presentation.<part>`), and written by App\Repository\ResponsiveImageRepository
+ * in the same transaction. A form without those fields keeps what is stored.
  */
 
 declare(strict_types=1);
@@ -62,7 +69,8 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\CardCarouselContent;
 use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Repository\ResponsiveImageRepository;
 use App\Service\Routing\LinkChoice;
 use App\Repository\CardCarouselRepository;
 
@@ -133,9 +141,14 @@ $settings = ['link_type' => $link['link_type'], 'link_target_id' => $link['link_
 
 $settings += ['link_url' => $link['link_type'] === null ? '' : $linkUrl, 'is_active' => $isActive];
 
-// Which part of the cropped picture stays in view: one of nine points, the
-// default for anything else. A form without the field keeps what is stored.
-$settings['image_focus'] = ImageFocus::normalise(array_key_exists('image_focus', $_POST) ? $_POST['image_focus'] : ($card['image_focus'] ?? null));
+// How the picture sits in the card, on a large screen and on a phone
+// (Responsive Media 2.0): refused parts are named, a part the form does not
+// carry keeps what is stored.
+$imageSlot = CardCarouselContent::imageSlot();
+[$presentation, $presentationErrors] = ResponsiveImage::fromRequest($_POST, $imageSlot, ResponsiveImage::fromRow($card, $imageSlot));
+foreach ($presentationErrors as $part => $message) {
+    $fieldErrors['presentation.' . $part] = $message;
+}
 
 // ---------------------------------------------------------------- the image
 
@@ -198,6 +211,7 @@ foreach ($fieldErrors as $message) {
 $old = ['language_code' => $languageCode, 'link_type' => $linkType, 'link_url' => $linkUrl] + $words + $settings + [
     'link_target' => array_map('intval', array_filter($postedTargets, 'is_scalar')),
     'tags' => [],
+    'presentation' => $presentation->toRow($imageSlot),
 ];
 foreach ($tagRows as $row) {
     $old['tags'][$row['key']] = $row['fields']['label'] ?? '';
@@ -217,6 +231,7 @@ try {
     $db->beginTransaction();
 
     $repository->updateCard($cardId, $settings);
+    (new ResponsiveImageRepository())->save('carousel_cards', $cardId, $imageSlot, $presentation);
 
     if ($chosen['media_id'] !== null) {
         $repository->updateCardImage($cardId, $chosen);

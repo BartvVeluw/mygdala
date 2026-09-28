@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Blocks;
 
 use App\Repository\MediaBannerRepository;
-use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
@@ -117,7 +116,9 @@ final class MediaBannerBlock extends BlockDefinition
             'poster' => '',
             'width' => MediaBannerContent::DEFAULT_WIDTH,
             'height' => MediaBannerContent::DEFAULT_HEIGHT,
-            'focus' => ImageFocus::DEFAULT,
+            // No presentation of its own: the partial prints the sample
+            // picture plainly, the middle and cover.
+            'presentation' => new \App\Service\Media\ResponsiveImage(),
             'autoplay' => false,
             'loop' => false,
             'controls' => false,
@@ -145,7 +146,7 @@ final class MediaBannerBlock extends BlockDefinition
     /** The banner's own sizes, and the media sequence it shares with the Paginakop. */
     public function styles(): array
     {
-        return ['assets/css/media-sequence.css', 'assets/css/blocks/media-banner.css'];
+        return ['assets/css/responsive-media.css', 'assets/css/media-sequence.css', 'assets/css/blocks/media-banner.css'];
     }
 
     public function scripts(): array

@@ -184,7 +184,7 @@ final class BlockRowEditorsHttpTest extends TestCase
             'row' => [
                 'title' => 'Het verhaal', 'body' => '<p>Wij maken alles op maat.</p>', 'button_label' => 'Neem contact op',
                 'media_id' => '{media}', 'alt' => 'De werkplaats van binnen', 'button_url' => '/contact',
-                'image_side' => 'left', 'image_column' => '25', 'image_height' => 'small', 'image_focus' => 'bottom',
+                'image_side' => 'left', 'image_column' => '25', 'image_height' => 'small', 'image_focus_x' => '50', 'image_focus_y' => '100',
             ],
             'image' => 'optional',
         ],
@@ -579,9 +579,11 @@ final class BlockRowEditorsHttpTest extends TestCase
     }
 
     /**
-     * Tekst met afbeelding 2.0: an item's layout is four closed lists, stored
+     * Tekst met afbeelding 2.0: an item's layout is three closed lists, stored
      * with its words in the one save; a key the lists do not have becomes the
-     * default. The body is rich text, sanitized on the way in.
+     * default. Its focus point (Responsive Media 2.0) is two whole
+     * percentages, a number outside 0-100 clamped. The body is rich text,
+     * sanitized on the way in.
      */
     public function testAnItemsLayoutAndRichBodyAreStoredAndAnUnknownKeyBecomesTheDefault(): void
     {
@@ -591,15 +593,15 @@ final class BlockRowEditorsHttpTest extends TestCase
         $row = $this->row('text_image_split_items');
 
         $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [
-            (string) $a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-right',
+            (string) $a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus_x' => '100', 'image_focus_y' => '0',
                 'body' => '<p>Veilig <strong>vet</strong></p><script>alert(1)</script>'] + $row,
-            (string) $b => ['image_side' => 'middle', 'image_column' => '33', 'image_height' => 'huge', 'image_focus' => 'nowhere'] + $row,
+            (string) $b => ['image_side' => 'middle', 'image_column' => '33', 'image_height' => 'huge', 'image_focus_x' => '-20', 'image_focus_y' => '250'] + $row,
         ]));
 
         self::assertSame(
             [
-                $a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-right'],
-                $b => ['image_side' => 'right', 'image_column' => '50', 'image_height' => 'medium', 'image_focus' => 'center'],
+                $a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus_x' => 100, 'image_focus_y' => 0],
+                $b => ['image_side' => 'right', 'image_column' => '50', 'image_height' => 'medium', 'image_focus_x' => 0, 'image_focus_y' => 100],
             ],
             $this->itemLayouts()
         );
@@ -692,9 +694,9 @@ final class BlockRowEditorsHttpTest extends TestCase
         $neutral = $this->neutral('text_image_split_items');
 
         $this->assertSaved($this->save($this->signIn('en'), 'text_image_split_items', 'en', [], [
-            (string) $a => ['title' => 'The story', 'image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-left'] + $neutral,
+            (string) $a => ['title' => 'The story', 'image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus_x' => '0', 'image_focus_y' => '0'] + $neutral,
         ]));
-        self::assertSame([$a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-left']], $this->itemLayouts());
+        self::assertSame([$a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus_x' => 0, 'image_focus_y' => 0]], $this->itemLayouts());
         self::assertSame($dutch, $this->stored('text_image_split_items', $a, 'nl'), 'the Dutch words are untouched');
         self::assertSame(['title' => 'The story'], $this->stored('text_image_split_items', $a, 'en'));
 
@@ -763,9 +765,11 @@ final class BlockRowEditorsHttpTest extends TestCase
     /**
      * The empty item a new row starts from carries everything a row needs on
      * the screen: the rich-text field, the Media picker, the alt text, the
-     * three layout choices and the focus point. A row added without a
-     * request works like one the server printed (row-list.js, admin.js and
-     * image-focus.js are delegated or re-run for it).
+     * three layout choices and the picture's presentation (Responsive Media
+     * 2.0: the focus point in the middle, the desktop picture on a phone). A
+     * row added without a request works like one the server printed
+     * (row-list.js, admin.js and responsive-image.js are delegated or re-run
+     * for it).
      */
     public function testTheTemplateOfANewItemHasEveryPartOfAnItem(): void
     {
@@ -775,13 +779,16 @@ final class BlockRowEditorsHttpTest extends TestCase
 
         foreach ([
             'data-richtext-field', 'name="items[__KEY__][body]"', 'data-media-picker', 'name="items[__KEY__][media_id]"',
-            'name="items[__KEY__][alt]"', 'data-image-focus', 'name="items[__KEY__][image_focus]" value="center" data-object-position="50% 50%" checked',
+            'name="items[__KEY__][alt]"', 'data-rm ', 'data-rm-picker="items[__KEY__][media_id]"',
+            'name="items[__KEY__][image_focus_x]" min="0" max="100" step="1" value="50"',
+            'name="items[__KEY__][image_focus_y]" min="0" max="100" step="1" value="50"',
+            'name="items[__KEY__][image_mobile_source]" value="desktop" checked data-rm-source',
             'name="items[__KEY__][image_side]" value="right" checked', 'name="items[__KEY__][image_column]" value="50" data-tis-column="50" checked',
             'name="items[__KEY__][image_height]" value="medium" data-tis-height="medium" checked',
         ] as $part) {
             self::assertStringContainsString($part, $match[1]);
         }
-        self::assertStringContainsString('/admin/assets/image-focus.js', $html);
+        self::assertStringContainsString('/admin/assets/responsive-image.js', $html);
         self::assertStringContainsString('/admin/assets/vendor/quill/quill.min.js', $html);
     }
 
@@ -1368,13 +1375,15 @@ final class BlockRowEditorsHttpTest extends TestCase
     /** @return array<int, array<string, string>> the layout of every item of the block, by id */
     private function itemLayouts(): array
     {
-        $stmt = Database::connection()->prepare('SELECT id, image_side, image_column, image_height, image_focus FROM text_image_split_items WHERE text_image_split_id = ? ORDER BY sort_order, id');
+        $stmt = Database::connection()->prepare('SELECT id, image_side, image_column, image_height, image_focus_x, image_focus_y FROM text_image_split_items WHERE text_image_split_id = ? ORDER BY sort_order, id');
         $stmt->execute([$this->parentId]);
 
         $layouts = [];
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $id = (int) $row['id'];
             unset($row['id']);
+            $row['image_focus_x'] = (int) $row['image_focus_x'];
+            $row['image_focus_y'] = (int) $row['image_focus_y'];
             $layouts[$id] = $row;
         }
 

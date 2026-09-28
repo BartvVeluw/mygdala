@@ -33,9 +33,10 @@ require_once dirname(__DIR__, 2) . '/partials/section-media-banner.php';
  *   - the four guards and the `<page>:<key>` gate;
  *   - a picture or a video from the Media Library is chosen, replaced and
  *     removed; an unknown id, a document or a file no kind claims is refused;
- *   - the width, the height and the focus point come from closed lists, an
- *     unknown word is refused at its field, and a form without the field
- *     keeps what is stored;
+ *   - the width and the height come from closed lists, the picture's
+ *     presentation (Responsive Media 2.0: focus point, fit, a phone's own
+ *     height) from numbers and closed lists; an unknown value is refused at
+ *     its field, and a form without the field keeps what is stored;
  *   - the video options: switches are "1" or absent, a video without
  *     autoplay needs controls, a poster is a picture; a picture never stores
  *     posted video options or a poster, a video never stores a focus point;
@@ -138,8 +139,8 @@ final class MediaBannerHttpTest extends TestCase
         $row = $this->row($section);
 
         self::assertSame(
-            [null, 'content', 'medium', 'center', 0, 0, 1, null, 1],
-            [$row['media_id'], $row['width'], $row['height'], $row['image_focus'], (int) $row['video_autoplay'], (int) $row['video_loop'], (int) $row['video_controls'], $row['poster_media_id'], (int) $row['is_active']]
+            [null, 'content', 'medium', 50, 50, 0, 0, 1, null, 1],
+            [$row['media_id'], $row['width'], $row['height'], (int) $row['image_focus_x'], (int) $row['image_focus_y'], (int) $row['video_autoplay'], (int) $row['video_loop'], (int) $row['video_controls'], $row['poster_media_id'], (int) $row['is_active']]
         );
         self::assertSame('', $this->content($section)['kind']);
         self::assertSame('', trim($this->render($this->content($section))));
@@ -230,13 +231,17 @@ final class MediaBannerHttpTest extends TestCase
         $before = $this->row($section);
 
         foreach ([
-            'width' => '100vw',
-            'height' => '500px',
-            'image_focus' => '10% 20%',
-        ] as $field => $value) {
+            'width' => ['100vw', 'width'],
+            'height' => ['500px', 'height'],
+            // Responsive Media 2.0: a point is two numbers, and a refusal is
+            // the presentation's own.
+            'image_focus_x' => ['10% 20%', 'presentation.focus'],
+            'image_fit' => ['stretch', 'presentation.fit'],
+            'image_mobile_height' => ['9999px', 'presentation.mobile_height'],
+        ] as $field => [$value, $errorKey]) {
             $response = $this->save($session, $section, ['media_id' => (string) $picture, $field => $value]);
             $this->assertRefused($response, $field);
-            self::assertArrayHasKey($field, (array) $this->accounts->read($session, 'admin_media_banner_field_errors'), $field . ': the message is at its field');
+            self::assertArrayHasKey($errorKey, (array) $this->accounts->read($session, 'admin_media_banner_field_errors'), $field . ': the message is at its field');
             self::assertSame($before, $this->row($section), $field . ': nothing stored');
         }
 
@@ -250,13 +255,13 @@ final class MediaBannerHttpTest extends TestCase
         $session = $this->signIn();
         $picture = $this->libraryItem('image/jpeg', 'jpg');
 
-        $this->assertSaved($this->save($session, $section, ['media_id' => (string) $picture, 'width' => 'full', 'height' => 'xlarge', 'image_focus' => 'bottom-right']));
+        $this->assertSaved($this->save($session, $section, ['media_id' => (string) $picture, 'width' => 'full', 'height' => 'xlarge', 'image_focus_x' => '100', 'image_focus_y' => '100']));
         $fields = $this->fields($section);
-        unset($fields['width'], $fields['height'], $fields['image_focus']);
+        unset($fields['width'], $fields['height'], $fields['image_focus_x'], $fields['image_focus_y'], $fields['image_presentation'], $fields['image_mobile_source']);
         $this->assertSaved($this->post($session, ['media_id' => (string) $picture] + $fields));
 
         $row = $this->row($section);
-        self::assertSame(['full', 'xlarge', 'bottom-right'], [$row['width'], $row['height'], $row['image_focus']]);
+        self::assertSame(['full', 'xlarge', 100, 100], [$row['width'], $row['height'], (int) $row['image_focus_x'], (int) $row['image_focus_y']]);
     }
 
     // -------------------------------------------------------------- video
@@ -314,22 +319,23 @@ final class MediaBannerHttpTest extends TestCase
         $picture = $this->libraryItem('image/jpeg', 'jpg');
         $poster = $this->libraryItem('image/png', 'png');
 
-        $this->assertSaved($this->save($session, $section, ['media_id' => (string) $picture, 'image_focus' => 'top']));
+        $this->assertSaved($this->save($session, $section, ['media_id' => (string) $picture, 'image_focus_x' => '50', 'image_focus_y' => '0']));
+        $point = fn (): array => [(int) $this->row($section)['image_focus_x'], (int) $this->row($section)['image_focus_y']];
 
         // A video posted with a focus point: the stored point stays.
         $this->assertSaved($this->save($session, $section, [
-            'media_id' => (string) $video, 'image_focus' => 'bottom', 'video_autoplay' => '1', 'video_loop' => '1', 'poster_media_id' => (string) $poster,
+            'media_id' => (string) $video, 'image_focus_x' => '50', 'image_focus_y' => '100', 'video_autoplay' => '1', 'video_loop' => '1', 'poster_media_id' => (string) $poster,
         ]));
-        self::assertSame('top', $this->row($section)['image_focus']);
+        self::assertSame([50, 0], $point());
 
         // A picture posted with other video options (autoplay and loop off)
         // and a poster: none of it is stored, the stored options stay, and
         // the poster goes.
         $this->assertSaved($this->save($session, $section, [
-            'media_id' => (string) $picture, 'image_focus' => 'left', 'poster_media_id' => (string) $poster,
+            'media_id' => (string) $picture, 'image_focus_x' => '0', 'image_focus_y' => '50', 'poster_media_id' => (string) $poster,
         ]));
         $row = $this->row($section);
-        self::assertSame(['left', 1, 1, 1, null], [$row['image_focus'], (int) $row['video_autoplay'], (int) $row['video_loop'], (int) $row['video_controls'], $row['poster_media_id']]);
+        self::assertSame([0, 50, 1, 1, 1, null], [(int) $row['image_focus_x'], (int) $row['image_focus_y'], (int) $row['video_autoplay'], (int) $row['video_loop'], (int) $row['video_controls'], $row['poster_media_id']]);
 
         $content = $this->content($section);
         self::assertSame([false, false, false, ''], [$content['autoplay'], $content['loop'], $content['controls'], $content['poster']], 'and none of it reaches the page');
@@ -457,7 +463,8 @@ final class MediaBannerHttpTest extends TestCase
             }
             self::assertSame($list, $values, $name . ': exactly the closed list');
         }
-        self::assertSame(ImageFocus::keys(), array_map(static fn (\DOMElement $radio): string => $radio->getAttribute('value'), iterator_to_array($xpath->query('//input[@name="image_focus"]'))));
+        self::assertSame(count(ImageFocus::keys()), $xpath->query('//*[@data-rm-focus="desktop"]//button[@data-rm-preset]')->length, 'the nine one-click points');
+        self::assertSame(1, $xpath->query('//input[@type="range" and @name="image_focus_x"]')->length, 'and the point itself');
         self::assertSame(0, $xpath->query('//*[@data-media-banner-needs and not(@hidden)]')->length, 'nothing chosen: no focus point, no playing options, no further items');
 
         $picture = $this->libraryItem('image/jpeg', 'jpg');
@@ -524,7 +531,13 @@ final class MediaBannerHttpTest extends TestCase
             'media_id' => '',
             'width' => 'content',
             'height' => 'medium',
-            'image_focus' => 'center',
+            'image_presentation' => '1',
+            'image_focus_x' => '50',
+            'image_focus_y' => '50',
+            'image_mobile_source' => 'desktop',
+            'image_fit' => 'cover',
+            'image_mobile_fit' => '',
+            'image_mobile_height' => '',
             'video_controls' => '1',
             'poster_media_id' => '',
         ];

@@ -4,7 +4,8 @@ namespace App\Service;
 
 use App\Repository\CtaBandRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
@@ -167,26 +168,42 @@ class CtaBandContent
      *
      * @param array<string, mixed> $row
      *
-     * @return array{align: string, lead_width: string, full_width: bool, background: array{image_path: string, width: int|null, height: int|null}|null, background_focus: string, overlay: string, panel: string}
+     * `picture` is the background as partials/responsive-image.php prints it
+     * (Responsive Media 2.0, backgroundSlot()): its focus point, and on a
+     * phone its own picture and point when it has them; null without one.
+     *
+     * @return array{align: string, lead_width: string, full_width: bool, background: array{image_path: string, width: int|null, height: int|null}|null, picture: array<string, mixed>|null, overlay: string, panel: string}
      *         panel is '' for no text panel, else a word of PANEL_OPACITIES
      */
     public static function presentation(array $row): array
     {
         $media = MediaService::findImage(isset($row['background_media_id']) ? (int) $row['background_media_id'] : null);
+        $background = $media === null ? null : [
+            'image_path' => $media->publicPath(),
+            'width' => $media->hasDimensions() ? $media->width : null,
+            'height' => $media->hasDimensions() ? $media->height : null,
+        ];
 
         return [
             'align' => self::choice(self::ALIGNMENTS, $row['content_align'] ?? null),
             'lead_width' => self::choice(self::LEAD_WIDTHS, $row['lead_width'] ?? null),
             'full_width' => (bool) ($row['full_width'] ?? false),
-            'background' => $media === null ? null : [
-                'image_path' => $media->publicPath(),
-                'width' => $media->hasDimensions() ? $media->width : null,
-                'height' => $media->hasDimensions() ? $media->height : null,
-            ],
-            'background_focus' => ImageFocus::normalise($row['background_focus'] ?? null),
+            'background' => $background,
+            'picture' => $background === null ? null : ResponsiveImage::fromRow($row, self::backgroundSlot())->forRender($background + ['alt' => '']),
             'overlay' => self::choice(self::OVERLAYS, $row['background_overlay'] ?? null),
             'panel' => (bool) ($row['text_panel'] ?? false) ? self::choice(self::PANEL_OPACITIES, $row['text_panel_opacity'] ?? null) : '',
         ];
+    }
+
+    /**
+     * Where a band keeps its background's presentation (Responsive Media
+     * 2.0): the background_ columns of cta_bands, a focus point and a phone's
+     * own picture and point. No fit and no height: the picture lies behind
+     * the words and the band is as tall as they are.
+     */
+    public static function backgroundSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('background_', 'background_media_id');
     }
 
     /**

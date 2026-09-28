@@ -12,7 +12,8 @@ use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Service\CardCarouselContent;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\LinkTargets;
@@ -20,7 +21,7 @@ use App\Repository\CardCarouselRepository;
 use App\Repository\PageRepository;
 
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_link_target_field.php';
 
 /**
@@ -162,8 +163,23 @@ $optional = admin_localized_optional_attr($editLanguage);
 // the default language; in a translation, what the fallback is.
 $numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="' . admin_te('block_carousel.nummer_placeholder') . '"';
 
-// The picture's focus point (ImageFocus): as handed back, else as stored.
-$imageFocus = ImageFocus::normalise(is_array($old) ? ($old['image_focus'] ?? null) : ($card['image_focus'] ?? null));
+// The picture's presentation (Responsive Media 2.0): as handed back, else
+// as stored. The frames take the card's shape: its picture height on a large
+// screen, and the same height across a phone's 82vw card (card-carousel.css,
+// a 375px phone: 308px wide).
+$imageSlot = CardCarouselContent::imageSlot();
+$presentation = ResponsiveImage::fromRow(is_array($old) && is_array($old['presentation'] ?? null) ? $old['presentation'] : $card, $imageSlot);
+$carouselImageHeight = CardCarouselContent::imageHeight((string) ($carousel['image_height'] ?? ''));
+$cardFrame = [
+    'desktop' => ['small' => '300 / 112', 'medium' => '300 / 148', 'large' => '300 / 208'][$carouselImageHeight],
+    'mobile' => ['small' => '308 / 96', 'medium' => '308 / 120', 'large' => '308 / 168'][$carouselImageHeight],
+];
+$presentationErrors = [];
+foreach ($fieldErrors as $errorField => $errorMessage) {
+    if (str_starts_with((string) $errorField, 'presentation.')) {
+        $presentationErrors[substr((string) $errorField, 13)] = (string) $errorMessage;
+    }
+}
 
 /** aria-invalid + aria-describedby for a field with an error of its own, and the message under it. */
 $invalid = static function (string $field) use ($fieldErrors, $h): string {
@@ -283,10 +299,19 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
         </div>
       <?php endif; ?>
 
-      <?php /* The focus point, and a preview in the card's own frame: the same
-               object-fit: cover and the same object-position as the website
-               (ImageFocus, media_focus_field()). */ ?>
-      <?php media_focus_field('image_focus', $imageFocus, BlockImage::fromOwner($card, null)['image_path'], admin_t('block_carousel.focus'), admin_t('help.block_carousel.focus'), admin_t('block_carousel.focus_voorbeeld')); ?>
+      <?php /* How the picture sits in the card, on a large screen and on a
+               phone (Responsive Media 2.0, responsive_image_field()): the
+               same object-fit and object-position as the website. */ ?>
+      <?php responsive_image_field([
+          'slot' => $imageSlot,
+          'value' => $presentation,
+          'id' => 'card-image',
+          'preview' => $cardMedia !== null && !$cardMedia->isVideo() ? $cardMedia->displayPath() : BlockImage::fromOwner($card, null)['image_path'],
+          'picker' => 'media_id',
+          'mobile_media' => MediaService::find($presentation->mobileMediaId),
+          'frame' => $cardFrame,
+          'errors' => $presentationErrors,
+      ]); ?>
 
       <div class="admin-field">
         <?= admin_field_label('card-alt', admin_t('common.alt_text')) ?>
@@ -361,7 +386,7 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
 <?php media_picker_script(); ?>
 <?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<?php responsive_image_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

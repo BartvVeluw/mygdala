@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\CtaBandContent;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -143,11 +143,15 @@ final class CtaBandRenderTest extends TestCase
         self::assertLessThan(strpos($html, '<h2>'), strpos($html, 'cta-band__content--panel'));
     }
 
-    public function testAFocusPointIsTheOnlyStyleAndComesFromItsList(): void
+    public function testAFocusPointIsTheOnlyStyleAndComesFromItsPresentation(): void
     {
-        $html = $this->render(['background_focus' => 'top'] + $this->withPicture());
+        // Responsive Media 2.0: the read model hands the partial the picture
+        // as partials/responsive-image.php prints it; its point is two whole
+        // percentages, nothing else reaches the style.
+        $picture = (new ResponsiveImage(50, 0))->forRender(['image_path' => '/assets/media/cta.jpg', 'alt' => '', 'width' => 1600, 'height' => 900]);
+        $html = $this->render(['picture' => $picture] + $this->withPicture());
 
-        self::assertStringContainsString('style="object-position: ' . ImageFocus::objectPosition('top') . ';"', $html);
+        self::assertStringContainsString('style="object-position: 50% 0%;"', $html);
         self::assertSame(1, substr_count($html, 'style='));
     }
 

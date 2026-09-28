@@ -20,7 +20,6 @@ final class MediaBannerRepository extends Repository
         'media_id',
         'width',
         'height',
-        'image_focus',
         'video_autoplay',
         'video_loop',
         'video_controls',

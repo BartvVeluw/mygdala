@@ -5,7 +5,8 @@ namespace App\Service;
 use App\Repository\PageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
 use App\Service\Routing\RequestLanguage;
@@ -58,7 +59,7 @@ use App\Service\Routing\RequestLanguage;
  * THE CHOICES — where the text sits, how large the title and the intro text
  * are, where the picture goes (image_mode), how tall a header with a picture
  * behind it is (hero_height) and which part of a cropped picture stays in
- * view (image_focus, App\Service\Media\ImageFocus) — are closed lists of
+ * view (its Responsive Media presentation, imageSlot()) — are closed lists of
  * words, never CSS; assets/css/blocks/page-hero.css decides what a word looks
  * like. A stored value outside its list (a hand-edited row) reads as the
  * default, and every default is how the header looked before these choices
@@ -161,8 +162,9 @@ class PageHeroContent
      *     image), image_alt (a string) and image_width/height
      *     (int|null when unknown); and content_position, title_size,
      *     text_size, image_mode and hero_height, always one of POSITIONS /
-     *     SIZES / IMAGE_MODES / HEIGHTS, and image_focus, always an
-     *     ImageFocus key; `slides`, the further pictures
+     *     SIZES / IMAGE_MODES / HEIGHTS; `presentation`, how the picture
+     *     sits in its place on a large screen and on a phone
+     *     (App\Service\Media\ResponsiveImage, imageSlot()); `slides`, the further pictures
      *     (MediaSequence::slide() shapes, possibly none), with
      *     slide_transition and slide_duration from MediaSequence's lists.
      *     Templates must only render the section when 'state' ===
@@ -210,6 +212,7 @@ class PageHeroContent
         // library's under it (BlockImage), so it replaces the word here.
         return self::$cache[$cacheKey] = array_merge($content, self::imageOf($row, $content['image_alt'] ?? ''))
             + self::choicesOf($row)
+            + ['presentation' => ResponsiveImage::fromRow($row, self::imageSlot())]
             + ['slides' => self::slidesOf($heroId, $row)];
     }
 
@@ -222,7 +225,10 @@ class PageHeroContent
      *
      * What is the same in every language; the words are startingWords().
      *
-     * @return array{media_id: null, content_position: string, title_size: string, text_size: string, image_mode: string, hero_height: string, image_focus: string}
+     * The picture's presentation is not among them: a new row starts with the
+     * columns' defaults (the middle, cover, nothing for a phone).
+     *
+     * @return array{media_id: null, content_position: string, title_size: string, text_size: string, image_mode: string, hero_height: string}
      */
     public static function startingValues(): array
     {
@@ -233,8 +239,20 @@ class PageHeroContent
             'text_size' => self::SIZE_NORMAL,
             'image_mode' => self::IMAGE_NONE,
             'hero_height' => self::HEIGHT_MEDIUM,
-            'image_focus' => ImageFocus::DEFAULT,
         ];
+    }
+
+    /**
+     * Where a header keeps its picture's presentation (Responsive Media 2.0):
+     * the image_ columns of page_heroes, with a fit — which only a picture
+     * BESIDE the text offers; behind the text it always fills the band
+     * (ResponsiveImage::coverOnly()) — and a phone height, which is the band's
+     * (page-hero.css). A sequence's pictures share it; a phone's own picture
+     * is only for a header with one picture.
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id', fit: true, mobileHeight: true);
     }
 
     /**
@@ -315,7 +333,7 @@ class PageHeroContent
      * db/migrations/20260924120000 ran) had its picture behind the text, the
      * only place there was, so that is how it reads.
      *
-     * @return array{content_position: string, title_size: string, text_size: string, image_mode: string, hero_height: string, image_focus: string, slide_transition: string, slide_duration: int}
+     * @return array{content_position: string, title_size: string, text_size: string, image_mode: string, hero_height: string, slide_transition: string, slide_duration: int}
      */
     private static function choicesOf(array $row): array
     {
@@ -327,7 +345,6 @@ class PageHeroContent
             'text_size' => self::oneOf($row['text_size'] ?? null, self::SIZES, self::SIZE_NORMAL),
             'image_mode' => self::oneOf($row['image_mode'] ?? $modeBeforeItWasAChoice, self::IMAGE_MODES, self::IMAGE_NONE),
             'hero_height' => self::oneOf($row['hero_height'] ?? null, self::HEIGHTS, self::HEIGHT_MEDIUM),
-            'image_focus' => ImageFocus::normalise($row['image_focus'] ?? null),
             'slide_transition' => MediaSequence::transition($row['slide_transition'] ?? null),
             'slide_duration' => MediaSequence::duration($row['slide_duration'] ?? null),
         ];
@@ -395,7 +412,7 @@ class PageHeroContent
             'text_size' => self::SIZE_NORMAL,
             'image_mode' => self::IMAGE_NONE,
             'hero_height' => self::HEIGHT_MEDIUM,
-            'image_focus' => ImageFocus::DEFAULT,
+            'presentation' => new ResponsiveImage(),
             'slide_transition' => MediaSequence::DEFAULT_TRANSITION,
             'slide_duration' => MediaSequence::DEFAULT_DURATION,
             'slides' => [],

@@ -120,10 +120,12 @@ final class AdminAccessControlTest extends TestCase
         // pages.manage check. It lists pages, posts and products the editor
         // may link to, and the editor's own endpoint stores the choice.
         '_link_target_field.php',
-        // The focus point of a cropped picture (a carousel card, a Tekst met
-        // afbeelding item): an output function the calling editor uses
-        // behind its own pages.manage check. No URL and no data of its own.
-        '_image_focus.php',
+        // How a picture sits in its frame, on a large screen and on a phone
+        // (Responsive Media 2.0: a carousel card, a Tekst met afbeelding
+        // item, the Paginakop, …): output functions the calling editor uses
+        // behind its own pages.manage check. No URL and no data of its own;
+        // the phone's picture goes through the shared Media picker.
+        '_responsive_image_field.php',
         // The further items of a media sequence and its choices (the
         // Paginakop's and the Mediabanner's): output functions those editors
         // use behind their own pages.manage check. It lists only the library

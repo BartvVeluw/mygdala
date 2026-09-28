@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Repository\MediaBannerRepository;
-use App\Service\Media\ImageFocus;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaSequence;
 use App\Service\Media\MediaService;
@@ -25,8 +26,10 @@ use App\Service\Media\MediaType;
  *
  * EVERY CHOICE IS A WORD FROM A CLOSED LIST (CONTENT-BLOCKS.md, "Een
  * weergavekeuze is een woord uit een gesloten lijst"): the width and the
- * height below, and the focus point of ImageFocus. A stored value this class
- * does not know reads as the default. The heights themselves are steps in
+ * height below. A stored value this class does not know reads as the default.
+ * How a picture sits in the frame on a large screen and on a phone is its
+ * Responsive Media presentation (imageSlot()): `presentation`, and for one
+ * picture `picture`, what partials/responsive-image.php prints. The heights themselves are steps in
  * assets/css/blocks/media-banner.css, smaller on a phone.
  *
  * THE VIDEO CONTRACT, decided here and nowhere else:
@@ -81,7 +84,7 @@ final class MediaBannerContent
     private static array $cache = [];
 
     /**
-     * @return array{state: string, kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, focus: string, autoplay: bool, loop: bool, controls: bool, items: list<array<string, mixed>>, transition: string, duration: int, nav: string}
+     * @return array{state: string, kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, presentation: ResponsiveImage, picture: array<string, mixed>|null, mobile_height: string|null, autoplay: bool, loop: bool, controls: bool, items: list<array<string, mixed>>, transition: string, duration: int, nav: string}
      *         kind is MediaType::IMAGE, MediaType::VIDEO or '' for nothing to
      *         show; templates must check 'state' !== STATE_HIDDEN first
      */
@@ -125,7 +128,7 @@ final class MediaBannerContent
      * @param array<string, mixed> $row
      * @param list<int>            $furtherIds the items after the first (media_banner_items), in order
      *
-     * @return array{kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, focus: string, autoplay: bool, loop: bool, controls: bool, items: list<array<string, mixed>>, transition: string, duration: int, nav: string}
+     * @return array{kind: string, src: string, mime: string, alt: string, intrinsic_width: int|null, intrinsic_height: int|null, poster: string, width: string, height: string, presentation: ResponsiveImage, picture: array<string, mixed>|null, mobile_height: string|null, autoplay: bool, loop: bool, controls: bool, items: list<array<string, mixed>>, transition: string, duration: int, nav: string}
      */
     public static function fromRow(array $row, array $furtherIds = []): array
     {
@@ -154,6 +157,10 @@ final class MediaBannerContent
         $autoplay = ($isVideo || $isSequence) && (bool) ($row['video_autoplay'] ?? false);
         $poster = $isVideo ? self::poster(isset($row['poster_media_id']) ? (int) $row['poster_media_id'] : null) : null;
 
+        // How a picture sits in the frame: only a banner with a picture has a
+        // presentation to apply; a video fills its frame from the middle.
+        $presentation = $hasImage ? ResponsiveImage::fromRow($row, self::imageSlot()) : new ResponsiveImage();
+
         // A sequence that does not move by itself has a way to move.
         $nav = MediaSequence::controls($row['slide_controls'] ?? null);
         if ($isSequence && !$autoplay && $nav === 'none') {
@@ -170,7 +177,16 @@ final class MediaBannerContent
             'poster' => $poster?->publicPath() ?? '',
             'width' => self::width($row['width'] ?? null),
             'height' => self::height($row['height'] ?? null),
-            'focus' => $hasImage ? ImageFocus::normalise($row['image_focus'] ?? null) : ImageFocus::DEFAULT,
+            'presentation' => $presentation,
+            // One picture, with a phone's own when it has one; a sequence
+            // prints its pictures with the presentation alone.
+            'picture' => $isImage && !$isSequence ? $presentation->forRender([
+                'image_path' => $item->publicPath(),
+                'alt' => trim($item->altText),
+                'width' => $item->hasDimensions() ? $item->width : null,
+                'height' => $item->hasDimensions() ? $item->height : null,
+            ]) : null,
+            'mobile_height' => $presentation->mobileHeight,
             'autoplay' => $autoplay,
             'loop' => ($isVideo || $isSequence) && (bool) ($row['video_loop'] ?? false),
             // Without autoplay, the controls are the only way to start it.
@@ -180,6 +196,18 @@ final class MediaBannerContent
             'duration' => MediaSequence::duration($row['slide_duration'] ?? null),
             'nav' => $nav,
         ];
+    }
+
+    /**
+     * Where a banner keeps its picture's presentation (Responsive Media 2.0):
+     * the image_ columns of media_banners, with a fit — the picture fills a
+     * frame of the chosen height — and a phone height of its own
+     * (media-banner.css). A sequence's pictures share it; a phone's own
+     * picture is only for a banner with one picture.
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id', fit: true, mobileHeight: true);
     }
 
     /**
