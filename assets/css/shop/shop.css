@@ -284,6 +284,10 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__meta span{ font-size: 0.72rem; color: var(--color-text-faint); }
 
 .product-detail__add-row{ display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); flex-wrap: wrap; }
+/* shop.js hides the row with the hidden attribute while the unit on show is
+   sold out; its own display must never win over that, or the quantity and
+   the button stay beside "Uitverkocht". */
+.product-detail__add-row[hidden]{ display: none; }
 .product-detail__add-row .btn{ flex: 1 1 200px; }
 
 /* Stock (Shop Product & Ordering 2.0): the sold-out block that replaces the
