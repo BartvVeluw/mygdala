@@ -104,6 +104,13 @@ en `GenericBlockDefaultsTest` bewaken beide.
   gehouden wordt. Zet daarom `ModuleGuard::requireAdmin()` bovenaan de editor
   en `ModuleGuard::requireApi()` bovenaan het endpoint, en claim het scherm in
   `AdminNavigation` onder *Pagina's*.
+- **Heeft je blok een knop of een klikbare kaart?** Gebruik de
+  bestemmingskiezer (`admin/_link_target_field.php`, en
+  `link_target_scripts()` op het scherm), bewaar met
+  `App\Service\Routing\LinkChoice` en render met `LinkChoice::href()`: nooit
+  een eigen paginalijst, een eigen typekeuze of een eigen URL-controle. Een
+  ander getypt adresveld gaat door `App\Service\Routing\SafeUrl`
+  (`CONTENT-BLOCKS.md`, "Waar een knop heen gaat").
 - **Heeft je blok kaarten met een titel?** De tag komt van
   `App\Service\Blocks\CardHeading::under()`: een `<h3>` onder de eigen
   bloktitel, een `<h2>` zonder. Geef de kaarttitel een klasse die zijn maat

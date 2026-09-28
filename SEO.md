@@ -231,6 +231,13 @@ overzicht, de gepubliceerde berichten en de categorie-archieven die minstens
 één bericht bevatten. Met de Shop uit bestaat er geen codepad dat een shop-URL
 kan toevoegen, en met de Blog uit geen dat een blog-URL kan toevoegen.
 
+Een gewone pagina onder de Shop of het Portfolio (`/shop/zakelijk`,
+`/portfolio/wolven`, `docs/pages/NESTING.md` §12) komt uit Core's
+paginacollector, met haar hele pad als `<loc>` en canonical. Staat die module
+uit, dan staat de hele subboom er niet in — dezelfde beslissing als de 404 op
+die adressen (`PageContent::isServedByAnEnabledModule()`) — en komt hij terug
+zodra de module weer aan staat.
+
 Tag-archieven staan er met opzet **niet** in: die zijn `noindex,follow` (zie
 `BLOG.md`), en de sitemap zegt hetzelfde als de robots-tag op de pagina zelf.
 

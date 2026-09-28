@@ -318,6 +318,20 @@ Engelse URL. De paginaroute is `{slug+}` (één tot acht segmenten), en
 `pagina.php` controleert het hele pad (`PageContent::forPath()`), nooit alleen
 de laatste slug.
 
+**Onder de Shop en het Portfolio** (Pages & Destinations 3.0, `NESTING.md`
+§12) begint het pad met het voorvoegsel van de module in plaats van met een
+slug: `/shop/zakelijk`, `/en/shop/business`, `/portfolio/wolven`. Het
+voorvoegsel is een gereserveerd woord en in elke taal hetzelfde; alleen de
+slugs eronder zijn per taal. `/shop/…` heeft geen eigen route en valt door
+naar `{slug+}`. `/portfolio/<slug>` is de projectroute (`portfolio.project`):
+beantwoordt geen project die slug, dan rendert `portfolio-detail.php` de
+CMS-pagina die daar direct onder het Portfolio staat via `pagina.php`, met
+haar eigen canonical, hreflang en taalwisselaar — vóór de Redirect Manager,
+want een levende pagina gaat voor een oud adres. Pagina en project kunnen
+dezelfde slug niet hebben, in welke taal ook (beide kanten weigeren), dus deze
+volgorde beslist nooit tussen twee echte antwoorden. Met de module uit
+antwoordt de hele subboom 404, in elke taal.
+
 Geen adres per taal krijgen:
 
 - **producten** — die hebben helemaal geen slug-URL: één pagina op
@@ -590,6 +604,18 @@ latere slugwijziging of nieuwe vertaling volgt vanzelf. Nooit een naïeve
 Detailsectie, Galerij ×2, Tekst met afbeelding, Kaarten-carrousel) lopen er
 in hun inhoudsklasse doorheen; `Tests\Service\TypedLinkTest` pint beide
 helften.
+
+**Welke adressen mogen** is één regel voor elk getypt adres in het CMS:
+`App\Service\Routing\SafeUrl` (Pages & Destinations 3.0). Toegestaan zijn een
+root-relatief adres, `#anker`, `?query`, `https:`/`http:` en — waar een link
+dat mag — `mailto:` en `tel:`. Geweigerd wordt elk ander schema
+(`javascript:`, `data:`, `vbscript:`, …), hoe het ook gespeld is, en elk
+stuurteken (`\x00`–`\x1F`, `\x7F`) waar het ook staat, zodat `\x01javascript:`
+of `java\tscript:` er niet langs kan; witruimte eromheen wordt weggehaald.
+Opslaan weigert met een melding voor de redacteur (`SafeUrl::problem()`), en
+`TypedLink::href()` drukt een adres dat toch onveilig in de database staat
+niet af. Dezelfde regel geldt voor menu, footer, redirects, social profielen
+en de bestemmingskiezer (`Tests\Service\Routing\SafeUrlTest`).
 
 ### JSON-verzoeken van een pagina
 

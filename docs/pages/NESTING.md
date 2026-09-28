@@ -15,7 +15,10 @@ Metaal graveren                    /metaal-graveren
 Daarnaast kan een paginaboom in het CMS onder **Service & juridisch** staan
 in plaats van tussen de gewone websitepagina's. Dat is alleen beheerindeling.
 
-Dit document is de wegwijzer voor beide. De URL-regels per taal staan in
+Sinds Pages & Destinations 3.0 kunnen gewone pagina's ook onder de Shop en
+het Portfolio staan (`/shop/zakelijk`, `/portfolio/wolven`, §12).
+
+Dit document is de wegwijzer voor alle drie. De URL-regels per taal staan in
 [`docs/multilingual/ROUTING.md`](../multilingual/ROUTING.md), de redirects in
 [`REDIRECTS.md`](../../REDIRECTS.md), het kruimelpad in
 [`HEADER-FOOTER.md`](../../HEADER-FOOTER.md).
@@ -89,9 +92,12 @@ gebeurt met een pagina zonder eigen Engelse slug:
 `RouteTable` heeft één paginaroute, als laatste: `{slug+}`, één tot
 `RouteTable::MAX_PAGE_SEGMENTS` (8) segmenten, elk in de tekenset
 `[a-z0-9-]`. Alle vaste routes en modulenaamruimtes komen eerst. Het eerste
-segment van een paginapad is altijd de slug van een hoofdpagina, en die kan
-nooit een gereserveerd woord zijn (`ReservedPaths`), dus een paginapad botst
-nooit met Shop, Blog, Portfolio, admin, assets of een taalprefix.
+segment van een paginapad is de slug van een hoofdpagina, en die kan nooit
+een gereserveerd woord zijn (`ReservedPaths`), dus een paginapad botst nooit
+met Shop, Blog, Portfolio, admin, assets of een taalprefix. De ene
+uitzondering is bewust: onder de Shop en het Portfolio begint een pad met het
+gereserveerde woord van die module zelf (`shop`, `portfolio`), en de module
+bewaakt dan zelf wat er op het niveau daaronder mag (§12).
 
 `pagina.php` zoekt de pagina met `PageContent::forPath()`:
 
@@ -158,9 +164,13 @@ Terugverhuizen laat daardoor geen kringetje achter.
 - een pagina onder zichzelf;
 - een pagina onder een van haar eigen onderliggende pagina's
   (`A → B → C`: C wordt nooit de ouder van A);
-- een pagina met een vaste URL (homepage, Shop, Diensten, …) als ouder, of
-  zelf genest: die hebben een route in plaats van een slug;
-- dieper dan 8 niveaus, de subboom die meeverhuist meegeteld.
+- een pagina met een vaste URL (homepage, Diensten, …) als ouder, of zelf
+  genest: die hebben een route in plaats van een slug. De uitzondering is de
+  systeempagina van een module die een eigen voorvoegsel voor haar
+  onderliggende pagina's noemt: de Shop en het Portfolio (§12);
+- dieper dan 8 niveaus, de subboom die meeverhuist meegeteld;
+- onder de Shop of het Portfolio: een adres dat de module op dat niveau zelf
+  al gebruikt (§12).
 
 De keuzelijst in de editor biedt precies de toegestane ouders
 (`PageService::parentCandidates()`): de pagina zelf en alles eronder staan er
@@ -209,6 +219,26 @@ pagina*):
 In het overzicht maakt *Subpagina toevoegen* een nieuwe pagina met die ouder
 al gekozen (`page-new.php?parent=`).
 
+### Een pagina kiezen
+
+Elke paginalijst in het CMS staat in dezelfde volgorde als het overzicht:
+`App\Service\PageOptions::tree()`. Een pagina staat onder haar ouder,
+ingesprongen met een streepje per niveau (`– Zakelijk`), in de taal van het
+CMS met de gewone terugval voor een pagina zonder naam daar. Wie de lijst
+gebruikt, geeft alleen mee welke pagina's gekozen mogen worden; een pagina
+daarboven die zelf niet gekozen mag worden, staat er toch, uitgeschakeld, zodat
+de boom leesbaar blijft (`context`). Gebruikt door:
+
+| Waar | Welke pagina's |
+|---|---|
+| Bovenliggende pagina (`admin/_page_placement.php`) | `PageService::parentCandidates()` |
+| Menu-item, footer-link (`admin/navigation-item.php`, `admin/footer-link.php`) | gepubliceerd, plus het huidige doel |
+| Bestemmingskiezer van een blok (`LinkTargets`, `admin/_link_target_field.php`) | gepubliceerd, plus het huidige doel |
+| Shop-instellingen (`admin/shop-settings.php`) | de pagina's die als overzicht kunnen dienen |
+
+Er is geen tweede paginalijst meer met een eigen volgorde; een nieuwe keuzelijst
+voor pagina's gebruikt deze.
+
 ### Het overzicht
 
 `admin/pages.php` is een boom in twee groepen:
@@ -233,6 +263,36 @@ al gekozen (`page-new.php?parent=`).
   staat alles open, zonder de opgeslagen toestand te wijzigen;
 - er is geen paginering, dus de boom is altijd heel;
 - zonder JavaScript staat alles open.
+
+**Een rij (Pages & Destinations 3.0).** De tabel heeft een vaste opmaak
+(`table-layout: fixed`): vier kolommen met een vaste breedte (titel, status,
+type, acties) en elke rij dezelfde hoogte. Geen kolom neemt zijn breedte meer
+van wat een rij bevat, dus een ouder openklappen of een lange naam kan de
+acties van andere rijen niet laten omslaan of uit beeld duwen, en de pagina
+scrolt nooit opzij.
+
+- **Titel**: de naam, en op een eigen regel eronder het publieke adres. Beide
+  staan altijd op het scherm, nooit alleen bij hover, en eindigen met een
+  weglatingsteken als ze niet passen; de hele tekst staat in `title`. Een
+  inspringing met hulplijnen per niveau, begrensd zodat een diepe pagina haar
+  naam niet kwijtraakt.
+- **Acties**, op één regel met vaste plekken: *Bewerken* (de hoofdactie),
+  *Bekijken* (gepubliceerd, nieuw tabblad) of *Voorbeeld* (concept), en
+  *Subpagina toevoegen*.
+- **Verwijderen** staat alleen in het menu *…* van de rij (een `<details>`,
+  `admin/assets/page-tree.js`: één tegelijk open, dicht met Escape of een klik
+  ernaast), en vraagt eerst in de eigen dialoog van het CMS. Kan het niet (een
+  systeempagina, een pagina met onderliggende pagina's), dan staat het er
+  uitgeschakeld met de reden eronder, via `aria-describedby`.
+
+**Drie opmaken**, op de breedte van de boom zelf (container queries), niet van
+het venster, omdat de zijbalk er boven 900px 248px van afneemt:
+
+| Boombreedte | Opmaak |
+|---|---|
+| breder dan 56rem | één regel acties |
+| 40–56rem | smallere kolommen, de acties op twee regels (*+ Subpagina*), nog steeds één rij per pagina |
+| smaller dan 40rem (een telefoon) | elke pagina een kaart: naam en adres, de badges, dan de acties, die hier wel mogen omslaan |
 
 ## 9. Service & juridisch
 
@@ -279,11 +339,76 @@ verzoek. Een hoofdpagina alleen kost niets extra: haar pad is haar eigen slug.
 Twintig geneste pagina's kosten twee queries, net als één
 (`Tests\Service\PageNestingTest`); zonder die voorlading waren het er 22.
 
-## 12. Tests
+## 12. Pagina's onder de Shop en het Portfolio
+
+Pages & Destinations 3.0. De systeempagina van de Shop en die van het
+Portfolio kunnen gewone CMS-pagina's onder zich hebben:
+
+```text
+Shop (/shop.php)                   /shop.php — de eigen route, ongewijzigd
+└── Zakelijk                       /shop/zakelijk
+    └── Offerte aanvragen          /shop/zakelijk/offerte-aanvragen
+Portfolio (/portfolio)             /portfolio
+├── [project] Vossen               /portfolio/vossen — een portfolioproject
+└── Wolven                         /portfolio/wolven — een CMS-pagina
+                                   /en/shop/business
+```
+
+**Het voorvoegsel is een woord van de module, niet de URL van de ouder.** Een
+module noemt in `systemPages()` een `child_prefix` (`MODULES.md`,
+"Systeempagina's van modules"): `shop` en `portfolio`. Dat is een van haar
+eigen gereserveerde woorden, in elke taal hetzelfde, dus geen hoofdpagina kan
+het hebben. `PagePath` zet het vooraan in plaats van de route van de
+systeempagina: die kan een bestand zijn (`/shop.php`), en een pad is nooit de
+URL van de ouder met een slug erachter geplakt. De systeempagina zelf houdt
+haar vaste URL en blijft altijd een hoofdpagina; het voorvoegsel telt als één
+niveau. Het kruimelpad (`PageBreadcrumb`) noemt de systeempagina met haar
+eigen URL, de canonical, hreflang en de sitemap volgen het pad zoals bij elke
+pagina.
+
+**De router.** `/shop/…` heeft geen eigen routes, dus zo'n pad valt door naar
+de gewone paginaroute. `/portfolio/<slug>` is de route van een project
+(`portfolio-detail.php`): is er geen project met die slug, maar wel een
+CMS-pagina direct onder het Portfolio, dan toont `pagina.php` die, vóór de
+Redirect Manager. Dieper (`/portfolio/wolven/details`) is weer de gewone
+paginaroute.
+
+**Eén naamruimte, twee kanten bewaakt.** Wat een module zelf één niveau onder
+haar voorvoegsel bedient, deelt die naamruimte met de pagina's daar. Voor het
+Portfolio zijn dat de projecten; de Shop bedient niets onder `/shop/`
+(producten staan op `/product.php?id=`, collecties op `/collecties/<slug>`), dus
+daar botst niets. Wie als tweede opslaat, krijgt een weigering, in elke taal
+en ook bij een zelfgemaakte POST; er wordt nooit iets hernoemd en er wint geen
+route stil:
+
+- een pagina direct onder het Portfolio met de slug van een project (in welke
+  taal dan ook) weigert `PageService` met de naam van het project
+  (`ModuleSystemPages::childSlugConflicts()`, de `child_conflicts` van de
+  module);
+- een project met de slug van zo'n pagina weigert `PortfolioSlug` met de naam
+  van de pagina (`ModuleSystemPages::childPageHolding()`), en het
+  slugvoorstel slaat die slug over.
+
+Faalt de controle van de module, dan geldt het als een botsing: een opslag die
+de redacteur opnieuw kan proberen is veiliger dan een adres dat van een
+project blijkt te zijn.
+
+**Module uit.** De hele subboom is dan van de website: elk pad eronder
+antwoordt 404, net als de systeempagina, en verdwijnt uit de sitemap, de
+menu's en elke link (`PageContent::isServedByAnEnabledModule()`,
+`ModuleSystemPages::inDisabledModuleSubtree()`). Alle rijen blijven zoals ze
+zijn en de pagina's blijven in het CMS te bewerken; module aan brengt alles
+terug. Staat de module aan, dan houdt een placeholder of een gepauzeerde
+winkel erboven een gepubliceerde onderliggende pagina niet van de website.
+
+## 13. Tests
 
 | Test | Suite | Wat |
 |---|---|---|
 | `Tests\Service\PagePathTest` | `unit`, `fast`, `cms` | paden per taal, onvertaalde voorouder, lus, diepte, vaste URL, boomvolgorde, groep, geldige ouders, `pathMoves()` |
 | `Tests\Service\PageNestingTest` | `cms` | schema, foreign key, weigeren verwijderen, cyclus, volgorde, `forPath()`, kruimelpad, sitemap, subboom-redirects in twee talen, handmatige redirect, querytelling |
 | `Tests\Service\PageNestingHttpTest` | `cms` | via de dispatcher: 200/404 per pad en taal, canonical/hreflang/x-default, taalwisselaar, kruimelpad, sitemap; editor, bevestiging, verplaatsen met 301's, lus, verwijderen, groepen, overzicht en zoeken, nieuwe subpagina |
+| `Tests\Service\PagesOverviewLayoutTest` | `cms` | vaste opmaak en vier kolommen, naam en adres zichtbaar met weglatingsteken, volgorde van de acties, verwijderen alleen in het menu (of uitgeschakeld met reden), de drie opmaken als container queries, Escape |
+| `Tests\Service\ModuleChildPagesTest` | `cms` | pagina's onder Shop en Portfolio: paden in twee talen, kruimelpad, sitemap, botsingen beide kanten op in elke taal, module uit (404, geen sitemap, rijen bewaard) |
+| `Tests\Service\PageOptionsTest` | `unit`, `fast`, `cms` | één boomvolgorde voor elke paginalijst, inspringing, contextregels, terugval van de naam |
 | `Tests\Install\PageNestingMigrationTest` | `migration`, `cms` | verse en bijgewerkte installatie gelijk, tweede run verandert niets, bestaande pagina's ongewijzigd |

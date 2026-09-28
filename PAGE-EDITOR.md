@@ -696,8 +696,10 @@ eigen bestand (`image_path`, `video_path`) tot er een item gekozen wordt of
 *Deze afbeelding weghalen* aangevinkt is; pas na de commit gaat dat oude
 bestand weg, en alleen als het een eigen upload was. Waar elke knop heen
 gaat, is dezelfde keuze als bij een carrouselkaart
-(`admin/_link_target_field.php`, `CONTENT-BLOCKS.md`); de primaire knop heeft
-geen *Geen knop*. Langere uitleg staat achter het `?` naast een label.
+(`admin/_link_target_field.php`, `CONTENT-BLOCKS.md`, "Waar een knop heen
+gaat"); de primaire knop heeft geen *Geen knop*, en staat niet op de website
+zolang zijn bestemming dat niet is (een concept, een verwijderd product, een
+module die uit staat). Langere uitleg staat achter het `?` naast een label.
 
 De Oproep met knop (`admin/cta-band.php`, `api/admin/update-cta-band.php`)
 heeft geen rijen, maar volgt hetzelfde: één formulier met vijf kaarten

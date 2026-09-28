@@ -86,9 +86,12 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   een knop op `/en/` naar de Engelse versie van de pagina wijst.
 - **Een blokknop met een linkdoel** (een carrouselkaart, de twee knoppen van
   de Homepage-hero, de knop van het Tekstblok, de knop van een item van Tekst
-  met afbeelding, de twee knoppen van de Oproep met knop) bewaart `link_type` + `link_target_id` naast de getypte
-  URL: *Geen knop*, een pagina, blogbericht of product van de site
-  (`App\Service\Routing\LinkTargets`), of een eigen adres.
+  met afbeelding, de twee knoppen van de Oproep met knop, een kaart van het
+  Hover-kaarten grid) bewaart `link_type` + `link_target_id` naast de getypte
+  URL: *Geen knop*, een pagina, blogbericht, product, collectie of
+  portfolioproject van de site (`App\Service\Routing\LinkTargets`), of een
+  eigen adres. Hoe de redacteur dat kiest staat hieronder, in "Waar een knop
+  heen gaat".
   `App\Service\Routing\LinkChoice` controleert wat er gepost is en maakt er
   per render een adres van in de taal van het verzoek; een intern doel is een
   id, dus een nieuwe slug of taal volgt vanzelf. De editor gebruikt
@@ -122,6 +125,61 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   neemt de woorden van het blok en van al zijn kindrijen mee.
 
 Er wordt niets server-side vertaald.
+
+### Waar een knop heen gaat
+
+De bestemmingskiezer 2.0 (Pages & Destinations 3.0,
+`admin/_link_target_field.php`). Eén veld voor elke blokknop, zodat ze niet
+uit elkaar kunnen groeien; bouw er geen kopie van per blok.
+
+- **Eerst de soort, dan alleen de kiezer van die soort.** *Geen knop*, *Een
+  pagina*, dan wat de modules bijdragen die aan staan (*Een blogbericht*, *Een
+  product*, *Een collectie*, *Een portfolioproject*; `MODULES.md`,
+  "Bestemmingen van een module"), en *Een eigen adres*. Een
+  portfoliocategorie heeft geen eigen adres en is dus geen bestemming.
+- **Een pagina** kies je uit de boom van het paginaoverzicht, ingesprongen,
+  een concept gemarkeerd (`App\Service\PageOptions`, `docs/pages/NESTING.md`
+  §8).
+- **Een product, collectie, project of blogbericht** kies je uit een
+  doorzoekbare lijst met afbeelding en status
+  (`admin/assets/destination-picker.js`: een zoekveld en resultaten als
+  knoppen, met het toetsenbord te bedienen, de keuze voorgelezen; `ADMIN-UI.md`).
+  Het script bouwt die uit de eigen `<select>` van het veld; die blijft wat er
+  gepost wordt en is zonder script de hele kiezer.
+- **Een eigen adres** gaat door `App\Service\Routing\SafeUrl`
+  (`docs/multilingual/ROUTING.md` §11): geen `javascript:` of ander schema,
+  geen stuurtekens, witruimte eromheen weg.
+
+**Opslag: een uitbreiding, geen nieuwe vorm.** Dezelfde drie velden als
+voorheen (`link_type`, `link_target_id`, de getypte URL; `LinkChoice`). Een
+nieuwe soort is alleen een nieuwe waarde van `link_type`; bestaande rijen
+blijven precies zoals ze zijn en er is geen datamigratie.
+
+**Bij elke weergave opnieuw opgezocht, op id**, in de taal van het verzoek.
+Wat de bezoeker nu niet kan openen (een concept, een inactief product, een
+verborgen project) rendert geen knop, en die komt vanzelf terug. In de
+editor:
+
+| Opgeslagen bestemming | De editor zegt | Op de website |
+|---|---|---|
+| nog niet te openen | de keuze met *(concept)*, *(niet actief)* of *(niet op de website)* erbij | geen knop tot het wel kan |
+| verwijderd, of niet meer te kiezen | *Niet meer beschikbaar (#id, bewaard)* en een waarschuwing eronder | geen knop, nooit een kapotte link |
+| van een module die uit staat | *Hoort bij Shop, dat uit staat (bewaard)* en waarom | geen knop tot de module weer aan staat |
+
+Openen en opslaan gooit niets weg: `LinkChoice` houdt een opgeslagen keuze die
+de kiezer nu niet kan tonen vast, en een nieuwe, vervalste of onbekende keuze
+wordt geweigerd.
+
+**Getypte adresvelden buiten de kiezer** (het eigen adres van de
+Contactkaart, de Detailsectie en de Galerij) volgen dezelfde regel via
+`SafeUrl::optionalFieldMessage()`: leeg mag, onveilig wordt geweigerd.
+
+**Nog niet omgezet** (bewust later): links in rich text, de bestemmingen van
+menu en footer (die kennen pagina, vast onderdeel en adres, met de
+paginalijst en de tekstregel van `HEADER-FOOTER.md`), redirects, social
+profielen, en de automatische links van Uitgelicht product, Projecten en
+Collectietegels, die hun bestemming uit het gekozen object halen en niet uit
+een knop.
 
 **Een bovenlabel (eyebrow) is altijd optioneel.** Geen blok declareert het als
 `->required()`, geen editor zet er `required` op (de placeholder is
@@ -1273,6 +1331,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 | Nieuw blok | `fast` → `blocks`; plus `cms` als je aan pagina's/registratie zat, en `modules` als het blok van een module is |
 | Blok met een formulier erin | ook `fast` → `cms` (`FORMS.md`) |
 | Blok-editor of endpoint | `fast` → `blocks` (`PageBuilderSecurityTest` bewaakt de guards) |
+| De bestemmingskiezer, `LinkChoice`, `LinkTargets` of `SafeUrl` | `fast` → `blocks` (`DestinationPickerTest`, `Routing\SafeUrlTest`) → `modules` |
 | Alleen rendering | `blocks`; de HTTP-tests daarin hebben de `php_test`-container nodig |
 | Migratie/backfill | `blocks` → `--group migration-backfill` → volledige suite |
 

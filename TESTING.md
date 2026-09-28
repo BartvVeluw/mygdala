@@ -383,7 +383,10 @@ partials zelf (`HEADER-FOOTER.md`):
                          de social profielen zit in HeaderFooterSettingsTest)
 --testsuite cms         voegt NavigationRepositoryTest, NavigationAdminHttpTest
                         (scherm, endpoints en publieke header over een eigen
-                        php -S, ook met de Shop uit), FooterRepositoryTest,
+                        php -S, ook met de Shop uit),
+                        NavigationFollowsPageTitleHttpTest ("Gebruik titel van
+                        bestemming": de paginatitel in elke taal, eigen tekst
+                        per taal, weer aan wist alles), FooterRepositoryTest,
                         FooterSocialLinkRepositoryTest, FooterAdminHttpTest
                         (het Footer-scherm, zijn endpoints en de publieke
                         footer over een eigen php -S, ook met de Shop uit) en
@@ -639,6 +642,28 @@ of `robots.txt` (`SEO.md`):
                         valt, en de transactionele routes
 --testsuite shop        als je aan product- of collectiemetadata zat
 --testsuite modules     bewijst dat de head ook zonder de Shop compleet is
+```
+
+**Wijziging aan de paginaboom, een paginalijst of de bestemmingskiezer**
+
+Pagina's nesten, pagina's onder de Shop of het Portfolio, het overzicht in
+Pagina's, de volgorde van een paginalijst, de bestemmingskiezer van een
+blokknop of de regel voor getypte adressen (`docs/pages/NESTING.md`,
+`CONTENT-BLOCKS.md` "Waar een knop heen gaat"):
+
+```
+--testsuite fast        PagePathTest, PageOptionsTest en Routing\SafeUrlTest;
+                        database noch webserver nodig
+--testsuite blocks      DestinationPickerTest (de kiezer in de blok-editors,
+                        opslaan per soort, een onbereikbare, verwijderde of
+                        vervalste bestemming) en SafeUrlTest
+--testsuite cms         voegt PageNestingTest, PageNestingHttpTest,
+                        PagesOverviewLayoutTest, ModuleChildPagesTest (Shop en
+                        Portfolio als ouder, botsingen beide kanten op, module
+                        uit) en NavigationFollowsPageTitleHttpTest toe
+--testsuite modules     bewijst dat alles met een module uit nog werkt
+--testsuite shop        alleen als je de Shop-kant raakte: haar systeempagina,
+                        een product of collectie als bestemming
 ```
 
 **Wijziging aan redirects**

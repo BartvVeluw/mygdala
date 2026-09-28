@@ -119,7 +119,42 @@ adres*.
 bestaat, blijft bewaard. Het overzicht zegt *Niet op de website* en de editor
 zegt waarom. Een opgeslagen route van een uitgeschakelde module blijft in de
 editor geselecteerd, en opslaan houdt haar vast; zet je de module weer aan,
-dan staat het item er weer zonder dat iemand iets opnieuw invult.
+dan staat het item er weer zonder dat iemand iets opnieuw invult. Een pagina
+onder de Shop of het Portfolio is met die module uit ook weg
+(`docs/pages/NESTING.md` §12), en komt op dezelfde manier terug.
+
+De lijst met pagina's in de editor (en in die van een footerlink) staat in de
+volgorde van het paginaoverzicht, een subpagina ingesprongen onder haar ouder
+(`App\Service\PageOptions`, `docs/pages/NESTING.md` §8, "Een pagina kiezen").
+Er zijn geen twee paginalijsten met een eigen volgorde meer.
+
+### Tekst van een menu-item
+
+Pages & Destinations 3.0. Een item dat naar een pagina wijst, kan de **titel
+van die pagina** tonen in plaats van eigen woorden: de schakelaar *Gebruik
+titel van bestemming* in de kaart *Tekst*.
+
+- **Aan** (standaard voor een nieuw item): het item bewaart geen tekst, in
+  geen enkele taal — `nav_item_translations` heeft geen rij. Het menu toont de
+  titel van de pagina in de taal van de bezoeker, met de gewone terugval van
+  die pagina, en volgt een nieuwe titel meteen, zonder dat iemand het menu
+  aanraakt. De editor zegt eronder wat het menu toont (*In het menu staat:
+  …*); het overzicht noemt het item bij die naam met *Volgt paginatitel*.
+- **Uit**: het item heeft eigen woorden, per taal, zoals elk item van
+  vóór deze fase. Eigen woorden beginnen in de standaardtaal: vanuit een andere
+  taal uitzetten zonder tekst in de standaardtaal weigert het endpoint.
+- **Weer aan**: elke opgeslagen tekst van het item verdwijnt, in alle talen, en
+  de titel is terug. Er blijft geen losse vertaling achter.
+- Alleen een pagina heeft een titel om te volgen. Voor een vast onderdeel, een
+  ander adres of een kop boven een submenu staat de schakelaar er niet en is
+  eigen tekst verplicht, wat het formulier ook stuurde.
+
+Onder water: een item volgt zijn pagina als het een paginalink is zonder tekst
+in de standaardtaal (`NavigationLocalization::followsDestination()`). De ene
+vraag die de header stelt is `NavigationLocalization::labelFor()`, voor links
+en knoppen gelijk; het CMS noemt een item overal met `adminName()`. Een item
+van vóór deze fase heeft een tekst in de standaardtaal en toont dus precies
+wat het toonde; zijn editor opent met de schakelaar uit. Geen migratie.
 
 ### Volgorde
 
@@ -147,8 +182,9 @@ knop schuift nooit tussen twee menulinks door.
   opent, onder de links. De rij met taalwissel, winkelwagen en knoppen loopt
   gecentreerd door naar een volgende regel als hij niet past.
 
-Geen tekst in geen enkele taal = geen knop. Geen werkende bestemming = geen
-knop.
+Geen tekst in de standaardtaal en geen paginatitel om te volgen = geen knop
+(en geen menulink: een lege `<a>` helpt niemand). Geen werkende bestemming =
+geen knop.
 
 ### Drie niveaus
 
@@ -438,6 +474,9 @@ link_type   page      target_page_id   een pagina van deze website (op id)
   `PageService::references()` weigert een pagina te verwijderen zolang er een
   footerlink naar wijst. Social links en kolommen doen daar niet aan mee: ze
   wijzen nooit naar een pagina.
+- De paginalijst is die van het menu-item (`App\Service\PageOptions`). Een
+  footerlink heeft altijd eigen woorden: *Gebruik titel van bestemming* is er
+  (nog) alleen voor de header (hierboven, "Tekst van een menu-item").
 
 **Volgorde.** ↑ en ↓ op elke kolom en elke link
 (`move-footer-column.php`, `move-footer-link.php`,
@@ -804,6 +843,11 @@ doorverwijzing, en niets dat de oude social-instellingen leest of schrijft).
   wat de publieke header daarvan maakt, ook met de Shop uit; niveau 3 opslaan,
   niveau 4 geweigerd, en link plus pijltje op elk niveau met een geneste
   pagina als bestemming;
+- `NavigationFollowsPageTitleHttpTest` — *Gebruik titel van bestemming*: aan
+  voor een nieuw item, geen tekst opgeslagen, de paginatitel in NL en EN met
+  terugval, een hernoemde pagina, een knop, uitzetten per taal (de
+  standaardtaal eerst), weer aanzetten wist alles, alleen een pagina kan
+  volgen, een pagina op concept, en een bestaand item dat niets merkt;
 - `FooterRepositoryTest` — kolommen en links, ↑ en ↓ binnen de eigen kolom;
 - `FooterSocialLinkRepositoryTest` — social rijen: opslaan, één volgorde, ↑ en
   ↓, en wat de footer van echte rijen maakt;

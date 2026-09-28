@@ -146,11 +146,11 @@ hij gebruikt.
 | Applicatieroutes | `routes()` | `App\Service\RouteRegistry` |
 | Gereserveerde slugs | `reservedSlugs()` | `App\Service\ReservedRoutes` |
 | Vaste publieke paden | `publicPaths()` | `App\Module\ModuleRegistry::disabledModuleForRoutePath()` |
-| Een eigen pagina in Pagina's (de winkelpagina, het Portfolio-overzicht) | `systemPages()` | `App\Service\ModuleSystemPages` (hieronder, "Systeempagina's van modules") |
+| Een eigen pagina in Pagina's (de winkelpagina, het Portfolio-overzicht), en of er gewone pagina's onder mogen | `systemPages()` | `App\Service\ModuleSystemPages` (hieronder, "Systeempagina's van modules") |
 | Sitemap | `sitemapCollectors()` | `App\Service\Sitemap` |
 | Content-blokken | `blockDefinitions()` | `App\Service\Blocks\BlockDefinitions` |
 | Galerijbronnen | `itemGallerySources()` | `App\Service\ItemGallerySources` |
-| Linkdoelen voor een blokknop (blogbericht, product) | `linkTargets()` | `App\Service\Routing\LinkTargets` |
+| Bestemmingen voor een knop (blogbericht, product, collectie, portfolioproject) | `linkTargets()` | `App\Service\Routing\LinkTargets` (hieronder, "Bestemmingen van een module") |
 | Site-shell-assets | `shellStyles()`, `shellScripts()` | `App\Service\PageAssets` |
 | Header | `headerPartials()` | `partials/header.php` |
 | Dashboard | `dashboardPanels()`, `dashboardCards()` | `admin/index.php` |
@@ -239,6 +239,47 @@ Sinds Shop Product & Ordering 2.0 (migratie `20260928150000`).
   pagina werkt de module zoals ervoor (Portfolio toont zijn eigen overzicht,
   de Shop volgt Productoverzicht); alleen de regel in Pagina's ontbreekt. Een
   tweede run maakt niets.
+- **Pagina's eronder** (Pages & Destinations 3.0,
+  `docs/pages/NESTING.md` §12). Noemt de module bij haar pagina een
+  `child_prefix` (een van haar eigen `reservedSlugs()`), dan kunnen gewone
+  CMS-pagina's onder de systeempagina staan: `/shop/zakelijk`,
+  `/portfolio/wolven`. De systeempagina houdt haar vaste URL. Wat de module
+  zelf één niveau onder dat voorvoegsel bedient, meldt ze met
+  `child_conflicts` (een callable: slugs erin, de botsende slugs met de naam
+  van wat ze vasthoudt eruit); Core vraagt dat vóór het opslaan van een pagina
+  daar, en de module vraagt Core andersom
+  (`ModuleSystemPages::childPageHolding()`) vóór ze een eigen object een slug
+  geeft. Portfolio noemt beide (de projecten op `/portfolio/<slug>`), de Shop
+  alleen het voorvoegsel: onder `/shop/` bedient ze niets. **Met de module uit
+  is de hele subboom van de website** — 404, niet in de sitemap, geen link
+  ernaartoe — en blijven alle rijen staan (`ModuleSystemPages::inDisabledModuleSubtree()`).
+
+## Bestemmingen van een module
+
+Een knop in een blok kiest zijn bestemming in de bestemmingskiezer
+(`admin/_link_target_field.php`, `CONTENT-BLOCKS.md`, "Waar een knop heen
+gaat"). Core levert *Geen*, *Een pagina* en *Een ander adres*; elke andere soort
+komt van een module via `linkTargets()`, bij id bewaard en bij elke weergave
+opnieuw opgezocht (`App\Service\Routing\LinkTargets`, de docblock daar heeft
+de volledige vorm):
+
+| Soort | Module | Adres |
+|---|---|---|
+| `blog_post` | Blog | het bericht |
+| `product` | Shop | `/product.php?id=` |
+| `collection` | Shop | `/collecties/<slug>` |
+| `portfolio_project` | Portfolio | `/portfolio/<slug>` |
+
+- Een soort draagt een label per CMS-taal, een `order` naast Core's `page`
+  (10), zijn keuzes (met een `note` voor wat een bezoeker nu niet kan openen,
+  en voor de doorzoekbare lijst een miniatuur), de href in de gelezen taal
+  (`null` = geen link) en optioneel de zichtbare titel per taal.
+- **Alleen wat een eigen publiek adres heeft, is een bestemming.** Een
+  portfoliocategorie heeft er geen en staat er dus niet in.
+- **Module uit**: de soort verdwijnt uit de kiezer voor een nieuwe keuze. Een
+  opgeslagen keuze van die soort blijft bewaard, staat in de editor met een
+  melding, en rendert geen link tot de module weer aan staat
+  (`LinkTargets::disabledModuleOf()`).
 
 ## De Core→Shop-koppelpunten van vóór stap 5
 
