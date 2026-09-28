@@ -346,6 +346,33 @@ final class FeaturedProductHttpTest extends TestCase
         self::assertSame([$variants['A']], array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN)), 'one request, for exactly the variant on show');
     }
 
+    /**
+     * "Prijs tonen" off on a block that sells: the page a visitor gets holds
+     * no price anywhere, and what the cart line asks when the visitor adds —
+     * GET /api/product.php, and api/cart-check.php before it — still answers,
+     * with the server's current price for the unit chosen.
+     */
+    public function testWithThePriceOffThePageHasNoPriceAndTheCartAsksTheServer(): void
+    {
+        ['product' => $plate, 'variants' => $variants] = $this->shop->variantProduct('ZZ Prijs verborgen', ['A' => 2, 'B' => 5], true, 73.19);
+        Database::connection()->prepare('UPDATE product_variants SET price = 81.37 WHERE id = :id')->execute(['id' => $variants['B']]);
+        $this->place(['product_id' => $plate, 'show_price' => false]);
+
+        $page = self::$server->request('GET', '/pagina.php?slug=' . self::KEY);
+        self::assertSame(200, $page['status']);
+        self::assertStringContainsString('data-product-add-to-cart', $page['body'], 'the block still sells');
+        foreach (['73.19', '73,19', '81.37', '81,37'] as $amount) {
+            self::assertStringNotContainsString($amount, $page['body'], $amount);
+        }
+
+        $api = json_decode(self::$server->request('GET', '/api/product.php?id=' . $plate . '&lang=nl')['body'], true)['data'];
+        self::assertSame('73.19', $api['price'], 'the product page\'s own endpoint answers the price');
+        self::assertSame('81.37', array_column($api['variants'], 'price', 'id')[$variants['B']]);
+
+        $check = self::$server->postJson('/api/cart-check.php', ['items' => [['id' => $plate, 'variant_id' => $variants['B'], 'qty' => 3]]]);
+        self::assertSame(['status' => 'ok', 'available' => 5], json_decode($check['body'], true)['lines'][0], 'three of variant B may be added');
+    }
+
     public function testThePageCarriesExactlyThePayloadTheApiAnswers(): void
     {
         ['product' => $plate] = $this->shop->variantProduct('ZZ Zelfde payload', ['A' => 0, 'B' => 5]);

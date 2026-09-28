@@ -49,6 +49,28 @@ final class FeaturedProductContractTest extends TestCase
         self::assertStringContainsString('/api/stock-notification.php', $detail);
     }
 
+    /**
+     * A block with "Prijs tonen" off carries no price, so the cart line gets
+     * its price from the server when a visitor adds — the product page's own
+     * endpoint, after api/cart-check.php said yes — and never adds a line
+     * without one. No second cart: the same cartAdd() either way.
+     */
+    public function testTheCartLineTakesItsPriceFromTheServerWhenThePageHasNone(): void
+    {
+        $detail = self::between(self::source('assets/js/shop/shop.js'), '  function initProductDetail(root) {', '     Dutch (BAG/PDOK) address lookup');
+
+        self::assertStringContainsString('return linePrice(cartProduct.variant_id).then(function (price) {', $detail);
+        self::assertStringContainsString('if (own != null) return Promise.resolve(own);', $detail, 'a page with a price keeps it');
+        self::assertStringContainsString('fetch(S.apiUrl("/api/product.php?id=" + encodeURIComponent(product.id)))', $detail);
+        self::assertMatchesRegularExpression('/if \(price == null\) \{\s*showAddMessage\(S\.text\("notify_failed"\)\);\s*return;/', $detail, 'never a line without a price');
+        self::assertStringContainsString('cartProduct.price = price;', $detail);
+        self::assertSame(1, substr_count($detail, 'S.cartAdd('), 'one way into the cart');
+        self::assertLessThan(strpos($detail, 'return linePrice('), strpos($detail, 'S.checkCart('), 'the server says yes first');
+
+        $content = self::source('src/Service/FeaturedProductContent.php');
+        self::assertStringContainsString("if (!\$settings['show_price']) {\n            \$payload = ProductDetail::withoutPrices(\$payload);", $content, 'price off: no price in the payload, selling or not');
+    }
+
     public function testThePayloadHasOneBuilder(): void
     {
         $api = self::source('api/product.php');

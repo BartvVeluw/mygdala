@@ -122,6 +122,8 @@ final class ShopScriptText
             'en' => 'Good news: this can be ordered again. Please refresh the page.',
         ],
         'notify_invalid' => ['nl' => 'Vul een geldig e-mailadres in.', 'en' => 'Please enter a valid email address.'],
+        // Also what adding to the cart says when the server could not give
+        // the line its price (shop.js, linePrice()): one sentence for both.
         'notify_failed' => ['nl' => 'Dit lukte niet. Probeer het later opnieuw.', 'en' => 'That did not work. Please try again later.'],
         'add_stock_left' => [
             'nl' => 'Er zijn er nog {max} op voorraad, inclusief wat al in je winkelwagen zit.',

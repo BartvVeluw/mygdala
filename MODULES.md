@@ -670,7 +670,8 @@ Alles wat er ook zou zijn zonder webshop.
     alleen voor een product dat direct verkocht wordt de prijzen).
     `api/product.php` geeft hem door, het blok drukt hem af in zijn eigen
     sectie. `withoutPrices()` haalt de prijzen eruit voor een plek die geen
-    prijs toont en niets verkoopt.
+    prijs toont, ook als ze verkoopt: de winkelwagenregel vraagt de prijs dan
+    bij het toevoegen aan `api/product.php` (`shop.js`, `linePrice()`).
   - `App\Service\ProductPurchasePath` beslist hoe een zichtbaar product te
     koop is: `inquiry`, `personalize`, `unorderable` of `cart`, in die
     volgorde. `product.php` en het blok vragen het hier; het blok kan alleen

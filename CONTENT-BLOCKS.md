@@ -829,11 +829,19 @@ gaan mee op de regel en maken hem tot een eigen regel, net als op de
 productpagina.
 
 **Prijs.** Een product op aanvraag heeft nergens een prijs: niet in de
-markup, niet in de payload, niet bij een variant. Staat *Prijs tonen* uit en
-biedt het blok geen winkelwagen aan, dan gaat ook de prijs van een gewoon
-product niet mee (`ProductDetail::withoutPrices()`). Staat *Prijs tonen* uit
-maar kan er besteld worden, dan staat de prijs wel in de payload, omdat de
-winkelwagenregel hem toont; `api/checkout.php` rekent hem opnieuw uit.
+markup, niet in de payload, niet bij een variant. Staat *Prijs tonen* uit,
+dan staat ook de prijs van een gewoon product nergens in het blok: niet in de
+markup, niet in een `data-*`-attribuut en niet in de payload
+(`ProductDetail::withoutPrices()`), ook niet als het blok verkoopt. De
+winkelwagenregel heeft een prijs nodig om te tonen; die vraagt `shop.js` pas
+als een bezoeker op *Toevoegen aan winkelwagen* drukt, na het ja van
+`api/cart-check.php`, aan `GET /api/product.php` (de payload waar de
+productpagina zelf uit tekent), voor het product of de gekozen variant
+(`linePrice()`). Geeft de server geen prijs, dan gaat er niets in de
+winkelwagen en zegt het blok *Dit lukte niet. Probeer het later opnieuw.*
+Een pagina die zijn prijs toont, gebruikt zijn eigen payload en doet geen
+extra verzoek. De prijs op de regel is alleen weergave: `api/checkout.php`
+rekent elke regel opnieuw uit de database.
 
 **Afbeeldingen en layout.** *Galerij* (standaard) is de galerij van de
 productpagina: het vierkante vak met `contain`, de thumbnails, vegen, ← en →,

@@ -39,8 +39,12 @@ use App\Service\Routing\RequestLanguage;
  * THE BLOCK CAN ONLY OFFER LESS. `ordering` 'view' takes the cart away; the
  * switches hide the name, the price, the description or the specifications.
  * None of them can show a price the product hides ("op aanvraag") or add a
- * cart the product does not have. With the price hidden and no cart on
- * offer, the price is not even in the page (ProductDetail::withoutPrices()).
+ * cart the product does not have. With the price switched off, no price is
+ * in the page at all — not in the markup and not in the payload
+ * (ProductDetail::withoutPrices()) — whether or not the block sells: the
+ * cart line asks the server for it at the moment of adding
+ * (assets/js/shop/shop.js, linePrice()), and api/checkout.php prices every
+ * line again anyway.
  *
  * THE THREE STATES of every block (CONTENT-BLOCKS.md): no row or a failed
  * lookup is STATE_FALLBACK, a row switched off is STATE_HIDDEN, and both
@@ -230,10 +234,12 @@ final class FeaturedProductContent
         $path = $purchase['path'];
         $offersCart = $settings['ordering'] === 'direct' && $path === ProductPurchasePath::CART;
 
-        // The price leaves the server only where this block uses it: shown,
-        // or needed for the cart line. A price the product hides ("op
-        // aanvraag") is not in the payload at all (ProductDetail).
-        if (!$settings['show_price'] && !$offersCart) {
+        // The price leaves the server only where this block shows it. A
+        // block that sells without showing it has no price in its payload
+        // either: its cart line asks GET /api/product.php when a visitor
+        // adds the product (shop.js, linePrice()). A price the product
+        // hides ("op aanvraag") is not in the payload at all (ProductDetail).
+        if (!$settings['show_price']) {
             $payload = ProductDetail::withoutPrices($payload);
         }
 

@@ -614,7 +614,6 @@
           }
 
           var qty = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
-          var effectivePrice = selectedVariant && selectedVariant.price != null ? selectedVariant.price : product.price;
           var effectiveImage = selectedVariant ?
             (variantImages(selectedVariant)[0] ? variantImages(selectedVariant)[0].image_path : null) :
             (productDefaultImage ? productDefaultImage.image_path : null);
@@ -624,7 +623,7 @@
           var cartProduct = {
             id: product.id,
             name: product.name,
-            price: effectivePrice,
+            price: null, // linePrice() below, once the server said yes
             image_path: effectiveImage,
             variant_id: selectedVariant ? selectedVariant.id : null,
             variant_label: variantLabel,
@@ -637,14 +636,15 @@
              many more be ordered (api/cart-check.php)? The check sees every
              line of the same unit, so two engravings of one variant count
              together. Sold out or too few left: said here, nothing is added.
-             No answer at all: the line is added and the checkout decides. */
+             No answer at all: the line is added and the checkout decides —
+             as long as the line has a price to show (linePrice()). */
           var unitOnClick = unitOnShow();
           addBtn.disabled = true;
           S.checkCart(S.readCart().concat([{ id: product.id, variant_id: cartProduct.variant_id, qty: qty, order_fields: cartProduct.order_fields }]))
             .then(function (results) {
-              addBtn.disabled = hasVariants && !selectedVariant;
               var own = results ? results[results.length - 1] : null;
               if (own && own.status !== "ok") {
+                addBtn.disabled = hasVariants && !selectedVariant;
                 if (own.status === "sold_out" && unitOnClick) {
                   unitOnClick.sold_out = true;
                   unitOnClick.max_quantity = 0;
@@ -658,9 +658,49 @@
                 return;
               }
 
-              addCheckedLine(cartProduct, qty, personalizer, personalization);
+              return linePrice(cartProduct.variant_id).then(function (price) {
+                addBtn.disabled = hasVariants && !selectedVariant;
+                // Without a price the cart could only show a wrong amount.
+                if (price == null) {
+                  showAddMessage(S.text("notify_failed"));
+                  return;
+                }
+                cartProduct.price = price;
+                addCheckedLine(cartProduct, qty, personalizer, personalization);
+              });
             });
         };
+      }
+
+      /* ---------------------------------------------------------------
+         THE PRICE ON A CART LINE, for the cart to show — display only:
+         api/checkout.php prices every line again from the database.
+
+         The page's own price when it has one: the product page, and an
+         Uitgelicht product block that shows its price. A block that does
+         not show it has no price in its payload at all
+         (App\Service\FeaturedProductContent), so it asks the server at the
+         moment of adding: GET /api/product.php, the payload the product
+         page itself draws from, for the product or the chosen variant.
+         --------------------------------------------------------------- */
+      function unitPrice(data, variantId) {
+        var list = Array.isArray(data.variants) ? data.variants : [];
+        for (var i = 0; i < list.length; i++) {
+          if (variantId != null && String(list[i].id) === String(variantId) && list[i].price != null) {
+            return list[i].price;
+          }
+        }
+        return data.price != null ? data.price : null;
+      }
+
+      function linePrice(variantId) {
+        var own = unitPrice(product, variantId);
+        if (own != null) return Promise.resolve(own);
+
+        return fetch(S.apiUrl("/api/product.php?id=" + encodeURIComponent(product.id)))
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .then(function (payload) { return payload && payload.data ? unitPrice(payload.data, variantId) : null; })
+          .catch(function () { return null; });
       }
 
       /* ---------------------------------------------------------------

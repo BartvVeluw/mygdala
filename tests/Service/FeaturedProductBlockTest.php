@@ -339,20 +339,53 @@ final class FeaturedProductBlockTest extends TestCase
         self::assertStringContainsString('featured-product__price--inquiry">Op aanvraag</p>', $view, 'the cards\' own words where the price would be');
     }
 
-    public function testWithThePriceOffAndNothingToOrderNoPriceIsInThePage(): void
+    /**
+     * REGRESSION: "Prijs tonen" off meant only "not shown" while the block
+     * sold, and the product's real price still travelled in the payload for
+     * the cart line. Now the real price — the product's and a variant's — is
+     * nowhere in the block's output: not in the markup, not in a data-*
+     * attribute, not in the payload, whether the block sells or not. The
+     * cart line asks GET /api/product.php when a visitor adds
+     * (Tests\Service\FeaturedProductHttpTest, FeaturedProductContractTest).
+     */
+    public function testWithThePriceOffTheRealPriceIsNowhereInTheBlock(): void
     {
-        $product = $this->shop->product('Geen prijs nodig', null, 42.00);
+        ['product' => $plate, 'variants' => $variants] = $this->shop->variantProduct('Geen prijs zichtbaar', ['A' => 3, 'B' => 5], true, 73.19);
+        Database::connection()->prepare('UPDATE product_variants SET price = 81.37 WHERE id = :id')->execute(['id' => $variants['B']]);
+        $fields = new OrderFieldRepository();
+        $fields->setEnabled($plate, true);
+        $question = $fields->createField($plate, 'text', true, 20, 0);
+        ShopLocalization::saveOrderField($question, 'nl', [ShopLocalization::LABEL => 'Naam op het bord']);
+        $this->clearCaches();
 
-        $view = $this->render($this->place(['product_id' => $product, 'show_price' => false, 'ordering' => 'view']));
-        self::assertNull($this->payload($view)['price']);
-        // The amount in any form a page could carry it; a bare "42" could be
-        // part of an id or a random slug.
-        self::assertStringNotContainsString('42.00', $view);
-        self::assertStringNotContainsString('42,00', $view);
+        $blocks = [
+            'direct' => $this->render($this->place(['product_id' => $plate, 'show_price' => false])),
+            'view' => $this->render($this->place(['product_id' => $plate, 'show_price' => false, 'ordering' => 'view'])),
+        ];
 
-        $direct = $this->render($this->place(['product_id' => $product, 'show_price' => false]));
-        self::assertStringNotContainsString('data-product-price', $direct, 'not shown');
-        self::assertSame('42.00', $this->payload($direct)['price'], 'but the cart line needs it (and api/checkout.php reads it again)');
+        foreach ($blocks as $mode => $html) {
+            // The amounts in every form a page could carry them; a bare
+            // "73" could be part of an id or a random slug.
+            foreach (['73.19', '73,19', '81.37', '81,37'] as $amount) {
+                self::assertStringNotContainsString($amount, $html, $mode . ': ' . $amount);
+            }
+            self::assertStringNotContainsString('data-product-price', $html, $mode);
+            self::assertDoesNotMatchRegularExpression('/data-[a-z-]*price/', $html, $mode . ': no price attribute of any name');
+
+            $payload = $this->payload($html);
+            self::assertNull($payload['price'], $mode);
+            foreach ($payload['variants'] as $variant) {
+                self::assertNull($variant['price'], $mode . ': variant ' . $variant['id']);
+            }
+        }
+
+        // Selling still works: the whole purchase area is there.
+        foreach (['data-product-add-to-cart', 'data-product-qty', 'data-product-variants', 'Naam op het bord'] as $part) {
+            self::assertStringContainsString($part, $blocks['direct'], $part);
+        }
+
+        // And with "Prijs tonen" on, the price is there to be shown.
+        self::assertSame('73.19', $this->payload($this->render($this->place(['product_id' => $plate])))['price']);
     }
 
     public function testAPersonalizableProductIsBoughtThroughItsConfiguratorOnly(): void

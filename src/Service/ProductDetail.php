@@ -110,9 +110,10 @@ final class ProductDetail
 
     /**
      * The same payload without any price: for a place that shows the product
-     * but neither its price nor a cart, so the price is not even in the page
-     * (the Uitgelicht product block with its price switched off and nothing
-     * to order). A price the product itself hides is already absent.
+     * but not its price, so the price is not even in the page (the Uitgelicht
+     * product block with its price switched off — also when it sells: its
+     * cart line asks GET /api/product.php for the price at the moment of
+     * adding). A price the product itself hides is already absent.
      *
      * @param array<string, mixed> $payload a forPublic() result
      * @return array<string, mixed>
