@@ -5646,14 +5646,78 @@ body.admin-block-picker-open{ overflow: hidden; }
    row's; a page with pages under it has a small caret button before its
    name, and every level is indented one step. The caret turns like the
    collapsible rows' (.admin-collapse__caret), and hidden rows use the
-   `hidden` attribute, so nothing here is needed to hide anything.
-   ========================================================================== */
-.admin-page-tree{ display: flex; flex-direction: column; gap: 1.25rem; }
+   `hidden` attribute.
 
-/* The scrolling table is the containing block of the visually hidden labels
-   in it (a column heading, a toggle's name): without it they are positioned
-   against the page, outside the scroll box, and widen a phone's page. */
-.admin-page-tree .admin-table-wrap{ position: relative; }
+   ONE ROW, ONE HEIGHT (Pages & Destinations 3.0). The table has a FIXED
+   layout: every column's width is set here, never taken from what the rows
+   hold, so opening a parent cannot make a column wider, wrap the actions of
+   every row or push the last column out of view — which is exactly what the
+   automatic layout did, because every cell was nowrap except the actions.
+   Nothing in a row is wider than its cell: a long name or address ends in an
+   ellipsis (the whole text stays in the markup and in its title), the actions
+   are one line of fixed slots, and a row has a set height.
+
+   THE BREAKPOINTS ARE THE TREE'S OWN WIDTH (a container query), not the
+   window's: the sidebar takes 248px above 900px and nothing below it, so one
+   window width can leave very different room for the rows. Three layouts:
+   desktop (one line of actions), narrower (the actions on two lines, still one
+   row per page), and a phone (every row a card: name and address, the badges,
+   then the actions, which may wrap there).
+
+   NOT HERE: the table look itself (.admin-table), the badges (.admin-badge)
+   and the "Bewerken" pill (.admin-section-row__edit) — those are shared.
+   ========================================================================== */
+.admin-page-tree{
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  container: page-tree / inline-size;
+  /* One level of indent, and the toggle every row starts with: a guide line
+     sits in the middle of the toggle's width, so the line under a parent runs
+     straight down from its caret. */
+  --tree-step: 1.25rem;
+  --tree-toggle: 1.5rem;
+  --tree-row-height: 3.4rem;
+  --tree-cell-pad: 0.45rem;
+}
+
+/* The table is the containing block of the visually hidden labels in it (a
+   column heading, a toggle's name): without it they are positioned against
+   the page and widen a phone's page. It does not scroll sideways — nothing in
+   it is wider than its column — and must not clip the "…" menu, which opens
+   below its row. */
+.admin-page-tree .admin-table-wrap{ position: relative; overflow: visible; }
+
+.admin-page-tree__table{ table-layout: fixed; }
+.admin-page-tree__col-status{ width: 7.75rem; }
+.admin-page-tree__col-type{ width: 11.5rem; }
+.admin-page-tree__col-actions{ width: 25.5rem; }
+
+.admin-page-tree__table td{
+  height: var(--tree-row-height);
+  padding-top: var(--tree-cell-pad);
+  padding-bottom: var(--tree-cell-pad);
+  vertical-align: middle;
+}
+
+/* A row the script folds away. Stated here because the phone layout gives a
+   row a display of its own, which would otherwise beat the browser's own
+   [hidden] rule. */
+.admin-page-tree__table tr[hidden]{ display: none; }
+
+.admin-page-tree__cell-status,
+.admin-page-tree__cell-type{ overflow: hidden; }
+
+/* A badge in a fixed column is cut off rather than widening it, and a little
+   tighter than elsewhere so the usual words fit whole. */
+.admin-page-tree__table .admin-badge{
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.2rem 0.55rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
 
 .admin-page-group__head{ margin: 0 0 0.5rem; font-size: 1.05rem; }
 
@@ -5696,41 +5760,287 @@ body.admin-block-picker-open{ overflow: hidden; }
 [aria-expanded="true"] > .admin-tree-caret{ transform: rotate(90deg); }
 
 /* A 24px target (WCAG 2.5.8) around the small caret. */
-.admin-page-tree__toggle{ min-width: 24px; min-height: 24px; justify-content: center; padding: 0.2rem; }
+.admin-page-tree__toggle{ flex: 0 0 auto; width: var(--tree-toggle); min-height: var(--tree-toggle); justify-content: center; padding: 0.2rem; }
 
-.admin-page-tree__title{ display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
-
-.admin-page-tree__title > a{ min-width: 0; overflow-wrap: anywhere; }
+.admin-page-tree__title{ display: flex; align-items: center; min-width: 0; }
 
 /* Leaves line up with the names of pages that do have a caret. */
-.admin-page-tree__spacer{ flex: 0 0 auto; width: 24px; }
+.admin-page-tree__spacer{ flex: 0 0 auto; width: var(--tree-toggle); }
 
-[data-page-depth="1"] .admin-page-tree__title{ padding-left: 1.25rem; }
-[data-page-depth="2"] .admin-page-tree__title{ padding-left: 2.5rem; }
-[data-page-depth="3"] .admin-page-tree__title{ padding-left: 3.75rem; }
-[data-page-depth="4"] .admin-page-tree__title{ padding-left: 5rem; }
-[data-page-depth="5"] .admin-page-tree__title{ padding-left: 6.25rem; }
-[data-page-depth="6"] .admin-page-tree__title{ padding-left: 7.5rem; }
-[data-page-depth="7"] .admin-page-tree__title{ padding-left: 8.75rem; }
+.admin-page-tree__toggle,
+.admin-page-tree__spacer{ margin-right: 0.45rem; }
 
-/* On a phone a level is a smaller step, so a deep page keeps room for its name. */
-@media (max-width: 600px){
-  [data-page-depth="1"] .admin-page-tree__title{ padding-left: 0.75rem; }
-  [data-page-depth="2"] .admin-page-tree__title{ padding-left: 1.5rem; }
-  [data-page-depth="3"] .admin-page-tree__title{ padding-left: 2.25rem; }
-  [data-page-depth="4"] .admin-page-tree__title{ padding-left: 3rem; }
-  [data-page-depth="5"] .admin-page-tree__title{ padding-left: 3.75rem; }
-  [data-page-depth="6"] .admin-page-tree__title{ padding-left: 4.5rem; }
-  [data-page-depth="7"] .admin-page-tree__title{ padding-left: 5.25rem; }
+/* The indent of a level, with a thin guide line per level above it. The line
+   stands in the middle of a toggle's width, so it continues the caret of the
+   page it belongs to, and it reaches the row's own edges so the lines of a
+   subtree join up. Depth is told by position and line, never by colour. */
+.admin-page-tree__indent{
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: calc(var(--tree-depth, 0) * var(--tree-step));
+  margin-top: calc(-1 * var(--tree-cell-pad));
+  margin-bottom: calc(-1 * var(--tree-cell-pad));
+  background-image: repeating-linear-gradient(to right,
+    transparent 0,
+    transparent calc(var(--tree-toggle) / 2 - 0.5px),
+    var(--admin-border-strong) calc(var(--tree-toggle) / 2 - 0.5px),
+    var(--admin-border-strong) calc(var(--tree-toggle) / 2 + 0.5px),
+    transparent calc(var(--tree-toggle) / 2 + 0.5px),
+    transparent var(--tree-step));
 }
+
+[data-page-depth="1"]{ --tree-depth: 1; }
+[data-page-depth="2"]{ --tree-depth: 2; }
+[data-page-depth="3"]{ --tree-depth: 3; }
+[data-page-depth="4"]{ --tree-depth: 4; }
+[data-page-depth="5"]{ --tree-depth: 5; }
+[data-page-depth="6"]{ --tree-depth: 6; }
+[data-page-depth="7"]{ --tree-depth: 7; }
+
+/* The name on the first line, the address on the second: both one line, both
+   cut off with an ellipsis instead of widening anything. */
+.admin-page-tree__text{ display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1 1 auto; }
+
+.admin-page-tree__line{ display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+
+.admin-page-tree__line > .admin-badge{ flex: 0 0 auto; }
+
+.admin-page-tree__name,
+.admin-page-tree__url{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-page-tree__name{ font-weight: 600; }
+
+.admin-page-tree__url{ font-size: 0.78rem; color: var(--admin-text-muted); background: none; padding: 0; }
 
 /* A page listed only because something below it matched the search. */
 .admin-page-tree__context > td{ color: var(--admin-text-muted); }
 
-.admin-page-tree__actions{ display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+/* The actions: one line of fixed slots, right-aligned, so Bewerken, Bekijken
+   and Subpagina toevoegen stand in the same place on every row, also on a row
+   that lacks one of them (its slot stays, empty). */
+.admin-page-tree__actions{
+  display: grid;
+  grid-template-columns: max-content 4.75rem 9.75rem 2rem;
+  align-items: center;
+  justify-content: end;
+  column-gap: 0.65rem;
+  white-space: nowrap;
+}
+
+.admin-page-tree__action{ font-size: 0.875rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+
+/* "Subpagina toevoegen" in full; a narrower layout shows "+ Subpagina". */
+.admin-page-tree__label-short{ display: none; }
+
+/* The "…" menu of a row (a <details>): what is used rarely and cannot be
+   undone. It opens below its button and over the rows under it; admin/assets/
+   page-tree.js keeps one open at a time and closes it on Escape or a click
+   elsewhere. Without the script it opens and closes like any <details>. */
+.admin-row-menu{ position: relative; }
+
+.admin-row-menu__toggle{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-text);
+  font-weight: 700;
+  line-height: 1;
+  list-style: none;
+  cursor: pointer;
+  transition: background var(--admin-transition), border-color var(--admin-transition);
+}
+
+.admin-row-menu__toggle::-webkit-details-marker{ display: none; }
+.admin-row-menu__toggle::marker{ content: ''; }
+
+.admin-row-menu__toggle:hover,
+.admin-row-menu[open] > .admin-row-menu__toggle{ background: var(--admin-surface-hover); border-color: var(--admin-border-strong); }
+
+.admin-row-menu__toggle:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.admin-row-menu__panel{
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  min-width: 12rem;
+  max-width: 18rem;
+  padding: 0.35rem;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-md);
+  white-space: normal;
+  text-align: left;
+}
+
+.admin-row-menu__form{ display: block; margin: 0; }
+
+.admin-row-menu__item{
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  background: transparent;
+  color: var(--admin-text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-row-menu__item:hover{ background: var(--admin-surface-hover); }
+.admin-row-menu__item:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+.admin-row-menu__item--danger{ color: var(--admin-error); }
+.admin-row-menu__item:disabled{ color: var(--admin-text-faint); background: transparent; cursor: not-allowed; }
+
+.admin-row-menu__note{ margin: 0.1rem 0.65rem 0.4rem; color: var(--admin-text-muted); font-size: 0.8rem; line-height: 1.45; }
+
+/* NARROWER (a laptop with the sidebar, a tablet): the type badge may take two
+   lines and the actions take two — Bewerken and "…" first, Bekijken and
+   "+ Subpagina" under them. Still one row per page, all of one height. */
+@container page-tree (max-width: 56rem){
+  .admin-page-tree{ --tree-row-height: 4.4rem; --tree-step: 1rem; }
+
+  .admin-page-tree__col-status{ width: 7.5rem; }
+  .admin-page-tree__col-type{ width: 9rem; }
+  .admin-page-tree__col-actions{ width: 13.5rem; }
+
+  .admin-page-tree__table td{ padding-left: 0.5rem; padding-right: 0.5rem; }
+
+  .admin-page-tree__cell-type .admin-badge{ white-space: normal; line-height: 1.25; }
+
+  .admin-page-tree__actions{
+    grid-template-columns: 6.5rem 5.5rem;
+    grid-template-areas: "edit more" "view child";
+    row-gap: 0.35rem;
+  }
+
+  .admin-page-tree__edit{ grid-area: edit; justify-self: start; }
+  .admin-page-tree__action--view{ grid-area: view; }
+  .admin-page-tree__action--child{ grid-area: child; }
+  .admin-page-tree__actions > .admin-row-menu{ grid-area: more; justify-self: end; }
+
+  /* The short label on screen; the whole one stays for a screen reader. */
+  .admin-page-tree__label-short{ display: inline; }
+  .admin-page-tree__label-long{
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* A PHONE: every row a card. The name and address first, then the status and
+   type, then the actions, which may wrap here (Subpagina toevoegen under
+   Bekijken). A level still indents the whole card, with its guide lines. */
+@container page-tree (max-width: 40rem){
+  .admin-page-tree{ --tree-step: 0.85rem; }
+
+  .admin-page-tree__table,
+  .admin-page-tree__table tbody{ display: block; width: 100%; }
+
+  .admin-page-tree__table colgroup{ display: none; }
+
+  /* The column headings are still there for a screen reader. */
+  .admin-page-tree__table thead{
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .admin-page-tree__table tbody tr{
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    grid-template-areas: "title title" "status type" "actions actions";
+    gap: 0.5rem 0.4rem;
+    padding: 0.75rem 0 0.75rem calc(var(--tree-depth, 0) * var(--tree-step));
+    border-bottom: 1px solid var(--admin-border);
+    background-image: repeating-linear-gradient(to right,
+      transparent 0,
+      transparent calc(var(--tree-toggle) / 2 - 0.5px),
+      var(--admin-border-strong) calc(var(--tree-toggle) / 2 - 0.5px),
+      var(--admin-border-strong) calc(var(--tree-toggle) / 2 + 0.5px),
+      transparent calc(var(--tree-toggle) / 2 + 0.5px),
+      transparent var(--tree-step));
+    background-size: calc(var(--tree-depth, 0) * var(--tree-step)) 100%;
+    background-repeat: no-repeat;
+  }
+
+  .admin-page-tree__table tbody tr[hidden]{ display: none; }
+
+  .admin-page-tree__table td{ display: block; height: auto; padding: 0; border: 0; }
+
+  .admin-page-tree__cell-title{ grid-area: title; }
+  .admin-page-tree__cell-status{ grid-area: status; }
+  .admin-page-tree__cell-type{ grid-area: type; }
+  .admin-page-tree__cell-actions{ grid-area: actions; }
+
+  /* The badges and the actions line up with the name, not with the caret. */
+  .admin-page-tree__table td.admin-page-tree__cell-status,
+  .admin-page-tree__table td.admin-page-tree__cell-actions{ padding-left: calc(var(--tree-toggle) + 0.45rem); }
+
+  /* The whole card is indented instead. */
+  .admin-page-tree__indent{ display: none; }
+
+  .admin-page-tree__actions{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.5rem 0.9rem;
+  }
+
+  /* An empty slot only kept a column in line; a card has no columns. */
+  .admin-page-tree__actions > span.admin-page-tree__action{ display: none; }
+
+  /* A card has the room for the whole label again. */
+  .admin-page-tree__label-short{ display: none; }
+  .admin-page-tree__label-long{
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: nowrap;
+  }
+
+  .admin-page-tree__cell-status,
+  .admin-page-tree__cell-type{ overflow: visible; }
+
+  /* The menu opens as wide as the card, right under its button, so it never
+     runs off a narrow screen whichever end of the line the button is at. */
+  .admin-page-tree__table tbody tr{ position: relative; }
+  .admin-row-menu{ position: static; }
+  .admin-row-menu__panel{
+    top: auto;
+    left: calc(var(--tree-depth, 0) * var(--tree-step));
+    right: 0;
+    width: auto;
+    max-width: none;
+    margin-top: 0.35rem;
+  }
+}
 
 @media (prefers-reduced-motion: reduce){
   .admin-tree-caret{ transition: none; }
+  .admin-row-menu__toggle{ transition: none; }
 }
 
 .admin-page-placement{ display: flex; flex-direction: column; gap: 0.75rem; }

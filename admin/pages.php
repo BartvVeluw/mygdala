@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_admin_ui.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -54,6 +55,26 @@ use App\Repository\PageRepository;
  * above it, marked as context, and while a search is active nothing is
  * folded: a match can never be hidden because its parent was closed. There
  * is no pagination, so the tree is always whole.
+ *
+ * ONE ROW, ONE HEIGHT (Pages & Destinations 3.0, ADMIN-UI.md "Pagina's"). A
+ * row is four cells in a table with a FIXED layout: the name with its address
+ * on a second line, the status, the type, and the actions. The column widths
+ * come from the stylesheet, never from what a row holds, so opening a parent
+ * cannot widen a column, wrap the actions of every other row or push
+ * Verwijderen out of view — which is what the automatic layout of the old
+ * table did (docs/pages/NESTING.md §8). The address is always printed, never
+ * only on hover; a long one is cut off with an ellipsis and stays whole in the
+ * markup for a screen reader and in its title. The actions are one line:
+ * Bewerken, Bekijken (or Voorbeeld for a concept), Subpagina toevoegen, and a
+ * "…" menu for what is used rarely and cannot be undone. That menu is a
+ * <details>, so it opens without the script too, and Verwijderen in it asks
+ * first in the CMS's own dialog (admin_confirm_dialog()). A page that cannot
+ * be deleted says why in the same menu instead of in a hover-only title.
+ *
+ * The rows keep their table semantics on every screen size: on a phone the
+ * stylesheet stacks each row into a card, and the ARIA table roles below keep
+ * a screen reader reading a table there, which a CSS display change would
+ * otherwise take away.
  */
 
 AdminAuth::requireLogin();
@@ -216,18 +237,26 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <?php if ($rows === []): ?>
             <p class="admin-text-muted admin-page-group__empty"><?= admin_te('pages.group_empty') ?></p>
           <?php else: ?>
-          <table class="admin-table admin-page-tree__table">
-            <thead>
-              <tr>
-                <th><?= admin_te('common.title') ?></th>
-                <th><?= admin_te('common.url') ?></th>
-                <th><?= admin_te('common.status') ?></th>
-                <th><?= admin_te('common.type') ?></th>
-                <th><span class="admin-visually-hidden"><?= admin_te('pages.actions') ?></span></th>
-                <th></th>
+          <?php /* The explicit table roles are deliberate: on a phone the
+                   stylesheet stacks every row into a card (display: grid),
+                   and a browser drops a table's semantics when its display
+                   changes unless the roles say it is one. */ ?>
+          <table class="admin-table admin-page-tree__table" role="table">
+            <colgroup>
+              <col class="admin-page-tree__col-title">
+              <col class="admin-page-tree__col-status">
+              <col class="admin-page-tree__col-type">
+              <col class="admin-page-tree__col-actions">
+            </colgroup>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader" scope="col"><?= admin_te('common.title') ?></th>
+                <th role="columnheader" scope="col"><?= admin_te('common.status') ?></th>
+                <th role="columnheader" scope="col"><?= admin_te('common.type') ?></th>
+                <th role="columnheader" scope="col"><span class="admin-visually-hidden"><?= admin_te('pages.actions') ?></span></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               <?php foreach ($rows as $row): ?>
                 <?php
                   $page = $row['page'];
@@ -237,6 +266,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                   $isProtected = PageContent::isProtected($page);
                   $hasFixedUrl = PageContent::isRouteBound($page);
                   $publicUrl = PageContent::publicUrl($page);
+                  $depth = min((int) $row['depth'], 7);
                   // A module's page (Shop, Portfolio): whose it is, and
                   // whether that module is on. Its address is the module's
                   // route; with the module off it answers nothing.
@@ -244,6 +274,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                   if ($modulePage !== null) {
                       $publicUrl = \App\Service\Routing\LocalizedUrl::path($modulePage['route_path']);
                   }
+                  $moduleOff = $modulePage !== null && !$modulePage['enabled'];
                   // The rows this row folds: its direct children in this list.
                   $childRowIds = [];
                   foreach ($rows as $other) {
@@ -251,10 +282,24 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                           $childRowIds[] = 'page-row-' . (int) $other['id'];
                       }
                   }
+                  // Why Verwijderen is not offered, said in the menu rather
+                  // than in a title nobody can reach with a keyboard. A page
+                  // with pages under it is not deleted from under them, and a
+                  // module's page not at all (PageService::delete()).
+                  $deleteRefusal = match (true) {
+                      $modulePage !== null => admin_t('pages.module_page_hint', ['module' => $modulePage['module_label']]),
+                      $isProtected => admin_t('pages.protected_hint'),
+                      $row['has_children'] => admin_t('pages.delete_has_children'),
+                      default => null,
+                  };
+                  $parentName = $row['parent_id'] !== null ? \App\Service\PageLocalization::name((int) $row['parent_id']) : '';
                 ?>
-                <tr id="page-row-<?= $pageId ?>" data-page-row="<?= $pageId ?>" data-page-parent="<?= (int) ($row['parent_id'] ?? 0) ?>" data-page-depth="<?= min((int) $row['depth'], 7) ?>"<?= $row['context'] ? ' class="admin-page-tree__context"' : '' ?>>
-                  <td>
+                <tr id="page-row-<?= $pageId ?>" data-page-row="<?= $pageId ?>" data-page-parent="<?= (int) ($row['parent_id'] ?? 0) ?>" data-page-depth="<?= $depth ?>" role="row"<?= $row['context'] ? ' class="admin-page-tree__context"' : '' ?>>
+                  <td role="cell" class="admin-page-tree__cell-title">
                     <div class="admin-page-tree__title">
+                      <?php if ($depth > 0): ?>
+                        <span class="admin-page-tree__indent" aria-hidden="true"></span>
+                      <?php endif; ?>
                       <?php if ($childRowIds !== []): ?>
                         <button type="button" class="admin-page-tree__toggle" aria-expanded="true" aria-controls="<?= $h(implode(' ', $childRowIds)) ?>" data-page-tree-toggle="<?= $pageId ?>">
                           <span class="admin-tree-caret" aria-hidden="true"></span>
@@ -263,59 +308,82 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                       <?php else: ?>
                         <span class="admin-page-tree__spacer" aria-hidden="true"></span>
                       <?php endif; ?>
-                      <a href="/admin/page.php?id=<?= $pageId ?>"><?= $h($pageName) ?></a>
-                      <?php if ($row['context']): ?>
-                        <span class="admin-badge admin-badge--muted"><?= admin_te('pages.search_context') ?></span>
-                      <?php endif; ?>
+                      <div class="admin-page-tree__text">
+                        <span class="admin-page-tree__line">
+                          <a class="admin-page-tree__name" href="/admin/page.php?id=<?= $pageId ?>" title="<?= $h($pageName) ?>"><?= $h($pageName) ?></a>
+                          <?php if ($parentName !== ''): ?>
+                            <span class="admin-visually-hidden">, <?= admin_te('pages.tree_child_of', ['parent' => $parentName]) ?></span>
+                          <?php endif; ?>
+                          <?php if ($row['context']): ?>
+                            <span class="admin-badge admin-badge--muted"><?= admin_te('pages.search_context') ?></span>
+                          <?php endif; ?>
+                        </span>
+                        <span class="admin-page-tree__line admin-page-tree__line--url">
+                          <code class="admin-page-tree__url" title="<?= $h($publicUrl) ?>"><?= $h($publicUrl) ?></code>
+                          <?php if ($moduleOff): ?>
+                            <span class="admin-badge admin-badge--warning"><?= admin_te('pages.module_off') ?></span>
+                          <?php endif; ?>
+                        </span>
+                      </div>
                     </div>
                   </td>
-                  <td><code><?= $h($publicUrl) ?></code></td>
-                  <td><span class="admin-badge admin-badge--<?= $isPublished ? 'published' : 'draft' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
-                  <td>
+                  <td role="cell" class="admin-page-tree__cell-status"><span class="admin-badge admin-badge--<?= $isPublished ? 'published' : 'draft' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
+                  <td role="cell" class="admin-page-tree__cell-type">
                     <?php if ($modulePage !== null): ?>
-                      <span class="admin-badge admin-badge--info" title="<?= admin_te('pages.module_page_hint', ['module' => $modulePage['module_label']]) ?>"><?= admin_te('pages.module_page', ['module' => $modulePage['module_label']]) ?></span>
-                      <?php if (!$modulePage['enabled']): ?>
-                        <span class="admin-badge admin-badge--warning"><?= admin_te('pages.module_off') ?></span>
-                      <?php endif; ?>
+                      <span class="admin-badge admin-badge--info"><?= admin_te('pages.module_page', ['module' => $modulePage['module_label']]) ?></span>
                     <?php elseif ($isProtected): ?>
-                      <span class="admin-badge admin-badge--info" title="<?= admin_te('pages.protected_hint') ?>"><?= admin_te('pages.protected') ?></span>
+                      <span class="admin-badge admin-badge--info"><?= admin_te('pages.protected') ?></span>
                     <?php elseif ($hasFixedUrl): ?>
-                      <span class="admin-badge admin-badge--muted" title="<?= admin_te('pages.fixed_url_hint') ?>"><?= admin_te('pages.fixed_url') ?></span>
+                      <span class="admin-badge admin-badge--muted"><?= admin_te('pages.fixed_url') ?></span>
                     <?php else: ?>
                       <span class="admin-badge admin-badge--muted"><?= admin_te('pages.content_page') ?></span>
                     <?php endif; ?>
                   </td>
-                  <td>
+                  <td role="cell" class="admin-page-tree__cell-actions">
                     <div class="admin-page-tree__actions">
-                      <a href="/admin/page.php?id=<?= $pageId ?>" class="admin-section-row__edit"><?= admin_te('common.edit') ?> &#8594;</a>
+                      <a href="/admin/page.php?id=<?= $pageId ?>" class="admin-section-row__edit admin-page-tree__edit"><?= admin_te('common.edit') ?><span class="admin-visually-hidden">: <?= $h($pageName) ?></span> <span aria-hidden="true">&#8594;</span></a>
                       <?php /* Where visitors see it; a draft has no public
                                address yet, so it opens the editors-only
-                               preview, as the editor's own button does. */ ?>
-                      <?php if ($modulePage !== null && !$modulePage['enabled']): ?>
-                        <?php /* The module is off: its address answers nothing. */ ?>
+                               preview, as the editor's own button does. With
+                               the module off the address answers nothing, and
+                               the slot stays empty so the line keeps its
+                               place. */ ?>
+                      <?php if ($moduleOff): ?>
+                        <span class="admin-page-tree__action admin-page-tree__action--view" aria-hidden="true"></span>
                       <?php elseif ($isPublished): ?>
-                        <a href="<?= $h($publicUrl) ?>" target="_blank" rel="noopener"><?= admin_te('pages.open') ?></a>
+                        <a class="admin-page-tree__action admin-page-tree__action--view" href="<?= $h($publicUrl) ?>" target="_blank" rel="noopener"><?= admin_te('pages.open') ?><span class="admin-visually-hidden">: <?= $h($pageName) ?></span></a>
                       <?php else: ?>
-                        <a href="/admin/page-preview.php?id=<?= $pageId ?>" target="_blank" rel="noopener"><?= admin_te('page.preview') ?></a>
+                        <a class="admin-page-tree__action admin-page-tree__action--view" href="/admin/page-preview.php?id=<?= $pageId ?>" target="_blank" rel="noopener"><?= admin_te('pages.preview') ?><span class="admin-visually-hidden">: <?= $h($pageName) ?></span></a>
                       <?php endif; ?>
                       <?php if (!$hasFixedUrl): ?>
-                        <a href="/admin/page-new.php?parent=<?= $pageId ?>"><?= admin_te('pages.add_child') ?></a>
+                        <?php /* Two labels: the whole one, and "+ Subpagina" that a
+                                 narrower screen shows instead. The short one is
+                                 hidden from a screen reader, which always hears
+                                 the whole name. */ ?>
+                        <a class="admin-page-tree__action admin-page-tree__action--child" href="/admin/page-new.php?parent=<?= $pageId ?>"><span class="admin-page-tree__label-long"><?= admin_te('pages.add_child') ?><span class="admin-visually-hidden"> <?= admin_te('pages.add_child_under', ['page' => $pageName]) ?></span></span><span class="admin-page-tree__label-short" aria-hidden="true">+ <?= admin_te('pages.add_child_short') ?></span></a>
+                      <?php else: ?>
+                        <span class="admin-page-tree__action admin-page-tree__action--child" aria-hidden="true"></span>
                       <?php endif; ?>
+                      <details class="admin-row-menu" data-row-menu>
+                        <summary class="admin-row-menu__toggle" aria-label="<?= admin_te('pages.more_actions', ['page' => $pageName]) ?>"><span aria-hidden="true">&hellip;</span></summary>
+                        <div class="admin-row-menu__panel">
+                          <?php if ($deleteRefusal === null): ?>
+                            <form method="post" action="/api/admin/delete-page.php" class="admin-inline-form admin-row-menu__form"<?= admin_confirm_attributes(
+                                admin_t('pages.delete_confirm_title'),
+                                admin_t('pages.delete_confirm_named', ['page' => $pageName]),
+                                admin_t('common.delete')
+                            ) ?>>
+                              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                              <input type="hidden" name="id" value="<?= $pageId ?>">
+                              <button type="submit" class="admin-row-menu__item admin-row-menu__item--danger"><?= admin_te('common.delete') ?></button>
+                            </form>
+                          <?php else: ?>
+                            <button type="button" class="admin-row-menu__item" disabled aria-describedby="page-row-<?= $pageId ?>-delete-why"><?= admin_te('common.delete') ?></button>
+                            <p class="admin-row-menu__note" id="page-row-<?= $pageId ?>-delete-why"><?= $h($deleteRefusal) ?></p>
+                          <?php endif; ?>
+                        </div>
+                      </details>
                     </div>
-                  </td>
-                  <td>
-                    <?php if ($isProtected || $row['has_children'] || $modulePage !== null): ?>
-                      <?php /* A page with pages under it is not deleted from
-                               under them, and a module's page not at all
-                               (PageService::delete()). */ ?>
-                      <span class="admin-text-muted"<?= $row['has_children'] && !$isProtected ? ' title="' . admin_te('pages.delete_has_children') . '"' : ($modulePage !== null ? ' title="' . admin_te('pages.module_page_delete') . '"' : '') ?>>&mdash;</span>
-                    <?php else: ?>
-                      <form method="post" action="/api/admin/delete-page.php" class="admin-inline-form" onsubmit="return confirm(<?= $h(json_encode(admin_t('pages.delete_confirm'), JSON_UNESCAPED_UNICODE)) ?>);">
-                        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-                        <input type="hidden" name="id" value="<?= $pageId ?>">
-                        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-                      </form>
-                    <?php endif; ?>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -328,6 +396,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </div>
     <?php endif; ?>
   <?php endif; ?>
+  <?= admin_confirm_dialog() ?>
 </main>
 </body>
 </html>

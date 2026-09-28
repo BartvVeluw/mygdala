@@ -22,6 +22,12 @@
  * before the search. Clearing the search brings the remembered state back.
  *
  * Without this script every row is visible and the buttons do nothing.
+ *
+ * THE "…" MENU OF A ROW is a <details> ([data-row-menu]): it opens and closes
+ * without this file. What the script adds is what a menu is expected to do:
+ * one open at a time, closed by Escape (focus back on its button) or by a
+ * click anywhere else, and closed when its row is folded away. Deleting from
+ * it asks first in the CMS's own dialog (admin-ui.js), not here.
  */
 (function () {
   'use strict';
@@ -83,6 +89,9 @@
       rows.forEach(function (row) {
         var id = row.getAttribute('data-page-row');
         row.hidden = hiddenByAncestor(id);
+        if (row.hidden) {
+          closeMenus(row, null);
+        }
       });
       tree.querySelectorAll('[data-page-tree-toggle]').forEach(function (button) {
         button.setAttribute('aria-expanded', isClosed(button.getAttribute('data-page-tree-toggle')) ? 'false' : 'true');
@@ -143,9 +152,62 @@
       }
     });
 
+    // One row menu open at a time. The toggle event does not bubble, so it is
+    // heard on the way down.
+    tree.addEventListener('toggle', function (event) {
+      var menu = event.target;
+      if (menu && menu.matches && menu.matches('[data-row-menu]') && menu.open) {
+        closeMenus(tree, menu);
+      }
+    }, true);
+
     renderRows();
     renderGroups();
   }
+
+  /** Close every open row menu inside scope, except keep (may be null). */
+  function closeMenus(scope, keep) {
+    scope.querySelectorAll('[data-row-menu][open]').forEach(function (menu) {
+      if (menu !== keep) {
+        menu.open = false;
+      }
+    });
+  }
+
+  // A click outside an open menu closes it; a click inside (its own button
+  // included) is left to the <details> itself. A click in the confirmation
+  // dialog is not "elsewhere": Annuleren gives the focus back to Verwijderen,
+  // which must still be on screen to take it.
+  document.addEventListener('click', function (event) {
+    if (!event.target || !event.target.closest || event.target.closest('dialog')) {
+      return;
+    }
+    var inside = event.target.closest('[data-row-menu]');
+    document.querySelectorAll('[data-page-tree]').forEach(function (tree) {
+      closeMenus(tree, inside);
+    });
+  });
+
+  // Escape closes the menu that holds the focus, and puts the focus back on
+  // its button, so a keyboard user is where they were. Escape inside the
+  // confirmation dialog is the dialog's own.
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape' || !event.target || !event.target.closest) {
+      return;
+    }
+    if (event.target.closest('dialog')) {
+      return;
+    }
+    var menu = event.target.closest('[data-row-menu][open]');
+    if (!menu) {
+      return;
+    }
+    menu.open = false;
+    var toggle = menu.querySelector('summary');
+    if (toggle) {
+      toggle.focus();
+    }
+  });
 
   function start() {
     document.querySelectorAll('[data-page-tree]').forEach(init);
