@@ -166,13 +166,20 @@ $numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="' . adm
 // The picture's presentation (Responsive Media 2.0): as handed back, else
 // as stored. The frames take the card's shape: its picture height on a large
 // screen, and the same height across a phone's 82vw card (card-carousel.css,
-// a 375px phone: 308px wide).
+// a 375px phone: 308px wide) — unless the carousel gives its pictures one
+// shape in a row (flat_image_ratio): then the phone always, and a large
+// screen with "Kaarten naast elkaar", show that shape.
 $imageSlot = CardCarouselContent::imageSlot();
 $presentation = ResponsiveImage::fromRow(is_array($old) && is_array($old['presentation'] ?? null) ? $old['presentation'] : $card, $imageSlot);
 $carouselImageHeight = CardCarouselContent::imageHeight((string) ($carousel['image_height'] ?? ''));
+$carouselFlatRatio = ResponsiveImage::flatRatio($carousel['flat_image_ratio'] ?? null);
+$flatFrame = $carouselFlatRatio === 'auto' ? null : str_replace('-', ' / ', $carouselFlatRatio);
+$carouselIsRow = CardCarouselContent::layout((string) ($carousel['desktop_layout'] ?? '')) === CardCarouselContent::LAYOUT_ROW;
 $cardFrame = [
-    'desktop' => ['small' => '300 / 112', 'medium' => '300 / 148', 'large' => '300 / 208'][$carouselImageHeight],
-    'mobile' => ['small' => '308 / 96', 'medium' => '308 / 120', 'large' => '308 / 168'][$carouselImageHeight],
+    'desktop' => $carouselIsRow && $flatFrame !== null
+        ? $flatFrame
+        : ['small' => '300 / 112', 'medium' => '300 / 148', 'large' => '300 / 208'][$carouselImageHeight],
+    'mobile' => $flatFrame ?? ['small' => '308 / 96', 'medium' => '308 / 120', 'large' => '308 / 168'][$carouselImageHeight],
 ];
 $presentationErrors = [];
 foreach ($fieldErrors as $errorField => $errorMessage) {

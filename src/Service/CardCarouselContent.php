@@ -127,6 +127,8 @@ class CardCarouselContent
      *                                desktop_layout (one of LAYOUTS),
      *                                header_align (one of HEADER_ALIGNMENTS),
      *                                image_height (one of IMAGE_HEIGHTS),
+ *                                flat_ratio (one of
+ *                                ResponsiveImage::FLAT_RATIOS),
      *                                index_label ('' for none), image_path
      *                                (+ image_alt, a string, image_width /
      *                                image_height and picture), title, body and
@@ -175,6 +177,7 @@ class CardCarouselContent
             'desktop_layout' => self::layout((string) ($row['desktop_layout'] ?? '')),
             'header_align' => self::headerAlign((string) ($row['header_align'] ?? '')),
             'image_height' => self::imageHeight((string) ($row['image_height'] ?? '')),
+            'flat_ratio' => ResponsiveImage::flatRatio($row['flat_image_ratio'] ?? null),
         ] + BlockLocalization::words(self::TABLE, $carouselId);
 
         try {
@@ -313,7 +316,7 @@ class CardCarouselContent
      */
     private static function emptyContent(): array
     {
-        return ['id' => 0, 'desktop_layout' => self::LAYOUT_ORBIT, 'header_align' => self::headerAlign(''), 'image_height' => self::imageHeight('')]
+        return ['id' => 0, 'desktop_layout' => self::LAYOUT_ORBIT, 'header_align' => self::headerAlign(''), 'image_height' => self::imageHeight(''), 'flat_ratio' => ResponsiveImage::flatRatio(null)]
             + BlockLocalization::words(self::TABLE, 0) + ['cards' => []];
     }
 }

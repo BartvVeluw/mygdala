@@ -40,7 +40,12 @@ require_once __DIR__ . '/responsive-image.php';
  * do not follow it. 'image_height' (CardCarouselContent::IMAGE_HEIGHTS) sets
  * one picture height for every card of this carousel. Both become a class
  * here, and the defaults (left, medium) add none, so an existing carousel
- * renders exactly as it did.
+ * renders exactly as it did. 'flat_ratio' (ResponsiveImage::FLAT_RATIOS,
+ * Responsive Media 2.0) gives the pictures one shape wherever the cards stand
+ * in a row — on a phone always, on larger screens with "Kaarten naast
+ * elkaar" — instead of that height; 'auto' adds no class either. Each card's
+ * picture is its own <picture> (partials/responsive-image.php): focus point,
+ * fit and a phone picture of its own.
  *
  * A card title is an h3 under the carousel's own title and an h2 in a
  * carousel without one (App\Service\Blocks\CardHeading); `.orbit-card__title`
@@ -68,6 +73,10 @@ function render_section_card_carousel(array $content): void
     $headClass = in_array($align, ['center', 'right'], true) ? ' card-carousel__head--' . $align : '';
     $imageHeight = (string) ($content['image_height'] ?? 'medium');
     $mediaClass = in_array($imageHeight, ['small', 'large'], true) ? ' orbit-carousel--media-' . $imageHeight : '';
+    $flatRatio = (string) ($content['flat_ratio'] ?? 'auto');
+    $flatClass = $flatRatio !== 'auto' && in_array($flatRatio, \App\Service\Media\ResponsiveImage::FLAT_RATIOS, true)
+        ? ' orbit-carousel--flat orbit-carousel--flat-' . $flatRatio
+        : '';
     ?>
       <section class="bg-soft">
         <div class="container">
@@ -84,7 +93,7 @@ function render_section_card_carousel(array $content): void
           <?php endif; ?>
 
           <div
-            class="orbit-carousel<?= $isRow ? ' orbit-carousel--row' : '' ?><?= $mediaClass ?>"
+            class="orbit-carousel<?= $isRow ? ' orbit-carousel--row' : '' ?><?= $mediaClass ?><?= $flatClass ?>"
             data-orbit
             data-orbit-speed="9"
             data-orbit-layout="<?= $isRow ? 'row' : 'orbit' ?>"

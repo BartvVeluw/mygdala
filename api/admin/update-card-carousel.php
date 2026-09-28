@@ -53,6 +53,7 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\CardCarouselContent;
+use App\Service\Media\ResponsiveImage;
 use App\Repository\CardCarouselRepository;
 use App\Repository\PageRepository;
 
@@ -104,10 +105,11 @@ foreach (array_keys(BlockLocalization::fields('card_carousels')) as $field) {
 
 $isActive = isset($_POST['is_active']);
 $layout = (string) ($_POST['desktop_layout'] ?? '');
-// Two closed lists, the same in every language. An unknown value is refused;
-// a request without one keeps what is stored.
+// Three closed lists, the same in every language. An unknown value is
+// refused; a request without one keeps what is stored.
 $headerAlign = (string) ($_POST['header_align'] ?? CardCarouselContent::headerAlign((string) ($carousel['header_align'] ?? '')));
 $imageHeight = (string) ($_POST['image_height'] ?? CardCarouselContent::imageHeight((string) ($carousel['image_height'] ?? '')));
+$flatRatio = (string) ($_POST['flat_image_ratio'] ?? ResponsiveImage::flatRatio($carousel['flat_image_ratio'] ?? null));
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $newCardTitle = trim((string) ($_POST['new_card_title'] ?? ''));
 
@@ -147,6 +149,10 @@ if (!in_array($imageHeight, CardCarouselContent::IMAGE_HEIGHTS, true)) {
     $errors[] = AdminTranslator::trans('block_carousel.error_afbeeldingshoogte');
 }
 
+if (!in_array($flatRatio, ResponsiveImage::FLAT_RATIOS, true)) {
+    $errors[] = AdminTranslator::trans('block_carousel.error_beeldverhouding');
+}
+
 if (mb_strlen($newCardTitle) > 255) {
     $errors[] = AdminTranslator::trans('validation.text_too_long');
 }
@@ -170,6 +176,7 @@ $old = ['language_code' => $languageCode] + $words + [
     'desktop_layout' => $layout,
     'header_align' => $headerAlign,
     'image_height' => $imageHeight,
+    'flat_image_ratio' => $flatRatio,
     'new_card_title' => $newCardTitle,
     'cards' => [],
 ];
@@ -193,7 +200,7 @@ $newCardId = null;
 try {
     $db->beginTransaction();
 
-    $repository->updateSettings($carouselId, $isActive, $layout, $headerAlign, $imageHeight);
+    $repository->updateSettings($carouselId, $isActive, $layout, $headerAlign, $imageHeight, $flatRatio);
     BlockLocalization::save('card_carousels', $carouselId, $languageCode, $words);
 
     if ($cardsPosted) {

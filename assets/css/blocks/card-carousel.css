@@ -266,3 +266,24 @@
   }
   .orbit-carousel--row:not([data-orbit-overflow="true"]) .orbit-carousel__controls{ display: none; }
 }
+
+/* The pictures' shape wherever the cards stand in a row
+   (card_carousels.flat_image_ratio, App\Service\Media\ResponsiveImage::
+   FLAT_RATIOS, Responsive Media 2.0): on a phone always, on larger screens
+   with "Kaarten naast elkaar". 'auto' has no class and keeps the fixed height
+   above. The ring never takes it: its stage height is worked out from a
+   fixed card height. A card without a picture (the icon) takes the same
+   shape, so the cards of one row stay equally tall. Last in this file, so it
+   wins over the heights of the phone and "naast elkaar" rules. The minimum
+   height of 0 keeps a picture of another shape from growing the box to its
+   own proportions (an aspect-ratio box's automatic minimum is its content). */
+.orbit-carousel--flat-1-1{ --orbit-flat-ratio: 1 / 1; }
+.orbit-carousel--flat-4-3{ --orbit-flat-ratio: 4 / 3; }
+.orbit-carousel--flat-3-4{ --orbit-flat-ratio: 3 / 4; }
+.orbit-carousel--flat-16-9{ --orbit-flat-ratio: 16 / 9; }
+@media (max-width: 699px){
+  .orbit-carousel--flat .orbit-card__media{ height: auto; min-height: 0; aspect-ratio: var(--orbit-flat-ratio); overflow: hidden; }
+}
+@media (min-width: 700px){
+  .orbit-carousel--row.orbit-carousel--flat .orbit-card__media{ height: auto; min-height: 0; aspect-ratio: var(--orbit-flat-ratio); overflow: hidden; }
+}

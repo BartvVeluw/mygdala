@@ -13,6 +13,7 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\CardCarouselContent;
 use App\Service\Csrf;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ResponsiveImage;
 use App\Service\SectionRegistry;
 use App\Repository\CardCarouselRepository;
 use App\Repository\PageRepository;
@@ -88,6 +89,7 @@ $isActive = is_array($old) ? !empty($old['is_active']) : (bool) $carousel['is_ac
 $layout = CardCarouselContent::layout(is_array($old) ? (string) ($old['desktop_layout'] ?? '') : (string) ($carousel['desktop_layout'] ?? ''));
 $headerAlign = CardCarouselContent::headerAlign(is_array($old) ? (string) ($old['header_align'] ?? '') : (string) ($carousel['header_align'] ?? ''));
 $imageHeight = CardCarouselContent::imageHeight(is_array($old) ? (string) ($old['image_height'] ?? '') : (string) ($carousel['image_height'] ?? ''));
+$flatRatio = ResponsiveImage::flatRatio(is_array($old) ? ($old['flat_image_ratio'] ?? null) : ($carousel['flat_image_ratio'] ?? null));
 
 /** The heading's words on screen: typed and handed back in this language, else stored in it. */
 $carouselWord = static function (string $field) use ($old, $oldInThisLanguage, $carouselId, $editLanguage): string {
@@ -283,6 +285,19 @@ $activeCount = count(array_filter($cards, static fn (array $state): bool => $sta
             <label class="admin-segmented__option">
               <input type="radio" name="image_height" value="<?= $h($value) ?>"<?= $imageHeight === $value ? ' checked' : '' ?>>
               <span><?= admin_te('block_carousel.afbeeldingshoogte_' . $value) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+
+      <?php /* Responsive Media 2.0: the pictures' shape where the cards stand in a row. */ ?>
+      <div class="admin-form-row">
+        <span class="admin-form-row__label" id="carousel-flat-ratio-label"><?= admin_te('block_carousel.beeldverhouding_rij') ?> <?= admin_help(admin_t('block_carousel.beeldverhouding_rij'), admin_t('help.block_carousel.beeldverhouding_rij')) ?></span>
+        <div class="admin-segmented" role="radiogroup" aria-labelledby="carousel-flat-ratio-label">
+          <?php foreach (ResponsiveImage::FLAT_RATIOS as $value): ?>
+            <label class="admin-segmented__option">
+              <input type="radio" name="flat_image_ratio" value="<?= $h($value) ?>"<?= $flatRatio === $value ? ' checked' : '' ?>>
+              <span><?= admin_te('block_carousel.beeldverhouding_' . str_replace('-', '_', $value)) ?></span>
             </label>
           <?php endforeach; ?>
         </div>

@@ -86,17 +86,19 @@ class CardCarouselRepository extends Repository
      * The carousel's own settings, the same in every language: whether it is
      * shown, how it is laid out on larger screens
      * (CardCarouselContent::LAYOUTS, checked by the caller), where its heading
-     * sits and how tall its card pictures are.
+     * sits, how tall its card pictures are and what shape they take in a row.
      */
-    public function updateSettings(int $id, bool $isActive, string $desktopLayout, ?string $headerAlign = null, ?string $imageHeight = null): void
+    public function updateSettings(int $id, bool $isActive, string $desktopLayout, ?string $headerAlign = null, ?string $imageHeight = null, ?string $flatImageRatio = null): void
     {
-        // The heading alignment and the picture height
-        // (CardCarouselContent::HEADER_ALIGNMENTS, ::IMAGE_HEIGHTS, checked by
-        // the caller) are written only when given: null keeps what is stored.
+        // The heading alignment, the picture height and the pictures' shape
+        // in a row (CardCarouselContent::HEADER_ALIGNMENTS, ::IMAGE_HEIGHTS,
+        // ResponsiveImage::FLAT_RATIOS, checked by the caller) are written only
+        // when given: null keeps what is stored.
         $stmt = $this->db->prepare(
             'UPDATE card_carousels SET is_active = :is_active, desktop_layout = :desktop_layout,
                 header_align = COALESCE(:header_align, header_align),
                 image_height = COALESCE(:image_height, image_height),
+                flat_image_ratio = COALESCE(:flat_image_ratio, flat_image_ratio),
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -105,6 +107,7 @@ class CardCarouselRepository extends Repository
             'desktop_layout' => $desktopLayout,
             'header_align' => $headerAlign,
             'image_height' => $imageHeight,
+            'flat_image_ratio' => $flatImageRatio,
             'id' => $id,
         ]);
     }
