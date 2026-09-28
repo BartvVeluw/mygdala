@@ -167,7 +167,7 @@ final class PersonalizationFrontendContractTest extends TestCase
         $source = self::mainJs();
 
         $this->assertStringContainsString(
-            'window.VVLPersonalization.setBasePrice(effectivePrice)',
+            'personalizationPanel.setBasePrice(effectivePrice)',
             $source,
             'the panel must follow the selected variant price'
         );
@@ -251,9 +251,12 @@ final class PersonalizationFrontendContractTest extends TestCase
     {
         $source = self::mainJs();
 
-        $this->assertStringContainsString('var personalizer = window.VVLPersonalization || null;', $source);
+        // The product page's configurator, read when needed; an Uitgelicht
+        // product block never has one (App\Service\ProductPurchasePath).
+        $this->assertStringContainsString('return inBlock ? null : (window.VVLPersonalization || null);', $source);
+        $this->assertStringContainsString('var personalizer = personalizerApi();', $source);
         $this->assertStringContainsString('var personalization = personalizer ? personalizer.getState() : null;', $source);
-        $this->assertStringContainsString('if (window.VVLPersonalization && window.VVLPersonalization.setBasePrice)', $source);
+        $this->assertStringContainsString('if (personalizationPanel && personalizationPanel.setBasePrice)', $source);
     }
 
     public function testTheProductPageOnlyLoadsTheEditorWhenTheProductOffersPersonalization(): void
@@ -283,7 +286,10 @@ final class PersonalizationFrontendContractTest extends TestCase
     {
         $source = self::sourceOf('product.php');
 
-        $this->assertStringContainsString('ProductPersonalizationContent::forProduct($productId)', $source);
+        // Resolved through the one purchase decision the page shares with the
+        // Uitgelicht product block, only for a product the page can show.
+        $this->assertStringContainsString('ProductPurchasePath::forProduct($productId)', $source);
+        $this->assertStringContainsString('ProductPersonalizationContent::forProduct($productId)', self::sourceOf('src/Service/ProductPurchasePath.php'));
         $this->assertStringContainsString('render_product_personalization($personalization', $source);
         $this->assertStringContainsString('$seo !== null', $source);
     }

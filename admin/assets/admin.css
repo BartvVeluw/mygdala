@@ -2665,6 +2665,21 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
    one thing the row itself does. */
 .admin-collection-product-row__edit{ flex: none; white-space: nowrap; display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0 0.6rem; }
 
+/* Uitgelicht product (admin/featured-product.php): the same product rows,
+   one radio each instead of a checkbox, and the line naming what is chosen
+   above them. The list scrolls on its own, so a large catalogue keeps the
+   editor short and the cards below it in reach. */
+.admin-featured-product-picker{ border: 0; margin: 0; padding: 0; min-width: 0; }
+.admin-featured-product-picker > legend{ font-weight: 600; padding: 0; margin-bottom: 0.25rem; }
+.admin-featured-product-picker .admin-collection-picker-toolbar{ margin: 0.5rem 0 0.75rem; }
+.admin-featured-product-picker .admin-collection-picker-toolbar > label{ flex: 1 1 220px; min-width: 180px; }
+.admin-featured-product-list{ max-height: 24rem; overflow-y: auto; overscroll-behavior: contain; padding: 0.1rem 0.25rem 0.1rem 0; }
+.admin-featured-product-list .admin-collection-product-row[hidden]{ display: none; }
+.admin-featured-product-current{ display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.admin-featured-product-current .admin-collection-product-row__thumb{ width: 48px; height: 48px; }
+.admin-featured-product-current .admin-section-row__body{ display: flex; flex-direction: column; gap: 0.1rem; }
+.admin-featured-product-current .admin-section-row__name{ margin: 0; }
+
 /* admin/related-products.php — one row per collection: the on/off checkbox
    with the collection's name and product count takes the space it needs, and
    the two optional heading-override fields sit after it, deliberately

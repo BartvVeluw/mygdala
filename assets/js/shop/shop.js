@@ -3,8 +3,8 @@
 
    Asked for by the Shop's own routes (shop.php, collectie.php, product.php,
    cart.php, checkout.php, bestelling-status.php, personaliseren.php) and by
-   the two Shop content blocks (product_grid, shop_collections). A page
-   without any of those never downloads it.
+   the Shop content blocks (product_grid, shop_collections,
+   featured_product). A page without any of those never downloads it.
 
    Depends on assets/js/shop/cart.js, which the site shell always loads
    first: `S` below is that file's internal Shop API (cart state plus the
@@ -171,19 +171,59 @@
   }
 
   /* ---------------------------------------------------------------------
-     Product detail page (product.php?id=…): loads one product from
-     GET /api/product.php and fills in the page. Shows a friendly message
-     for a missing/invalid id, a 404, or an API/database failure.
+     A product in full, wherever one is shown: the product page
+     (product.php?id=...) and every Uitgelicht product block
+     (partials/section-featured-product.php). Each [data-product-detail]
+     element is ONE product and is initialised on its own, so two blocks on
+     one page - even of the same product - never share a picture, a
+     selection, a quantity or a message. Everything below looks inside its
+     own element; nothing reaches for "the" product of the page.
+
+     Where the product comes from:
+       - a block prints it into itself (script[data-product-payload]): the
+         payload App\Service\ProductDetail builds, the very one
+         GET /api/product.php answers, drawn at once;
+       - the product page loads it from GET /api/product.php by the id in
+         its address, and shows a friendly message for a missing/invalid id,
+         a 404, or an API/database failure.
+
+     The value of data-product-detail prefixes every id this code writes
+     (a block's own "<type>-<section>-"); the product page's is empty, so its
+     ids are the ones it always had.
+
+     A personalization configurator (window.VVLPersonalization) belongs to
+     the product page alone: a block never loads it and never offers it
+     (App\Service\ProductPurchasePath).
      --------------------------------------------------------------------- */
-  function initProductDetail() {
-    var root = document.querySelector("[data-product-detail]");
+  function initProductDetails() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-product-detail]"), initProductDetail);
+  }
+
+  function initProductDetail(root) {
     if (!root) return;
 
-    var loadingEl = document.querySelector("[data-product-loading]");
-    var errorEl = document.querySelector("[data-product-error]");
-    var contentEl = document.querySelector("[data-product-content]");
+    var payloadEl = root.querySelector("script[data-product-payload]");
+    var inBlock = !!payloadEl;
+    var idPrefix = root.getAttribute("data-product-detail") || "";
+    // Read when needed, as before: the product page's configurator registers itself
+    // when assets/js/personalization.js runs.
+    function personalizerApi() {
+      return inBlock ? null : (window.VVLPersonalization || null);
+    }
+
+    var loadingEl = root.querySelector("[data-product-loading]");
+    var errorEl = root.querySelector("[data-product-error]");
+    var contentEl = root.querySelector("[data-product-content]");
 
     function showError() {
+      // A block has no message of its own: one that cannot draw its product
+      // is simply not there, like a block without a product.
+      if (inBlock) {
+        var section = root.closest ? root.closest("section") : null;
+        (section || root).hidden = true;
+        return;
+      }
+
       if (loadingEl) loadingEl.hidden = true;
       if (contentEl) contentEl.hidden = true;
       if (errorEl) errorEl.hidden = false;
@@ -192,7 +232,7 @@
       // hiding the product's own content does not hide it. A product that
       // cannot be loaded must not still offer a configurator — and, for a
       // personalization-required product, the page's only add-to-cart button.
-      var personalizerSection = document.querySelector("[data-personalizer-section]");
+      var personalizerSection = root.querySelector("[data-personalizer-section]");
       if (personalizerSection) personalizerSection.hidden = true;
     }
 
@@ -215,16 +255,16 @@
       // used to overwrite it because the page only ever shipped the word
       // "Product"; rewriting it now would only put the same words back.
 
-      var nameEl = document.querySelector("[data-product-name]");
+      var nameEl = root.querySelector("[data-product-name]");
       if (nameEl) nameEl.textContent = titleText;
 
-      var priceEl = document.querySelector("[data-product-price]");
+      var priceEl = root.querySelector("[data-product-price]");
       if (priceEl) priceEl.innerHTML = S.formatPrice(product.price);
       // Op aanvraag: the API sends no price, and the page shows none — the
       // variant picker below still works (App\Service\PurchaseMode).
       if (priceEl && product.inquiry) priceEl.hidden = true;
 
-      var descEl = document.querySelector("[data-product-description]");
+      var descEl = root.querySelector("[data-product-description]");
 
       /* The description on show: the product's, or a variant's own when the
          selected variant has one (api/product.php already resolved "own text
@@ -246,14 +286,14 @@
 
       showDescription(product.description);
 
-      var mediaEl = document.querySelector("[data-product-media]");
-      var thumbsEl = document.querySelector("[data-product-thumbs]");
-      var addBtn = document.querySelector("[data-product-add-to-cart]");
-      var qtyInput = document.querySelector("[data-product-qty] input");
-      var variantsEl = document.querySelector("[data-product-variants]");
-      var soldOutEl = document.querySelector("[data-product-sold-out]");
-      var addRowEl = document.querySelector("[data-product-add-row]");
-      var addMessageEl = document.querySelector("[data-product-add-message]");
+      var mediaEl = root.querySelector("[data-product-media]");
+      var thumbsEl = root.querySelector("[data-product-thumbs]");
+      var addBtn = root.querySelector("[data-product-add-to-cart]");
+      var qtyInput = root.querySelector("[data-product-qty] input");
+      var variantsEl = root.querySelector("[data-product-variants]");
+      var soldOutEl = root.querySelector("[data-product-sold-out]");
+      var addRowEl = root.querySelector("[data-product-add-row]");
+      var addMessageEl = root.querySelector("[data-product-add-message]");
 
       var options = Array.isArray(product.options) ? product.options : [];
       var variants = Array.isArray(product.variants) ? product.variants : [];
@@ -273,7 +313,7 @@
          variants keeps the position (an index), not the picture — see
          nextGalleryIndex() in the controller.
          --------------------------------------------------------------- */
-      var galleryRoot = document.querySelector("[data-product-gallery]");
+      var galleryRoot = root.querySelector("[data-product-gallery]");
       var gallery = mediaEl && window.VVLProductGallery ? window.VVLProductGallery.create({
         root: galleryRoot,
         stage: mediaEl,
@@ -282,8 +322,13 @@
         placeholder: S.genericProductIcon
       }) : null;
 
+      /* "Alleen de hoofdafbeelding" (a block's data-gallery-main-only): the
+         first picture of what is on show, the variant's included, and no
+         thumbnails - so no swipe either. */
+      var mainOnly = !!(galleryRoot && galleryRoot.hasAttribute("data-gallery-main-only"));
+
       function renderGallery(images, fallbackAltText, animate) {
-        if (gallery) gallery.setImages(images, fallbackAltText, animate);
+        if (gallery) gallery.setImages(mainOnly ? images.slice(0, 1) : images, fallbackAltText, animate);
       }
 
       /* The product's own pool, primary picture first. A product without a
@@ -358,8 +403,8 @@
          product, or the variant chosen right now — can be ordered again.
          The answer is the same whether the address was known or not.
          --------------------------------------------------------------- */
-      var notifyForm = document.querySelector("[data-product-notify]");
-      var notifyMessageEl = document.querySelector("[data-product-notify-message]");
+      var notifyForm = root.querySelector("[data-product-notify]");
+      var notifyMessageEl = root.querySelector("[data-product-notify-message]");
 
       function showNotifyMessage(message) {
         if (!notifyMessageEl) return;
@@ -440,8 +485,9 @@
            whenever the selection changes. It only ever DISPLAYS it — the
            authoritative line price is resolved again by api/checkout.php,
            from the database. */
-        if (window.VVLPersonalization && window.VVLPersonalization.setBasePrice) {
-          window.VVLPersonalization.setBasePrice(effectivePrice);
+        var personalizationPanel = personalizerApi();
+        if (personalizationPanel && personalizationPanel.setBasePrice) {
+          personalizationPanel.setBasePrice(effectivePrice);
         }
 
         if (hasVariants) {
@@ -499,8 +545,8 @@
 
         return (
           '<div class="product-detail__variant-group">' +
-          '<label id="variant-option-' + option.id + '-label">' + heading + "</label>" +
-          '<div class="' + (isColor ? "product-detail__swatches" : "product-detail__option-buttons") + '" role="group" aria-labelledby="variant-option-' + option.id + '-label">' +
+          '<label id="' + S.escapeAttr(idPrefix) + 'variant-option-' + option.id + '-label">' + heading + "</label>" +
+          '<div class="' + (isColor ? "product-detail__swatches" : "product-detail__option-buttons") + '" role="group" aria-labelledby="' + S.escapeAttr(idPrefix) + 'variant-option-' + option.id + '-label">' +
           valuesHtml +
           "</div></div>"
         );
@@ -551,7 +597,7 @@
              Its own client-side check runs first purely so the customer gets
              an inline message instead of a rejected checkout later; the
              server re-validates everything regardless. */
-          var personalizer = window.VVLPersonalization || null;
+          var personalizer = personalizerApi();
           if (personalizer) {
             var personalizationError = personalizer.validate();
             if (personalizationError) {
@@ -624,7 +670,7 @@
          to its question and nothing is added — for the customer's
          convenience only: api/checkout.php checks every answer again.
          --------------------------------------------------------------- */
-      var orderFieldsEl = document.querySelector("[data-product-order-fields]");
+      var orderFieldsEl = root.querySelector("[data-product-order-fields]");
 
       function readOrderFields() {
         var result = { answers: null, display: [], firstInvalid: null };
@@ -724,6 +770,21 @@
 
       if (contentEl) contentEl.hidden = false;
       if (loadingEl) loadingEl.hidden = true;
+    }
+
+    if (inBlock) {
+      var data = null;
+      try {
+        data = JSON.parse(payloadEl.textContent || "null");
+      } catch (e) {
+        data = null;
+      }
+      if (!data || typeof data !== "object") {
+        showError();
+        return;
+      }
+      renderProduct(data);
+      return;
     }
 
     var params = new URLSearchParams(window.location.search);
@@ -1519,7 +1580,7 @@
     if (!S) return; // assets/js/shop/cart.js is missing — nothing here can run
 
     initShopProducts();
-    initProductDetail();
+    initProductDetails();
     initCheckoutPage();
     initOrderStatusPage();
   });

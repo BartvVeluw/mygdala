@@ -1,0 +1,88 @@
+/* ==========================================================================
+   Shop content block: Uitgelicht product (partials/section-featured-product.php)
+   Asked for by App\Service\Blocks\FeaturedProductBlock::styles(), after
+   assets/css/shop/shop.css — which it relies on.
+
+   ONLY THE LAYOUT AROUND THE PRODUCT. The gallery stage and its thumbnails,
+   the price, the variant picker, "Uitverkocht" with its form, the order
+   questions, the quantity and the add-to-cart row are the product page's own
+   parts, with the product page's own classes (.product-detail__*,
+   .product-order-*, .product-specs, .qty-stepper) and styles in shop.css.
+   Nothing of them is restyled here, so a block and the product page can
+   never drift apart.
+
+   THE GRID. Pictures beside the text on a wide screen, their share of the
+   width one of three steps (App\Service\FeaturedProductContent::IMAGE_SIZES:
+   40, 50 or 60 per cent), on the left or on the right. The markup always
+   has the pictures first, so on a phone — one column — they come first
+   whichever side they stand on wide. Columns are minmax(0, …): a long
+   thumbnail row or a long word scrolls or wraps inside its column and never
+   widens the page.
+
+   Every choice is a modifier class from a closed list; the defaults (left,
+   medium, text aligned left) have none. No value from the database becomes
+   CSS.
+   ========================================================================== */
+
+.featured-product{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: center;
+}
+
+.featured-product--image-small{ grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+.featured-product--image-large{ grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+
+/* Pictures on the right: the columns swap places, the markup does not. */
+.featured-product--image-right .featured-product__gallery{ grid-column: 2; grid-row: 1; }
+.featured-product--image-right .featured-product__body{ grid-column: 1; grid-row: 1; }
+.featured-product--image-right.featured-product--image-small{ grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.featured-product--image-right.featured-product--image-large{ grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+
+.featured-product__body{ min-width: 0; }
+
+/* One picture has no thumbnail row, and a product without variants no
+   variant picker: shop.js hides them, and here they take no room either, so
+   the picture sits level with the text and no empty margins stack up. */
+.featured-product :is(.product-detail__thumbs, .product-detail__variants)[hidden]{ display: none; }
+
+/* The name is the section's heading: an h2 on an ordinary page. */
+.featured-product__title{ font-size: var(--fs-h3); margin: 0 0 var(--sp-2); overflow-wrap: anywhere; }
+
+/* The block's own intro, above the product's own text. */
+.featured-product__intro{ margin: 0 0 var(--sp-3); font-size: var(--fs-lead); line-height: 1.5; color: var(--color-text); max-width: 52ch; }
+
+/* "Op aanvraag" where the price would be (Alleen product bekijken): the
+   product cards' words and weight, never a price. */
+.featured-product__price--inquiry{ font-family: inherit; font-size: 0.95rem; letter-spacing: 0.02em; color: var(--color-text-muted); }
+
+.featured-product__link{ margin: var(--sp-4) 0 0; }
+
+/* Text aligned to the middle or the right. Forms and the specifications
+   table keep their own reading direction: a centred label above a
+   left-aligned field, or a centred table, reads worse, not better. */
+.featured-product--align-center .featured-product__body{ text-align: center; }
+.featured-product--align-right .featured-product__body{ text-align: right; }
+.featured-product--align-center :is(.featured-product__intro, .product-detail__desc){ margin-inline: auto; }
+.featured-product--align-right :is(.featured-product__intro, .product-detail__desc){ margin-inline-start: auto; }
+.featured-product--align-center :is(.product-detail__option-buttons, .product-detail__swatches, .product-detail__add-row){ justify-content: center; }
+.featured-product--align-right :is(.product-detail__option-buttons, .product-detail__swatches, .product-detail__add-row){ justify-content: flex-end; }
+.featured-product--align-center .rich-content :is(ul, ol),
+.featured-product--align-right .rich-content :is(ul, ol){ list-style-position: inside; padding-left: 0; }
+.featured-product :is(.product-specs, .product-order-fields, .product-detail__notify, .product-detail__inquiry, .product-detail__sold-out){ text-align: left; }
+
+@media (max-width: 900px){
+  .featured-product,
+  .featured-product--image-small,
+  .featured-product--image-large,
+  .featured-product--image-right.featured-product--image-small,
+  .featured-product--image-right.featured-product--image-large{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+
+  /* One column: the pictures first, wherever they stand on a wide screen. */
+  .featured-product--image-right .featured-product__gallery,
+  .featured-product--image-right .featured-product__body{ grid-column: auto; grid-row: auto; }
+
+  /* A phone-sized square, not the full width of a tablet. */
+  .featured-product__gallery{ max-width: 34rem; width: 100%; margin-inline: auto; }
+}

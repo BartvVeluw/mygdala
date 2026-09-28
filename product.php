@@ -11,6 +11,7 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 require_once __DIR__ . '/partials/related-products.php';
 require_once __DIR__ . '/partials/product-personalization.php';
 require_once __DIR__ . '/partials/product-order-fields.php';
+require_once __DIR__ . '/partials/product-purchase.php';
 
 
 /**
@@ -66,21 +67,43 @@ if ($seo === null && $productId > 0) {
 }
 
 /**
+ * HOW THIS PRODUCT CAN BE BOUGHT (App\Service\ProductPurchasePath — the one
+ * place that decides it, for this page and for the Uitgelicht product block
+ * alike): the ordinary cart, "op aanvraag", a personalization configurator
+ * that holds the page's single purchase action, or no way to order right now.
+ *
  * Personalisatie is resolved server-side for the same reason "Gerelateerde
  * producten" is: whether this product can be personalized at all, what a
  * customer may add and where the engraving area sits are CMS configuration,
  * not product content — so the decision belongs on the server and the panel
  * is rendered from it, never assembled from a second API round trip.
  *
- * null means "this product has no personalization" (never configured, switched
- * off, or missing a preview image), and then NOTHING is rendered: a normal
- * product's page keeps exactly the markup it has today, down to the byte.
+ * $personalization null means "this product has no personalization" (never
+ * configured, switched off, or missing a preview image), and then NOTHING is
+ * rendered: a normal product's page keeps exactly the markup it has today.
  * $seo === null is deliberately included in that: a deactivated or unknown
- * product must not advertise a personalization panel either.
+ * product must not advertise a personalization panel either, and its page
+ * keeps the (hidden) ordinary add row it always had.
+ *
+ * OP AANVRAAG (App\Service\PurchaseMode, Shop Product & Ordering 2.0): the
+ * product is shown — name, pictures, description, the variant picker, its
+ * specifications — but it has no price, no quantity and no cart here. The
+ * purchase area says so and offers contact instead, and a personalization
+ * configurator (a way to order) is not rendered. The server refuses such a
+ * product in the cart and the checkout whatever the browser sends; this is
+ * what the visitor sees.
+ *
+ * NOT ORDERABLE: a personalization-only product (`products.in_shop = 0`)
+ * whose personalization is switched off or unfinished has nothing to
+ * configure and no ordinary way to buy it, so the page says so rather than
+ * show an add-to-cart button that api/checkout.php would refuse.
  */
-$personalization = ($productId > 0 && $seo !== null)
-    ? \App\Service\Personalization\ProductPersonalizationContent::forProduct($productId)
-    : null;
+$purchase = ($productId > 0 && $seo !== null)
+    ? \App\Service\ProductPurchasePath::forProduct($productId)
+    : ['path' => \App\Service\ProductPurchasePath::CART, 'personalization' => null];
+$personalization = $purchase['personalization'];
+$inquiry = $purchase['path'] === \App\Service\ProductPurchasePath::INQUIRY;
+$unorderable = $purchase['path'] === \App\Service\ProductPurchasePath::UNORDERABLE;
 
 /**
  * Whether this product may ONLY be bought personalized. When it may not, the
@@ -95,40 +118,6 @@ $personalization = ($productId > 0 && $seo !== null)
  * unpersonalized line for such a product whatever the browser sent.
  */
 $personalizationRequired = $personalization !== null && ($personalization['is_required'] ?? false) === true;
-
-/**
- * Whether this product may be bought the ORDINARY way at all. False for a
- * personalization-only product (`products.in_shop = 0`), which has no
- * ordinary purchase path by definition — see
- * db/migrations/20260908220000_add_product_availability_channels.php.
- *
- * A personalization-only product whose configuration is renderable needs no
- * special handling here: it resolves to `is_required`, so the single purchase
- * action already lives inside the configurator. This flag exists for the one
- * case that cannot: a personalization-only product whose personalization is
- * switched off or unfinished has NOTHING to configure and no ordinary way to
- * buy it, so the page must say so rather than show an add-to-cart button that
- * api/checkout.php would refuse.
- */
-$shopPurchasable = $productId > 0 && $seo !== null
-    ? (new \App\Repository\ProductRepository())->isShopPurchasable($productId)
-    : true;
-$unorderable = !$shopPurchasable && $personalization === null;
-
-/**
- * OP AANVRAAG (App\Service\PurchaseMode, Shop Product & Ordering 2.0): the
- * product is shown — name, pictures, description, the variant picker, its
- * specifications — but it has no price, no quantity and no cart here. The
- * purchase area says so and offers contact instead, and a personalization
- * configurator (a way to order) is not rendered. The server refuses such a
- * product in the cart and the checkout whatever the browser sends; this is
- * what the visitor sees.
- */
-$inquiry = $productId > 0 && $seo !== null
-    && \App\Service\PurchaseMode::isInquiry((new \App\Repository\ProductRepository())->purchaseMode($productId));
-if ($inquiry) {
-    $personalization = null;
-}
 
 /**
  * BESTELVELDEN (App\Service\OrderFields\OrderFields, Shop Product & Ordering
@@ -162,54 +151,16 @@ $productSpecifications = ($productId > 0 && $seo !== null)
 $galleryTransition = \App\Service\ProductGalleryTransition::forProduct($seo !== null ? $productId : 0);
 
 /**
- * The quantity stepper plus the add-to-cart button. Rendered exactly once per
- * page — that is the whole point of it being a function.
- *
- * STOCK (Shop Product & Ordering 2.0): beside it sits the sold-out block,
- * hidden. assets/js/shop/shop.js shows it instead of the add row when the
- * chosen unit — the product, or the selected variant — tracks stock and has
- * none left (api/product.php says so, never the figure itself), and caps the
- * quantity at what is left. Another variant that is in stock stays orderable.
- * The server refuses a sold-out line anyway (api/cart-check.php,
- * api/checkout.php): this only says it before the customer tries.
+ * The quantity stepper plus the add-to-cart button, with the sold-out block
+ * and the order questions (partials/product-purchase.php, the same markup the
+ * Uitgelicht product block draws). Rendered exactly once per page — that is
+ * the whole point of it being a function: it is handed to the
+ * personalization section when the purchase action lives there.
  */
 function renderProductAddRow(): void
 {
     global $productOrderQuestions;
-    ?>
-    <div class="product-detail__sold-out" data-product-sold-out hidden>
-      <p class="product-detail__stock-status"><strong><?= htmlspecialchars(\App\Service\ShopScriptText::text('sold_out'), ENT_QUOTES, 'UTF-8') ?></strong></p>
-      <?php /* Terug op voorraad (App\Service\Inventory\StockNotifications):
-               one mail for exactly this unit — the product, or the variant
-               chosen above, which assets/js/shop/shop.js sends along. No
-               account; the answer is the same whether the address was known
-               or not. The hidden field is a honeypot a person never fills. */ ?>
-      <form class="product-detail__notify" data-product-notify novalidate>
-        <label for="product-notify-email"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Mail mij als dit weer beschikbaar is', 'en' => 'Email me when this is available again']) ?></label>
-        <div class="product-detail__notify-row">
-          <input type="email" id="product-notify-email" name="email" required maxlength="254" autocomplete="email" placeholder="<?= \App\Service\Language\SiteText::escaped(['nl' => 'jouw@e-mailadres.nl', 'en' => 'your@email.com']) ?>">
-          <button type="submit" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Houd mij op de hoogte', 'en' => 'Keep me posted']) ?></button>
-        </div>
-        <input type="text" name="hp-note" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="product-detail__notify-hp">
-        <p class="product-detail__notify-note"><?= \App\Service\Language\SiteText::escaped(['nl' => 'We gebruiken je adres alleen voor deze ene melding.', 'en' => 'We only use your address for this one notification.']) ?></p>
-        <p class="product-detail__notify-message" data-product-notify-message role="status" hidden></p>
-      </form>
-    </div>
-    <?php render_product_order_fields($productOrderQuestions ?? []); ?>
-    <div class="product-detail__add-row" data-product-add-row>
-      <div class="qty-stepper" data-product-qty>
-        <button type="button" data-step="down" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal verlagen', 'en' => 'Decrease quantity']) ?>">&minus;</button>
-        <input type="number" value="1" min="1" max="20" inputmode="numeric" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal', 'en' => 'Quantity']) ?>">
-        <button type="button" data-step="up" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal verhogen', 'en' => 'Increase quantity']) ?>">+</button>
-      </div>
-      <button type="button" class="btn" data-product-add-to-cart>
-        <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Toevoegen aan winkelwagen', 'en' => 'Add to cart']) ?></span>
-        <svg class="btn-icon-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
-        <svg class="btn-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>
-      </button>
-    </div>
-    <p class="product-detail__add-message" data-product-add-message role="status" hidden></p>
-    <?php
+    render_product_add_row($productOrderQuestions ?? []);
 }
 
 $siteName = \App\Service\SiteSettings::get('site_name');
@@ -355,34 +306,11 @@ require __DIR__ . '/partials/header.php';
                    renderProductAddRow() is called from exactly one of these
                    two places. */ ?>
           <?php if ($inquiry): ?>
-            <div class="product-detail__inquiry" data-product-inquiry>
-              <p><strong><?= \App\Service\Language\SiteText::escaped(['nl' => 'Prijs en bestellen op aanvraag', 'en' => 'Price and ordering on request']) ?></strong></p>
-              <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product maken we op aanvraag. Vertel ons wat je zoekt, dan hoor je van ons.', 'en' => 'We make this product on request. Tell us what you are looking for and we will get back to you.']) ?></p>
-              <p><a class="btn btn--ghost" href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/contact.php'), ENT_QUOTES, 'UTF-8') ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Neem contact op', 'en' => 'Get in touch']) ?></a></p>
-            </div>
+            <?php render_product_inquiry(); ?>
           <?php elseif ($unorderable): ?>
-            <?php /* Personalization-only, but there is nothing to personalize
-                     (switched off, or no preview image / no zone yet). There
-                     is genuinely no way to order this right now, and saying
-                     so beats a button the server would refuse. */ ?>
-            <p class="product-detail__personalize-cue">
-              <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product is op dit moment niet te bestellen.', 'en' => 'This product cannot be ordered right now.']) ?></span>
-              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/contact.php'), ENT_QUOTES, 'UTF-8') ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Neem contact op', 'en' => 'Get in touch']) ?></a>
-            </p>
+            <?php render_product_unorderable(); ?>
           <?php elseif ($personalization !== null): ?>
-            <?php /* No add-to-cart here: the single purchase action sits at
-                     the end of the configurator below, where the customer
-                     finishes. A button here would be a second, competing
-                     flow — and for a required product, one that skips the
-                     configuration they still have to do. */ ?>
-            <p class="product-detail__personalize-cue">
-              <?php if ($personalizationRequired): ?>
-                <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product maak je zelf af.', 'en' => 'You finish this product yourself.']) ?></span>
-              <?php else: ?>
-                <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product kun je personaliseren.', 'en' => 'You can personalise this product.']) ?></span>
-              <?php endif; ?>
-              <a href="#personaliseren"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Personaliseer het hieronder', 'en' => 'Personalise it below']) ?></a>
-            </p>
+            <?php render_product_personalize_cue($personalizationRequired); ?>
           <?php else: ?>
             <?php renderProductAddRow(); ?>
           <?php endif; ?>

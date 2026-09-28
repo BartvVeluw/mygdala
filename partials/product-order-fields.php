@@ -20,9 +20,14 @@ declare(strict_types=1);
  */
 
 /**
+ * $scope prefixes every id and a radio group's name, so the same product's
+ * questions twice on one page (two Uitgelicht product blocks) never share a
+ * label target or a radio group. The product page passes '' and keeps the
+ * ids it always had.
+ *
  * @param list<array{id: int, type: string, required: bool, max_length: int, label: string, help: string, options: list<array{id: int, label: string}>}> $questions
  */
-function render_product_order_fields(array $questions): void
+function render_product_order_fields(array $questions, string $scope = ''): void
 {
     if ($questions === []) {
         return;
@@ -35,7 +40,8 @@ function render_product_order_fields(array $questions): void
       <p class="product-order-fields__heading"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Jouw bestelgegevens', 'en' => 'Your order details']) ?></p>
       <?php foreach ($questions as $question): ?>
         <?php
-          $id = 'order-field-' . $question['id'];
+          $id = $scope . 'order-field-' . $question['id'];
+          $name = $scope . 'order_field_' . (int) $question['id'];
           $helpId = $id . '-help';
           $errorId = $id . '-error';
           $described = ($question['help'] !== '' ? $helpId . ' ' : '') . $errorId;
@@ -47,29 +53,29 @@ function render_product_order_fields(array $questions): void
               <legend><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></legend>
               <?php foreach ($question['options'] as $option): ?>
                 <label class="product-order-field__choice">
-                  <input type="radio" name="order_field_<?= (int) $question['id'] ?>" value="<?= (int) $option['id'] ?>"<?= $required ?>>
+                  <input type="radio" name="<?= $h($name) ?>" value="<?= (int) $option['id'] ?>"<?= $required ?>>
                   <span><?= $h($option['label']) ?></span>
                 </label>
               <?php endforeach; ?>
             </fieldset>
           <?php elseif ($question['type'] === 'checkbox'): ?>
             <label class="product-order-field__choice">
-              <input type="checkbox" id="<?= $h($id) ?>" name="order_field_<?= (int) $question['id'] ?>" value="1" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
+              <input type="checkbox" id="<?= $h($id) ?>" name="<?= $h($name) ?>" value="1" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
               <span><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></span>
             </label>
           <?php else: ?>
             <label for="<?= $h($id) ?>"><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></label>
             <?php if ($question['type'] === 'select'): ?>
-              <select id="<?= $h($id) ?>" name="order_field_<?= (int) $question['id'] ?>" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
+              <select id="<?= $h($id) ?>" name="<?= $h($name) ?>" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
                 <option value=""><?= \App\Service\Language\SiteText::escaped(['nl' => 'Maak een keuze', 'en' => 'Choose one']) ?></option>
                 <?php foreach ($question['options'] as $option): ?>
                   <option value="<?= (int) $option['id'] ?>"><?= $h($option['label']) ?></option>
                 <?php endforeach; ?>
               </select>
             <?php elseif ($question['type'] === 'textarea'): ?>
-              <textarea id="<?= $h($id) ?>" name="order_field_<?= (int) $question['id'] ?>" rows="3" maxlength="<?= (int) $question['max_length'] ?>" aria-describedby="<?= $h($described) ?>"<?= $required ?>></textarea>
+              <textarea id="<?= $h($id) ?>" name="<?= $h($name) ?>" rows="3" maxlength="<?= (int) $question['max_length'] ?>" aria-describedby="<?= $h($described) ?>"<?= $required ?>></textarea>
             <?php else: ?>
-              <input type="text" id="<?= $h($id) ?>" name="order_field_<?= (int) $question['id'] ?>" maxlength="<?= (int) $question['max_length'] ?>" autocomplete="off" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
+              <input type="text" id="<?= $h($id) ?>" name="<?= $h($name) ?>" maxlength="<?= (int) $question['max_length'] ?>" autocomplete="off" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
             <?php endif; ?>
           <?php endif; ?>
           <?php if ($question['help'] !== ''): ?>

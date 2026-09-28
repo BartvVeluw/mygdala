@@ -10,6 +10,7 @@ use App\Repository\ProductRepository;
 use App\Service\AdminPermissions;
 use App\Service\AppUrl;
 use App\Service\Blocks\BlockCategories;
+use App\Service\Blocks\FeaturedProductBlock;
 use App\Service\Blocks\ProductGridBlock;
 use App\Service\Blocks\ShopCollectionsBlock;
 use App\Service\CollectionContent;
@@ -475,6 +476,7 @@ final class ShopModule extends ModuleDefinition
         return [
             'shop_collections' => ShopCollectionsBlock::class,
             'product_grid' => ProductGridBlock::class,
+            'featured_product' => FeaturedProductBlock::class,
         ];
     }
 
