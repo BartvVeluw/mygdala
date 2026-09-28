@@ -752,6 +752,140 @@ video gekozen is. Tonen of verbergen doe je met het oog in de paginabouwer.
 Vimeo, transcoderen, automatisch een poster maken, een ondertiteleditor, een
 vrije hoogte of vrije CSS, parallax, een diavoorstelling en paginathema's.
 
+## Uitgelicht product
+
+`db/migrations/20260928160000`. Eén product uit de Shop groot op een gewone
+pagina: foto's naast naam, prijs en tekst, de varianten, en naar keuze de
+bestelmogelijkheid van de productpagina plus een knop naar die productpagina.
+Een blok van de **Shop-module** (`ShopModule::blockDefinitions()`, categorie
+*Shop*), herhaalbaar, op elke gewone pagina.
+
+| Bestand | Wat |
+|---|---|
+| `src/Service/Blocks/FeaturedProductBlock.php` | Definitie, categorie *Shop*, voorbeeldvorm `BlockPreview::IMAGE_LEFT` |
+| `src/Service/FeaturedProductContent.php` | Het leesmodel: de keuzes van het blok en het product zoals het nú is |
+| `src/Repository/FeaturedProductRepository.php` | Tabel `featured_products` |
+| `partials/section-featured-product.php` | `render_section_featured_product($content, $revealGroup)` |
+| `admin/featured-product.php` + `admin/assets/featured-product.js` | De editor en zijn productkiezer |
+| `api/admin/update-featured-product.php` | Het endpoint |
+| `assets/css/shop/featured-product.css` | Alleen de layout rond het product |
+
+**Het blok is geen tweede productpagina.** Alles van het product komt live uit
+de Shop, uit dezelfde klassen als op `product.php`, en niets ervan staat in
+het blok:
+
+| Wat | Waar het vandaan komt |
+|---|---|
+| Zichtbaarheid, woorden, foto's, varianten, voorraad en prijzen | `App\Service\ProductDetail::forPublic()` — de payload die `GET /api/product.php` antwoordt. Het blok drukt hem af in `<script type="application/json" data-product-payload>`, de API geeft hem als JSON |
+| Of het product in de winkelwagen kan | `App\Service\ProductPurchasePath`: `cart`, `inquiry` (op aanvraag), `personalize` (de enige koopactie zit in de configurator) of `unorderable` (alleen via personalisatie, maar er is niets te personaliseren) |
+| Bestelvragen, specificaties, overgang van de galerij, adres van de productpagina | `OrderFields`, `ProductSpecifications`, `ProductGalleryTransition` (product → Shop → `fade`), `ProductSeo::publicPath()` in de taal van het verzoek |
+| Het koopgedeelte | `partials/product-purchase.php`: dezelfde markup als op de productpagina (*Uitverkocht* met *Mail mij als dit weer beschikbaar is*, de bestelvragen, het aantal, *Toevoegen aan winkelwagen*, *Prijs en bestellen op aanvraag*) |
+| Het gedrag | `assets/js/shop/shop.js` en `product-gallery.js`: dezelfde code draait per `[data-product-detail]`-element, voor de productpagina en voor elk blok apart |
+
+Een nieuwe hoofdfoto, een andere prijs of een variant die uitverkocht raakt,
+staat dus meteen in het blok. De tabel `featured_products` heeft alleen de
+keuzes van het blok: `product_id`, vijf schakelaars (`show_name`,
+`show_price`, `show_description`, `show_specifications`,
+`show_product_link`) en vijf woorden uit gesloten lijsten (`image_mode`,
+`image_position`, `image_size`, `content_align`, `ordering`). De twee woorden
+per taal, een eigen *introtekst* en een eigen *knoptekst*, staan in
+`block_translations` en zijn allebei optioneel. De foreign key naar
+`products` is `ON DELETE SET NULL`: een verwijderd product laat een leeg blok
+achter en houdt het verwijderen nooit tegen.
+
+**Leeg mag.** Een nieuw blok heeft geen product en rendert niets: geen leeg
+kader, geen ruimte. Zo kan een redacteur het alvast op de pagina zetten en
+later instellen. Hetzelfde geldt voor een verborgen blok, een product op
+*Inactief* en een verwijderd product. De editor zegt het: *Nog geen product
+gekozen* of *Het gekozen product is niet beschikbaar*.
+
+**Het blok kan alleen minder aanbieden dan de productpagina, nooit meer.**
+*Bestelmogelijkheid* is *Direct bestellen* (de standaard) of *Alleen product
+bekijken*:
+
+| Het product | Direct bestellen | Alleen product bekijken |
+|---|---|---|
+| gewoon te koop (`cart`) | bestelvragen, aantal, *Toevoegen aan winkelwagen*; bij een uitverkochte eenheid *Uitverkocht* met het terug-op-voorraadformulier | alleen *Uitverkocht* als de eenheid op is |
+| op aanvraag (`inquiry`) | het vak *Prijs en bestellen op aanvraag* van de productpagina | *Op aanvraag* waar de prijs zou staan, als *Prijs tonen* aan staat |
+| met configurator (`personalize`) | de wegwijzer naar de configurator op de productpagina (`#personaliseren`), nooit een losse winkelwagenknop | alleen *Uitverkocht* als de eenheid op is |
+| niet te bestellen (`unorderable`) | *Dit product is op dit moment niet te bestellen.* | alleen *Uitverkocht* als de eenheid op is |
+
+De server beslist toch opnieuw, wat het blok ook stuurt:
+`api/cart-check.php` en `api/checkout.php` weigeren te veel, uitverkocht, op
+aanvraag, een ontbrekend of vervalst antwoord en een variant van een ander
+product, en `PersonalizationValidator` weigert een gewone regel voor een
+product dat gepersonaliseerd moet worden.
+
+**Aantal, voorraad, varianten, bestelvelden.** Het aantal volgt de
+productpagina: minstens 1, de knoppen gaan niet hoger dan wat er van de
+gekozen eenheid over is (en niet hoger dan 20, de grens van de productpagina),
+en vóór er iets in de winkelwagen gaat vraagt `shop.js` het aan
+`api/cart-check.php`, met wat er al in de winkelwagen zit. Drie stuks in één
+klik is één regel met aantal 3. Een andere variant kiezen wisselt foto,
+prijs, tekst (een eigen varianttekst), voorraad en maximum. Het
+terug-op-voorraadformulier stuurt naar `api/stock-notification.php` voor
+precies de eenheid die op het scherm staat. De antwoorden op bestelvragen
+gaan mee op de regel en maken hem tot een eigen regel, net als op de
+productpagina.
+
+**Prijs.** Een product op aanvraag heeft nergens een prijs: niet in de
+markup, niet in de payload, niet bij een variant. Staat *Prijs tonen* uit en
+biedt het blok geen winkelwagen aan, dan gaat ook de prijs van een gewoon
+product niet mee (`ProductDetail::withoutPrices()`). Staat *Prijs tonen* uit
+maar kan er besteld worden, dan staat de prijs wel in de payload, omdat de
+winkelwagenregel hem toont; `api/checkout.php` rekent hem opnieuw uit.
+
+**Afbeeldingen en layout.** *Galerij* (standaard) is de galerij van de
+productpagina: het vierkante vak met `contain`, de thumbnails, vegen, ← en →,
+`aria-current` en de overgang van het product; bij één foto is er geen
+thumbnailrij. *Alleen hoofdafbeelding* toont steeds de eerste foto van het
+product of van de gekozen variant, zonder thumbnails. *Positie* links of
+rechts en *Formaat* klein, normaal of groot (40, 50 of 60 procent van de
+breedte) gelden vanaf 901 px; smaller staat alles onder elkaar, de foto's
+altijd eerst, in een vak van hooguit 34rem breed. *Uitlijning van de tekst*
+is links, midden of rechts; bestelvelden, specificaties en het
+terug-op-voorraadformulier blijven links. Er is geen instelling voor de
+breedte van het blok: het staat in de gewone container, zoals bijna elk blok,
+en een breedtesysteem voor alle blokken bestaat niet.
+
+**Productnaam, tekst, specificaties.** De naam is een `h2` (de productpagina
+heeft een `h1`), de specificaties een `h3`. *Producttekst tonen* toont de
+omschrijving van het product zelf, of van de gekozen variant als die een
+eigen tekst heeft; een apart kort-tekstveld heeft een product niet, en voor
+een korte eigen zin is er de introtekst. *Specificaties tonen* staat
+standaard uit.
+
+**De knop naar de productpagina** heet *Bekijk product* / *View product*
+zolang er geen eigen tekst is. Het adres komt altijd van het gekozen product,
+in de taal van de pagina. Een schermlezer hoort de productnaam erachter
+(`.visually-hidden`), zodat twee van deze blokken op één pagina twee
+verschillende links zijn.
+
+**Geen tweede Product-schema.** Het blok voegt geen JSON-LD toe: de Product
+JSON-LD hoort bij `product.php` alleen, en drie uitgelichte producten op een
+pagina zouden anders drie misleidende hoofdproducten opleveren.
+
+**Met de Shop uit** is het bloktype niet geregistreerd: niet in de kiezer,
+geen kopje *Shop*, en een geplaatst blok wordt overgeslagen terwijl zijn rij
+en woorden blijven staan (*Blok van een uitgeschakeld onderdeel* in de
+paginabouwer). De editor en het endpoint vragen `pages.manage`, een recht van
+Core, en hebben daarom een eigen `App\Module\ModuleGuard`: het scherm geeft
+de geen-toegangpagina, het endpoint een 404 vóór het iets leest. Staat de
+Shop weer aan, dan is het blok terug zoals het was.
+
+**De editor** is één formulier met de opslagbalk en zes inklapbare kaarten
+(`admin/_admin_collapse.php`): *Product* (de productrijen van de
+collectie-editor, met één keuzerondje per product, *Geen product*, zoeken op
+naam en een regel die zegt wat er gekozen is), *Inhoud* (de vier schakelaars
+en de introtekst), *Afbeeldingen*, *Bestellen*, *Productknop* (schakelaar en
+knoptekst) en *Uitlijning*. Een product-id intypen kan niet. Zoeken filtert
+alleen het scherm en telt voor de opslagbalk niet als wijziging.
+
+**Het voorbeeld** in de Contentblokken-bibliotheek is het echte blok met
+woorden en beeld uit `BlockSamples`, als *Alleen product bekijken* en zonder
+prijs: een voorbeeld noemt geen prijs en heeft geen winkelwagen om iets in te
+leggen.
+
 ## Tests
 
 Commando's en tiers staan in `TESTING.md`. Draai de suite in de service `php_test`.

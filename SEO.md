@@ -298,6 +298,11 @@ Bewust **niet**: `LocalBusiness` met een geraden bedrijfstype, openingstijden,
 beoordelingen en `FAQPage` alleen omdat er een FAQ-blok bestaat. Er is geen
 betrouwbare gegevensbron voor één ervan.
 
+Ook niet: `Product` op een gewone pagina met het blok Uitgelicht product
+(`CONTENT-BLOCKS.md`). Die pagina gaat niet over dat product; drie van die
+blokken zouden drie hoofdproducten claimen. De `Product`-node hoort bij de
+productpagina alleen, en daar linkt het blok naartoe.
+
 `BreadcrumbList` hoort ook nog in dat rijtje, maar om een andere reden dan
 eerst. Sinds fase 5B is er wél echte broodkruimelnavigatie, met een
 betrouwbare bron (`HEADER-FOOTER.md`); de JSON-LD erbij is een losse stap die

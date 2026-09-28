@@ -94,6 +94,11 @@ en `GenericBlockDefaultsTest` bewaken beide.
   een tweede bloktype met dezelfde tabel of editor (`PAGE-EDITOR.md`).
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
+- **Een blok van een module met een eigen editor** (Uitgelicht product van de
+  Shop) vraagt `pages.manage`, een Core-recht dat ook met de module uit
+  gehouden wordt. Zet daarom `ModuleGuard::requireAdmin()` bovenaan de editor
+  en `ModuleGuard::requireApi()` bovenaan het endpoint, en claim het scherm in
+  `AdminNavigation` onder *Pagina's*.
 - **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de
   partial toont komt als argument binnen; opzoeken doet `render()`. Schrijf
   `sampleContent()` (woorden uit `BlockSamples`, in de vorm van je

@@ -21,7 +21,7 @@ je aan de modulegrens zelf werkt.
 | Laag | Paden |
 |---|---|
 | Module | `src/Module/ShopModule.php` |
-| Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ProductGalleryTransition.php` (de overgang van de productgalerij), `ProductVariantEditor.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php`, `PurchaseMode.php` (direct of op aanvraag), `ProductSpecifications.php` + `SpecificationLibraryEditor.php` + `ProductSpecificationEditor.php` |
+| Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ProductGalleryTransition.php` (de overgang van de productgalerij), `ProductVariantEditor.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php`, `PurchaseMode.php` (direct of op aanvraag), `ProductDetail.php` (de productpayload: `api/product.php` en het blok Uitgelicht product), `ProductPurchasePath.php` (hoe een zichtbaar product te koop is, voor productpagina en blok), `ProductSpecifications.php` + `SpecificationLibraryEditor.php` + `ProductSpecificationEditor.php` |
 | Voorraad | `src/Service/Inventory/` (`Inventory`, `ProductStock`, `StockUnit`, `InventoryEditor`, `StockNotifications`), `src/Repository/{Inventory,StockNotification}Repository.php`, `src/Service/CartAvailability.php`, `OrderPaymentStartFailure.php`, `src/Mail/StockNotificationBuilder.php`, `src/Service/ShopLocalizedSettings.php` (de terug-op-voorraadmail per taal) |
 | Bestelvelden | `src/Service/OrderFields/`, `src/Repository/{OrderField,OrderItemField}Repository.php`, `partials/product-order-fields.php` |
 | Collecties | `src/Service/Collection*.php`, `src/Repository/CollectionRepository.php` |
@@ -33,8 +33,8 @@ je aan de modulegrens zelf werkt.
 | Admin-endpoints | `api/admin/*{product,variant,collection,shipping,carrier,invoice,fulfilment,withdrawal}*.php` (de producteditor heeft er één: `update-product.php`, plus `create-product.php` voor de eerste stap), `api/admin/{order,resend-order,sync-postnl-rates}*.php`, `api/admin/_shop_share_image.php` (de deel-afbeelding uit de Mediabibliotheek), `api/admin/update-product-specifications.php`, `api/admin/{update-stock-notification-mail,send-stock-notifications}.php` |
 | Publieke endpoints | `api/{checkout,cart-check,stock-notification,shipping-quote,shipping-zones,mollie-webhook,order-status,product,products,address-lookup-nl,withdrawal-request}.php` |
 | Publieke routes | `shop.php`, `product.php`, `collectie.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `herroeping.php` |
-| Frontend | `assets/css/shop/`, `assets/js/shop/` (de productgalerij: `product-gallery.js`, gevraagd door `product.php` vóór `shop.js`) |
-| Blokken | `ShopModule::blockDefinitions()` — `product_grid`, `shop_collections` |
+| Frontend | `assets/css/shop/`, `assets/js/shop/` (de productgalerij: `product-gallery.js`, gevraagd door `product.php` en `featured_product` vóór `shop.js`), `partials/product-purchase.php` (het koopgedeelte van productpagina en blok) |
+| Blokken | `ShopModule::blockDefinitions()` — `product_grid`, `shop_collections`, `featured_product` (Uitgelicht product: `src/Service/Blocks/FeaturedProductBlock.php`, `FeaturedProductContent.php`, `FeaturedProductRepository.php`, `partials/section-featured-product.php`, `admin/featured-product.php`, `api/admin/update-featured-product.php`, `assets/css/shop/featured-product.css`) |
 
 **Niet van de Shop**, ook al lijkt het erop: `ProductPersonalizationRepository`
 en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
@@ -59,6 +59,12 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
   toonde (`stock_seen`).
 - **Op aanvraag heeft nergens een prijs**: niet in HTML, JSON, JSON-LD of een
   kaart, en de server weigert het product in winkelwagencheck en checkout.
+- **Een product heeft één implementatie.** Waar een product in zijn geheel
+  staat (`product.php`, het blok Uitgelicht product) komen de gegevens uit
+  `ProductDetail`, de koopbeslissing uit `ProductPurchasePath`, het
+  koopgedeelte uit `partials/product-purchase.php` en het gedrag uit
+  `shop.js` per `[data-product-detail]`. Bouw er geen tweede naast; een plek
+  mag minder aanbieden, nooit meer.
 - **De winkelwagen is volledig client-side**, `vvl-cart` in `localStorage`.
   De server kent hem pas bij het afrekenen.
 - **De mini-winkelwagen zit in de gedeelde header** en wordt gevraagd door

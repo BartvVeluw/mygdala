@@ -422,6 +422,15 @@ doet nu de `render()` van hun definitie, zodat de partial zijn inhoud als
 argument krijgt en het voorbeeld dezelfde partial kan gebruiken. Op de site
 verandert er niets.
 
+**Een product als voorbeeld.** *Uitgelicht product* (`CONTENT-BLOCKS.md`)
+toont geen echt product uit de winkel, maar een product dat alleen in het
+geheugen bestaat: een naam, inleiding, tekst en beeld uit `BlockSamples`,
+in de vorm van de productpayload. Het staat op *Alleen product bekijken* en
+heeft geen prijs: een voorbeeld noemt geen prijs
+(`BlockSampleContractTest`), en zonder winkelwagen is er niets om aan te
+klikken dat een verzoek doet. De galerij, `shop.js` en de opmaak zijn die van
+het echte blok.
+
 ### Een blok zonder voorbeeld
 
 Het *Productoverzicht* van de Shop heeft geen voorbeeld. Zijn kaarten staan

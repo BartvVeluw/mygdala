@@ -902,6 +902,44 @@ geen verbinding, de melding blijft actief met haar poging geteld, en er gaat
 niets de deur uit. Een mail die wél slaagt, bewijst `StockNotificationTest`
 met een opnemende mailer in het testproces, niet over SMTP.
 
+**Wijziging aan Uitgelicht product, de productpayload of het koopgedeelte**
+(`featured_product`, `ProductDetail`, `ProductPurchasePath`,
+`partials/product-purchase.php`, `CONTENT-BLOCKS.md`)
+
+```
+--testsuite fast        FeaturedProductContractTest (ook in contract, blocks
+                        en shop): shop.js per [data-product-detail] zonder
+                        document.querySelector in de productcode, één
+                        payloadbouwer, één koopbeslissing en één markup voor
+                        het koopgedeelte, geen JSON-LD in het blok, een regel
+                        in featured-product.css voor elk woord, en de guards
+                        van editor en endpoint met de ModuleGuard ervoor
+--testsuite blocks      FeaturedProductBlockTest (ook in shop): het blok op
+                        de testdatabase — leeg, verborgen, inactief en
+                        verwijderd product, het product live, de schakelaars,
+                        de woorden per taal, bestellen per ProductPurchasePath,
+                        geen prijs waar die niet hoort, voorraad en varianten,
+                        unieke id's bij twee blokken, galerij en layout,
+                        Shop uit en weer aan; FeaturedProductHttpTest (ook in
+                        shop): editor en endpoint over BuiltInServer, met een
+                        tweede server met de Shop uit, en api/cart-check.php
+                        en api/stock-notification.php voor wat het blok
+                        stuurt; FeaturedProductMigrationTest (ook in
+                        migration)
+--testsuite shop        ProductPurchasePathTest: de payload en de vier
+                        antwoorden van de koopbeslissing
+```
+
+De productpagina zelf mag er niet door veranderen. `PersonalizationProductPageTest`
+heeft de HTTP-tier nodig; zonder die tier vergelijk je `product.php` en
+`api/product.php` van `main` en van je werkkopie op dezelfde database (twee
+keer `php -S`, dezelfde producten, witruimte tussen tags weggenormaliseerd).
+
+Wat een klik in het blok doet (drie stuks in één klik, variant wisselen,
+bestelvraag leeg laten, terug-op-voorraad, vegen), bewijst geen van deze
+tests. Loop het na in de Browser-pane op een wegwerpkopie, met de Shop aan
+én uit.
+
 Wat de overgang in een browser doet (vervagen, schuiven, vegen, verticaal
 scrollen, reduced motion), bewijst geen van deze tests. Na een wijziging aan
 `product-gallery.js` loop je het na in de Browser-pane. Een pane die niet

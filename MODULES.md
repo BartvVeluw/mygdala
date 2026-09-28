@@ -659,6 +659,35 @@ Alles wat er ook zou zijn zonder webshop.
   oude automatische overzicht. De route `shop` in de linkkiezer en de
   sitemapregel `storefront` bestaan alleen zolang er een overzicht is. Zie
   `INSTALL-BOOTSTRAP.md` voor de tabel per situatie.
+- **Uitgelicht product** (`featured_product`, `CONTENT-BLOCKS.md`): één
+  product groot op een gewone pagina, herhaalbaar, met naar keuze de
+  bestelmogelijkheid van de productpagina. Het blok bewaart alleen welk
+  product en hoe het getoond wordt; het product zelf komt live uit dezelfde
+  code als `product.php`. Daarvoor zijn twee stukken van de productpagina
+  gedeeld gemaakt:
+  - `App\Service\ProductDetail` bouwt de productpayload (zichtbaarheid,
+    woorden, foto's, varianten, voorraad als *uitverkocht* en een maximum, en
+    alleen voor een product dat direct verkocht wordt de prijzen).
+    `api/product.php` geeft hem door, het blok drukt hem af in zijn eigen
+    sectie. `withoutPrices()` haalt de prijzen eruit voor een plek die geen
+    prijs toont en niets verkoopt.
+  - `App\Service\ProductPurchasePath` beslist hoe een zichtbaar product te
+    koop is: `inquiry`, `personalize`, `unorderable` of `cart`, in die
+    volgorde. `product.php` en het blok vragen het hier; het blok kan alleen
+    minder aanbieden (*Alleen product bekijken*), nooit meer.
+
+  De markup van het koopgedeelte staat in `partials/product-purchase.php`,
+  voor de productpagina en het blok. `render_product_order_fields()` en
+  `shop.js` zetten een voorvoegsel voor elk id, zodat twee producten op één
+  pagina nooit een id of een radiogroep delen; op de productpagina is het
+  voorvoegsel leeg en zijn de id's zoals ze waren. `shop.js` draait de
+  productcode per `[data-product-detail]`-element en zoekt alleen daarbinnen.
+  Een verborgen koopregel (`.product-detail__add-row[hidden]`) is sindsdien
+  ook echt weg: vóór het blok bleven aantal en knop op de productpagina naast
+  *Uitverkocht* staan, omdat `display: flex` het attribuut `hidden`
+  overschreef. Met de Shop uit is het blok niet geregistreerd; zijn editor en
+  endpoint vragen `pages.manage` (Core) en hebben daarom een eigen
+  `ModuleGuard`.
 - Gerelateerde producten — `RelatedProductsContent`,
   `admin/related-products.php`, `partials/related-products.php`.
 - Winkelwagen — volledig client-side (`vvl-cart` in `localStorage`,
