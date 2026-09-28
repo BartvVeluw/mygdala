@@ -71,7 +71,9 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
       <div class="contact-grid">
 
         <div class="contact-card" data-reveal>
+          <?php if ($content['title'] !== ''): ?>
           <h2 style="font-size:1.4rem; margin-bottom:1.5rem;"><?= $h($content['title']) ?></h2>
+          <?php endif; ?>
 
           <?php if ($form === null): ?>
             <?php

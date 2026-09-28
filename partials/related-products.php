@@ -63,7 +63,9 @@ function render_related_products(array $related): void
         </div>
         <?php endif; ?>
 
-        <div class="shop-grid" data-products-grid data-product-ids="<?= $h(implode(',', $productIds)) ?>">
+        <?php // Under the heading a card's name is an h3, without one an h2
+              // (App\Service\Blocks\CardHeading); shop.js reads it here. ?>
+        <div class="shop-grid" data-products-grid data-card-heading="<?= \App\Service\Blocks\CardHeading::under($heading !== '') ?>" data-product-ids="<?= $h(implode(',', $productIds)) ?>">
           <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
         </div>
       </div>

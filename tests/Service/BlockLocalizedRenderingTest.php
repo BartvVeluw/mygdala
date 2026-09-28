@@ -186,7 +186,7 @@ final class BlockLocalizedRenderingTest extends TestCase
 
         $html = $this->contactCard('en', 'mailto:info@example.test');
 
-        self::assertStringContainsString('>Rather email?</h3>', $html);
+        self::assertStringContainsString('>Rather email?</h2>', $html, 'the card is a block without a title of its own, so its heading is an h2');
         self::assertStringContainsString('>Mail ons</a>', $html, 'the untranslated button label falls back to the default language');
         self::assertStringContainsString('Wij &lt;script&gt;antwoorden&lt;/script&gt; snel.', $html, 'plain text is escaped, never markup');
         self::assertStringNotContainsString('data-nl', $html);
@@ -202,9 +202,9 @@ final class BlockLocalizedRenderingTest extends TestCase
         ]);
         $this->words('contact_cards', ['nl' => ['title' => 'Titel'], 'de' => ['title' => 'Überschrift']]);
 
-        self::assertStringContainsString('>Überschrift</h3>', $this->contactCard('de', ''));
-        self::assertStringContainsString('>Titel</h3>', $this->contactCard('nl', ''));
-        self::assertStringContainsString('>Titel</h3>', $this->contactCard('en', ''), 'English falls back to the Dutch default');
+        self::assertStringContainsString('>Überschrift</h2>', $this->contactCard('de', ''));
+        self::assertStringContainsString('>Titel</h2>', $this->contactCard('nl', ''));
+        self::assertStringContainsString('>Titel</h2>', $this->contactCard('en', ''), 'English falls back to the Dutch default');
     }
 
     // ------------------------------------------------------------ helpers

@@ -986,6 +986,23 @@ afbeelding of de flyouts van het menu** (`hover_card_grid`,
                         wegwerpdatabases mygdala_scratch_hover_sequence_*)
 ```
 
+**Wijziging aan de koppen van een blok met kaarten**
+(`App\Service\Blocks\CardHeading`, `CONTENT-BLOCKS.md` "Koppen in kaarten")
+
+```
+--testsuite fast        CardHeadingContractTest (ook in contract en blocks):
+                        het voorbeeld van elk blok met en zonder bloktitel
+                        zonder overgeslagen niveau en zonder lege kop, h3
+                        onder een titel en h2 zonder, één klasse per
+                        kaarttitel, de productkaarten via
+                        data-card-heading, geen partial die een kaarttag
+                        zelf schrijft
+--testsuite blocks      CardHeadingPageTest: een echte pagina over
+                        BuiltInServer (h1, een raster met en een zonder
+                        titel, een stappenplan), een weggehaalde titel, en
+                        het niveau in de taal van de request
+```
+
 Wat een reeks in een browser doet (de tijd per beeld, een video die
 uitspeelt en dan de volgende, pauzeren, pijlen, bolletjes, vegen) en wat een
 kaart doet bij hover, focus en een tik, bewijst geen van deze tests. Loop het

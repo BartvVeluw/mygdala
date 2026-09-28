@@ -172,7 +172,9 @@ require __DIR__ . '/partials/header.php';
 
   <section style="padding-top:0;">
     <div class="container">
-      <div class="shop-grid" data-products-grid data-collection-slug="<?= $h($collection['slug']) ?>">
+      <?php // Straight under the h1, so a card's name is an h2
+            // (App\Service\Blocks\CardHeading); shop.js reads it here. ?>
+      <div class="shop-grid" data-products-grid data-card-heading="<?= \App\Service\Blocks\CardHeading::under(false) ?>" data-collection-slug="<?= $h($collection['slug']) ?>">
         <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
       </div>
       <p class="lead" data-products-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier.', 'en' => 'Products can\'t be loaded right now. Please try again later or get in touch via the quote form.']) ?></p>

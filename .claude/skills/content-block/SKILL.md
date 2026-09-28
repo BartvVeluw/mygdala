@@ -104,6 +104,12 @@ en `GenericBlockDefaultsTest` bewaken beide.
   gehouden wordt. Zet daarom `ModuleGuard::requireAdmin()` bovenaan de editor
   en `ModuleGuard::requireApi()` bovenaan het endpoint, en claim het scherm in
   `AdminNavigation` onder *Pagina's*.
+- **Heeft je blok kaarten met een titel?** De tag komt van
+  `App\Service\Blocks\CardHeading::under()`: een `<h3>` onder de eigen
+  bloktitel, een `<h2>` zonder. Geef de kaarttitel een klasse die zijn maat
+  draagt en stijl hem nooit op het element (`CONTENT-BLOCKS.md`, "Koppen in
+  kaarten"); `CardHeadingContractTest` rendert je voorbeeld met en zonder
+  titel.
 - **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de
   partial toont komt als argument binnen; opzoeken doet `render()`. Schrijf
   `sampleContent()` (woorden uit `BlockSamples`, in de vorm van je

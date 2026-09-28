@@ -111,7 +111,7 @@ final class HoverCardGridRenderTest extends TestCase
 
         self::assertSame(1, substr_count($html, '<a '), 'one link per card');
         self::assertStringContainsString('<a class="hover-card__cta hover-card__link" href="/maatwerk">Bekijk<span class="visually-hidden">: Maatwerk</span><svg', $html);
-        self::assertStringContainsString('<h3 class="hover-card__title">Maatwerk</h3>', $html, 'the title is plain text beside a call to action');
+        self::assertStringContainsString('<h2 class="hover-card__title">Maatwerk</h2>', $html, 'the title is plain text beside a call to action, and an h2 in a grid without a title (App\\Service\\Blocks\\CardHeading)');
         self::assertStringContainsString('hover-card hover-card--linked', $html);
     }
 
@@ -120,7 +120,7 @@ final class HoverCardGridRenderTest extends TestCase
         $html = $this->render($this->content([$this->card(['title' => 'Maatwerk', 'href' => '/maatwerk'])]));
 
         self::assertSame(1, substr_count($html, '<a '));
-        self::assertStringContainsString('<h3 class="hover-card__title"><a class="hover-card__link" href="/maatwerk">Maatwerk</a></h3>', $html);
+        self::assertStringContainsString('<h2 class="hover-card__title"><a class="hover-card__link" href="/maatwerk">Maatwerk</a></h2>', $html);
         self::assertStringNotContainsString('hover-card__cta', $html);
     }
 

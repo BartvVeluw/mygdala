@@ -33,8 +33,10 @@ use App\Service\Media\BlockImage;
  * view (hover-card--open-text). The second picture is an alternative view:
  * alt="" and aria-hidden, since nothing essential may depend on a hover.
  *
- * HEADINGS. The grid's title is an h2, like every block heading; a card's
- * title is an h3.
+ * HEADINGS. The grid's title is an h2, like every block heading; under it a
+ * card's title is an h3, and in a grid without a title it is an h2
+ * (App\Service\Blocks\CardHeading). `.hover-card__title` keeps its look the
+ * same either way.
  *
  * @param array<string, mixed> $content     see HoverCardGridContent::forSection()
  * @param string               $revealGroup the instance's reveal group (SectionRegistry)
@@ -70,6 +72,7 @@ function render_section_hover_card_grid(array $content, string $revealGroup = 'h
     }
 
     $hasHead = (string) ($content['eyebrow'] ?? '') !== '' || (string) ($content['title'] ?? '') !== '' || (string) ($content['lead'] ?? '') !== '';
+    $cardHeading = \App\Service\Blocks\CardHeading::under((string) ($content['title'] ?? '') !== '');
     $headClass = $settings['header_align'] !== 'left' ? ' hover-cards__head--' . $settings['header_align'] : '';
     $arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
     ?>
@@ -121,7 +124,7 @@ function render_section_hover_card_grid(array $content, string $revealGroup = 'h
               <?php if ($title !== '' || $hasText): ?>
               <div class="hover-card__content">
                 <?php if ($title !== ''): ?>
-                <h3 class="hover-card__title"><?php if ($href !== '' && $label === ''): ?><a class="hover-card__link" href="<?= $h($href) ?>"><?= $h($title) ?></a><?php else: ?><?= $h($title) ?><?php endif; ?></h3>
+                <<?= $cardHeading ?> class="hover-card__title"><?php if ($href !== '' && $label === ''): ?><a class="hover-card__link" href="<?= $h($href) ?>"><?= $h($title) ?></a><?php else: ?><?= $h($title) ?><?php endif; ?></<?= $cardHeading ?>>
                 <?php endif; ?>
                 <?php if ($hasText): ?>
                 <div class="hover-card__more">

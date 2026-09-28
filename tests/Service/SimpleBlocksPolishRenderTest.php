@@ -184,7 +184,12 @@ final class SimpleBlocksPolishRenderTest extends TestCase
         $definition->renderSample($sample, 'shop_collections-0');
         $html = (string) ob_get_clean();
 
-        self::assertStringNotContainsString('<h2', $html);
+        self::assertStringNotContainsString('section-head', $html, 'no heading of its own above the tiles');
+        self::assertSame(
+            substr_count($html, '<h2'),
+            substr_count($html, '<h2 class="collection-tile__name">'),
+            "every h2 is a tile's name (App\\Service\\Blocks\\CardHeading), none is a title of the block"
+        );
         self::assertStringNotContainsString('>Collecties<', $html);
         self::assertStringNotContainsString('>Collections<', $html);
         self::assertSame(3, substr_count($html, 'class="collection-tile"'), 'the tiles themselves are still there');

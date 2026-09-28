@@ -13,6 +13,11 @@
  * is a positioned block in the page's one ordered list, centred in the same
  * narrow reading column the Rich text block uses.
  *
+ * Its heading was an h3 under that card's h2. On its own the card is a block
+ * without a title of its own, so its heading is an h2
+ * (App\Service\Blocks\CardHeading); `.contact-card__title` keeps the h3's
+ * look.
+ *
  * The button renders only when it has both a label and a URL — a half-filled
  * button would be dead. An empty stored URL is resolved to the site's
  * `mailto:` address by ContactCardContent, so a card with no configured link
@@ -36,12 +41,13 @@ function render_section_contact_card(array $card): void
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $hasButton = $text('button_label') !== '' && $card['button_url'] !== '';
+    $cardHeading = \App\Service\Blocks\CardHeading::under(false);
     ?>
   <section style="padding-top:0;">
     <div class="container container--narrow">
       <div class="contact-card" data-reveal>
         <?php if ($text('title') !== ''): ?>
-        <h3 style="margin-bottom:0.75rem;"><?= $h($text('title')) ?></h3>
+        <<?= $cardHeading ?> class="contact-card__title" style="margin-bottom:0.75rem;"><?= $h($text('title')) ?></<?= $cardHeading ?>>
         <?php endif; ?>
         <?php if ($text('body') !== ''): ?>
         <p style="color:var(--color-text-muted); font-size:0.92rem; margin-bottom:<?= $hasButton ? '1rem' : '0' ?>;"><?= $h($text('body')) ?></p>

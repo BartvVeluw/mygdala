@@ -39,6 +39,10 @@ require_once __DIR__ . '/eyebrow.php';
  * here, and the defaults (left, medium) add none, so an existing carousel
  * renders exactly as it did.
  *
+ * A card title is an h3 under the carousel's own title and an h2 in a
+ * carousel without one (App\Service\Blocks\CardHeading); `.orbit-card__title`
+ * keeps its look the same either way.
+ *
  * Caller must already have checked $content['state'] !==
  * CardCarouselContent::STATE_HIDDEN before calling this.
  *
@@ -53,6 +57,7 @@ function render_section_card_carousel(array $content): void
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     $hasHead = $content['eyebrow'] !== '' || $content['title'] !== '' || $content['lead'] !== '';
+    $cardHeading = \App\Service\Blocks\CardHeading::under($content['title'] !== '');
     // "Kaarten naast elkaar": the flat strip on every screen
     // (CardCarouselContent::LAYOUT_ROW); anything else is the rotating ring.
     $isRow = ($content['desktop_layout'] ?? '') === \App\Service\CardCarouselContent::LAYOUT_ROW;
@@ -125,9 +130,11 @@ function render_section_card_carousel(array $content): void
                       <?php if ($card['index_label'] !== ''): ?>
                       <span class="service-row__index"><?= $h($card['index_label']) ?></span>
                       <?php endif; ?>
-                      <h3>
+                      <?php if ($card['title'] !== ''): ?>
+                      <<?= $cardHeading ?> class="orbit-card__title">
                         <?= $h($card['title']) ?>
-                      </h3>
+                      </<?= $cardHeading ?>>
+                      <?php endif; ?>
                       <?php if ($card['body'] !== ''): ?>
                       <p
                        

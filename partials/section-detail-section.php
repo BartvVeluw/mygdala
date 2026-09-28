@@ -52,7 +52,9 @@ function render_section_detail_section(array $content, array $markers, string $r
       <div class="service-detail__head<?= $flip ? ' service-detail__head--image-left' : '' ?>">
         <div data-reveal>
           <span class="service-row__index"><?= $h($markers['index_label']) ?></span>
+          <?php if ($content['title'] !== ''): ?>
           <h2><?= $h($content['title']) ?></h2>
+          <?php endif; ?>
           <?php if ($content['lead'] !== ''): ?>
           <p class="lead" style="margin-top:0.75rem;"><?= $h($content['lead']) ?></p>
           <?php endif; ?>

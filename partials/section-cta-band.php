@@ -87,7 +87,9 @@ function render_section_cta_band(array $cta): void
           <?php if (!$fullWidth) { $media(); } ?>
           <div class="<?= $h($contentClass) ?>">
             <?php render_eyebrow($text('eyebrow')); ?>
+            <?php if ($text('title') !== ''): ?>
             <h2><?= $h($text('title')) ?></h2>
+            <?php endif; ?>
             <?php if ($text('lead') !== ''): ?>
             <p class="lead"><?= $h($text('lead')) ?></p>
             <?php endif; ?>

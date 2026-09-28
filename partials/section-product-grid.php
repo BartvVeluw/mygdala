@@ -13,7 +13,8 @@
  * collection tiles were on the shop, words no editor had typed and none could
  * change or remove. The block has no title field, so it prints no title at
  * all (Content Blocks Polish 1); an editor who wants one puts a Tekstblok
- * above it.
+ * above it. For the same reason a product card's name is an h2: the grid tells
+ * shop.js so in data-card-heading (App\Service\Blocks\CardHeading).
  *
  * The closing "Zoek je iets specifieks?" paragraph used to be hardcoded
  * here. Phase 2 moved it into an ordinary Rich text block directly below
@@ -26,7 +27,7 @@ function render_section_product_grid(): void
     ?>
   <section style="padding-top:0;">
     <div class="container">
-      <div class="shop-grid" data-products-grid>
+      <div class="shop-grid" data-products-grid data-card-heading="<?= \App\Service\Blocks\CardHeading::under(false) ?>">
         <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
       </div>
       <p class="lead" data-products-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier.', 'en' => 'Products can\'t be loaded right now. Please try again later or get in touch via the quote form.']) ?></p>

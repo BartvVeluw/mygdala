@@ -837,13 +837,17 @@ section{ position: relative; padding-block: var(--sp-7); }
 /* A custom icon is an SVG from the Media Library: any aspect ratio fits the
    same 24px box without being stretched. */
 .feature-card__icon img{ display: block; width: 24px; height: 24px; object-fit: contain; }
-.feature-card h3{
+/* A card title is an h3 under the grid's own title and an h2 without one
+   (App\Service\Blocks\CardHeading): the class carries its size, so both look
+   the same. */
+.feature-card__title{
   position: relative;
   z-index: 1;
+  font-size: var(--fs-h3);
   margin-bottom: 0.5rem;
   transition: color var(--dur-premium) var(--ease-premium);
 }
-.feature-card:hover h3{ color: var(--color-primary-bright); }
+.feature-card:hover .feature-card__title{ color: var(--color-primary-bright); }
 .feature-card p{
   position: relative;
   z-index: 1;
@@ -857,7 +861,7 @@ section{ position: relative; padding-block: var(--sp-7); }
   .feature-card,
   .feature-card::before,
   .feature-card__icon,
-  .feature-card h3,
+  .feature-card__title,
   .feature-card p{ transition: none !important; }
   .feature-card:hover{ transform: none; }
   .feature-card:hover .feature-card__icon{ transform: none; }
@@ -944,7 +948,9 @@ section{ position: relative; padding-block: var(--sp-7); }
     background: linear-gradient(90deg, var(--color-line-strong), var(--color-line));
   }
 }
-.process-step h3{ margin-bottom: 0.4rem; font-size: 1.15rem; }
+/* An h3 under the list's own title, an h2 without one (CardHeading): the
+   class carries the size. */
+.process-step__title{ margin-bottom: 0.4rem; font-size: 1.15rem; }
 .process-step p{ color: var(--color-text-muted); font-size: 0.92rem; }
 
 /* Testimonials */
@@ -1083,6 +1089,9 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .contact-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); align-items: start; }
 @media (max-width: 900px){ .contact-grid{ grid-template-columns: 1fr; } }
 .contact-card{ background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-lg); padding: var(--sp-4); }
+/* The Contactkaart block's heading is an h2 (App\Service\Blocks\CardHeading)
+   with the h3 size it always had. */
+.contact-card__title{ font-size: var(--fs-h3); }
 .contact-detail{ display: flex; gap: var(--sp-2); align-items: flex-start; margin-bottom: var(--sp-3); }
 .contact-detail svg{ width: 22px; height: 22px; color: var(--color-primary); flex-shrink: 0; margin-top: 2px; }
 .contact-detail strong{ display: block; color: var(--color-text); }

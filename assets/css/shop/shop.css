@@ -61,8 +61,10 @@ a.product-card:hover{ transform: translateY(-6px); box-shadow: var(--color-glow)
 }
 .product-card__body{ padding: var(--sp-3); display: flex; flex-direction: column; flex: 1; gap: 0.35rem; }
 .product-card--featured .product-card__body{ padding: var(--sp-4); }
-.product-card__body h3{ font-size: 1.1rem; }
-.product-card--featured .product-card__body h3{ font-size: 1.5rem; }
+/* A card's name is an h2 or an h3 (data-card-heading on the grid): the class
+   carries the size, so both look the same. */
+.product-card__body .product-card__title{ font-size: 1.1rem; }
+.product-card--featured .product-card__body .product-card__title{ font-size: 1.5rem; }
 .product-card__body p{ color: var(--color-text-muted); font-size: 0.85rem; flex: 1; }
 .product-card__desc{
   display: -webkit-box;

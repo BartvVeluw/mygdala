@@ -17,6 +17,10 @@ require_once __DIR__ . '/eyebrow.php';
  * step's — so this file knows no language, no default and no fallback. All of
  * it is plain text.
  *
+ * A step title is an h3 under the list's own title and an h2 in a list
+ * without one (App\Service\Blocks\CardHeading); `.process-step__title` keeps
+ * its look the same either way. A step without a title has no heading.
+ *
  * @param array<string, mixed> $stepList see StepListContent::forSection()
  * @param string $revealGroup unique data-reveal-group value for this instance's stagger animation
  */
@@ -32,6 +36,7 @@ function render_section_step_list(array $stepList, string $revealGroup = 'proces
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $cardHeading = \App\Service\Blocks\CardHeading::under($stepList['title'] !== '');
     ?>
     <section>
       <div class="container">
@@ -44,7 +49,9 @@ function render_section_step_list(array $stepList, string $revealGroup = 'proces
         <div class="process">
           <?php foreach ($stepList['items'] as $step): ?>
           <div class="process-step" data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
-            <h3><?= $h($step['title']) ?></h3>
+            <?php if ($step['title'] !== ''): ?>
+            <<?= $cardHeading ?> class="process-step__title"><?= $h($step['title']) ?></<?= $cardHeading ?>>
+            <?php endif; ?>
             <p><?= $h($step['body']) ?></p>
           </div>
           <?php endforeach; ?>

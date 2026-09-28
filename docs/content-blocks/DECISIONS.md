@@ -468,3 +468,18 @@ zou een verborgen of verwijderd project blijven tonen. Een tekort vult alleen
 aan als de redacteur dat kiest, anders verschijnen er onverwacht projecten
 die er niets mee te maken hebben. De kaarten zijn die van de galerij, dus er
 is geen tweede kaart om bij te houden.
+
+## Koppen in kaarten: de bloktitel beslist het niveau, de klasse de maat
+
+Een kaarttitel was overal een `<h3>`, ook in een blok zonder eigen titel. Onder
+de `<h1>` van de pagina sloeg de opbouw dan een niveau over. Een verborgen `<h2>`
+erboven had de opbouw kloppend gemaakt voor een schermlezer, maar die hoort dan
+een kop die niemand ziet en niemand heeft geschreven. Daarom schuift de kaart
+zelf een niveau op zodra de bloktitel ontbreekt, en beslist één klasse
+(`CardHeading`) welk niveau dat is, uit een gesloten lijst van twee tags.
+
+Het uiterlijk hangt aan een klasse op de kaarttitel, niet aan het element,
+zodat die verschuiving niets aan de pagina verandert: een redacteur die een
+titel weghaalt, ziet dezelfde kaarten. Tekst met afbeelding hield zijn eigen,
+al bestaande keuze (onder een titel de h3-stap van de typeschaal), omdat een
+item daar een hele rij tekst is en geen kaart.

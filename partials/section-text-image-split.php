@@ -16,7 +16,9 @@ require_once __DIR__ . '/eyebrow.php';
  * THE HEADING: the block's optional title (an h2) and lead above all items,
  * in the shared .section-head of every block heading. Under such a title
  * each item's own title is an h3, one level down, so the outline of the page
- * stays right; without it an item's title is the h2 it always was.
+ * stays right; without it an item's title is the h2 it always was
+ * (App\Service\Blocks\CardHeading, the rule every block of cards follows).
+ * Unlike a card, an item takes the step of the type scale its tag has.
  *
  * ONE MARKUP PATH. The text comes first in the document, the picture second,
  * whatever side the picture is on: `text-image__item--image-left` only moves
@@ -56,7 +58,7 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
     $group = $revealGroup ?? 'text-image-split';
     $blockTitle = (string) ($section['title'] ?? '');
     $blockLead = (string) ($section['lead'] ?? '');
-    $itemHeading = $blockTitle !== '' ? 'h3' : 'h2';
+    $itemHeading = \App\Service\Blocks\CardHeading::under($blockTitle !== '');
     ?>
     <section class="text-image"<?= $tightTop ? ' style="padding-top:0;"' : '' ?>>
       <div class="container">

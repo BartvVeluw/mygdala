@@ -19,7 +19,9 @@
  * NO HEADING OF ITS OWN. It used to print a fixed "Collecties" above the
  * tiles, words no editor had typed and none could change or remove. The block
  * has no title field, so it prints no title at all (Content Blocks Polish 1);
- * an editor who wants one puts a Tekstblok above it.
+ * an editor who wants one puts a Tekstblok above it. For the same reason a
+ * tile's name is an h2, never an h3 under a heading that is not there
+ * (App\Service\Blocks\CardHeading); `.collection-tile__name` keeps its look.
  *
  * The collections arrive as an argument, read by
  * App\Service\Blocks\ShopCollectionsBlock::render(), so this file only
@@ -32,6 +34,8 @@ function render_section_shop_collections(array $shopCollections): void
     if ($shopCollections === []) {
         return;
     }
+
+    $cardHeading = \App\Service\Blocks\CardHeading::under(false);
     ?>
   <section style="padding-top:0;">
     <div class="container">
@@ -58,7 +62,7 @@ function render_section_shop_collections(array $shopCollections): void
               <?php endif; ?>
             </div>
             <div class="collection-tile__body">
-              <h3 class="collection-tile__name"><?= $collectionH($collectionName) ?></h3>
+              <<?= $cardHeading ?> class="collection-tile__name"><?= $collectionH($collectionName) ?></<?= $cardHeading ?>>
               <?php if ($collectionTeaser !== ''): ?>
                 <p class="collection-tile__desc"><?= $collectionH($collectionTeaser) ?></p>
               <?php endif; ?>

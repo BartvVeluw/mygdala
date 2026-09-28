@@ -661,9 +661,11 @@ final class BlockRowEditorsHttpTest extends TestCase
         ob_start();
         render_section_feature_grid($content, 'feature-grid-test');
         $html = (string) ob_get_clean();
-        self::assertStringNotContainsString('<h2', $html, 'no empty heading');
+        self::assertStringNotContainsString('<h2>', $html, 'no block title, so no empty heading');
+        self::assertDoesNotMatchRegularExpression('#<(h[1-6])\b[^>]*>\s*</\1>#', $html, 'no empty heading anywhere');
         self::assertStringNotContainsString('section-head', $html);
         self::assertSame(2, substr_count($html, 'class="feature-card"'), 'the cards are there');
+        self::assertSame(2, substr_count($html, '<h2 class="feature-card__title">'), 'without a block title the card titles are the h2s (App\\Service\\Blocks\\CardHeading)');
 
         $xpath = $this->xpath($this->screen($session, 'feature_grid'));
         self::assertSame(0, $xpath->query('//input[@id="feature-grid-title" and @required]')->length, 'the H2 is optional');

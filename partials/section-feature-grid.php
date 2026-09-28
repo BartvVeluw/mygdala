@@ -24,6 +24,10 @@ require_once __DIR__ . '/feature-icons.php';
  * card's — so this file knows no language, no default and no fallback. All
  * of it is plain text.
  *
+ * A card title is an h3 under the grid's own title and an h2 in a grid
+ * without one (App\Service\Blocks\CardHeading); `.feature-card__title` keeps
+ * its look the same either way.
+ *
  * @param array<string, mixed> $grid see FeatureGridContent::forSection()
  * @param string $revealGroup unique data-reveal-group value for this instance's stagger animation
  */
@@ -39,6 +43,7 @@ function render_section_feature_grid(array $grid, string $revealGroup = 'feature
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $cardHeading = \App\Service\Blocks\CardHeading::under($grid['title'] !== '');
     ?>
     <section<?= $hasHeading ? ' class="bg-soft"' : '' ?>>
       <div class="container">
@@ -58,7 +63,7 @@ function render_section_feature_grid(array $grid, string $revealGroup = 'feature
             <div class="feature-card__icon" aria-hidden="true"><?= feature_grid_icon_svg($item['icon_key']) ?></div>
             <?php endif; ?>
             <?php if ($item['title'] !== ''): ?>
-            <h3><?= $h($item['title']) ?></h3>
+            <<?= $cardHeading ?> class="feature-card__title"><?= $h($item['title']) ?></<?= $cardHeading ?>>
             <?php endif; ?>
             <p><?= $h($item['body']) ?></p>
           </div>

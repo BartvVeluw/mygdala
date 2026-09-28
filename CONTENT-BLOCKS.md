@@ -443,6 +443,52 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   van de band en het focuspunt).
 - **Bestaande inhoud blijft behouden** bij migraties en refactors.
 
+## Koppen in kaarten
+
+Een blok met kaarten heeft vaak een eigen, optionele titel. Die titel is een
+`<h2>`, zoals elke bloktitel, en de titel van een kaart hangt eronder:
+
+- **met een zichtbare bloktitel** is elke kaarttitel een `<h3>`;
+- **zonder bloktitel** is elke kaarttitel een `<h2>`, zodat een pagina-`<h1>`
+  nooit gevolgd wordt door een `<h3>` zonder `<h2>` ertussen.
+
+Dat beslist één klasse, `App\Service\Blocks\CardHeading`: `under(bool)` geeft
+`h3` of `h2`, uit een gesloten lijst van die twee (`LEVELS`). Een partial geeft
+hem dezelfde voorwaarde mee waarmee hij de `<h2>` van het blok print, dus die
+twee kunnen niet uit elkaar lopen, en een tag komt nooit uit inhoud of uit een
+request. Kaarten die de browser tekent (de productkaarten van `shop.js`) krijgen
+het niveau van hun raster in `data-card-heading`, en het script accepteert
+alleen `h2` en `h3`.
+
+**Alleen de tag verandert, niet het uiterlijk.** Een kaarttitel heeft een eigen
+klasse die zijn maat draagt (`.feature-card__title`, `.process-step__title`,
+`.orbit-card__title`, `.hover-card__title`, `.collection-tile__name`,
+`.contact-card__title`, `.product-card__title`), dus een `<h2>` en een `<h3>` in
+dezelfde kaart zien er hetzelfde uit. Stijl een kaarttitel daarom nooit op het
+element (`.feature-card h3`). Tekst met afbeelding is de uitzondering die er al
+was: een item is geen kaart, en onder een bloktitel neemt het de h3-stap van de
+typeschaal.
+
+Er komt geen verborgen of lege `<h2>` bij om een `<h3>` te rechtvaardigen, en een
+kaart zonder titel heeft geen kop. Een bloktitel die leeg is, drukt ook geen lege
+`<h2>` af (Oproep met knop, Detailsectie en Contactformulier controleren dat
+sinds deze regel, zoals Formulier en de galerij al deden).
+
+| Blok | Eigen titel | Kaarttitel |
+|---|---|---|
+| Kenmerken in kaartjes, Stappenplan, Kaarten-carrousel, Hover kaarten grid | optioneel | `h3` onder de titel, anders `h2` |
+| Tekst met afbeelding | optioneel | idem, voor de titel van een item |
+| Collectie-tegels, Contactkaart, Productgrid | geen | `h2` |
+| Gerelateerde producten | optionele kop | `h3` onder de kop, anders `h2` |
+| Collectie- en personaliseerpagina (productkaarten onder de `<h1>`) | — | `h2` |
+| Projecten, Portfoliogalerij, gerelateerde projecten | optioneel | geen kop: de titel op een kaart is een onderschrift (`<p>`) |
+
+`Tests\Service\CardHeadingContractTest` rendert het voorbeeld van élk blok met en
+zonder zijn titel en faalt op een overgeslagen niveau, een lege kop of een
+partial die een kaarttag zelf schrijft; `CardHeadingPageTest` bewijst het op een
+echte pagina en in twee talen. Een nieuw blok met kaarten gebruikt `CardHeading`
+en een klasse voor de titel.
+
 ## Tekst met afbeelding: een lijst items
 
 Sinds Tekst met afbeelding 2.0 (`db/migrations/20260924100000`) is één
@@ -491,7 +537,8 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   de twee, dan staat boven het eerste item de gedeelde `.section-head` van
   `core.css` met een `<h2>` en de lead. Onder een bloktitel worden de titels
   van de items `<h3>`, met de h3-stap van de typeschaal, zodat de opbouw van
-  de pagina klopt. Zonder bloktitel blijven ze de `<h2>` die ze altijd waren.
+  de pagina klopt. Zonder bloktitel blijven ze de `<h2>` die ze altijd waren
+  (*Koppen in kaarten*).
   De standaardtaal beslist of de kop er is. Een blok zonder items rendert
   niets, ook zijn kop niet. Het endpoint slaat de kop alleen op als het
   formulier de velden meestuurt, zodat een ouder scherm hem nooit wist. In de
@@ -526,9 +573,9 @@ verplicht (`FeatureGridBlock::translatableFields()` zonder `->required()`).
 Een raster zonder bovenlabel, titel en lead stond al zonder kop op de pagina
 (het oude raster van de homepage), dus de partial hoefde niet te veranderen.
 Wat de redacteur wel invult, verschijnt: alleen een lead of alleen een
-bovenlabel geeft een kop zonder `<h2>`. De kaarttitels blijven `<h3>`, met en
-zonder kop, zoals de kaarten van de Kaarten-carrousel en de Hover kaarten
-grid.
+bovenlabel geeft een kop zonder `<h2>`. Onder een titel zijn de kaarttitels
+`<h3>`, zonder titel `<h2>`, in dezelfde klasse en dus met hetzelfde uiterlijk,
+zoals bij de Kaarten-carrousel en de Hover kaarten grid (*Koppen in kaarten*).
 
 In de editor klapt elke kaart apart in, precies zoals de items van Tekst met
 afbeelding (`editor_row_open()` met `$collapse`, `PAGE-EDITOR.md`): de kopregel
@@ -977,8 +1024,8 @@ te focussen.
   Windows) bestaat geen sluier; daar staat de tekst onder de foto en altijd
   in beeld.
 
-**Koppen.** De titel van het raster is een `<h2>`, een kaarttitel een `<h3>`,
-zoals bij de andere kaartblokken. Het raster is een lijst (`<ul role="list">`).
+**Koppen.** De titel van het raster is een `<h2>`; daaronder is een kaarttitel
+een `<h3>`, en in een raster zonder titel een `<h2>` (*Koppen in kaarten*). Het raster is een lijst (`<ul role="list">`).
 Zonder één kaart om te tonen rendert het blok niets, zijn kop ook niet.
 
 **De editor** heeft drie kaarten: *Kop boven de kaarten*, *Weergave* (de
@@ -1243,7 +1290,9 @@ geregistreerd type, dus je nieuwe blok wordt daar meegenomen zodra het in
 je definitie iets uit het contract. `tests/Service/BlockSampleContractTest.php`
 doet hetzelfde voor het voorbeeld: het rendert je `sampleContent()` door je
 eigen partial en faalt op een ontbrekende sleutel, een onge-escapet woord of
-een link die de preview uit kan.
+een link die de preview uit kan. `tests/Service/CardHeadingContractTest.php`
+rendert dat voorbeeld met en zonder titel en faalt op een overgeslagen
+kopniveau of een lege kop (*Koppen in kaarten*).
 
 ## Waarom het register geen bloktypes meer kent
 

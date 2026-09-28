@@ -66,6 +66,12 @@
       document.querySelector("[data-products-error]");
     var collectionSlug = grid.getAttribute("data-collection-slug");
     var productIds = grid.getAttribute("data-product-ids");
+    /* A card's name is an h2 where no heading stands above the grid and an h3
+       under one, as the page that holds the grid decided
+       (App\Service\Blocks\CardHeading, in data-card-heading). Only those two
+       tags: anything else is an h3, the level a card always had. Its class
+       carries its size, so both look the same. */
+    var cardHeading = grid.getAttribute("data-card-heading") === "h2" ? "h2" : "h3";
 
     /* "Gerelateerde producten" is an OPTIONAL block, unlike the shop and
        collection grids: a product with no related products is a perfectly
@@ -128,7 +134,7 @@
             '<a class="product-card is-visible" href="' + S.escapeAttr(S.localeUrl("/product.php?id=" + encodeURIComponent(product.id))) + '">' +
             '<div class="product-card__media">' + media + "</div>" +
             '<div class="product-card__body">' +
-            "<h3>" + S.escapeHtml(cardName) + "</h3>" +
+            "<" + cardHeading + ' class="product-card__title">' + S.escapeHtml(cardName) + "</" + cardHeading + ">" +
             description +
             '<div class="product-card__footer">' +
             // Op aanvraag: the API sends no price at all, and the card says
