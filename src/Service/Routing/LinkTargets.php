@@ -7,9 +7,7 @@ namespace App\Service\Routing;
 use App\Module\ModuleRegistry;
 use App\Service\LinkResolver;
 use App\Service\PageContent;
-use App\Service\PageLocalization;
-use App\Service\PagePath;
-use App\Service\PageTree;
+use App\Service\PageOptions;
 
 /**
  * The items of this website a block's button can point at by id instead of
@@ -79,11 +77,15 @@ final class LinkTargets
         return $definition === null ? [] : ($definition['choices'])();
     }
 
-    /** Whether $id is one of the choices of $type: what an endpoint checks before storing it. */
+    /**
+     * Whether $id is one of the choices of $type: what an endpoint checks
+     * before storing it. A `context` line (a page only listed to keep the
+     * tree readable) is no choice.
+     */
     public static function exists(string $type, int $id): bool
     {
         foreach (self::choices($type) as $choice) {
-            if ($choice['id'] === $id) {
+            if ($choice['id'] === $id && empty($choice['context'])) {
                 return true;
             }
         }
@@ -128,25 +130,19 @@ final class LinkTargets
             'order' => 10,
             'choices' => static function (): array {
                 // In the Pages overview's order, a page under its parent and
-                // indented one step per level (App\Service\PageTree), so two
-                // pages with the same name in different trees can be told apart.
-                $rows = PageTree::ordered();
-                PageLocalization::preload(array_column($rows, 'id'));
-
+                // indented one step per level (App\Service\PageOptions, the one
+                // order of every page list), so two pages with the same name in
+                // different trees can be told apart. A page served by a module
+                // that is off answers 404, and is not offered.
+                // A page above an offered one that is not offered itself (the
+                // Portfolio's page while it is the module's own overview) is
+                // there as `context`: shown, never a valid choice (exists()).
                 $choices = [];
-                foreach ($rows as $row) {
-                    $page = PagePath::node($row['id']) ?? [];
-
-                    // A page served by a module that is off answers 404.
-                    if ($page === [] || !PageContent::isServedByAnEnabledModule($page)) {
-                        continue;
-                    }
-
-                    $choice = [
-                        'id' => (int) $page['id'],
-                        'label' => str_repeat("\u{00A0}\u{00A0}\u{00A0}", $row['depth']) . PageLocalization::name((int) $page['id']),
-                    ];
-                    if (!PageContent::isPublished($page)) {
+                foreach (PageOptions::tree(static fn (array $page): bool => PageContent::isServedByAnEnabledModule($page)) as $option) {
+                    $choice = ['id' => $option['id'], 'label' => $option['label']];
+                    if ($option['context']) {
+                        $choice['context'] = true;
+                    } elseif (!PageContent::isPublished($option['page'])) {
                         $choice['note'] = 'draft';
                     }
                     $choices[] = $choice;

@@ -478,19 +478,30 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
             <?php if ($storedOverview === ShopOverview::BUILTIN_VALUE): ?>
               <option value="<?= $h(ShopOverview::BUILTIN_VALUE) ?>"<?= $overviewValue === ShopOverview::BUILTIN_VALUE ? ' selected' : '' ?>><?= admin_te('shop.overview.builtin') ?></option>
             <?php endif; ?>
-            <?php foreach ($overviewChoices as $overviewPage): ?>
+            <?php
+              // In the Pages overview's order, a page under its parent
+              // (App\Service\PageOptions); a page above one that can be
+              // chosen but that cannot be chosen itself stays as a line.
+              $overviewChoiceIds = array_flip(array_map(static fn (array $p): int => (int) $p['id'], $overviewChoices));
+              $overviewOptions = \App\Service\PageOptions::tree(static fn (array $node): bool => isset($overviewChoiceIds[(int) $node['id']]));
+            ?>
+            <?php foreach ($overviewOptions as $overviewOption): ?>
+              <?php if ($overviewOption['context']): ?>
+                <option value="<?= (int) $overviewOption['id'] ?>" disabled><?= $h($overviewOption['label']) ?></option>
+                <?php continue; ?>
+              <?php endif; ?>
               <?php
                 // Every page is listed with what it holds, so the owner sees
                 // which page is missing the block; only a page WITH a product
                 // grid can be chosen (App\Service\ShopOverview::normalise()),
                 // except the one already stored.
+                $overviewPage = $overviewOption['page'];
                 $overviewId = (string) (int) $overviewPage['id'];
                 $overviewHasGrid = ShopOverview::hasProductGrid($overviewPage);
-                $overviewTitle = \App\Service\PageLocalization::name((int) $overviewPage['id']);
-                $overviewLabel = admin_t(
+                $overviewLabel = \App\Service\PageOptions::label(admin_t(
                     \App\Service\PageContent::isPublished($overviewPage) ? 'shop.overview.page_option' : 'shop.overview.page_option_draft',
-                    ['title' => $overviewTitle]
-                ) . ' — ' . admin_t($overviewHasGrid ? 'shop.overview.has_grid' : 'shop.overview.no_grid');
+                    ['title' => $overviewOption['name']]
+                ), $overviewOption['depth']) . ' — ' . admin_t($overviewHasGrid ? 'shop.overview.has_grid' : 'shop.overview.no_grid');
                 $overviewSelectable = $overviewHasGrid || $overviewId === $storedOverview;
               ?>
               <option value="<?= $h($overviewId) ?>"<?= $overviewValue === $overviewId ? ' selected' : '' ?><?= $overviewSelectable ? '' : ' disabled' ?>><?= $h($overviewLabel) ?></option>

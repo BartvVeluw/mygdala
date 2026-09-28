@@ -75,7 +75,7 @@ function link_target_field(array $field): void
           <select class="admin-select" id="<?= $h($id . '-' . $kind) ?>" name="<?= $h($field['target_name']) ?>[<?= $h($kind) ?>]">
             <option value=""><?= admin_te('link_choice.choose') ?></option>
             <?php foreach (LinkTargets::choices($kind) as $choice): ?>
-              <option value="<?= (int) $choice['id'] ?>"<?= $selected === (int) $choice['id'] ? ' selected' : '' ?>><?= $h($choice['label']) ?><?= isset($choice['note']) ? ' ' . admin_te('link_choice.note_' . $choice['note']) : '' ?></option>
+              <option value="<?= (int) $choice['id'] ?>"<?= !empty($choice['context']) ? ' disabled' : ($selected === (int) $choice['id'] ? ' selected' : '') ?>><?= $h($choice['label']) ?><?= isset($choice['note']) ? ' ' . admin_te('link_choice.note_' . $choice['note']) : '' ?></option>
             <?php endforeach; ?>
           </select>
         </div>

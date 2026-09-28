@@ -8,7 +8,6 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_save_bar.php';
 
 use App\Repository\NavigationRepository;
-use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\LinkResolver;
@@ -146,15 +145,15 @@ $canChoosePresentation = !$isChild && $childCount === 0;
  * current target when that page has since been set back to Concept — so
  * editing an item never silently drops a target the editor cannot see. A
  * draft page is otherwise deliberately not offered: LinkResolver hides a link
- * to it on the public site regardless.
+ * to it on the public site regardless. In the Pages overview's order, a page
+ * under its parent and indented (App\Service\PageOptions, the one order of
+ * every page list in the CMS).
  */
 $currentTargetPageId = (int) ($item['target_page_id'] ?? 0);
-$linkablePages = array_values(array_filter(
-    (new PageRepository())->findAllForAdmin(),
-    static fn (array $p): bool => (PageContent::isPublished($p) && !\App\Service\ModuleSystemPages::isPlaceholder($p))
-        || (int) $p['id'] === $currentTargetPageId
-));
-\App\Service\PageLocalization::preload(array_map(static fn (array $p): int => (int) $p['id'], $linkablePages));
+$linkablePages = \App\Service\PageOptions::tree(
+    static fn (array $p): bool => PageContent::isPublished($p) && !\App\Service\ModuleSystemPages::isPlaceholder($p),
+    [$currentTargetPageId]
+);
 
 // Only routes that exist right now; a switched-off module contributes none.
 // A stored route that is not among them is offered as its own option below,
@@ -271,8 +270,10 @@ if ($isNew) {
         <?= admin_field_label('nav-target-page', admin_t('navigation.page_label')) ?>
         <select class="admin-select" id="nav-target-page" name="target_page_id">
           <option value=""><?= admin_te('navigation.choose_page') ?></option>
-          <?php foreach ($linkablePages as $page): ?>
-            <option value="<?= (int) $page['id'] ?>" <?= $field('target_page_id') === (string) $page['id'] ? 'selected' : '' ?>><?= $h(\App\Service\PageLocalization::name((int) $page['id'])) ?><?= PageContent::isPublished($page) ? '' : ' ' . admin_te('navigation.destination_draft') ?></option>
+          <?php foreach ($linkablePages as $option): ?>
+            <?php /* A page above an offered one that is not offered itself
+                     keeps the tree readable and cannot be chosen. */ ?>
+            <option value="<?= $option['id'] ?>"<?= $option['context'] ? ' disabled' : '' ?> <?= !$option['context'] && $field('target_page_id') === (string) $option['id'] ? 'selected' : '' ?>><?= $h($option['label']) ?><?= $option['context'] || PageContent::isPublished($option['page']) ? '' : ' ' . admin_te('navigation.destination_draft') ?></option>
           <?php endforeach; ?>
         </select>
       </div>

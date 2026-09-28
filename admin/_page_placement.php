@@ -8,10 +8,8 @@ require_once __DIR__ . '/_admin_ui.php';
 use App\Service\AppUrl;
 use App\Service\PageAdminGroup;
 use App\Service\PageContent;
-use App\Service\PageLocalization;
 use App\Service\PagePath;
 use App\Service\PageService;
-use App\Service\PageTree;
 use App\Service\Routing\LocalizedUrl;
 
 /**
@@ -67,8 +65,8 @@ function page_placement_fields(?array $page, string $language, ?int $parentId, s
     if ($parentId !== null && !isset($candidates[$parentId])) {
         $parentId = $storedParent > 0 ? $storedParent : null;
     }
-    $tree = PageTree::ordered();
-    PageLocalization::preload(array_column($tree, 'id'));
+    // The one order and text of a page in a list (App\Service\PageOptions).
+    $options = \App\Service\PageOptions::tree(static fn (array $node): bool => isset($candidates[(int) $node['id']]));
 
     $groupLabels = [
         PageAdminGroup::WEBSITE => admin_t('page.admin_group_website'),
@@ -83,20 +81,17 @@ function page_placement_fields(?array $page, string $language, ?int $parentId, s
         <?= admin_field_label('page-parent', admin_t('page.parent_label'), admin_t('help.page.parent')) ?>
         <select id="page-parent" name="parent_id" class="admin-select" data-page-parent>
           <option value="0" data-page-path="" data-page-group=""<?= $parentId === null ? ' selected' : '' ?>><?= admin_te('page.parent_none') ?></option>
-          <?php foreach ($tree as $row): ?>
+          <?php foreach ($options as $option): ?>
             <?php
-              $id = $row['id'];
-              if (!isset($candidates[$id])) {
-                  continue;
-              }
-              $node = PagePath::node($id) ?? [];
+              $id = $option['id'];
+              $node = $option['page'];
               // A module's system page has a route, not a slug: what its
               // subtree starts with is its child prefix (/shop/…), the same
               // word in every language (App\Service\ModuleSystemPages).
               $childPrefix = PageContent::isRouteBound($node) ? \App\Service\ModuleSystemPages::childPrefix($node) : null;
               $path = $childPrefix !== null ? '/' . $childPrefix : PagePath::path($node, $language);
-              $label = str_repeat("\u{00A0}\u{00A0}\u{00A0}", $row['depth']) . PageLocalization::name($id);
-              if (!PageContent::isPublished($node)) {
+              $label = $option['label'];
+              if (!$option['context'] && !PageContent::isPublished($node)) {
                   $label .= ' (' . admin_t('page.status_draft') . ')';
               }
             ?>
@@ -104,7 +99,7 @@ function page_placement_fields(?array $page, string $language, ?int $parentId, s
                     data-page-path="<?= $h(ltrim((string) $path, '/')) ?>"
                     <?= $path === null ? 'data-page-path-missing' : '' ?>
                     data-page-group="<?= $h($groupLabels[PagePath::effectiveGroup($id)]) ?>"
-                    <?= $id === $parentId ? ' selected' : '' ?>><?= $h($label) ?></option>
+                    <?= $option['context'] ? ' disabled' : ($id === $parentId ? ' selected' : '') ?>><?= $h($label) ?></option>
           <?php endforeach; ?>
         </select>
       </div>

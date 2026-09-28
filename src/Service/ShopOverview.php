@@ -144,6 +144,9 @@ final class ShopOverview
      */
     public static function choices(): array
     {
+        // What the setting may hold, read fresh: the endpoint validates against
+        // it. The screen lists it in the Pages overview's order
+        // (admin/shop-settings.php, App\Service\PageOptions).
         return array_values(array_filter(
             (new PageRepository())->findAllForAdmin(),
             static fn (array $page): bool => self::isStorefrontPage($page)
