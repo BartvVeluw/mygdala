@@ -2680,6 +2680,32 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-featured-product-current .admin-section-row__body{ display: flex; flex-direction: column; gap: 0.1rem; }
 .admin-featured-product-current .admin-section-row__name{ margin: 0; }
 
+/* A hand-picked, ordered list (admin/_item_picker.php, item-picker.js): the
+   projects of a Projecten block or a gallery, and a project's related
+   projects. The collection picker's rows and toolbar, in a list that scrolls
+   on its own, with ↑ ↓ on a picked row — the keyboard's way to reorder, next
+   to the handle's drag — and a "Verborgen" badge on a hidden project. */
+.admin-item-picker .admin-collection-picker-toolbar{ margin: 0.5rem 0 0.75rem; }
+.admin-item-picker .admin-collection-picker-toolbar > label{ flex: 1 1 220px; min-width: 180px; }
+.admin-item-picker__list{
+  list-style: none;
+  margin: 0;
+  padding: 0.1rem 0.25rem 0.1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 26rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.admin-item-picker__row[hidden]{ display: none; }
+.admin-item-picker__row > .admin-badge{ flex: none; }
+.admin-item-picker__moves{ flex: none; display: inline-flex; gap: 0.1rem; }
+.admin-item-picker__moves[hidden]{ display: none; }
+.admin-item-picker__moves .admin-btn-text{ min-width: 2.25rem; min-height: 2.25rem; justify-content: center; }
+/* Only a picked row has a place in the order. */
+.admin-item-picker__row:not(.is-selected) .admin-item-picker__moves{ visibility: hidden; }
+
 /* admin/related-products.php — one row per collection: the on/off checkbox
    with the collection's name and product count takes the space it needs, and
    the two optional heading-override fields sit after it, deliberately
@@ -3190,6 +3216,8 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
      above switches it to a column: handle + checkbox + thumbnail + name
      belong on one line, they are a single control, not separate actions. */
   .admin-collection-product-row{ flex-direction: row; align-items: center; }
+  /* A picked project's badge and arrows go under its name on a phone. */
+  .admin-item-picker__row{ flex-wrap: wrap; }
 }
 
 /* ==========================================================================

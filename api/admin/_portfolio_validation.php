@@ -5,8 +5,8 @@ declare(strict_types=1);
 /**
  * Shared validation for the admin Portfolio endpoints: the words an item's
  * forms send in one website language, the categories they send, the item's
- * own project page (switch and slug), what may happen to a legacy linked
- * page, and a new category's slug (same algorithm as
+ * own project page (switch and slug), its related projects, what may happen
+ * to a legacy linked page, and a new category's slug (same algorithm as
  * api/admin/_product_validation.php's generateUniqueSlug(), reused against
  * PortfolioCategoryRepository).
  */
@@ -20,6 +20,7 @@ use App\Service\Language\SiteLanguages;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
 use App\Service\PortfolioLocalization;
+use App\Service\PortfolioRelatedProjects;
 use App\Service\PortfolioSlug;
 use App\Service\RichTextSanitizer;
 
@@ -36,9 +37,10 @@ use App\Service\RichTextSanitizer;
  * lengths live.
  *
  * $withProjectText adds the project page's two rich fields, intro and
- * description, which only the item's editor shows. They are sanitized here,
- * on the way in (RichTextSanitizer is the security boundary; the editor's
- * Quill is a convenience), and again on the way out
+ * description, and the two plain words above its related projects
+ * (related_title, related_lead), which only the item's editor shows. The rich
+ * ones are sanitized here, on the way in (RichTextSanitizer is the security
+ * boundary; the editor's Quill is a convenience), and again on the way out
  * (PortfolioLocalization::itemRich()). A form that does not send them never
  * empties them: the create form leaves them out altogether.
  *
@@ -67,6 +69,11 @@ function validatePortfolioItemWords(array $input, bool $isNew, bool $withProject
                 $words[$field] = (string) (RichTextSanitizer::sanitize($text($field)) ?? '');
             }
         }
+        foreach ([PortfolioLocalization::RELATED_TITLE, PortfolioLocalization::RELATED_LEAD] as $field) {
+            if (array_key_exists($field, $input)) {
+                $words[$field] = $text($field);
+            }
+        }
     }
 
     if ($language === ''|| !SiteLanguages::isActive($language)) {
@@ -79,6 +86,8 @@ function validatePortfolioItemWords(array $input, bool $isNew, bool $withProject
         PortfolioLocalization::SUBTITLE => 'validation.onderschrift_mag_maximaal_150_tekens',
         PortfolioLocalization::INTRO => 'validation.portfolio_intro_too_long',
         PortfolioLocalization::DESCRIPTION => 'validation.portfolio_description_too_long',
+        PortfolioLocalization::RELATED_TITLE => 'validation.portfolio_related_title_too_long',
+        PortfolioLocalization::RELATED_LEAD => 'validation.portfolio_related_lead_too_long',
     ];
 
     $errors = [];
@@ -191,6 +200,72 @@ function validatePortfolioProjectPage(array $input, PortfolioGalleryRepository $
     $problem = PortfolioSlug::problem($repository, $slug, $itemId);
 
     return [$problem === null ? [] : [$problem], $shown, $slug];
+}
+
+/**
+ * The related projects of an item as its editor submitted them
+ * (App\Service\PortfolioRelatedProjects): the settings, each a word of its
+ * closed list — an unknown one is refused, never read as a default — and the
+ * hand-picked projects in their order.
+ *
+ * Only a request that carries the section (`related_submitted`) changes the
+ * settings, the way the gallery says `gallery_submitted`: an unticked switch
+ * sends nothing at all. The picked projects change only with
+ * `related_items_submitted`, the picker's own marker. The project itself, a
+ * repeated id and an id no project has are left out, not refused — a project
+ * deleted in another tab meanwhile must not stop the save.
+ *
+ * @param array<string, mixed> $input  raw $_POST
+ * @param list<int>            $itemIds every project of the catalogue
+ * @return array{0: list<string>, 1: ?array{related_enabled: bool, related_mode: string, related_max: int, related_sort: string, related_fallback: string, related_layout: string, related_show_text: bool}, 2: ?list<int>} [errors, settings or null (not sent), picked ids or null (not sent)]
+ */
+function validatePortfolioRelated(array $input, int $itemId, array $itemIds): array
+{
+    $text = static fn (string $name): string => is_scalar($input[$name] ?? null) ? trim((string) $input[$name]) : '';
+    $errors = [];
+    $settings = null;
+
+    if (($input['related_submitted'] ?? '') === '1') {
+        $word = static function (string $name, array $list) use ($text, &$errors): string {
+            $value = $text($name);
+            if (!in_array($value, $list, true)) {
+                $errors[] = AdminTranslator::trans('validation.portfolio_related_choice');
+
+                return $list[0];
+            }
+
+            return $value;
+        };
+        $max = ctype_digit($text('related_max')) ? (int) $text('related_max') : 0;
+        if (!in_array($max, PortfolioRelatedProjects::MAXIMUMS, true)) {
+            $errors[] = AdminTranslator::trans('validation.portfolio_related_choice');
+            $max = PortfolioRelatedProjects::DEFAULT_MAX;
+        }
+
+        $settings = [
+            'related_enabled' => isset($input['related_enabled']),
+            'related_mode' => $word('related_mode', PortfolioRelatedProjects::MODES),
+            'related_max' => $max,
+            'related_sort' => $word('related_sort', PortfolioRelatedProjects::SORTS),
+            'related_fallback' => $word('related_fallback', PortfolioRelatedProjects::FALLBACKS),
+            'related_layout' => $word('related_layout', PortfolioRelatedProjects::LAYOUTS),
+            'related_show_text' => isset($input['related_show_text']),
+        ];
+    }
+
+    $picked = null;
+    if (($input['related_items_submitted'] ?? '') === '1') {
+        $known = array_flip($itemIds);
+        $picked = [];
+        foreach (is_array($input['related_items'] ?? null) ? $input['related_items'] : [] as $posted) {
+            $id = is_scalar($posted) && ctype_digit((string) $posted) ? (int) $posted : 0;
+            if ($id !== $itemId && isset($known[$id]) && !in_array($id, $picked, true)) {
+                $picked[] = $id;
+            }
+        }
+    }
+
+    return [array_values(array_unique($errors)), $settings, $picked];
 }
 
 /**

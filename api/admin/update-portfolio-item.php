@@ -5,8 +5,8 @@
  *
  * Saves everything editable on one Portfolio item's edit page
  * (admin/portfolio-item.php?id=...): Hoofdafbeelding, Basisgegevens,
- * Categorieën, Zichtbaarheid, Projectpagina, Galerij and a legacy linked page
- * are all one <form> there (same "one form, several visual admin-card
+ * Categorieën, Zichtbaarheid, Projectpagina, Galerij, Gerelateerde projecten
+ * and a legacy linked page are all one <form> there (same "one form, several visual admin-card
  * sections" layout as admin/product-form.php's main product form), so they're
  * saved together here.
  *
@@ -45,6 +45,12 @@
  * the gallery. A removed photo loses its RELATION: a library file is never
  * deleted, and only an old photo on Portfolio's own path (media_id NULL), which
  * was this item's alone, has its file removed after the commit.
+ *
+ * RELATED PROJECTS (App\Service\PortfolioRelatedProjects): the settings, each
+ * a word of its closed list, and the hand-picked projects in their order
+ * (validatePortfolioRelated()), each only when its part was on the form
+ * (`related_submitted`, `related_items_submitted`); the heading and the lead
+ * are words of this language like the others.
  *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository) —
  * `categories[]` posts category ids, validated against what actually exists
@@ -124,6 +130,14 @@ $currentSlug = ($item['slug'] ?? null) !== null ? (string) $item['slug'] : null;
 );
 $errors = array_merge($errors, $projectErrors);
 
+// Every project of the catalogue, for the ids the related picker may post.
+$catalogueItemIds = array_map(
+    static fn (array $row): int => (int) $row['id'],
+    $repository->findItemsByGalleryId((int) $item['portfolio_gallery_id'])
+);
+[$relatedErrors, $relatedSettings, $relatedItems] = validatePortfolioRelated($_POST, $itemId, $catalogueItemIds);
+$errors = array_merge($errors, $relatedErrors);
+
 $gallerySubmitted = ($_POST['gallery_submitted'] ?? '') === '1';
 $galleryTokens = array_values(array_filter(
     is_array($_POST['gallery'] ?? null) ? $_POST['gallery'] : [],
@@ -142,7 +156,7 @@ $old = $words + [
     'slug' => is_string($_POST['slug'] ?? null) ? trim($_POST['slug']) : '',
     'unlink_page' => ($_POST['unlink_page'] ?? '') === '1',
     'gallery' => $gallerySubmitted ? $galleryTokens : null,
-];
+] + ($relatedSettings ?? []) + ($relatedItems !== null ? ['related_items' => $relatedItems] : []);
 
 if ($errors !== []) {
     $_SESSION['admin_portfolio_item_errors'] = $errors;
@@ -189,6 +203,13 @@ try {
     $repository->setItemCategories($itemId, $categoryIds);
     $repository->setItemPage($itemId, $pageId);
     $repository->setItemProjectPage($itemId, $hasDetailPage, $slug);
+
+    if ($relatedSettings !== null) {
+        $repository->updateRelatedSettings($itemId, $relatedSettings);
+    }
+    if ($relatedItems !== null) {
+        $repository->replaceRelatedItems($itemId, $relatedItems);
+    }
 
     if ($gallerySubmitted) {
         $removedPhotos = $imageRepository->replaceForItem($itemId, PortfolioProjectGallery::resolve(

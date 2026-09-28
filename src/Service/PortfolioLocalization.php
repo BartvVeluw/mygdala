@@ -14,13 +14,14 @@ use App\Service\Language\TranslationTable;
  * words live in three typed tables, one row per owner per language:
  *
  *   portfolio_category_translations    name
- *   portfolio_item_translations        title, subtitle, alt, intro, description
+ *   portfolio_item_translations        title, subtitle, alt, intro, description,
+ *                                      related_title, related_lead
  *   portfolio_item_image_translations  alt
  *
  * Everything else about a category, an item or a photo is language-neutral
  * and stays on its own row: the slug, the image and thumbnail paths, the page
- * an item links to, the categories it has, is_active, is_featured and every
- * sort order. A category slug is generated once from its name in the DEFAULT
+ * an item links to, the categories it has, is_active, is_featured, the
+ * settings of its related projects and every sort order. A category slug is generated once from its name in the DEFAULT
  * language and is never renamed (App\Repository\PortfolioCategoryRepository),
  * so a translation can never move an address.
  *
@@ -31,8 +32,9 @@ use App\Service\Language\TranslationTable;
  * App\Service\Language\EntityTranslations. Same shape as
  * App\Service\NavigationLocalization, which this class follows.
  *
- * PLAIN AND RICH. `name`, `title`, `subtitle` and `alt` are plain text;
- * `alt` is written into an attribute. `intro` and `description` are the
+ * PLAIN AND RICH. `name`, `title`, `subtitle`, `alt` and the two words above
+ * the related projects (`related_title`, `related_lead`, App\Service\PortfolioRelatedProjects)
+ * are plain text; `alt` is written into an attribute. `intro` and `description` are the
  * project page's rich text (Portfolio 2.0): its editor sanitizes them on the
  * way in, and this class hands them out sanitized again
  * (App\Service\RichTextSanitizer) — "sanitize again on read", the pattern
@@ -50,11 +52,15 @@ final class PortfolioLocalization
     public const ALT = 'alt';
     public const INTRO = 'intro';
     public const DESCRIPTION = 'description';
+    public const RELATED_TITLE = 'related_title';
+    public const RELATED_LEAD = 'related_lead';
 
     public const NAME_MAX_LENGTH = 100;
     public const TITLE_MAX_LENGTH = 150;
     public const SUBTITLE_MAX_LENGTH = 150;
     public const ALT_MAX_LENGTH = 255;
+    public const RELATED_TITLE_MAX_LENGTH = 150;
+    public const RELATED_LEAD_MAX_LENGTH = 500;
 
     /**
      * The rich fields of the item's project page (Portfolio 2.0), written by
@@ -91,6 +97,8 @@ final class PortfolioLocalization
                 self::ALT => self::ALT_MAX_LENGTH,
                 self::INTRO => self::RICH_MAX_LENGTH,
                 self::DESCRIPTION => self::RICH_MAX_LENGTH,
+                self::RELATED_TITLE => self::RELATED_TITLE_MAX_LENGTH,
+                self::RELATED_LEAD => self::RELATED_LEAD_MAX_LENGTH,
             ])
         );
     }
@@ -152,7 +160,7 @@ final class PortfolioLocalization
     /* Items                                                               */
     /* ------------------------------------------------------------------ */
 
-    /** One plain item field (title, subtitle, alt) as a visitor reads it in one language. */
+    /** One plain item field (title, subtitle, alt, the related projects' title and lead) as a visitor reads it in one language. */
     public static function item(int $itemId, string $field, string $languageCode): string
     {
         self::assertPlainItemField($field);
@@ -256,7 +264,7 @@ final class PortfolioLocalization
 
     private static function assertPlainItemField(string $field): void
     {
-        if (!in_array($field, [self::TITLE, self::SUBTITLE, self::ALT], true)) {
+        if (!in_array($field, [self::TITLE, self::SUBTITLE, self::ALT, self::RELATED_TITLE, self::RELATED_LEAD], true)) {
             throw new \InvalidArgumentException('Not a plain Portfolio item field: ' . $field);
         }
     }

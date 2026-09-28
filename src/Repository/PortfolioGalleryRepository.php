@@ -192,6 +192,37 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
+     * The category ids of every item in $itemIds at once, keyed by item id:
+     * what App\Service\PortfolioRelatedProjects measures the overlap of two
+     * projects with, in one query for a whole catalogue.
+     *
+     * @param list<int> $itemIds
+     * @return array<int, list<int>> keyed by portfolio_item_id
+     */
+    public function categoryIdsByItemIds(array $itemIds): array
+    {
+        $itemIds = array_values(array_unique(array_map('intval', $itemIds)));
+        if ($itemIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($itemIds), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT portfolio_item_id, portfolio_category_id
+             FROM portfolio_item_categories
+             WHERE portfolio_item_id IN ({$placeholders})"
+        );
+        $stmt->execute($itemIds);
+
+        $byItem = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $byItem[(int) $row['portfolio_item_id']][] = (int) $row['portfolio_category_id'];
+        }
+
+        return $byItem;
+    }
+
+    /**
      * Replaces an item's full set of category relationships — the admin
      * item editor always submits the complete checked set, so a plain
      * "delete all, insert selected" is simpler and just as correct as a
@@ -407,6 +438,83 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
+     * The settings of an item's related projects (App\Service\PortfolioRelatedProjects),
+     * each already one word of its closed list or a checked number: the caller
+     * validates, this only writes. Separate from updateItem() for the reason
+     * setItemCategories() is.
+     *
+     * @param array{related_enabled: bool, related_mode: string, related_max: int, related_sort: string, related_fallback: string, related_layout: string, related_show_text: bool} $settings
+     */
+    public function updateRelatedSettings(int $id, array $settings): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE portfolio_gallery_items SET
+                related_enabled = :related_enabled,
+                related_mode = :related_mode,
+                related_max = :related_max,
+                related_sort = :related_sort,
+                related_fallback = :related_fallback,
+                related_layout = :related_layout,
+                related_show_text = :related_show_text,
+                updated_at = NOW()
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'related_enabled' => $settings['related_enabled'] ? 1 : 0,
+            'related_mode' => $settings['related_mode'],
+            'related_max' => $settings['related_max'],
+            'related_sort' => $settings['related_sort'],
+            'related_fallback' => $settings['related_fallback'],
+            'related_layout' => $settings['related_layout'],
+            'related_show_text' => $settings['related_show_text'] ? 1 : 0,
+            'id' => $id,
+        ]);
+    }
+
+    /**
+     * The projects picked by hand for an item's related projects, in their
+     * own order (portfolio_related_items). Visible or not: the reader decides
+     * what may be shown.
+     *
+     * @return list<int>
+     */
+    public function relatedItemIds(int $itemId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT related_item_id FROM portfolio_related_items
+             WHERE portfolio_item_id = :item_id
+             ORDER BY sort_order ASC, related_item_id ASC'
+        );
+        $stmt->execute(['item_id' => $itemId]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Replaces an item's hand-picked related projects with $relatedIds, in
+     * that order. The item itself and a repeated id are left out here too,
+     * whatever the caller sends; an id no item has is refused by the foreign
+     * key, so the caller passes only ids it checked.
+     *
+     * @param list<int> $relatedIds
+     */
+    public function replaceRelatedItems(int $itemId, array $relatedIds): void
+    {
+        $this->db->prepare('DELETE FROM portfolio_related_items WHERE portfolio_item_id = :item_id')
+            ->execute(['item_id' => $itemId]);
+
+        $insert = $this->db->prepare(
+            'INSERT INTO portfolio_related_items (portfolio_item_id, related_item_id, sort_order, created_at)
+             VALUES (:item_id, :related_id, :sort_order, NOW())'
+        );
+
+        $position = 0;
+        foreach (self::cleanIds($relatedIds, $itemId) as $relatedId) {
+            $insert->execute(['item_id' => $itemId, 'related_id' => $relatedId, 'sort_order' => $position++]);
+        }
+    }
+
+    /**
      * Permanently removes an item — distinct from hiding one via is_active
      * (see updateItem). Used by the admin "Verwijderen" action.
      */
@@ -543,6 +651,25 @@ class PortfolioGalleryRepository extends Repository
     {
         $stmt = $this->db->prepare('UPDATE portfolio_gallery_items SET featured_sort_order = :featured_sort_order, updated_at = NOW() WHERE id = :id');
         $stmt->execute(['featured_sort_order' => $featuredSortOrder, 'id' => $id]);
+    }
+
+    /**
+     * Positive ids in their first order, each once, without $exclude.
+     *
+     * @param list<int> $ids
+     * @return list<int>
+     */
+    private static function cleanIds(array $ids, ?int $exclude): array
+    {
+        $clean = [];
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            if ($id > 0 && $id !== $exclude && !in_array($id, $clean, true)) {
+                $clean[] = $id;
+            }
+        }
+
+        return $clean;
     }
 
     private function updateSortOrder(int $id, int $sortOrder): void

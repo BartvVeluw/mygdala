@@ -8,6 +8,8 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_richtext_field.php';
+require_once __DIR__ . '/_item_picker.php';
+require_once __DIR__ . '/_save_bar.php';
 
 use App\Service\AdminAuth;
 use App\Service\AdminPermissions;
@@ -17,6 +19,7 @@ use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
 use App\Service\PortfolioProjectGallery;
+use App\Service\PortfolioRelatedProjects;
 use App\Service\PortfolioSlug;
 use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
@@ -51,6 +54,17 @@ use App\Repository\PortfolioItemImageRepository;
  * serves both). × takes the picture off this project only; the library item
  * stays in the library. The main picture stands apart and is never also a
  * gallery photo (App\Service\PortfolioProjectGallery).
+ *
+ * RELATED PROJECTS (App\Service\PortfolioRelatedProjects) are a section of
+ * their own that folds away: a switch, and while it is on the way they are
+ * chosen (automatically by shared categories, by hand, or both), how many,
+ * their order and what happens with too few, the hand-picked ones in the
+ * shared picker (admin/_item_picker.php), the card grid's preset and the
+ * heading and lead in the language on screen. admin/assets/portfolio-related.js
+ * shows only what the switch and the way of choosing need; the server prints
+ * the same `hidden`, and every part is sent anyway, so nothing is lost by
+ * switching back and forth. One form, one Opslaan, with the save bar.
+ *
  *
  * A LEGACY LINKED PAGE (phase 4B) is shown only on an item that has one: its
  * name and status, where the project's button and address go now, and the
@@ -126,6 +140,19 @@ $isActiveChecked = $old !== null && array_key_exists('is_active', $old)
 $isFeaturedChecked = $old !== null && array_key_exists('is_featured', $old)
     ? (bool) $old['is_featured']
     : $item !== null && (int) $item['is_featured'] === 1;
+
+// The related projects: handed back after a refused save, else stored.
+$related = PortfolioRelatedProjects::settings($item ?? []);
+foreach (array_keys($related) as $relatedKey) {
+    if ($old !== null && array_key_exists($relatedKey, $old)) {
+        $related[$relatedKey] = $old[$relatedKey];
+    }
+}
+$relatedPicked = $old !== null && is_array($old['related_items'] ?? null)
+    ? array_map('intval', $old['related_items'])
+    : ($isEdit ? (new PortfolioGalleryRepository())->relatedItemIds((int) $item['id']) : []);
+$relatedChoices = $isEdit ? PortfolioGalleryContent::pickerChoices((int) $item['id']) : [];
+$relatedMode = (string) $related['related_mode'];
 $hasDetailPageChecked = $old !== null && array_key_exists('has_detail_page', $old)
     ? (bool) $old['has_detail_page']
     : $item !== null && (int) ($item['has_detail_page'] ?? 0) === 1;
@@ -278,6 +305,8 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
 <?php media_picker_script(); ?>
 <?php if ($isEdit): ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-gallery.js') ?>" defer></script>
+<?php item_picker_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/portfolio-related.js') ?>" defer></script>
 <?php endif; ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -350,7 +379,7 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
       </form>
     </section>
   <?php else: ?>
-    <form method="post" action="/api/admin/update-portfolio-item.php" enctype="multipart/form-data">
+    <form method="post" action="/api/admin/update-portfolio-item.php" enctype="multipart/form-data"<?= $old !== null ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
       <?php /* ONE language per request: the endpoint writes exactly this one
@@ -497,6 +526,115 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
         </div>
       </section>
 
+      <?php
+        $relatedOn = (bool) $related['related_enabled'];
+        $showFor = static fn (string ...$modes): string => in_array($relatedMode, $modes, true) ? '' : ' hidden';
+      ?>
+      <details class="admin-card admin-portfolio-collapsible admin-portfolio-related" data-related-projects<?= $relatedOn || $old !== null ? ' open' : '' ?>>
+        <summary>
+          <?= admin_te('portfolio.related.heading') ?>
+          <span class="admin-badge admin-badge--<?= $relatedOn ? 'paid' : 'draft' ?>" data-related-state data-state-on="<?= admin_te('portfolio.related.state_on') ?>" data-state-off="<?= admin_te('portfolio.related.state_off') ?>"><?= admin_te($relatedOn ? 'portfolio.related.state_on' : 'portfolio.related.state_off') ?></span>
+        </summary>
+        <?php /* Says the section was on the form, so an unticked switch means
+                 "off" rather than "not sent" (validatePortfolioRelated()). */ ?>
+        <input type="hidden" name="related_submitted" value="1">
+        <p class="admin-text-muted"><?= admin_te('portfolio.related.intro') ?></p>
+
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" class="admin-switch" role="switch" name="related_enabled" value="1" data-related-switch<?= $relatedOn ? ' checked' : '' ?>>
+            <?= admin_te('portfolio.related.enabled') ?>
+          </label>
+          <?= admin_help(admin_t('portfolio.related.enabled'), admin_t('help.portfolio.related.enabled')) ?>
+        </div>
+
+        <div class="admin-portfolio-related__fields" data-related-needs="on"<?= $relatedOn ? '' : ' hidden' ?>>
+          <fieldset class="admin-segmented-field">
+            <legend><?= admin_te('portfolio.related.mode') ?> <?= admin_help(admin_t('portfolio.related.mode'), admin_t('help.portfolio.related.mode')) ?></legend>
+            <div class="admin-segmented">
+              <?php foreach (PortfolioRelatedProjects::MODES as $mode): ?>
+                <label class="admin-segmented__option">
+                  <input type="radio" name="related_mode" value="<?= $h($mode) ?>" data-related-mode<?= $relatedMode === $mode ? ' checked' : '' ?>>
+                  <span><?= admin_te('portfolio.related.mode_' . $mode) ?></span>
+                </label>
+              <?php endforeach; ?>
+            </div>
+          </fieldset>
+
+          <div class="admin-form-row admin-form-row--split">
+            <div class="admin-field">
+              <?= admin_field_label('portfolio-related-max', admin_t('portfolio.related.max'), admin_t('help.portfolio.related.max')) ?>
+              <select id="portfolio-related-max" name="related_max">
+                <?php foreach (PortfolioRelatedProjects::MAXIMUMS as $maximum): ?>
+                  <option value="<?= (int) $maximum ?>"<?= (int) $related['related_max'] === $maximum ? ' selected' : '' ?>><?= (int) $maximum ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="admin-field" data-related-needs="automatic hybrid"<?= $showFor('automatic', 'hybrid') ?>>
+              <?= admin_field_label('portfolio-related-sort', admin_t('portfolio.related.sort'), admin_t('help.portfolio.related.sort')) ?>
+              <select id="portfolio-related-sort" name="related_sort">
+                <?php foreach (PortfolioRelatedProjects::SORTS as $sortKey): ?>
+                  <option value="<?= $h($sortKey) ?>"<?= $related['related_sort'] === $sortKey ? ' selected' : '' ?>><?= admin_te('portfolio.related.sort_' . $sortKey) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="admin-field" data-related-needs="automatic hybrid"<?= $showFor('automatic', 'hybrid') ?>>
+              <?= admin_field_label('portfolio-related-fallback', admin_t('portfolio.related.fallback'), admin_t('help.portfolio.related.fallback')) ?>
+              <select id="portfolio-related-fallback" name="related_fallback">
+                <?php foreach (PortfolioRelatedProjects::FALLBACKS as $fallback): ?>
+                  <option value="<?= $h($fallback) ?>"<?= $related['related_fallback'] === $fallback ? ' selected' : '' ?>><?= admin_te('portfolio.related.fallback_' . $fallback) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+
+          <div class="admin-field" data-related-needs="manual hybrid"<?= $showFor('manual', 'hybrid') ?>>
+            <div class="admin-field__label">
+              <span><?= admin_te('portfolio.related.picker') ?></span>
+              <?= admin_help(admin_t('portfolio.related.picker'), admin_t('help.portfolio.related.picker')) ?>
+            </div>
+            <?php item_picker_field('related_items', 'related_items_submitted', $relatedChoices, $relatedPicked, [
+                'label' => admin_t('portfolio.related.picker'),
+                'empty' => admin_t('portfolio.related.picker_empty'),
+                'id' => 'portfolio-related-picker',
+            ]); ?>
+          </div>
+
+          <div class="admin-form-row admin-form-row--split">
+            <div class="admin-field">
+              <?= admin_field_label('portfolio-related-layout', admin_t('portfolio.related.layout'), admin_t('help.portfolio.related.layout')) ?>
+              <select id="portfolio-related-layout" name="related_layout">
+                <?php foreach (['compact', 'normal', 'large'] as $layout): ?>
+                  <option value="<?= $h($layout) ?>"<?= $related['related_layout'] === $layout ? ' selected' : '' ?>><?= admin_te('portfolio.related.layout_' . $layout) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="admin-field admin-field--inline">
+              <label class="admin-checkbox-label">
+                <input type="checkbox" class="admin-switch" role="switch" name="related_show_text" value="1"<?= $related['related_show_text'] ? ' checked' : '' ?>>
+                <?= admin_te('portfolio.related.show_text') ?>
+              </label>
+              <?= admin_help(admin_t('portfolio.related.show_text'), admin_t('help.portfolio.related.show_text')) ?>
+            </div>
+          </div>
+
+          <?php /* In the language on screen, like every word of this form (the
+                   bar at the top of the form says which). */ ?>
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <?= admin_field_label('portfolio-related-title', admin_t('portfolio.related.title'), admin_t('help.portfolio.related.title')) ?>
+              <input type="text" id="portfolio-related-title" name="<?= PortfolioLocalization::RELATED_TITLE ?>" maxlength="<?= PortfolioLocalization::RELATED_TITLE_MAX_LENGTH ?>" value="<?= $h($word(PortfolioLocalization::RELATED_TITLE)) ?>" placeholder="<?= $h(\App\Service\Language\SiteText::pick(PortfolioRelatedProjects::DEFAULT_TITLE, $editingLanguage)) ?>">
+            </div>
+          </div>
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <?= admin_field_label('portfolio-related-lead', admin_t('portfolio.related.lead'), admin_t('help.portfolio.related.lead')) ?>
+              <textarea id="portfolio-related-lead" name="<?= PortfolioLocalization::RELATED_LEAD ?>" maxlength="<?= PortfolioLocalization::RELATED_LEAD_MAX_LENGTH ?>" rows="2"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h($word(PortfolioLocalization::RELATED_LEAD)) ?></textarea>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <?php if ($legacyPage !== null): ?>
         <section class="admin-card">
           <h2><?= admin_te('portfolio.legacy_page') ?></h2>
@@ -544,5 +682,9 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
   <?php endif; ?>
 </main>
 <?php media_picker_modal(); ?>
+<?php if ($isEdit): ?>
+<?php save_bar(); ?>
+<?php save_bar_script(); ?>
+<?php endif; ?>
 </body>
 </html>

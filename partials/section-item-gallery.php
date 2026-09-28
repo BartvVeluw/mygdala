@@ -58,6 +58,12 @@ require_once __DIR__ . '/lightbox.php';
  * grid, no stray heading, no vertical gap — the same rule Marquee, CTA Band,
  * Contactkaart and Kaarten-carrousel follow.
  *
+ * THE GRID has three columns, fewer on a smaller screen. A caller may ask for
+ * one of two presets instead (`grid`: 'compact', more and smaller cards, or
+ * 'large', two big ones) — the related projects of a project page do
+ * (App\Service\PortfolioRelatedProjects::LAYOUTS). A word it does not know is
+ * the ordinary grid, and the blocks never pass one.
+ *
  * @param array<string, mixed> $content App\Service\ItemGalleryContent::forSection()
  */
 function render_section_item_gallery(array $content, string $revealGroup = 'gallery'): void
@@ -83,6 +89,9 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
 
     $hasHead = $text('eyebrow') !== '' || $text('title') !== '' || $text('lead') !== '';
     $hasButton = $text('button_label') !== '' && $content['button_url'] !== '';
+
+    $grid = (string) ($content['grid'] ?? '');
+    $gridClass = in_array($grid, ['compact', 'large'], true) ? ' gallery-grid--' . $grid : '';
 
     $sectionAttrs = $content['background'] === 'soft' ? ' class="bg-soft"' : '';
     $sectionAttrs .= $content['tight_top'] ? ' style="padding-top:0;"' : '';
@@ -113,7 +122,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       </div>
       <?php endif; ?>
 
-      <div class="gallery-grid">
+      <div class="gallery-grid<?= $gridClass ?>">
         <?php foreach ($content['items'] as $item): ?>
         <?php
           // A card without a URL of its own follows the block's fallback link,

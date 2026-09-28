@@ -84,6 +84,9 @@ class PortfolioGalleryContent
     /** @var array<string, list<array<string, mixed>>> */
     private static array $cache = [];
 
+    /** @var array<int, array<string, mixed>>|null every visible item row, by id, in the Portfolio's own order */
+    private static ?array $visibleRows = null;
+
     /**
      * The catalogue's visible items, ready for a gallery block to render —
      * every active item in its CMS order, or only the ones curated for a
@@ -125,15 +128,109 @@ class PortfolioGalleryContent
             return self::$cache[$cacheKey] = [];
         }
 
+        return self::$cache[$cacheKey] = self::cards($items);
+    }
+
+    /**
+     * $ids in one of the gallery's orders. The Portfolio's own order is the
+     * order they came in (visibleRows()); newest and oldest go by when the
+     * project was added, the id breaking a tie so the order never wobbles;
+     * a title order reads the title a visitor sees, in their language, as a
+     * person would sort it (a before B, 2 before 10), and a project without
+     * a title comes last.
+     *
+     * @param list<int>                        $ids
+     * @param array<int, array<string, mixed>> $rows item rows by id
+     *
+     * @return list<int>
+     */
+    public static function sortIds(array $ids, array $rows, string $sort, string $language): array
+    {
+        $created = static fn (int $id): string => (string) ($rows[$id]['created_at'] ?? '');
+
+        switch ($sort) {
+            case 'newest':
+                usort($ids, static fn (int $a, int $b): int => [$created($b), $b] <=> [$created($a), $a]);
+                break;
+            case 'oldest':
+                usort($ids, static fn (int $a, int $b): int => [$created($a), $a] <=> [$created($b), $b]);
+                break;
+            case 'title_asc':
+            case 'title_desc':
+                PortfolioLocalization::preloadItems($ids);
+                $titles = [];
+                foreach ($ids as $id) {
+                    $titles[$id] = trim(PortfolioLocalization::item($id, PortfolioLocalization::TITLE, $language));
+                }
+                $direction = $sort === 'title_desc' ? -1 : 1;
+                usort($ids, static function (int $a, int $b) use ($titles, $direction): int {
+                    // Untitled last in both directions: an empty title is not "A".
+                    if (($titles[$a] === '') !== ($titles[$b] === '')) {
+                        return $titles[$a] === '' ? 1 : -1;
+                    }
+
+                    return $direction * strnatcasecmp($titles[$a], $titles[$b]) ?: $a <=> $b;
+                });
+                break;
+        }
+
+        return array_values($ids);
+    }
+
+    /**
+     * Every visible item row, by id, in the Portfolio's own order — once per
+     * request. The rows carry no words and no card yet: whoever draws or
+     * sorts works on these, and only what is chosen becomes a card.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function visibleRows(): array
+    {
+        if (self::$visibleRows !== null) {
+            return self::$visibleRows;
+        }
+
+        try {
+            $repository = new PortfolioGalleryRepository();
+            $catalogue = $repository->findCatalogue();
+            $rows = $catalogue === null ? [] : $repository->findItemsByGalleryId((int) $catalogue['id'], true);
+        } catch (\Throwable $e) {
+            error_log('[PortfolioGalleryContent] catalogue lookup failed: ' . $e->getMessage());
+            $rows = [];
+        }
+
+        $byId = [];
+        foreach ($rows as $row) {
+            $byId[(int) $row['id']] = $row;
+        }
+
+        return self::$visibleRows = $byId;
+    }
+
+    /**
+     * Item rows as cards, in the order given: their categories, their linked
+     * pages, their library pictures and their words each in one query for the
+     * whole list, then mapItemRow() per row.
+     *
+     * @param list<array<string, mixed>> $items portfolio_gallery_items rows
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function cards(array $items): array
+    {
+        if ($items === []) {
+            return [];
+        }
+
         $categoriesByItemId = self::categorySlugsByItemIds($items);
         $pagesById = self::publishedPagesById($items);
 
         // The library pictures of the whole list in one query, for the alt
         // text an item without its own falls back to (itemAlt()).
-        MediaService::findMany(array_values(array_filter(array_map(
+        MediaService::preload(array_map(
             static fn (array $item): int => (int) ($item['media_id'] ?? 0),
             $items
-        ))));
+        ));
 
         // One query for the words of every card on the page, the way
         // App\Service\Blocks\BlockLocalization::preloadSections() does it for
@@ -143,10 +240,54 @@ class PortfolioGalleryContent
             $items
         ));
 
-        return self::$cache[$cacheKey] = array_map(
+        return array_values(array_map(
             static fn (array $item): array => self::mapItemRow($item, $categoriesByItemId, $pagesById),
             $items
-        );
+        ));
+    }
+
+    /**
+     * Every project an editor may pick by hand — for a gallery's manual choice
+     * and for a project's related projects — in the Portfolio's own order,
+     * hidden ones included and marked, so a picked project that is hidden now
+     * stays findable in the list: its id, the name the CMS calls it, a small
+     * picture, its categories and whether it is visible. $exclude leaves one
+     * project out (a project page never picks itself).
+     *
+     * @return list<array{id: int, title: string, thumbnail: string, categories: string, visible: bool}>
+     */
+    public static function pickerChoices(?int $exclude = null): array
+    {
+        $repository = new PortfolioGalleryRepository();
+        $catalogue = $repository->findCatalogue();
+        if ($catalogue === null) {
+            return [];
+        }
+
+        $items = array_values(array_filter(
+            $repository->findItemsByGalleryId((int) $catalogue['id']),
+            static fn (array $item): bool => (int) $item['id'] !== $exclude
+        ));
+        $ids = array_map(static fn (array $item): int => (int) $item['id'], $items);
+
+        $categoryIdsByItem = $repository->categoryIdsByItemIds($ids);
+        PortfolioLocalization::preloadItems($ids);
+        PortfolioLocalization::preloadCategories(array_values(array_unique(array_merge([], ...array_values($categoryIdsByItem)))));
+
+        return array_map(static function (array $item) use ($categoryIdsByItem): array {
+            $id = (int) $item['id'];
+
+            return [
+                'id' => $id,
+                'title' => PortfolioLocalization::itemLabel($id),
+                'thumbnail' => '/' . ltrim((string) (($item['thumbnail_path'] ?? '') !== '' ? $item['thumbnail_path'] : $item['image_path']), '/'),
+                'categories' => implode(', ', array_map(
+                    static fn (int $categoryId): string => PortfolioLocalization::categoryLabel($categoryId),
+                    $categoryIdsByItem[$id] ?? []
+                )),
+                'visible' => (int) $item['is_active'] === 1,
+            ];
+        }, $items);
     }
 
     /**
@@ -326,6 +467,7 @@ class PortfolioGalleryContent
     public static function clearCache(): void
     {
         self::$cache = [];
+        self::$visibleRows = null;
         ItemGalleryContent::clearCache();
         PortfolioLocalization::clearCache();
     }

@@ -12,6 +12,7 @@ require_once __DIR__ . '/partials/public-request.php';
 require_once __DIR__ . '/partials/breadcrumb.php';
 require_once __DIR__ . '/partials/lightbox.php';
 require_once __DIR__ . '/partials/section-cta-band.php';
+require_once __DIR__ . '/partials/section-item-gallery.php';
 
 /**
  * A Portfolio item's own project page at /portfolio/<slug> (Portfolio 2.0,
@@ -34,6 +35,13 @@ require_once __DIR__ . '/partials/section-cta-band.php';
  * ONE LIGHTBOX (assets/js/lightbox.js, partials/lightbox.php): the main
  * picture and every photo are one group, so previous and next step through
  * this project's own pictures and nothing else on the site.
+ *
+ * RELATED PROJECTS, when the project has them switched on
+ * (App\Service\PortfolioRelatedProjects): below the project, the very cards
+ * every Portfolio gallery shows (partials/section-item-gallery.php, and its
+ * stylesheet), under their own heading, as a lightbox group of their own. The
+ * one overlay is printed once, by whichever of the two groups comes first
+ * (App\Service\ItemGalleryContent::claimLightboxOverlay()).
  *
  * Uses $portfolioItem (not $item) deliberately: partials/header.php and
  * partials/footer.php both run a `foreach ($navItems as $key => $item)` in
@@ -58,6 +66,9 @@ if ($projectPageUrl !== null) {
 }
 
 $portfolioItem = \App\Service\PortfolioGalleryContent::itemForDetailPage($slug);
+$relatedProjects = $portfolioItem !== null
+    ? \App\Service\PortfolioRelatedProjects::forItemId((int) $portfolioItem['id'])
+    : null;
 
 if ($portfolioItem === null) {
     // The one moment the Redirect Manager may speak on this route, and the
@@ -134,6 +145,9 @@ if ($portfolioItem !== null) {
 }
 if ($cta['state'] !== \App\Service\CtaBandContent::STATE_HIDDEN) {
     \App\Service\PageAssets::requireStyle('assets/css/blocks/cta-band.css');
+}
+if ($relatedProjects !== null) {
+    \App\Service\PageAssets::requireStyle('assets/css/blocks/item-gallery.css');
 }
 require __DIR__ . '/partials/page-assets.php';
 ?>
@@ -238,7 +252,16 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
-  <?php render_lightbox_overlay(); ?>
+  <?php
+  // The project's related projects, the gallery's own cards and heading. The
+  // lightbox overlay goes out once, after both groups are on the page.
+  if ($relatedProjects !== null) {
+      render_section_item_gallery($relatedProjects, 'related-projects');
+  }
+  if (\App\Service\ItemGalleryContent::claimLightboxOverlay()) {
+      render_lightbox_overlay();
+  }
+  ?>
 <?php endif; ?>
 
   <?php
