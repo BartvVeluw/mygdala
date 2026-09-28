@@ -26,6 +26,15 @@ use App\Service\Routing\RequestLanguage;
  * the block decides which of them to render, with what settings, on which
  * page.
  *
+ * WHICH ITEMS A GALLERY SHOWS (Projecten 2.0, CONTENT-BLOCKS.md): all visible
+ * projects, the visible projects of one category, or projects picked by hand
+ * for that block, in the Portfolio's own order, newest or oldest first, by
+ * title either way, or at random — galleryItems(), the Portfolio's gallery
+ * source. The ids are chosen first and only the chosen items are turned into
+ * cards, so a random four out of two hundred costs four cards, not two
+ * hundred. The random draw is App\Service\RandomOrder's, on the server, per
+ * request.
+ *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository,
  * portfolio_categories + the portfolio_item_categories many-to-many), not a
  * fixed list — filterCategories() builds the values a gallery block's filter
@@ -129,6 +138,70 @@ class PortfolioGalleryContent
         }
 
         return self::$cache[$cacheKey] = self::cards($items);
+    }
+
+    /**
+     * THE PORTFOLIO'S GALLERY SOURCE (App\Module\PortfolioModule::itemGallerySources()):
+     * the cards one gallery block shows, by its settings, which
+     * App\Service\ItemGalleryContent has already checked against its closed
+     * lists:
+     *
+     *   portfolio_scope  'all' — every visible project; 'category' — the
+     *                    visible projects of category_id, none while that
+     *                    category is gone; 'manual' — the projects picked for
+     *                    this block (gallery_id), in their picked order, a
+     *                    hidden or deleted one simply left out
+     *   sort             'source' (the Portfolio's own order, or the picked
+     *                    order), 'newest', 'oldest', 'title_asc',
+     *                    'title_desc', 'random'; a manual choice knows only
+     *                    its own order and 'random'
+     *   max_items        at most this many; null is all of them
+     *
+     * Only VISIBLE items (is_active = 1) are ever a candidate, whichever way
+     * they are chosen. The ids are sorted or drawn first, and only the ones
+     * that make it are turned into cards (cards()).
+     *
+     * @param array<string, mixed> $settings gallery_id, portfolio_scope, category_id, sort, max_items
+     *
+     * @return list<array<string, mixed>> see mapItemRow() for the shape
+     */
+    public static function galleryItems(array $settings): array
+    {
+        $scope = (string) ($settings['portfolio_scope'] ?? 'all');
+        $sort = (string) ($settings['sort'] ?? 'source');
+        $max = isset($settings['max_items']) && (int) $settings['max_items'] > 0 ? (int) $settings['max_items'] : null;
+
+        $visible = self::visibleRows();
+
+        try {
+            $ids = match ($scope) {
+                'category' => self::inCategory(array_keys($visible), (int) ($settings['category_id'] ?? 0)),
+                'manual' => array_values(array_filter(
+                    (int) ($settings['gallery_id'] ?? 0) > 0
+                        ? (new PortfolioGalleryRepository())->gallerySelection((int) $settings['gallery_id'])
+                        : [],
+                    static fn (int $id): bool => isset($visible[$id])
+                )),
+                default => array_keys($visible),
+            };
+        } catch (\Throwable $e) {
+            error_log('[PortfolioGalleryContent] gallery selection failed: ' . $e->getMessage());
+
+            return [];
+        }
+
+        if ($sort === 'random') {
+            $ids = RandomOrder::sample($ids, $max);
+        } else {
+            if ($scope !== 'manual') {
+                $ids = self::sortIds($ids, $visible, $sort, RequestLanguage::current());
+            }
+            if ($max !== null) {
+                $ids = array_slice($ids, 0, $max);
+            }
+        }
+
+        return self::cards(array_map(static fn (int $id): array => $visible[$id], $ids));
     }
 
     /**
@@ -247,6 +320,29 @@ class PortfolioGalleryContent
     }
 
     /**
+     * The category choice of a gallery on portfolio items (the Projecten
+     * block's "Categorie"): every category by the name the CMS calls it, with
+     * how many visible projects it has, in the categories' own order.
+     *
+     * @return list<array{id: int, name: string, count: int}>
+     */
+    public static function categoryChoices(): array
+    {
+        $categories = (new PortfolioCategoryRepository())->findAllWithVisibleCounts();
+
+        PortfolioLocalization::preloadCategories(array_map(
+            static fn (array $category): int => (int) $category['id'],
+            $categories
+        ));
+
+        return array_map(static fn (array $category): array => [
+            'id' => (int) $category['id'],
+            'name' => PortfolioLocalization::categoryLabel((int) $category['id']),
+            'count' => (int) $category['visible_count'],
+        ], $categories);
+    }
+
+    /**
      * Every project an editor may pick by hand — for a gallery's manual choice
      * and for a project's related projects — in the Portfolio's own order,
      * hidden ones included and marked, so a picked project that is hidden now
@@ -288,6 +384,47 @@ class PortfolioGalleryContent
                 'visible' => (int) $item['is_active'] === 1,
             ];
         }, $items);
+    }
+
+    /**
+     * The picked projects of one gallery block, in their order: what its
+     * editor shows as chosen.
+     *
+     * @return list<int>
+     */
+    public static function gallerySelection(int $itemGalleryId): array
+    {
+        return (new PortfolioGalleryRepository())->gallerySelection($itemGalleryId);
+    }
+
+    /**
+     * Store the picked projects of one gallery block. Every id must be a
+     * project of the catalogue (the endpoint checked it against
+     * pickerChoices()); a hidden one may be picked and simply waits.
+     *
+     * @param list<int> $itemIds
+     */
+    public static function saveGallerySelection(int $itemGalleryId, array $itemIds): void
+    {
+        (new PortfolioGalleryRepository())->replaceGallerySelection($itemGalleryId, $itemIds);
+    }
+
+    /**
+     * The visible ones of $ids that are in $categoryId, in the order of $ids.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<int>
+     */
+    private static function inCategory(array $ids, int $categoryId): array
+    {
+        if ($categoryId < 1) {
+            return [];
+        }
+
+        $members = array_flip((new PortfolioGalleryRepository())->itemIdsInCategory($categoryId));
+
+        return array_values(array_filter($ids, static fn (int $id): bool => isset($members[$id])));
     }
 
     /**

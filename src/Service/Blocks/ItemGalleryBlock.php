@@ -225,6 +225,8 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
             'id' => 0,
             'source_type' => '',
             'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
+            'portfolio_category_id' => null,
+            'item_sort' => ItemGalleryContent::SORTS[0],
             'collection_id' => null,
             'max_items' => null,
             'show_filter_bar' => true,

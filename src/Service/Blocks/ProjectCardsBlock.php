@@ -7,6 +7,7 @@ namespace App\Service\Blocks;
 use App\Module\PortfolioModule;
 use App\Repository\ItemGalleryRepository;
 use App\Service\ItemGalleryContent;
+use App\Service\ItemGallerySources;
 use App\Service\Language\AdminTranslator;
 
 require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
@@ -35,6 +36,13 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * for cards without a page of their own, a closing text and a button.
  * rowValues() stores those fixed, so a project without a page of its own is a
  * card without a button, whose picture still zooms.
+ *
+ * WHICH PROJECTS (Projecten 2.0): all visible ones, one category's, or picked
+ * by hand, in the Portfolio's own order, newest or oldest first, by title, or
+ * at random, 3 to 12 or all of them — the gallery's own settings
+ * (App\Service\ItemGalleryContent::SCOPES and SORTS), applied by the
+ * Portfolio's gallery source. Several of these on one page each keep their
+ * own: a Wolven block, a D&D block and an Onderzetters block side by side.
  *
  * ONE ROW, ONE EDITOR. Both blocks keep their rows in `item_galleries`, so the
  * editors tell them apart by the page section that placed a row
@@ -195,8 +203,9 @@ final class ProjectCardsBlock extends BlockDefinition
     }
 
     /**
-     * Its own title if it has one, otherwise which projects it shows, so two
-     * of these on one page stay tellable apart in the page builder.
+     * Its own title if it has one, otherwise which projects it shows — all,
+     * one category by name, or picked by hand — so two of these on one page
+     * stay tellable apart in the page builder.
      */
     public function instanceTitle(array $pageSection): string
     {
@@ -207,9 +216,17 @@ final class ProjectCardsBlock extends BlockDefinition
 
         $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
 
+        if ($content['portfolio_scope'] === ItemGalleryContent::SCOPE_CATEGORY) {
+            foreach (ItemGallerySources::categoryChoices(PortfolioModule::GALLERY_SOURCE) as $category) {
+                if ((int) $category['id'] === (int) $content['portfolio_category_id']) {
+                    return AdminTranslator::trans('block_projects.instance_category', ['name' => $category['name']]);
+                }
+            }
+        }
+
         return AdminTranslator::trans(
-            $content['portfolio_scope'] === ItemGalleryContent::SCOPE_FEATURED
-                ? 'block_projects.instance_featured'
+            $content['portfolio_scope'] === ItemGalleryContent::SCOPE_MANUAL
+                ? 'block_projects.instance_manual'
                 : 'block_projects.instance_all'
         );
     }
@@ -256,10 +273,10 @@ final class ProjectCardsBlock extends BlockDefinition
      * nobody could switch off again. The words go through rowWords().
      *
      * Validating $editable is the caller's job, before it gets here
-     * (ItemGalleryContent::isPortfolioScope() and isBackground()), as for every
-     * write through ItemGalleryRepository.
+     * (App\Service\ItemGallerySelection and ItemGalleryContent::isBackground()),
+     * as for every write through ItemGalleryRepository.
      *
-     * @param array<string, mixed> $editable portfolio_scope, max_items, show_filter_bar, background, is_active
+     * @param array<string, mixed> $editable portfolio_scope, portfolio_category_id, item_sort, max_items, show_filter_bar, background, is_active
      *
      * @return array<string, string|bool|int|null> in ItemGalleryRepository::upsertSection()'s shape
      */
@@ -270,8 +287,10 @@ final class ProjectCardsBlock extends BlockDefinition
         return [
             'source_type' => PortfolioModule::GALLERY_SOURCE,
             'portfolio_scope' => (string) ($editable['portfolio_scope'] ?? ItemGalleryContent::SCOPE_ALL),
+            'portfolio_category_id' => ($editable['portfolio_category_id'] ?? null) === null ? null : (int) $editable['portfolio_category_id'],
             'collection_id' => null,
             'max_items' => $maxItems === null ? null : (int) $maxItems,
+            'item_sort' => (string) ($editable['item_sort'] ?? ItemGalleryContent::SORTS[0]),
             'show_filter_bar' => (bool) ($editable['show_filter_bar'] ?? false),
             'enable_lightbox' => false,
             'fallback_link_url' => '',

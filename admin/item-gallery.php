@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_gallery_selection.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -30,7 +31,11 @@ use App\Repository\PageSectionRepository;
  *
  * The ITEMS themselves are not edited here: portfolio items stay in
  * Portfolio and products stay in Collecties/Producten. This screen only says
- * which of them this block shows, and how.
+ * which of them this block shows, and how. For a source whose items can be
+ * chosen (ItemGallerySources::supportsSelection(): all of them, one category,
+ * or picked by hand, in an order of its own) that is the choice the Projecten
+ * block has too (admin/_gallery_selection.php); a gallery that used to show
+ * the homepage selection shows the projects it showed as a hand-picked list.
  */
 
 AdminAuth::requireLogin();
@@ -72,6 +77,8 @@ $editLanguage = admin_localized_language();
 $values = $old ?? [
     'source_type' => (string) $section['source_type'],
     'portfolio_scope' => (string) $section['portfolio_scope'],
+    'portfolio_category_id' => $section['portfolio_category_id'] ?? null,
+    'item_sort' => (string) ($section['item_sort'] ?? 'source'),
     'collection_id' => $section['collection_id'] === null ? '' : (string) $section['collection_id'],
     'max_items' => $section['max_items'] === null ? '' : (string) $section['max_items'],
     'show_filter_bar' => (bool) $section['show_filter_bar'],
@@ -117,11 +124,17 @@ $storedSource = (string) $section['source_type'];
 $storedSourceUnavailable = $storedSource !== '' && !isset($availableSources[$storedSource]);
 
 $needsCollectionPicker = false;
-$needsScopePicker = false;
 foreach ($availableSources as $source) {
     $needsCollectionPicker = $needsCollectionPicker || (bool) $source['needs_collection'];
-    $needsScopePicker = $needsScopePicker || (bool) ($source['needs_scope'] ?? false);
 }
+
+// The source whose items this block may choose, if one is on (today the
+// Portfolio's), and what is picked: handed back after a refused save, else
+// stored.
+$selectionSource = ItemGallerySources::selectionSource();
+$selected = is_array($old['item_ids'] ?? null)
+    ? array_map('intval', $old['item_ids'])
+    : ($selectionSource !== '' ? ItemGallerySources::selectedItems($selectionSource, (int) $section['id']) : []);
 
 $collections = [];
 if ($needsCollectionPicker) {
@@ -158,6 +171,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $h(SectionRegistry::label('item_gallery')) ?> <?= admin_t('block_gallery.admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
+<?php if ($selectionSource !== ''): ?>
+<?php gallery_selection_script(); ?>
+<?php endif; ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -204,19 +220,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </label>
       </div>
 
+      <?php if ($selectionSource !== ''): ?>
+        <h3><?= admin_te('block_gallery.portfolio_items_welke') ?></h3>
+        <?php gallery_selection_fields($selectionSource, $values, $selected, 'gallery'); ?>
+      <?php endif; ?>
+      <?php /* No source whose items can be chosen is on: the endpoint keeps the
+               stored choice as it is, so saving the rest cannot change it. */ ?>
+
       <div class="admin-form-row admin-form-row--split">
-        <?php if ($needsScopePicker): ?>
-        <label><?= admin_te('block_gallery.portfolio_items_welke') ?>
-          <select name="portfolio_scope">
-            <?php foreach (ItemGalleryContent::PORTFOLIO_SCOPES as $scopeKey => $scope): ?>
-            <option value="<?= $h($scopeKey) ?>" <?= ($values['portfolio_scope'] ?? '') === $scopeKey ? 'selected' : '' ?>><?= $h($scope['label']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <?php else: ?>
-          <?php /* No source that reads the scope is on: keep the stored value, so saving the rest cannot change it. */ ?>
-          <input type="hidden" name="portfolio_scope" value="<?= $h(ItemGalleryContent::isPortfolioScope((string) ($values['portfolio_scope'] ?? '')) ? (string) $values['portfolio_scope'] : ItemGalleryContent::SCOPE_ALL) ?>">
-        <?php endif; ?>
         <?php if ($needsCollectionPicker): ?>
         <label><?= admin_te('block_gallery.collectie_welke') ?>
           <select name="collection_id">

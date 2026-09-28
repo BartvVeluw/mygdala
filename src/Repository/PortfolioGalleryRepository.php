@@ -223,6 +223,22 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
+     * The ids of every item in one category, visible or not: the caller
+     * intersects them with what may be shown.
+     *
+     * @return list<int>
+     */
+    public function itemIdsInCategory(int $categoryId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT portfolio_item_id FROM portfolio_item_categories WHERE portfolio_category_id = :category_id'
+        );
+        $stmt->execute(['category_id' => $categoryId]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
      * Replaces an item's full set of category relationships — the admin
      * item editor always submits the complete checked set, so a plain
      * "delete all, insert selected" is simpler and just as correct as a
@@ -511,6 +527,48 @@ class PortfolioGalleryRepository extends Repository
         $position = 0;
         foreach (self::cleanIds($relatedIds, $itemId) as $relatedId) {
             $insert->execute(['item_id' => $itemId, 'related_id' => $relatedId, 'sort_order' => $position++]);
+        }
+    }
+
+    /**
+     * The projects picked by hand for one gallery block (item_galleries.id,
+     * the Projecten block or a gallery on portfolio items), in their own order
+     * (item_gallery_portfolio_items). Visible or not: the reader decides.
+     *
+     * @return list<int>
+     */
+    public function gallerySelection(int $itemGalleryId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT portfolio_item_id FROM item_gallery_portfolio_items
+             WHERE item_gallery_id = :gallery_id
+             ORDER BY sort_order ASC, portfolio_item_id ASC'
+        );
+        $stmt->execute(['gallery_id' => $itemGalleryId]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Replaces one gallery block's hand-picked projects with $itemIds, in that
+     * order, a repeated id once. The foreign keys refuse an id no item or no
+     * block has, so the caller passes only ids it checked.
+     *
+     * @param list<int> $itemIds
+     */
+    public function replaceGallerySelection(int $itemGalleryId, array $itemIds): void
+    {
+        $this->db->prepare('DELETE FROM item_gallery_portfolio_items WHERE item_gallery_id = :gallery_id')
+            ->execute(['gallery_id' => $itemGalleryId]);
+
+        $insert = $this->db->prepare(
+            'INSERT INTO item_gallery_portfolio_items (item_gallery_id, portfolio_item_id, sort_order, created_at)
+             VALUES (:gallery_id, :item_id, :sort_order, NOW())'
+        );
+
+        $position = 0;
+        foreach (self::cleanIds($itemIds, null) as $itemId) {
+            $insert->execute(['gallery_id' => $itemGalleryId, 'item_id' => $itemId, 'sort_order' => $position++]);
         }
     }
 

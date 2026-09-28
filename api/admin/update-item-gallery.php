@@ -13,8 +13,15 @@
  * The content source is validated against the closed list in
  * App\Service\ItemGalleryContent::SOURCES (and the collection against the
  * collections table) before it is stored: an unknown source is REFUSED with
- * an error, never written and never executed. Same for the portfolio scope
- * and the section background.
+ * an error, never written and never executed. Same for the section
+ * background.
+ *
+ * WHICH ITEMS (Projecten 2.0): for a source whose items can be chosen
+ * (ItemGallerySources::selectionSource()) the scope, the category, the order
+ * and the picked items are read and checked by App\Service\ItemGallerySelection,
+ * exactly as for the Projecten block, and the picked items are stored through
+ * ItemGallerySources::saveSelection() in the same transaction. With no such
+ * source on (its module switched off), the stored choice is kept as it is.
  */
 
 declare(strict_types=1);
@@ -29,6 +36,7 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\ItemGalleryContent;
+use App\Service\ItemGallerySelection;
 use App\Service\ItemGallerySources;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
@@ -72,9 +80,18 @@ if ($section === null
 $rawCollectionId = trim((string) ($_POST['collection_id'] ?? ''));
 $rawMaxItems = trim((string) ($_POST['max_items'] ?? ''));
 
+// Which items: checked by the choice both gallery editors share, for the
+// source whose items can be chosen; without one, what is stored stays.
+$selectionSource = ItemGallerySources::selectionSource();
+$selection = $selectionSource !== '' ? ItemGallerySelection::fromRequest($_POST, $selectionSource, $section) : null;
+
 $fields = [
     'source_type' => trim((string) ($_POST['source_type'] ?? '')),
-    'portfolio_scope' => trim((string) ($_POST['portfolio_scope'] ?? '')),
+    'portfolio_scope' => $selection['values']['portfolio_scope'] ?? (string) $section['portfolio_scope'],
+    'portfolio_category_id' => $selection !== null
+        ? $selection['values']['portfolio_category_id']
+        : (($section['portfolio_category_id'] ?? null) === null ? null : (int) $section['portfolio_category_id']),
+    'item_sort' => $selection['values']['item_sort'] ?? (string) ($section['item_sort'] ?? 'source'),
     'collection_id' => $rawCollectionId === '' ? null : (int) $rawCollectionId,
     'max_items' => $rawMaxItems === '' ? null : (int) $rawMaxItems,
     'show_filter_bar' => isset($_POST['show_filter_bar']),
@@ -127,8 +144,8 @@ if (!ItemGalleryContent::isSource($fields['source_type'])
     $errors[] = AdminTranslator::trans('validation.kies_geldige_inhoudsbron');
 }
 
-if (!ItemGalleryContent::isPortfolioScope($fields['portfolio_scope'])) {
-    $errors[] = AdminTranslator::trans('validation.kies_geldige_selectie_portfolio_items');
+if ($selection !== null) {
+    array_push($errors, ...$selection['errors']);
 }
 
 if (!ItemGalleryContent::isBackground($fields['background'])) {
@@ -170,7 +187,8 @@ if ($languageIsWritable && (($defaultButtonLabel !== '') !== $buttonUrlSet || ($
     $errors[] = AdminTranslator::trans('validation.vul_zowel_knoplabel_knop_url');
 }
 
-$old = ['language_code' => $languageCode] + $words + $fields;
+$old = ['language_code' => $languageCode] + $words + $fields
+    + ($selection !== null && $selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
 
 if ($errors !== []) {
     $_SESSION['admin_item_gallery_errors'] = $errors;
@@ -187,6 +205,9 @@ try {
 
     $repository->upsertSection($pageSlug, $sectionKey, $fields);
     BlockLocalization::save('item_galleries', $sectionId, $languageCode, $words);
+    if ($selection !== null && $selection['selected'] !== null) {
+        ItemGallerySources::saveSelection($selectionSource, $sectionId, $selection['selected']);
+    }
 
     $db->commit();
     ItemGalleryContent::clearCache();

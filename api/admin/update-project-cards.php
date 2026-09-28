@@ -20,14 +20,21 @@
  *    runs. A gallery's row is update-item-gallery.php's, and a switched-off
  *    module's block keeps its settings untouched until the module is back.
  *
- * Which projects and the background are checked against the gallery's own
- * closed lists (App\Service\ItemGalleryContent) before anything is stored.
+ * WHICH PROJECTS (Projecten 2.0) — all visible ones, one category's, or picked
+ * by hand, in what order and how many — is read and checked by
+ * App\Service\ItemGallerySelection against the gallery's closed lists and the
+ * Portfolio's own categories and projects, reached through its gallery source
+ * (App\Service\ItemGallerySources): nothing here names a project or a table
+ * of the Portfolio. The background is checked against
+ * App\Service\ItemGalleryContent. The picked projects are the source's own
+ * relation, stored through ItemGallerySources::saveSelection(), and only when
+ * the picker was on the form (`items_submitted`).
  *
  * ONE WEBSITE LANGUAGE (Multilingual 2.0): the title and lead are the words of
  * the language named in `language_code`, which must be an active language of
  * the website registry, and only that language is written, through
  * ProjectCardsBlock::rowWords() and App\Service\Blocks\BlockLocalization, in
- * the same transaction as the settings.
+ * the same transaction as the settings and the picked projects.
  */
 
 declare(strict_types=1);
@@ -35,6 +42,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Database;
+use App\Module\PortfolioModule;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -43,6 +51,8 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\ItemGalleryContent;
+use App\Service\ItemGallerySelection;
+use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
@@ -84,11 +94,13 @@ if ($section === null
     exit('Unknown section.');
 }
 
-$rawMaxItems = trim((string) ($_POST['max_items'] ?? ''));
+// Which projects, in what order, how many: the choice both gallery editors
+// share, checked against the Portfolio's own categories and projects.
+$selection = ItemGallerySelection::fromRequest($_POST, PortfolioModule::GALLERY_SOURCE, $section);
+[$maxItems, $maxErrors] = ItemGallerySelection::maxItems($_POST);
 
-$fields = [
-    'portfolio_scope' => trim((string) ($_POST['portfolio_scope'] ?? '')),
-    'max_items' => $rawMaxItems === '' ? null : (int) $rawMaxItems,
+$fields = $selection['values'] + [
+    'max_items' => $maxItems,
     'show_filter_bar' => isset($_POST['show_filter_bar']),
     'background' => trim((string) ($_POST['background'] ?? '')),
     'is_active' => isset($_POST['is_active']),
@@ -113,19 +125,14 @@ if (!$languageIsWritable) {
     }
 }
 
-if (!ItemGalleryContent::isPortfolioScope($fields['portfolio_scope'])) {
-    $errors[] = AdminTranslator::trans('validation.kies_welke_projecten');
-}
+array_push($errors, ...$selection['errors'], ...$maxErrors);
 
 if (!ItemGalleryContent::isBackground($fields['background'])) {
     $errors[] = AdminTranslator::trans('validation.kies_geldige_achtergrond');
 }
 
-if ($fields['max_items'] !== null && ($fields['max_items'] < 1 || $fields['max_items'] > 200)) {
-    $errors[] = AdminTranslator::trans('validation.maximum_aantal_projecten');
-}
-
-$old = ['language_code' => $languageCode, 'title' => $words['title'], 'lead' => $words['lead']] + $fields;
+$old = ['language_code' => $languageCode, 'title' => $words['title'], 'lead' => $words['lead']] + $fields
+    + ($selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
 
 if ($errors !== []) {
     $_SESSION['admin_project_cards_errors'] = $errors;
@@ -137,11 +144,15 @@ if ($errors !== []) {
 $db = Database::connection();
 
 try {
-    // The block's settings and its words in this language are one save.
+    // The block's settings, its words in this language and its picked
+    // projects are one save.
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, ProjectCardsBlock::rowValues($fields));
     BlockLocalization::save('item_galleries', (int) $section['id'], $languageCode, $words);
+    if ($selection['selected'] !== null) {
+        ItemGallerySources::saveSelection(PortfolioModule::GALLERY_SOURCE, (int) $section['id'], $selection['selected']);
+    }
 
     $db->commit();
     ItemGalleryContent::clearCache();

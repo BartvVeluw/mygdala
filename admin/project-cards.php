@@ -6,11 +6,14 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_gallery_selection.php';
 
+use App\Module\PortfolioModule;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\ItemGalleryContent;
+use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
@@ -26,8 +29,10 @@ use App\Repository\PageSectionRepository;
  * and a collection, zoom, a link for cards without a page of their own, a
  * closing text and a button are not on this screen at all
  * (ProjectCardsBlock::rowValues() stores them fixed). What is left: which
- * projects, how many, the filter buttons, the background, an optional title
- * and introduction, and whether the block shows.
+ * projects — all visible ones, one category's, or picked by hand
+ * (admin/_gallery_selection.php, Projecten 2.0) — in what order, how many
+ * (3, 4, 6, 8, 12 or all), the filter buttons, the background, an optional
+ * title and introduction, and whether the block shows.
  *
  * The projects are not edited here, and neither is where a card links to:
  * that is each project's own page, chosen in admin/portfolio-item.php.
@@ -73,13 +78,20 @@ $editLanguage = admin_localized_language();
 // What is the same in every language: handed back, else stored.
 $values = $old ?? [
     'portfolio_scope' => (string) $section['portfolio_scope'],
-    'max_items' => $section['max_items'] === null ? '' : (string) $section['max_items'],
+    'portfolio_category_id' => $section['portfolio_category_id'] ?? null,
+    'item_sort' => (string) ($section['item_sort'] ?? 'source'),
+    'max_items' => $section['max_items'] === null ? null : (int) $section['max_items'],
     'show_filter_bar' => (bool) $section['show_filter_bar'],
     'background' => (string) $section['background'],
     'is_active' => (bool) $section['is_active'],
 ];
 
 $sectionId = (int) $section['id'];
+
+// The picked projects: handed back after a refused save, else stored.
+$selected = is_array($old['item_ids'] ?? null)
+    ? array_map('intval', $old['item_ids'])
+    : ItemGallerySources::selectedItems(PortfolioModule::GALLERY_SOURCE, $sectionId);
 $oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
 
 /**
@@ -97,10 +109,6 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 
 // The choices come from the gallery's own closed lists, the ones the endpoint
 // validates against; only the words are this screen's.
-$scopeLabels = [
-    ItemGalleryContent::SCOPE_ALL => admin_t('block_projects.scope_all'),
-    ItemGalleryContent::SCOPE_FEATURED => admin_t('block_projects.scope_featured'),
-];
 $backgroundLabels = [
     'default' => admin_t('block_projects.background_default'),
     'soft' => admin_t('block_projects.background_soft'),
@@ -120,6 +128,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $h(SectionRegistry::label('project_cards')) ?> <?= admin_t('block_projects.admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
+<?php gallery_selection_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -153,19 +162,15 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?= admin_localized_input($editLanguage) ?>
 
       <h2><?= admin_te('block_projects.which') ?></h2>
+      <?php gallery_selection_fields(PortfolioModule::GALLERY_SOURCE, $values, $selected, 'projects'); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('block_projects.show') ?>
-          <select name="portfolio_scope">
-            <?php foreach (ItemGalleryContent::PORTFOLIO_SCOPES as $scopeKey => $scope): ?>
-            <option value="<?= $h($scopeKey) ?>" <?= ($values['portfolio_scope'] ?? '') === $scopeKey ? 'selected' : '' ?>><?= $h($scopeLabels[$scopeKey] ?? $scope['label']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <label><?= admin_te('block_projects.max') ?>
-          <input type="number" name="max_items" min="1" max="200" value="<?= $h((string) ($values['max_items'] ?? '')) ?>" placeholder="<?= admin_te('block_projects.max_placeholder') ?>">
-        </label>
+        <?php gallery_max_select(
+            'projects-max',
+            ($values['max_items'] ?? null) === null || $values['max_items'] === '' ? null : (int) $values['max_items'],
+            admin_t('block_projects.max'),
+            admin_t('help.block_projects.max')
+        ); ?>
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_projects.order') ?></p>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_projects.display') ?></h2>
       <label class="admin-checkbox-label">

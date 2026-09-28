@@ -27,18 +27,21 @@ use App\Module\ModuleRegistry;
  * name or a query. Do not replace this with a query builder or an "entity +
  * filters" abstraction; see CONTENT-BLOCKS.md.
  *
- * A SOURCE IS SEVEN THINGS:
+ * A SOURCE IS UP TO ELEVEN THINGS:
  *
  *   label             what the editor picks in the admin.
  *   order             where it sits in that choice. The first AVAILABLE source
  *                     is what a new gallery block starts with (defaultSource()).
  *   needs_collection  whether the block also has to store a collection id.
- *   needs_scope       optional: whether the block's scope setting ("all visible
- *                     items" or "only the ones for the homepage") applies.
+ *   needs_scope       optional: whether the block's choice of items applies —
+ *                     all of them, one category, or picked by hand, in an
+ *                     order of its own (ItemGalleryContent::SCOPES and SORTS).
  *   items             callable(array $settings): list<array> — the items, in
  *                     the ONE normalised shape the partial renders (see
  *                     ItemGalleryContent). $settings carries the block row's
- *                     already-validated `portfolio_scope` and `collection_id`.
+ *                     already-validated `gallery_id`, `portfolio_scope`,
+ *                     `category_id`, `collection_id`, `sort` and `max_items`;
+ *                     a source applies what it reads and ignores the rest.
  *   filter_categories callable(): list<array> — optional. Only a source with
  *                     a taxonomy can offer a filter bar; a collection has
  *                     none, so a collection-backed block simply has no bar.
@@ -47,6 +50,23 @@ use App\Module\ModuleRegistry;
  *                     gallery started on this source, filed under the
  *                     module's category (App\Service\Blocks\ItemGalleryBlock,
  *                     OffersPickerPresets). Presentation only.
+ *
+ * and, for a source whose items an editor may choose (needs_scope), what the
+ * block editors need to let them (admin/_gallery_selection.php), all four or
+ * none:
+ *
+ *   category_choices  callable(): list<{id, name, count}> — its categories.
+ *   item_choices      callable(): list<{id, title, thumbnail, categories,
+ *                     visible}> — every item that may be picked, hidden ones
+ *                     marked.
+ *   selected_items    callable(int $galleryId): list<int> — a block's picked
+ *                     items, in order.
+ *   save_selection    callable(int $galleryId, list<int> $ids): void — store
+ *                     them, inside the endpoint's transaction. The endpoint
+ *                     passes only ids item_choices named.
+ *
+ * The picked items are the source's own relation: Core stores no item id of a
+ * source anywhere.
  *
  * KNOWN vs AVAILABLE, the same distinction App\Service\AdminPermissions makes.
  * A source whose module is switched off is still KNOWN — a stored block keeps
@@ -142,6 +162,75 @@ final class ItemGallerySources
     public static function needsScope(string $source): bool
     {
         return (bool) (self::known()[$source]['needs_scope'] ?? false);
+    }
+
+    /** Whether an editor may choose this source's items (a category, a hand-picked list). */
+    public static function supportsSelection(string $source): bool
+    {
+        $definition = self::available()[$source] ?? null;
+
+        return $definition !== null
+            && isset($definition['category_choices'], $definition['item_choices'], $definition['selected_items'], $definition['save_selection']);
+    }
+
+    /**
+     * The first available source whose items can be chosen, or '' when none
+     * is: the one the gallery editor's choice of items is about.
+     */
+    public static function selectionSource(): string
+    {
+        foreach (array_keys(self::available()) as $source) {
+            if (self::supportsSelection((string) $source)) {
+                return (string) $source;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * A source's categories for the block editors, or none.
+     *
+     * @return list<array{id: int, name: string, count: int}>
+     */
+    public static function categoryChoices(string $source): array
+    {
+        return self::supportsSelection($source) ? (self::available()[$source]['category_choices'])() : [];
+    }
+
+    /**
+     * Every item of a source an editor may pick, or none.
+     *
+     * @return list<array{id: int, title: string, thumbnail: string, categories: string, visible: bool}>
+     */
+    public static function itemChoices(string $source): array
+    {
+        return self::supportsSelection($source) ? (self::available()[$source]['item_choices'])() : [];
+    }
+
+    /**
+     * The items picked for one block, in order, or none.
+     *
+     * @return list<int>
+     */
+    public static function selectedItems(string $source, int $galleryId): array
+    {
+        return self::supportsSelection($source) && $galleryId > 0
+            ? array_map('intval', (self::available()[$source]['selected_items'])($galleryId))
+            : [];
+    }
+
+    /**
+     * Store the items picked for one block. Does nothing for a source that
+     * has no choice of items, so a save can never write a list nobody reads.
+     *
+     * @param list<int> $itemIds
+     */
+    public static function saveSelection(string $source, int $galleryId, array $itemIds): void
+    {
+        if (self::supportsSelection($source) && $galleryId > 0) {
+            (self::available()[$source]['save_selection'])($galleryId, array_values(array_map('intval', $itemIds)));
+        }
     }
 
     /** The module that owns a source, or null for a key nothing declares. */

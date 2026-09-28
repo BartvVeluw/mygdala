@@ -57,12 +57,14 @@ class ItemGalleryRepository extends Repository
      * button label) are stored per website language through
      * App\Service\Blocks\BlockLocalization (db/migrations/20260917180000).
      *
-     * `source_type` and `portfolio_scope` are stored as given; the caller
-     * (api/admin/update-item-gallery.php, App\Service\SectionRegistry) is
-     * the one that validates them against
-     * App\Service\ItemGalleryContent::SOURCES first, and
+     * `source_type`, `portfolio_scope` and `item_sort` are stored as given; the
+     * caller (the block endpoints, App\Service\SectionRegistry) is the one
+     * that validates them against App\Service\ItemGallerySources and
+     * App\Service\ItemGalleryContent's closed lists first, and
      * App\Service\ItemGalleryContent validates again on read — an unknown
-     * value can therefore never reach a query or a class name.
+     * value can therefore never reach a query or a class name. A block's
+     * picked items are not a column: they are its source's own relation
+     * (App\Service\ItemGallerySources::saveSelection()).
      *
      * @param array<string, string|bool|int|null> $values
      */
@@ -70,18 +72,20 @@ class ItemGalleryRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO item_galleries
-                (page_slug, section_key, source_type, portfolio_scope, collection_id, max_items,
-                 show_filter_bar, enable_lightbox, fallback_link_url, button_url,
+                (page_slug, section_key, source_type, portfolio_scope, portfolio_category_id, collection_id, max_items,
+                 item_sort, show_filter_bar, enable_lightbox, fallback_link_url, button_url,
                  background, tight_top, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :source_type, :portfolio_scope, :collection_id, :max_items,
-                 :show_filter_bar, :enable_lightbox, :fallback_link_url, :button_url,
+                (:page_slug, :section_key, :source_type, :portfolio_scope, :portfolio_category_id, :collection_id, :max_items,
+                 :item_sort, :show_filter_bar, :enable_lightbox, :fallback_link_url, :button_url,
                  :background, :tight_top, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 source_type = VALUES(source_type),
                 portfolio_scope = VALUES(portfolio_scope),
+                portfolio_category_id = VALUES(portfolio_category_id),
                 collection_id = VALUES(collection_id),
                 max_items = VALUES(max_items),
+                item_sort = VALUES(item_sort),
                 show_filter_bar = VALUES(show_filter_bar),
                 enable_lightbox = VALUES(enable_lightbox),
                 fallback_link_url = VALUES(fallback_link_url),
@@ -93,6 +97,7 @@ class ItemGalleryRepository extends Repository
         );
 
         $collectionId = $values['collection_id'] ?? null;
+        $categoryId = $values['portfolio_category_id'] ?? null;
         $maxItems = $values['max_items'] ?? null;
 
         $stmt->execute([
@@ -100,10 +105,14 @@ class ItemGalleryRepository extends Repository
             'section_key' => $sectionKey,
             'source_type' => (string) ($values['source_type'] ?? 'portfolio'),
             'portfolio_scope' => (string) ($values['portfolio_scope'] ?? 'all'),
+            'portfolio_category_id' => ($categoryId === null || $categoryId === '' || (int) $categoryId <= 0)
+                ? null
+                : (int) $categoryId,
             'collection_id' => ($collectionId === null || $collectionId === '' || (int) $collectionId <= 0)
                 ? null
                 : (int) $collectionId,
             'max_items' => ($maxItems === null || $maxItems === '' || (int) $maxItems <= 0) ? null : (int) $maxItems,
+            'item_sort' => (string) ($values['item_sort'] ?? 'source'),
             'show_filter_bar' => ($values['show_filter_bar'] ?? false) ? 1 : 0,
             'enable_lightbox' => ($values['enable_lightbox'] ?? false) ? 1 : 0,
             'fallback_link_url' => self::nullIfEmpty($values['fallback_link_url'] ?? null),

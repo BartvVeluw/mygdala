@@ -38,6 +38,13 @@ use App\Service\Routing\TypedLink;
  *   `fallback_link_url`; a source that decides every card's link itself says
  *   false, and such a card stays plain).
  *
+ * WHICH ITEMS AND IN WHAT ORDER (Projecten 2.0) are block settings too, read
+ * against closed lists here and applied by the source, which alone knows its
+ * items: the scope (SCOPES: all, one category, or picked by hand), the
+ * category, the order (SORTS, random included) and the maximum. A source that
+ * does not read them (a collection) simply ignores them. Picked items are the
+ * source's own relation, reached through ItemGallerySources.
+ *
  * Display settings live on the block, not on the page: `show_filter_bar`,
  * `enable_lightbox`, `max_items`, `fallback_link_url`, `background` and
  * `tight_top`. Two instances on one page therefore have fully independent
@@ -84,14 +91,24 @@ class ItemGalleryContent
      */
     public const SCOPE_ALL = 'all';
 
-    /** Only the items curated for the homepage ("Toon op homepage" per item). */
-    public const SCOPE_FEATURED = 'featured';
+    /** The visible items of one category (`portfolio_category_id`). */
+    public const SCOPE_CATEGORY = 'category';
 
-    /** @var array<string, array{label: string}> */
-    public const PORTFOLIO_SCOPES = [
-        self::SCOPE_ALL => ['label' => 'Alle zichtbare items'],
-        self::SCOPE_FEATURED => ['label' => 'Alleen items met "Toon op homepage"'],
-    ];
+    /** The items picked by hand for this block, in their picked order. */
+    public const SCOPE_MANUAL = 'manual';
+
+    /** Every scope; the first is what a new block and an unknown value get. */
+    public const SCOPES = [self::SCOPE_ALL, self::SCOPE_CATEGORY, self::SCOPE_MANUAL];
+
+    /**
+     * The orders of `item_sort`: the source's own order (for the Portfolio
+     * "Standaard Portfolio-volgorde"), newest or oldest first, by title either
+     * way, or random — a new draw per request. The first is the start.
+     */
+    public const SORTS = ['source', 'newest', 'oldest', 'title_asc', 'title_desc', 'random'];
+
+    /** The only orders a hand-picked list has: its own, or random. */
+    public const MANUAL_SORTS = ['source', 'random'];
 
     /** The two section backgrounds this theme has. */
     public const BACKGROUNDS = [
@@ -116,7 +133,12 @@ class ItemGalleryContent
 
     public static function isPortfolioScope(string $scope): bool
     {
-        return array_key_exists($scope, self::PORTFOLIO_SCOPES);
+        return in_array($scope, self::SCOPES, true);
+    }
+
+    public static function isSort(string $sort): bool
+    {
+        return in_array($sort, self::SORTS, true);
     }
 
     public static function isBackground(string $background): bool
@@ -189,17 +211,28 @@ class ItemGalleryContent
             $scope = self::SCOPE_ALL;
         }
 
+        // A hand-picked list has only its own order or a random one.
+        $sort = (string) ($row['item_sort'] ?? 'source');
+        if (!self::isSort($sort) || ($scope === self::SCOPE_MANUAL && !in_array($sort, self::MANUAL_SORTS, true))) {
+            $sort = self::SORTS[0];
+        }
+
         $background = (string) ($row['background'] ?? 'default');
         if (!self::isBackground($background)) {
             $background = 'default';
         }
 
         $collectionId = $row['collection_id'] === null ? null : (int) $row['collection_id'];
+        $categoryId = ($row['portfolio_category_id'] ?? null) === null ? null : (int) $row['portfolio_category_id'];
         $maxItems = ($row['max_items'] ?? null) === null ? null : (int) $row['max_items'];
 
         $items = ItemGallerySources::items($source, [
+            'gallery_id' => (int) ($row['id'] ?? 0),
             'portfolio_scope' => $scope,
+            'category_id' => $categoryId,
             'collection_id' => $collectionId,
+            'sort' => $sort,
+            'max_items' => $maxItems,
         ]);
         if ($maxItems !== null && $maxItems > 0) {
             $items = array_slice($items, 0, $maxItems);
@@ -220,6 +253,8 @@ class ItemGalleryContent
             'id' => (int) ($row['id'] ?? 0),
             'source_type' => $source,
             'portfolio_scope' => $scope,
+            'portfolio_category_id' => $categoryId,
+            'item_sort' => $sort,
             'collection_id' => $collectionId,
             'max_items' => $maxItems,
             'show_filter_bar' => $showFilterBar,
@@ -277,6 +312,8 @@ class ItemGalleryContent
             'id' => 0,
             'source_type' => '',
             'portfolio_scope' => self::SCOPE_ALL,
+            'portfolio_category_id' => null,
+            'item_sort' => self::SORTS[0],
             'collection_id' => null,
             'max_items' => null,
             'show_filter_bar' => false,

@@ -7,7 +7,6 @@ namespace App\Module;
 use App\Service\AdminPermissions;
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\ProjectCardsBlock;
-use App\Service\ItemGalleryContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioMediaUsage;
 use App\Service\PortfolioUrls;
@@ -295,11 +294,15 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * Portfolio items as a source for the gallery block. First in `order`, so a
-     * new gallery block still starts as the portfolio grid it always was while
-     * this module runs. It is the one source the block's scope setting ("all
-     * visible items" or "only the ones marked for the homepage") applies to,
-     * and the one with a taxonomy for the filter bar.
+     * Portfolio items as a source for the gallery block and the Projecten
+     * block. First in `order`, so a new gallery block still starts as the
+     * portfolio grid it always was while this module runs. It is the one
+     * source whose items a block chooses (Projecten 2.0: all visible
+     * projects, one category, or picked by hand, in an order of its own,
+     * random included — PortfolioGalleryContent::galleryItems()), and the one
+     * with a taxonomy for the filter bar. The four choice callables give the
+     * block editors its categories and projects, and store a block's picked
+     * projects in the module's own relation (item_gallery_portfolio_items).
      */
     public function itemGallerySources(): array
     {
@@ -318,10 +321,14 @@ final class PortfolioModule extends ModuleDefinition
                     'description' => 'Je portfolio-items als raster met beeld, met optioneel een filterbalk en een vergroting bij het aanklikken.',
                     'use_cases' => ['een portfolio-overzicht', 'uitgelicht werk op de homepage'],
                 ],
-                'items' => static fn (array $settings): array => PortfolioGalleryContent::catalogueItems(
-                    ($settings['portfolio_scope'] ?? '') === ItemGalleryContent::SCOPE_FEATURED
-                ),
+                'items' => static fn (array $settings): array => PortfolioGalleryContent::galleryItems($settings),
                 'filter_categories' => static fn (): array => PortfolioGalleryContent::filterCategories(),
+                'category_choices' => static fn (): array => PortfolioGalleryContent::categoryChoices(),
+                'item_choices' => static fn (): array => PortfolioGalleryContent::pickerChoices(),
+                'selected_items' => static fn (int $galleryId): array => PortfolioGalleryContent::gallerySelection($galleryId),
+                'save_selection' => static function (int $galleryId, array $itemIds): void {
+                    PortfolioGalleryContent::saveGallerySelection($galleryId, $itemIds);
+                },
             ],
         ];
     }

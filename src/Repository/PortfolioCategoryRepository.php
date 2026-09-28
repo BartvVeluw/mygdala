@@ -46,6 +46,28 @@ class PortfolioCategoryRepository extends Repository
     }
 
     /**
+     * Every category with how many VISIBLE (is_active = 1) projects it has —
+     * the category choice of a Projecten block
+     * (App\Service\PortfolioGalleryContent::categoryChoices()), where "Wolven
+     * (4)" says what the block would show.
+     *
+     * @return array<int, array<string, mixed>> each row + 'visible_count' (int), ordered by sort_order ASC, id ASC
+     */
+    public function findAllWithVisibleCounts(): array
+    {
+        $stmt = $this->db->query(
+            'SELECT pc.*, COUNT(pgi.id) AS visible_count
+             FROM portfolio_categories pc
+             LEFT JOIN portfolio_item_categories pic ON pic.portfolio_category_id = pc.id
+             LEFT JOIN portfolio_gallery_items pgi ON pgi.id = pic.portfolio_item_id AND pgi.is_active = 1
+             GROUP BY pc.id
+             ORDER BY pc.sort_order ASC, pc.id ASC'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Categories used by at least one visible (is_active = 1) Portfolio
      * item — the public filter bar (portfolio.php) never shows an empty
      * filter button, see App\Service\PortfolioGalleryContent.
