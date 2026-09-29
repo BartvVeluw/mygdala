@@ -208,13 +208,12 @@ require __DIR__ . '/partials/header.php';
   </section>
 <?php else: ?>
   <?php
-  // The project's own head, unless the free layout leaves it to the
-  // Projectinformatie block the editor placed; then the project's content
-  // blocks. A free project WITHOUT that block keeps its head on top
-  // (ProjectInfoContent::isPlacedOn()).
-  if ($projectLayout !== \App\Service\PortfolioProjectLayout::FREE
-      || !\App\Service\ProjectInfoContent::isPlacedOn((int) $portfolioItem['id'])
-  ) {
+  // A fixed layout: the project's own head, then its content blocks. The
+  // free layout: the blocks and nothing else, a Projectinformatie block
+  // wherever the editor put it or none at all — no head of its own as a
+  // fallback (App\Service\ProjectInfoPlacement places the block when a
+  // project turns free, so that is never a surprise).
+  if ($projectLayout !== \App\Service\PortfolioProjectLayout::FREE) {
       render_project_hero(
           $portfolioItem,
           \App\Service\PortfolioProjectLayout::imagePosition((string) $projectLayout),

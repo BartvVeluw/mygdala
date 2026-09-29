@@ -707,6 +707,10 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
           </select>
         </div>
         <p class="admin-text-muted"><?= $effectiveLayout === \App\Service\PortfolioProjectLayout::FREE ? admin_te('content_blocks.project_intro_free') : admin_te('content_blocks.project_intro') ?></p>
+        <?php if ($effectiveLayout === \App\Service\PortfolioProjectLayout::FREE && !\App\Service\ProjectInfoContent::isPlacedOn((int) $item['id'])): ?>
+          <?php /* A choice the editor may make, so a warning and never a block. */ ?>
+          <p class="admin-alert admin-alert--warning" data-project-info-missing><?= admin_te('content_blocks.project_info_missing') ?></p>
+        <?php endif; ?>
         <?php if ((int) ($item['has_detail_page'] ?? 0) !== 1): ?>
           <p class="admin-alert admin-alert--warning"><?= admin_te('content_blocks.project_page_off') ?></p>
         <?php endif; ?>

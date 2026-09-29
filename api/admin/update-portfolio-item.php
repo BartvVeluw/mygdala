@@ -242,6 +242,22 @@ try {
     $db->commit();
     PortfolioGalleryContent::clearCache();
 
+    // The switch to the free layout places a Projectinformatie block at the
+    // top when the project has none, so the page never loses its title and
+    // picture by surprise (App\Service\ProjectInfoPlacement). Only on the
+    // switch: a block deleted later stays deleted. A failure here leaves the
+    // saved project as it is; the tab then warns that the block is missing.
+    if (\App\Service\ProjectInfoPlacement::isSwitchToFree(
+        PortfolioProjectLayout::forItem($item),
+        PortfolioProjectLayout::forItem(['project_layout' => $projectLayout])
+    )) {
+        try {
+            \App\Service\ProjectInfoPlacement::ensureOnTop($itemId);
+        } catch (\Throwable $e) {
+            error_log('[api/admin/update-portfolio-item.php] project information block: ' . $e->getMessage());
+        }
+    }
+
     // Files that were this item's alone go after the commit, never before: a
     // rolled-back save must still find them. A library file never goes.
     $imageProcessor = new PortfolioImageProcessor();

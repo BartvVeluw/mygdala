@@ -92,10 +92,10 @@ final class ProjectInfoContent
 
     /**
      * Whether this project's content page holds a Projectinformatie block,
-     * shown or hidden. A project with the free layout WITHOUT one still shows
-     * its own head at the top (portfolio-detail.php): switching the Portfolio
-     * default to the free layout must never leave a project page without its
-     * title and picture. Hiding the block is a choice; not having one is not.
+     * shown or hidden. A free project without one shows no head at all
+     * (portfolio-detail.php); App\Service\ProjectInfoPlacement asks this
+     * before it places one on the switch to the free layout, and the
+     * project's Pagina-inhoud tab warns when a free project has none.
      */
     public static function isPlacedOn(int $projectId): bool
     {
