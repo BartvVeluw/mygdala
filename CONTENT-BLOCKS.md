@@ -207,7 +207,10 @@ Gevolgen waar je bij het bouwen rekening mee houdt:
   — moet zich op die instantie scopen. Twee instanties van hetzelfde type op één
   pagina staan volledig los van elkaar.
 - Afgeleide nummering en afwisselende achtergronden tellen over de **actieve
-  instanties op de pagina**, nooit over een vaste lijst.
+  instanties op de pagina**, nooit over een vaste lijst. Een nummer wordt
+  nooit opgeslagen (`App\Service\Blocks\LabelMode`): de Detailsectie telt
+  zijn eigen actieve instanties, een kaart van de Kaarten-carrousel de kaarten
+  die zijn carrousel toont.
 
 ## Blokken op een product of project
 
@@ -242,10 +245,14 @@ krijgt daarom een eigen `pages`-rij om zijn blokken te houden
   concept. `update-page.php`, `delete-page.php` en `page-preview.php`
   behandelen haar als geen pagina. Opzoeken op id en op content_key vindt haar
   wel: zo werken de blok-editors ongewijzigd.
-- **Terug naar de eigenaar.** Elke blok-editor linkt terug naar
-  `admin/page.php?id=<id>`; voor een inhoudspagina stuurt dat door naar de
-  editor van de eigenaar, tabblad *Pagina-inhoud* (`?tab=inhoud`, met `added`
-  en `deleted`). `PageLocalization::name()` noemt haar naar de eigenaar
+- **Terug naar de eigenaar.** Elke blok-editor linkt terug naar de lijst van
+  zijn blok (`ContentBlockAccess::listUrl()`, ook achter
+  `PageContent::builderUrl()`): voor een inhoudspagina de editor van de
+  eigenaar, tabblad *Pagina-inhoud* (`?tab=inhoud`), anders
+  `admin/page.php?id=<id>`. Ook toevoegen, verbergen en verwijderen landen
+  daar (met `added`/`deleted`), zodat de weg terug nooit langs een scherm gaat
+  dat `pages.manage` vraagt. `admin/page.php` stuurt een inhoudspagina nog
+  steeds door. `PageLocalization::name()` noemt haar naar de eigenaar
   ("Product: Eiken plank"), en zo ook het mediagebruik.
 - **Eén bloklijst.** `admin/_content_blocks.php` is de lijst die
   `admin/page.php` toont en die het tabblad *Pagina-inhoud* van een product en
@@ -266,6 +273,51 @@ krijgt daarom een eigen `pages`-rij om zijn blokken te houden
 | Paginakop (`page_hero`) | nee | nee | de kop van een gewone pagina met haar titel; een product en een project hebben hun eigen kop |
 | Homepage Hero, Diensten-snelmenu | nee | nee | al beperkt tot hun eigen pagina (`allowed_pages`) |
 | Projectinformatie (`project_info`) | nee | ja | toont het project waarop het staat |
+
+### Wie mag welke blokken beheren
+
+De inhoudspagina is een technische houder en bepaalt **nooit** het recht. Het
+type eigenaar doet dat (`App\Service\ContentOwners\ContentBlockAccess`,
+`ContentOwner::permission()`), met de rechten die de modules al hadden:
+
+| Bloklijst van | Recht | Niet genoeg |
+|---|---|---|
+| een gewone pagina (`owner_type` NULL) | `pages.manage` | `products.manage`, `portfolio.manage` |
+| een product | `products.manage` (Shop) | `pages.manage` |
+| een Portfolio-project | `portfolio.manage` | `pages.manage`, `products.manage` |
+
+Een Shop-beheerder ziet dus het tabblad *Pagina-inhoud* van een product,
+voegt blokken toe, bewerkt, verbergt, sorteert, vertaalt en verwijdert ze,
+kiest er afbeeldingen voor, en ziet de voorbeelden in de blokkenkiezer
+(`admin/block-preview.php`) — zonder toegang tot één CMS-pagina.
+
+**Twee stappen, in elk gedeeld blokscherm en -endpoint.** Waar een ander
+scherm zijn ene letterlijke recht vraagt, vraagt een blokbestand
+`ContentBlockAccess::requireAny()` (scherm) of `requireAnyForApi()`
+(endpoint): minstens één blokrecht, na de login en vóór de POST- en
+CSRF-check. Zodra de lijst bekend is — `pageForKey()` /
+`pageForKeyForApi()` voor een `<slug>:<key>`, `requirePage()` /
+`requirePageForApi()` voor een bloklijst die via een `page_sections`-id, een
+pagina-id of een kaart-id gevonden is — volgt het recht van die lijst, uit
+haar eigen `pages`-rij, vóór er iets gelezen of geschreven wordt. Een
+nagemaakte sleutel, pagina-id, blok-id of kaart-id bereikt dus alleen een lijst
+die de afzender toch al mocht beheren. Een vast blok van een eigen pagina
+(`FaqContent::SECTIONS` en dergelijke) vraagt `pages.manage`
+(`requirePages()`). `Tests\Service\AdminAccessControlTest` houdt de
+eigenaarsbewuste bestanden als gesloten lijst bij en eist dat elk de tweede
+stap zet; `ContentBlockOwnerAccessHttpTest` test het gedrag.
+
+**Niet gewijzigd:** de Paginakop en de Homepage Hero (alleen op gewone
+pagina's, dus letterlijk `pages.manage`), de paginabouwer `admin/page.php`
+zelf, de Contentblokken-bibliotheek en `translate-fields.php`.
+
+**Recht is geen beschikbaarheid.** Het recht zegt wie een lijst mag beheren;
+`owners` in de blokmeta zegt welke blokken erin mogen. Een Shop-beheerder kan
+nog steeds geen Paginakop of Projectinformatie op een product zetten.
+
+**Open:** de links in het mediagebruik (`ContentBlockMediaUsage`) naar een
+blok-editor vragen nog `pages.manage` om getoond te worden, ook voor een blok
+op een product.
 
 **Wat een blok niet doet** op een product of project: de titel, canonical,
 structured data of deelafbeelding veranderen. Die blijven van `ProductSeo` en
@@ -292,7 +344,34 @@ product is een eigen instantie en kan dus niet van betekenis veranderen.
   (`admin/assets/detail-section.js`). Het wordt altijd gepost, dus een
   opgeslagen positie gaat nooit verloren; zonder afbeelding negeert de
   website haar, zoals altijd. Geen Responsive Media: de hoofdafbeelding wordt
-  in haar eigen verhouding getoond, zonder kader om bij te snijden.
+  in haar eigen verhouding getoond, zonder kader om bij te snijden. De help
+  zegt het: *Beeldpositie* is de plek van de afbeelding in de sectie, geen
+  focuspunt.
+- **Nummer / label** (v0.1.13, `detail_sections.label_mode`,
+  `App\Service\Blocks\LabelMode`): *Geen label*, *Nummering 01, 02, 03…*,
+  *Nummering 1, 2, 3…* of *Eigen tekst* (het vertaalde veld `label`, per
+  taal). Het nummer is de plek van de sectie onder de **actieve Detailsecties**
+  van de pagina, in de volgorde van de paginabouwer — andere blokken tellen
+  niet mee, een verborgen sectie is geen plek — en wordt bij elke weergave
+  uitgerekend, nooit opgeslagen (`DetailSectionContent::positionMarkers()`).
+  Elke bestaande en elke nieuwe sectie begint op `padded`, dus wat er stond
+  blijft staan. *Geen label* print niets en houdt geen ruimte vrij. Het label
+  is iets anders dan de ankernavigatie: die blijft navigatielabel, anders de
+  titel. Het veld is de gedeelde keuze `admin/_label_mode_field.php`, dezelfde
+  als op een kaart van de Kaarten-carrousel.
+- **Focuspunt per galerij-item** (v0.1.13): een galerij-item staat in een
+  vierkant (`object-fit: cover`), dus welk deel zichtbaar is, is een keuze van
+  dat item. Het is een plek van Responsive Media (`MEDIA.md`,
+  `DetailSectionContent::imageSlot()`: alleen een focuspunt, geen weergave,
+  geen telefoonhoogte, geen telefoonafbeelding) met de gedeelde editor per
+  rij, zonder telefoondeel: de strook op een telefoon toont hetzelfde vierkant
+  met hetzelfde punt. Opgeslagen op de galerijrij (`image_focus_x/y`),
+  nooit op het bibliotheekitem of op het product, project of bericht: krijgt
+  dat item later een andere foto, dan staat die meteen in beeld met het punt
+  van hier. Het kader in de editor volgt de bron van de rij (een
+  `rm:picture`-event uit `admin/assets/detail-section.js`); een product of
+  bericht zonder miniatuur in de keuzelijst toont zijn foto pas na
+  *Opslaan*.
 - **Galerijbronnen.** Een galerij-item is een afbeelding uit de
   Mediabibliotheek, of een product, portfolioproject of blogbericht dat zijn
   eigen afbeelding en naam toont en naar zijn pagina linkt
@@ -353,10 +432,13 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    voorbeeld).
 5. **Admin-editor** — `admin/<type>.php`, leest `?section=<slug>:<key>`.
 6. **Endpoint(s)** — `api/admin/update-<type>.php`, in deze volgorde:
-   `AdminAuth::requireLoginForApi()`, `AdminAuth::requirePermissionForApi('pages.manage')`,
-   POST-check, `Csrf::validate()`, `section` splitsen en valideren (pagina én
-   inhoudsrij moeten bestaan), repository, cache legen, PRG-redirect met
-   session-flash.
+   `AdminAuth::requireLoginForApi()`, `ContentBlockAccess::requireAnyForApi()`,
+   POST-check, `Csrf::validate()`, `section` splitsen en valideren (pagina via
+   `ContentBlockAccess::pageForKeyForApi()`, dat ook het recht van die
+   bloklijst controleert, én inhoudsrij moeten bestaan), repository, cache
+   legen, PRG-redirect met session-flash. De editor doet hetzelfde met
+   `requireAny()` en `pageForKey()`; zet beide bestanden in de lijsten van
+   `AdminAccessControlTest` (*Wie mag welke blokken beheren*).
 7. **Blokdefinitie** — `src/Service/Blocks/<Type>Block.php`, extends
    `BlockDefinition`. Dit is het integratiecontract, niet de logica: het
    koppelt de bestanden hierboven aan het CMS. Alle methodes zijn `abstract`,
@@ -656,6 +738,29 @@ zonder zijn titel en faalt op een overgeslagen niveau, een lege kop of een
 partial die een kaarttag zelf schrijft; `CardHeadingPageTest` bewijst het op een
 echte pagina en in twee talen. Een nieuw blok met kaarten gebruikt `CardHeading`
 en een klasse voor de titel.
+
+## Kaarten-carrousel: het label van een kaart
+
+Sinds v0.1.13 kiest elke kaart zijn *Labelweergave*
+(`carousel_cards.label_mode`, `App\Service\Blocks\LabelMode`), in de gedeelde
+keuze `admin/_label_mode_field.php`:
+
+| Keuze | Wat de kaart boven de titel toont |
+|---|---|
+| Geen label (`none`) | niets, en geen ruimte |
+| Nummering 01, 02, 03… (`padded`) | de plek van de kaart onder de kaarten die de carrousel toont, minstens twee cijfers (10 blijft 10) |
+| Nummering 1, 2, 3… (`plain`) | hetzelfde zonder voorloopnul |
+| Icoon (`icon`) | een SVG uit de Mediabibliotheek (`label_icon_media_id`, `MediaType::ICON`), als decoratie: lege alt en `aria-hidden`, want de titel draagt de betekenis |
+| Eigen tekst (`custom`) | het vertaalde veld `number_label`, per taal |
+
+Een nummer wordt bij elke weergave uitgerekend: verplaats of verberg een kaart
+en de nummers volgen. Een andere keuze dan *Icoon* laat het icoon los, zodat
+het niet meer als gebruikt telt; de eigen woorden blijven bewaard. Het icoon
+staat in `ContentBlockMediaUsage` en achter een `RESTRICT`-sleutel, dus een
+gebruikt icoon kan niet uit de bibliotheek. Migratie `20260930140000` maakte
+elke kaart met woorden (in welke taal ook) `custom`, met de woorden
+ongewijzigd, en elke andere `none`: een opgeslagen "01" blijft tekst, want die
+kan bewust getypt zijn. Een nieuwe kaart begint op *Geen label*.
 
 ## Tekst met afbeelding: een lijst items
 

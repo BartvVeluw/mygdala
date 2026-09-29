@@ -17,7 +17,7 @@ document, dan heeft de code gelijk.
 | Onderdeel | Bestanden |
 |---|---|
 | Tabbladen (herbruikbaar) | `admin/_admin_tabs.php`, `admin/assets/admin-tabs.js`, CSS in `admin/assets/admin.css` (`.admin-tabs*`). Gebruikt door `admin/page.php` en `admin/settings.php` |
-| Inklapbare rijen (herbruikbaar) | `admin/_admin_collapse.php`, `admin/assets/admin-collapse.js`, CSS `.admin-collapse*`. Gebruikt door de blokkenlijst op `admin/page.php` en door de items van Tekst met afbeelding (`editor_row_open()` met `$collapse`, `admin/_editor_rows.php`) |
+| Inklapbare rijen (herbruikbaar) | `admin/_admin_collapse.php`, `admin/assets/admin-collapse.js`, CSS `.admin-collapse*`. Gebruikt door de blokkenlijst op `admin/page.php` en door de items van Tekst met afbeelding (`editor_row_open()` met `$collapse`, `admin/_editor_rows.php`). Een **boom** inklappen is iets anders: de paginaboom (`admin/assets/page-tree.js`) en het menu van Header & navigatie (`admin/assets/navigation-tree.js`, `HEADER-FOOTER.md`) onthouden per browser welke takken dicht zijn |
 | Presentatie-metadata van een blok | `src/Service/Blocks/BlockDefinition.php` (`label()`, `description()`, `category()`, `icon()`, `preview()`, `useCases()`, `sampleContent()`, `renderSample()`), `BlockCategories.php`, `BlockPreview.php`, `BlockSamples.php` |
 | Blokkenkiezer | `admin/_block_picker.php`, `admin/assets/block-picker.js`, gebruikt door `admin/page.php` |
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
@@ -673,7 +673,7 @@ Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
 
 | Blok | Editor | Endpoint |
 |---|---|---|
-| Kaarten-carrousel | `admin/card-carousel.php` (kop, weergave, kaarten: volgorde, *Actief*, verwijderen) | `api/admin/update-card-carousel.php` |
+| Kaarten-carrousel | `admin/card-carousel.php` (kop, weergave, kaarten: volgorde, *Actief*, verwijderen); per kaart `admin/carousel-card.php` (*Labelweergave*, woorden, afbeelding, knop, tags) | `api/admin/update-card-carousel.php`, `api/admin/update-carousel-card.php` |
 | — een kaart daarvan | `admin/carousel-card.php` (woorden, nummer, afbeelding, knop, tags) | `api/admin/update-carousel-card.php` |
 | FAQ | `admin/faq.php` (kop, *Actief*, vragen) | `api/admin/update-faq-section.php` |
 | Cijferbalk | `admin/stat-strip.php` (*Actief*, stats) | `api/admin/update-stat-strip.php` |
@@ -681,7 +681,7 @@ Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
 | Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
 | Kaartenraster | `admin/feature-grid.php` (kop, ook de titel optioneel, *Actief*, inklapbare kaarten met icoon) | `api/admin/update-feature-grid.php` |
 | Tekst met afbeelding | `admin/text-image-split.php` (*Actief*, optionele titel en introtekst boven de items, inklapbare items: bovenschrift, titel, rich tekst, afbeelding uit de mediabibliotheek met alt-tekst, kant, breedte, hoogte, focuspunt, knop met linkdoel) | `api/admin/update-text-image-split-section.php` |
-| Detailsectie | `admin/detail-section.php` (woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij) | `api/admin/update-detail-section.php` |
+| Detailsectie | `admin/detail-section.php` (*Nummer / label*, woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij met een focuspunt per item) | `api/admin/update-detail-section.php` |
 | Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen met linkdoel, badge, media en lay-out, afbeelding en video uit de mediabibliotheek, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 | Hover kaarten grid | `admin/hover-card-grid.php` (kop, weergave, inklapbare kaarten: afbeelding, tweede afbeelding, label, titel, tekst, link met linkdoel en linktekst) | `api/admin/update-hover-card-grid.php` |
 

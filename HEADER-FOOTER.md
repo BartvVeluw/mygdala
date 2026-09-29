@@ -232,6 +232,20 @@ Diensten                 niveau 1   link (of een kop zonder bestemming)
   (`docs/pages/NESTING.md`, §10). Een diep geneste pagina kan een link op
   niveau 1 zijn, en een link naar een hoofdpagina kan een submenu van alles
   hebben. Een paginalink krijgt via `LinkResolver` vanzelf het geneste pad.
+- **Inklappen in het CMS** (v0.1.13). Op `admin/navigation.php` heeft elk item
+  met submenu-items een knop vóór zijn naam die zijn submenu-zone
+  (`#nav-children-<id>`) verbergt, met alle niveaus eronder
+  (`admin/assets/navigation-tree.js`). Elk item houdt zijn eigen stand, dus
+  een ouder weer openklappen toont de boom zoals hij was. De stand staat per
+  browser in localStorage (`mygdalaNavigationTree`, `{closed: {<id>: true}}`);
+  localStorage is al per installatie (één origin), en een id van een
+  verwijderd item doet niets. Alleen weergave: de website, de volgorde, de
+  nesting en het mobiele menu veranderen niet, en er wordt niets gepost.
+  Slepen neemt de zone van een rij mee, ingeklapt of niet (`admin.js`,
+  `navChildrenOf()`: de zone direct na een rij is van die rij); vóór v0.1.13
+  bleef een submenu bij het slepen van zijn ouder achter op de oude plek. Een
+  adres met `#nav-item-<id>` (waar ↑/↓ landt) klapt de items erboven voor dat
+  bezoek open, zonder de bewaarde stand te veranderen.
 
 ### Submenu's: link en pijltje
 

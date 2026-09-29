@@ -68,6 +68,14 @@ en controleer allebei de helften apart:
 Zo niet: 404, vóór er iets geschreven wordt. `api/admin/update-faq-section.php`
 laat zien hoe dat eruitziet.
 
+**Een blok-endpoint vraagt geen letterlijk `pages.manage`.** Een bloklijst kan
+van een pagina, een product of een project zijn, en elk vraagt zijn eigen
+recht. Zet `ContentBlockAccess::requireAnyForApi()` waar anders het recht staat
+en zoek de pagina op met `ContentBlockAccess::pageForKeyForApi()`: dat
+controleert meteen het recht van die lijst. Zet het bestand in
+`OWNER_AWARE_BLOCK_ENDPOINTS` van `AdminAccessControlTest`
+(`CONTENT-BLOCKS.md`, "Wie mag welke blokken beheren").
+
 ## Permissies en modules
 
 Vraag de permissie die bij het domein hoort, niet de eerste de beste. Een

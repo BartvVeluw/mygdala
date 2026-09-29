@@ -117,8 +117,19 @@ en `GenericBlockDefaultsTest` bewaken beide.
   met `ItemGallerySelection` en toon hem met `admin/_gallery_selection.php`;
   willekeur gaat via `App\Service\RandomOrder`, op de server
   (`CONTENT-BLOCKS.md`, "Projecten 2.0").
+- **Editor en endpoint zijn eigenaarsbewust.** Een blok kan op een pagina,
+  een product of een project staan, en het recht hoort bij de eigenaar, niet
+  bij de houderpagina: `ContentBlockAccess::requireAny()` /
+  `requireAnyForApi()` op de plek van het recht, de pagina via
+  `pageForKey()` / `pageForKeyForApi()`, de terug-link via
+  `ContentBlockAccess::listUrl($page)`, en beide bestanden in de lijsten van
+  `AdminAccessControlTest` (`CONTENT-BLOCKS.md`, "Wie mag welke blokken
+  beheren").
+- **Een nummer of label boven een titel?** Gebruik `App\Service\Blocks\LabelMode`
+  en het veld `admin/_label_mode_field.php`; een nummer is een plek, nooit
+  opgeslagen.
 - **Een blok van een module met een eigen editor** (Uitgelicht product van de
-  Shop) vraagt `pages.manage`, een Core-recht dat ook met de module uit
+  Shop) vraagt het recht van zijn bloklijst (`pages.manage` op een pagina), een Core-recht dat ook met de module uit
   gehouden wordt. Zet daarom `ModuleGuard::requireAdmin()` bovenaan de editor
   en `ModuleGuard::requireApi()` bovenaan het endpoint, en claim het scherm in
   `AdminNavigation` onder *Pagina's*.

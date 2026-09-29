@@ -881,8 +881,8 @@ Alles wat er ook zou zijn zonder webshop.
   ook echt weg: vóór het blok bleven aantal en knop op de productpagina naast
   *Uitverkocht* staan, omdat `display: flex` het attribuut `hidden`
   overschreef. Met de Shop uit is het blok niet geregistreerd; zijn editor en
-  endpoint vragen `pages.manage` (Core) en hebben daarom een eigen
-  `ModuleGuard`.
+  endpoint vragen het recht van hun bloklijst (`pages.manage` op een pagina,
+  Core) en hebben daarom een eigen `ModuleGuard`.
 - Gerelateerde producten — `RelatedProductsContent`,
   `admin/related-products.php`, `partials/related-products.php`.
 - Winkelwagen — volledig client-side (`vvl-cart` in `localStorage`,
@@ -1186,8 +1186,9 @@ herroeping ook, een tarief bij een winkelmandje), dus geen aparte modules.
 **Pagina-inhoud van een product** (Product & Portfolio Content Pages 1.0).
 Een product kan dezelfde contentblokken krijgen als een pagina, op het
 tabblad *Pagina-inhoud* van de producteditor (alleen voor een bestaand
-product, en alleen voor wie `pages.manage` heeft: elke blok-editor vraagt
-dat). `product.php` rendert ze onder de productdetail (galerij, naam, prijs,
+product, voor wie het product mag beheren: `products.manage`; niet
+`pages.manage`, dat alleen geeft geen toegang tot de blokken van een product,
+`CONTENT-BLOCKS.md`, "Wie mag welke blokken beheren"). `product.php` rendert ze onder de productdetail (galerij, naam, prijs,
 voorraad, varianten, bestelvelden, specificaties, bestellen) en de
 personalisatie, en boven *Gerelateerde producten*. De productdetail blijft de
 kop van de pagina: blokken zijn aanvullende redactionele inhoud, en de
@@ -1507,7 +1508,7 @@ foto's) staat niet meer vast met de foto links:
 | Afbeelding links (`image_left`) | de kop zoals altijd, geen modifier-klasse, dan de contentblokken |
 | Afbeelding rechts (`image_right`) | de kop met de foto rechts (`project-hero--image-right`), dan de blokken |
 | Afbeelding boven (`image_top`) | de foto breed boven de tekst (`project-hero--image-top`), dan de blokken |
-| Vrije indeling (`free`) | alleen de contentblokken; het blok **Projectinformatie** zet de kop waar de redacteur het plaatst |
+| Vrije indeling (`free`) | alleen de contentblokken, geen kop van zichzelf; het blok **Projectinformatie** zet de kop waar de redacteur het plaatst, en zonder dat blok staat er geen |
 
 - **De standaard** staat bij *Portfolio → Instellingen* (site-instelling
   `portfolio_project_layout`, standaard `image_left`: een bestaande site ziet
@@ -1522,16 +1523,32 @@ foto's) staat niet meer vast met de foto links:
   foto's wel of niet) en toont de projectgegevens **live** uit het project:
   een nieuwe titel of foto staat er meteen, er is niets gekopieerd. Het
   rendert alleen bij de vrije indeling; bij een vaste layout staat de kop al
-  bovenaan en blijft het blok stil (de editor zegt dat). Een project met de
-  vrije indeling **zonder** dit blok houdt zijn kop bovenaan
-  (`ProjectInfoContent::isPlacedOn()`), zodat een standaard op *Vrije
-  indeling* nooit projectpagina's zonder titel en foto oplevert.
+  bovenaan en blijft het blok stil (de editor zegt dat), dus terug naar een
+  vaste layout toont het project nooit twee keer en verliest geen blok.
+- **Vrije indeling is echt vrij** (v0.1.13). `portfolio-detail.php` drukt bij
+  `free` geen kop van zichzelf af, ook niet als er geen Projectinformatie-blok
+  is. Opdat dat nooit onverwacht een lege pagina geeft, zet **de overstap**
+  naar vrij één Projectinformatie-blok bovenaan een project dat er nog geen
+  heeft (`App\Service\ProjectInfoPlacement`): bij de eigen layout van het
+  project (`update-portfolio-item.php`: vast → vrij) en bij de standaard
+  (`update-portfolio-settings.php`: voor elke projectpagina die de standaard
+  volgt). Alleen bij de overstap, nooit bij een latere opslag, en nooit een
+  tweede (`ProjectInfoContent::isPlacedOn()`, verborgen telt mee). Daarna is
+  het een gewoon blok: verplaatsen, verbergen, verwijderen. Zonder blok toont
+  het tabblad *Pagina-inhoud* de niet-blokkerende waarschuwing *Deze vrije
+  indeling bevat geen Projectinformatie-blok.* Terug naar vast en weer naar
+  vrij: alle blokken staan er nog; zet de overstap er een blok bij als het er
+  geen meer had. De vrije indeling bestond alleen op deze branch (nog niet
+  uitgebracht), dus er is geen migratie voor bestaande vrije projecten.
 - **Gerelateerde projecten en de oproep** van de Portfolio-pagina blijven de
   vaste slotzone onder de blokken, in elke layout. Ze als blok verplaatsbaar
   maken was geen V1-werk.
 - Het project verwijderen neemt de blokken en de inhoudspagina mee
   (`api/admin/delete-portfolio-item.php`); met de Portfolio uit is de
   projectpagina een 404 en blijft alles bewaard.
+- **Rechten.** De blokken van een project beheert wie het project mag
+  beheren: `portfolio.manage`, niet `pages.manage` (`CONTENT-BLOCKS.md`,
+  "Wie mag welke blokken beheren").
 
 **De legacy-koppeling naar een gewone pagina blijft werken.** Tussen fase 4B
 en Portfolio 2.0 kon een item naar een gewone CMS-pagina linken
@@ -1630,8 +1647,8 @@ hierboven: de afbeelding zoomt, en "Bekijk project" volgt de drie regels.
 Waarom het toch een eigen bloktype is, staat in
 `docs/content-blocks/DECISIONS.md`.
 
-- De editor (`admin/project-cards.php`, met `pages.manage` zoals elke
-  blokeditor) vraagt welke projecten (Projecten 2.0, `CONTENT-BLOCKS.md`):
+- De editor (`admin/project-cards.php`, met het recht van zijn bloklijst
+  zoals elke blokeditor) vraagt welke projecten (Projecten 2.0, `CONTENT-BLOCKS.md`):
   *Alle projecten*, *Eén categorie* of *Handmatige selectie*, in welke volgorde
   (de standaard Portfolio-volgorde, nieuwste, oudste, A–Z, Z–A of
   willekeurig), een maximum (3, 4, 6, 8, 12 of alles), filterknoppen per

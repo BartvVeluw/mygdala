@@ -504,7 +504,7 @@ elke plek die een beeld bijsnijdt dezelfde keuzes, in één veld in de editor,
 | Weergave in het kader | `<prefix>fit`: `cover` (vullen, bijsnijden) of `contain` (de hele afbeelding); `<prefix>mobile_fit` | `cover`; op een telefoon `NULL`: zoals op een groot scherm |
 | Hoogte op een telefoon | `<prefix>mobile_height`: `compact`, `normal` of `large` | `NULL`: de eigen hoogte van het blok |
 
-De zeven plekken, en welke keuzes ze hebben:
+De acht plekken, en welke keuzes ze hebben:
 
 | Plek | Tabel, prefix | Weergave | Telefoonhoogte |
 |---|---|---|---|
@@ -515,6 +515,7 @@ De zeven plekken, en welke keuzes ze hebben:
 | Mediabanner | `media_banners`, `image_` | ja | ja |
 | Hover kaarten grid, hoofdafbeelding | `hover_card_grid_items`, `image_` | ja | nee: de vorm van het grid |
 | Homepage-hero | `homepage_hero`, `image_` | nee | nee |
+| Galerij-item van een Detailsectie (v0.1.13) | `detail_section_images`, `image_` | nee: altijd een vierkant, vullen | nee; ook geen telefoonafbeelding en geen telefoonpunt in de editor: de strook op een telefoon toont hetzelfde vierkant met hetzelfde punt. De kolommen van het slot bestaan wel, `NULL` |
 
 **Eén model.** `App\Service\Media\ResponsiveImage` is de waarde: lezen uit
 een rij, een formulier valideren, en wat de partial krijgt.
@@ -605,7 +606,10 @@ aanwijzen, vult het kader altijd vanuit het midden; het veld zegt dat.
 Portfolio-projecten en blogberichten hebben hun eigen media en schermen;
 die vallen buiten deze fase. De hoofdafbeelding van een Detailsectie wordt
 niet bijgesneden (volle breedte, eigen verhouding), dus een focuspunt doet
-daar niets; haar galerij is een galerij. Een icoon (*Kenmerken in kaartjes*)
+daar niets; haar galerij-items wel (sinds v0.1.13 een plek, hierboven). Hun
+punt hoort bij de galerijrij, ook als het item de foto van een product,
+project of blogbericht toont: die foto zelf krijgt geen punt, en een nieuwe
+foto van dat item staat meteen in beeld met het punt van de galerij. Een icoon (*Kenmerken in kaartjes*)
 is een SVG die nooit wordt bijgesneden. Het deelbeeld (`og_media_id`) staat
 niet op de site zelf.
 
@@ -965,7 +969,7 @@ er met een icoon in, omdat er van een video geen stilstaand beeld is.
 | Deel-afbeelding per CMS-pagina | `pages.og_media_id` |
 | Tekst met afbeelding (`text_image_split`) | `text_image_split_items.media_id`, één per item en optioneel; elk item telt als gebruik, ook twee items van één blok met hetzelfde beeld |
 | Detailsectie (`detail_section`) | `detail_sections.main_media_id` + `detail_section_images.media_id` |
-| Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id` |
+| Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id`, en het icoon van een kaartlabel (`carousel_cards.label_icon_media_id`, alleen bij *Labelweergave: Icoon*; een SVG, `MediaType::ICON`, versiering met `alt=""` en `aria-hidden`). Kiest de kaart een andere labelweergave, dan wordt de verwijzing leeggemaakt en telt het icoon niet meer als gebruikt. Tak *Carrousel-kaart (label-icoon)*; `ON DELETE RESTRICT` |
 | Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad: een paginakop had nooit een afbeelding. Eigen alt-tekst per taal (`image_alt` in `block_translations`) alleen voor een beeld náást de tekst; een beeld áchter de tekst is versiering (`alt=""`). *Geen afbeelding* maakt de verwijzing leeg, zodat het item niet meer als gebruikt telt |
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
 | Eigen icoon van een kaart in *Kenmerken in kaartjes* (`feature_grid`) | `feature_grid_items.icon_media_id`, alleen als `icon_key = custom`; geen oud pad en geen alt-tekst, want het icoon is versiering (`aria-hidden`, `alt=""`): de titel en tekst van de kaart dragen de betekenis. Kiest de kaart weer een standaardicoon of *Geen*, dan wordt de verwijzing leeggemaakt en telt het item niet meer als gebruikt |
@@ -978,7 +982,7 @@ er met een icoon in, omdat er van een video geen stilstaand beeld is.
 | Mediabanner: meer items na elkaar | `media_banner_items.media_id`, de afbeeldingen en video's na het eerste item, in hun volgorde. Alt-tekst van de bibliotheek. Tak *Mediabanner (reeks) op "…"*; `ON DELETE RESTRICT` |
 | Paginakop: meer afbeeldingen na elkaar | `page_hero_images.media_id`, de afbeeldingen na die van de kop zelf. Achter de tekst versiering (`alt=""`), naast de tekst de alt-tekst van de bibliotheek. Tak *Paginakop (diavoorstelling) op "…"*; `ON DELETE RESTRICT`. *Geen afbeelding* in de kop leegt ook deze lijst |
 | Hover kaarten grid (`hover_card_grid`) | `hover_card_grid_items.media_id` (verplicht, de alt-tekst van de bibliotheek) en `hover_card_grid_items.hover_media_id` (optioneel, de tweede afbeelding bij hover: `alt=""` en `aria-hidden`). Allebei alleen een afbeelding (`MediaService::findImage()`), zonder oud pad. Twee takken: *Hover kaarten grid op "…"* en *Hover kaarten grid (tweede afbeelding) op "…"*; `ON DELETE RESTRICT` op allebei |
-| Afbeelding voor een telefoon, op elk van de zeven plekken van *Responsive Media* | `<prefix>mobile_media_id` op `carousel_cards`, `text_image_split_items`, `page_heroes`, `cta_bands`, `media_banners`, `hover_card_grid_items` en `homepage_hero`. Alleen een afbeelding (`MediaItem::isPicture()`), zonder oud pad en zonder eigen alt-tekst: het is dezelfde inhoud als het beeld op een groot scherm. Eén tak per tabel in `ContentBlockMediaUsage`, met *(telefoon)* in het label; `ON DELETE RESTRICT` |
+| Afbeelding voor een telefoon, op elk van de plekken van *Responsive Media* | `<prefix>mobile_media_id` op `carousel_cards`, `text_image_split_items`, `page_heroes`, `cta_bands`, `media_banners`, `hover_card_grid_items`, `homepage_hero` en `detail_section_images` (die laatste zet de editor nooit, maar de tak staat er, zodat het contract overal hetzelfde is). Alleen een afbeelding (`MediaItem::isPicture()`), zonder oud pad en zonder eigen alt-tekst: het is dezelfde inhoud als het beeld op een groot scherm. Eén tak per tabel in `ContentBlockMediaUsage`, met *(telefoon)* in het label; `ON DELETE RESTRICT` |
 
 **Nog op een eigen pad**, ongewijzigd en werkend:
 
@@ -1118,7 +1122,7 @@ docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 | `Tests\Blog\BlogMediaAndSettingsTest` | de eerste module-provider: gebruik melden, niet kunnen verwijderen, niets melden met de module uit, en de berichttitel alleen noemen voor wie berichten mag bewerken (`blog.manage`) |
 | `Tests\Service\Media\ResponsiveImageTest` | Responsive Media: de waarde zonder database — onmogelijke waarden, een rij met vreemde cellen, de eigen kolommen van een plek, wat een formulier mag veranderen, wat de partial krijgt |
 | `ResponsiveImageRenderTest` | De markup: zonder telefooninstellingen de oude `<img>`, met een telefoonafbeelding één `<picture>` met één `<source>` en de alt-tekst één keer, custom properties voor punt en weergave, alles ge-escaped. Geen database |
-| `ResponsiveMediaContractTest` | Eén breekpunt, één markup, één stylesheet eerst, en dezelfde zeven plekken in repository, migraties en gebruik; niets leest de oude sleutelkolommen. Geen database |
+| `ResponsiveMediaContractTest` | Eén breekpunt, één markup, één stylesheet eerst, en dezelfde acht plekken in repository, migraties en gebruik; niets leest de oude sleutelkolommen. Geen database |
 | `ResponsiveImageEditorHttpTest` | Het veld over echte HTTP: het scherm in het Nederlands en Engels, opslaan en de `<picture>` op de pagina, geweigerde telefoonafbeeldingen, klemmen, *Gebruik desktopafbeelding*, een telefoonafbeelding als gebruik, de beeldverhouding van de carrousel, een Hover-kaart en de Homepage-hero |
 | `Tests\Install\ResponsiveMediaMigrationTest` | De twee migraties van Responsive Media op een verse en een bijgewerkte database: elke sleutel wordt precies zijn punt, de rest van een rij blijft, geen telefooninstelling op een bestaande rij, `RESTRICT` overal, een tweede run verandert niets (`migration-backfill`) |
 

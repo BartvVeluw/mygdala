@@ -1104,6 +1104,29 @@ eigen keuze, Projectinformatie, module uit, de admin-endpoints) zitten in
 `blocks` en `shop`. `ContentOwnerPagesMigrationTest` (vers en bijgewerkt,
 opnieuw draaien) zit in `migration` en `blocks`.
 
+Sinds v0.1.13 ook: `ContentBlockOwnerAccessHttpTest` (eigen `php -S`: wie de
+blokken van een pagina, product en project mag beheren, nagemaakte sleutels,
+pagina-, blok- en kaart-id's, de weg terug naar de eigenaar; `blocks` en
+`shop`) en in `ProductPortfolioContentPagesHttpTest` de echte vrije indeling
+(geen automatische kop, de overstap die één Projectinformatie-blok zet, de
+waarschuwing, terug naar vast en weer vrij, de standaard die vrij wordt).
+`AdminAccessControlTest` houdt de eigenaarsbewuste blokbestanden als gesloten
+lijst bij.
+
+### Labels, focuspunten en de menuboom (v0.1.13)
+
+`CardCarouselLabelModeHttpTest` (de vijf labelweergaven van een kaart, nummers
+die een volgorde volgen, het icoon en zijn gebruik, eigen tekst per taal) en
+`DetailSectionLabelModeHttpTest` (de nummering over de Detailsecties van de
+pagina, de modi, de ankernavigatie los daarvan) en
+`DetailSectionGalleryFocusHttpTest` (het focuspunt per galerij-item voor alle
+vier bronnen, een nieuwe foto van een item met het oude punt, klemmen en
+weigeren) zitten in `blocks`; `LabelModesAndGalleryFocusMigrationTest` (vers
+en bijgewerkt, wat een kaart toonde blijft, opnieuw draaien houdt een latere
+keuze) in `migration` en `blocks`; `NavigationTreeContractTest` (inklappen
+alleen als weergave, slepen neemt het submenu mee) in `contract`, `fast` en
+`cms`, naast de nieuwe controles in `NavigationAdminHttpTest`.
+
 ### Detailsectie 2.0 en het menu
 
 `DetailSectionTwoTest` (database: de ankervorm, de ankernavigatie onder de
