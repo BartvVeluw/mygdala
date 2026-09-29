@@ -47,6 +47,7 @@ final class UpdateConfig
     public const PUBLIC_KEY_VARIABLE = 'MYGDALA_UPDATE_PUBLIC_KEY';
     public const STORAGE_PATH_VARIABLE = 'MYGDALA_UPDATE_STORAGE_PATH';
     public const STEP_SECONDS_VARIABLE = 'MYGDALA_UPDATE_STEP_SECONDS';
+    public const HISTORY_URL_VARIABLE = 'MYGDALA_UPDATE_HISTORY_URL';
 
     /** No update request works longer than this, whatever the host allows. */
     public const MAX_STEP_SECONDS = 15.0;
@@ -74,6 +75,28 @@ final class UpdateConfig
         $configured = self::value(self::MANIFEST_URL_VARIABLE);
 
         return $configured !== '' ? $configured : self::DEFAULT_MANIFEST_URL;
+    }
+
+    /**
+     * Where the list of earlier releases comes from (App\Update\ReleaseHistory):
+     * the variable when it is set, otherwise the GitHub Releases API of the
+     * repository the manifest URL points into. A feed that is not on GitHub
+     * has no history unless the variable names one — null then, and the
+     * Updates screen says there is none. Only an address the updater may
+     * fetch at all (isAcceptableUrl) is returned.
+     */
+    public static function releaseHistoryUrl(): ?string
+    {
+        $configured = self::value(self::HISTORY_URL_VARIABLE);
+        if ($configured !== '') {
+            return self::isAcceptableUrl($configured) ? $configured : null;
+        }
+
+        if (preg_match('#\Ahttps://github\.com/([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]{1,100})/releases/#', self::manifestUrl(), $m) !== 1) {
+            return null;
+        }
+
+        return 'https://api.github.com/repos/' . $m[1] . '/' . $m[2] . '/releases?per_page=' . ReleaseHistory::MAX_RELEASES;
     }
 
     public static function publicKey(): string

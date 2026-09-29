@@ -13,6 +13,8 @@ use App\Update\AppVersion;
 use App\Update\MaintenanceMode;
 use App\Update\PreflightCheck;
 use App\Update\ReleaseDescriptor;
+use App\Update\ReleaseHistory;
+use App\Update\ReleaseNotesMarkdown;
 use App\Update\ReleaseKeys;
 use App\Update\UpdateConfig;
 use App\Update\UpdateException;
@@ -94,6 +96,10 @@ $installKind = match (true) {
 
 $check = $updater->lastCheck();
 $history = $updater->history();
+// Earlier releases to read back (ReleaseHistory): the list the last check
+// fetched, never fetched here.
+$releaseHistory = ReleaseHistory::fromConfig();
+$releases = $releaseHistory->read();
 $maintenance = new MaintenanceMode($root);
 $feedConfigured = UpdateConfig::manifestUrl() !== '';
 $keyConfigured = ReleaseKeys::trusted() !== [];
@@ -427,6 +433,75 @@ if (!$inLiveWindow) {
           $checkAge > Updater::CHECK_MAX_AGE => 'update.start.check_again',
           default => 'update.start.not_now',
       }) ?></p>
+    <?php endif; ?>
+  </section>
+
+  <?php /* ---- Earlier releases: read only, never installable ---- */ ?>
+  <section class="admin-card admin-updates__releases" data-release-history>
+    <h2><?= admin_te('update.releases.title') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('update.releases.intro') ?></p>
+
+    <?php if (!$releaseHistory->isAvailable()): ?>
+      <p class="admin-text-muted" data-release-history-state="no-source"><?= admin_te('update.releases.no_source') ?></p>
+    <?php else: ?>
+      <?php if (isset($releases['error'])): ?>
+        <div class="admin-alert admin-alert--warning" role="status" data-release-history-state="error">
+          <p><?= admin_te($releases['error']['key']) ?></p>
+          <?php if ($releases['releases'] !== [] && isset($releases['fetched_at'])): ?>
+            <p class="admin-text-muted"><?= admin_te('update.releases.stale', ['time' => $formatDate($releases['fetched_at'])]) ?></p>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($releases['releases'] === []): ?>
+        <?php if (!isset($releases['error'])): ?>
+          <p class="admin-text-muted" data-release-history-state="empty"><?= admin_te('update.releases.never_fetched') ?></p>
+        <?php endif; ?>
+      <?php else: ?>
+        <?php
+          $newestVersion = $releases['releases'][0]->version;
+          // "28 september 2026" in the CMS language: the month names are
+          // one message, so both catalogs carry their own.
+          $months = explode(',', admin_t('update.releases.months'));
+          $formatDay = static function (string $iso) use ($months): string {
+              $time = strtotime($iso);
+
+              return $time === false ? '' : date('j', $time) . ' ' . ($months[(int) date('n', $time) - 1] ?? date('m', $time)) . ' ' . date('Y', $time);
+          };
+        ?>
+        <div class="admin-updates__release-list">
+          <?php foreach ($releases['releases'] as $position => $release): ?>
+            <?php
+              $isInstalled = $release->version === $currentVersion;
+              $isNewest = $release->version === $newestVersion;
+              $day = $release->publishedAt !== '' ? $formatDay($release->publishedAt) : '';
+            ?>
+            <details class="admin-collapse admin-collapse--card admin-updates__release" data-release-version="<?= $h($release->version) ?>"<?= $position === 0 ? ' open' : '' ?>>
+              <summary class="admin-collapse__summary">
+                <span class="admin-collapse__caret" aria-hidden="true"></span>
+                <h3 class="admin-collapse__title">
+                  v<?= $h($release->version) ?><?php if ($day !== ''): ?> <span class="admin-updates__release-date">— <?= $h($day) ?></span><?php endif; ?>
+                </h3>
+                <span class="admin-collapse__badges">
+                  <?php if ($isNewest): ?><span class="admin-badge admin-badge--published" data-release-badge="latest"><?= admin_te('update.releases.latest') ?></span><?php endif; ?>
+                  <?php if ($isInstalled): ?><span class="admin-badge admin-badge--info" data-release-badge="installed"><?= admin_te('update.releases.installed') ?></span><?php endif; ?>
+                </span>
+              </summary>
+              <div class="admin-collapse__body">
+                <?php if (trim($release->notes) !== ''): ?>
+                  <div class="admin-updates__release-notes"><?= ReleaseNotesMarkdown::toHtml($release->notes) ?></div>
+                <?php else: ?>
+                  <p class="admin-text-muted"><?= admin_te('update.releases.no_notes') ?></p>
+                <?php endif; ?>
+              </div>
+            </details>
+          <?php endforeach; ?>
+        </div>
+        <p class="admin-text-muted admin-updates__release-policy"><?= admin_te('update.releases.no_downgrade') ?></p>
+        <?php if (isset($releases['fetched_at'])): ?>
+          <p class="admin-text-muted"><?= admin_te('update.releases.fetched_at', ['time' => $formatDate($releases['fetched_at'])]) ?></p>
+        <?php endif; ?>
+      <?php endif; ?>
     <?php endif; ?>
   </section>
 

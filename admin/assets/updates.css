@@ -42,6 +42,34 @@
   .admin-updates__facts dd{ margin-bottom: var(--admin-sp-3); }
 }
 
+/* Earlier releases (ReleaseHistory): one <details> card per version, the
+   shared .admin-collapse--card disclosure, with the notes formatted by
+   ReleaseNotesMarkdown (h3–h5, lists, paragraphs, code, links). */
+.admin-updates__release-list{ display: flex; flex-direction: column; gap: var(--admin-sp-3); }
+.admin-updates__release{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  padding: 0.7rem 0.9rem;
+  background: var(--admin-surface);
+}
+.admin-updates__release > .admin-collapse__summary .admin-collapse__title{ font-size: 1rem; }
+.admin-updates__release-date{ font-weight: 400; color: var(--admin-text-muted); }
+.admin-updates__release > .admin-collapse__body{ margin-top: 0.6rem; padding-top: 0.6rem; }
+.admin-updates__release-notes{ line-height: 1.6; overflow-wrap: anywhere; }
+.admin-updates__release-notes > :first-child{ margin-top: 0; }
+.admin-updates__release-notes > :last-child{ margin-bottom: 0; }
+.admin-updates__release-notes h3,
+.admin-updates__release-notes h4,
+.admin-updates__release-notes h5{ margin: 1.1em 0 0.35em; font-size: 0.98rem; }
+.admin-updates__release-notes h4{ font-size: 0.92rem; }
+.admin-updates__release-notes h5{ font-size: 0.88rem; color: var(--admin-text-muted); }
+.admin-updates__release-notes ul,
+.admin-updates__release-notes ol{ margin: 0.3em 0 0.7em; padding-left: 1.3em; }
+.admin-updates__release-notes li{ margin: 0.15em 0; }
+.admin-updates__release-notes p{ margin: 0 0 0.7em; }
+.admin-updates__release-notes code{ font-size: 0.88em; padding: 0.05em 0.3em; border-radius: 4px; background: var(--admin-surface-sunken); }
+.admin-updates__release-policy{ margin-top: 0.9rem; }
+
 .admin-updates__notes{
   padding: var(--admin-sp-3) var(--admin-sp-4);
   border: 1px solid var(--admin-border);

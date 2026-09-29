@@ -114,6 +114,7 @@
             <file>tests/Service/TurnstileVerifierTest.php</file>
             <file>tests/Update/VersionAndPathTest.php</file>
             <file>tests/Update/ReleaseManifestTest.php</file>
+            <file>tests/Update/ReleaseHistoryTest.php</file>
             <file>tests/Service/AdminEditorResponseTest.php</file>
             <file>tests/Service/ProductGalleryTransitionTest.php</file>
             <file>tests/Service/Secrets/MasterKeyTest.php</file>
@@ -346,6 +347,7 @@
             <file>tests/Service/TurnstileVerifierTest.php</file>
             <file>tests/Update/VersionAndPathTest.php</file>
             <file>tests/Update/ReleaseManifestTest.php</file>
+            <file>tests/Update/ReleaseHistoryTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
             <file>tests/Update/LineEndingsTest.php</file>
             <file>tests/Service/AdminEditorResponseTest.php</file>
