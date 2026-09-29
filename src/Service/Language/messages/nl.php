@@ -1360,7 +1360,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'media.responsive.axis_x' => 'Horizontaal',
     'media.responsive.axis_y' => 'Verticaal',
     'media.responsive.value' => 'Horizontaal :x%, verticaal :y%',
-    'media.responsive.contain_note' => 'Bij "Hele afbeelding" is de hele foto te zien, dus het focuspunt doet dan niets.',
+    'media.responsive.contain_note' => 'Bij "Hele afbeelding" is de hele foto te zien. Het focuspunt bepaalt dan alleen waar hij in het kader staat.',
     'media.responsive.fit' => 'Weergave in het kader',
     'help.media.responsive.fit' => 'Vullen vult het hele kader en snijdt de rest van de foto af; het focuspunt bepaalt wat zichtbaar blijft. Hele afbeelding toont de hele foto; waar die het kader niet vult, zie je de achtergrond van het blok.',
     'media.responsive.fit_cover' => 'Vullen',

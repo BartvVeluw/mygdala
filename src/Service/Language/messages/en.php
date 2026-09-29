@@ -1352,7 +1352,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'media.responsive.axis_x' => 'Horizontal',
     'media.responsive.axis_y' => 'Vertical',
     'media.responsive.value' => 'Horizontal :x%, vertical :y%',
-    'media.responsive.contain_note' => 'With "Whole picture" the whole photo is visible, so the focus point does nothing.',
+    'media.responsive.contain_note' => 'With "Whole picture" the whole photo is visible. The focus point then only decides where it sits in the frame.',
     'media.responsive.fit' => 'Display in the frame',
     'help.media.responsive.fit' => 'Fill covers the whole frame and crops the rest of the photo; the focus point decides what stays visible. Whole picture shows the whole photo; where it does not fill the frame, the block\'s background shows.',
     'media.responsive.fit_cover' => 'Fill',
