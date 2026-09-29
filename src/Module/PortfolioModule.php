@@ -322,6 +322,9 @@ final class PortfolioModule extends ModuleDefinition
     {
         return [
             'project_cards' => ProjectCardsBlock::class,
+            // A project's own head as a block, for the free project layout
+            // (Product & Portfolio Content Pages 1.0); only on a project's page.
+            'project_info' => \App\Service\Blocks\ProjectInfoBlock::class,
         ];
     }
 
@@ -372,6 +375,17 @@ final class PortfolioModule extends ModuleDefinition
     public function mediaUsageProviders(): array
     {
         return [new PortfolioMediaUsage()];
+    }
+
+    /**
+     * A project carries content blocks on its project page (Product &
+     * Portfolio Content Pages 1.0), through Core's one block engine
+     * (App\Service\ContentOwners\ContentPages); its layout decides where
+     * (App\Service\PortfolioProjectLayout).
+     */
+    public function contentOwners(): array
+    {
+        return [new \App\Service\PortfolioContentOwner()];
     }
 
     /**

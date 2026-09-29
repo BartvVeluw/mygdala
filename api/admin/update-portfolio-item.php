@@ -60,6 +60,12 @@
  * (validatePortfolioCategoryIds()) and persisted via
  * PortfolioGalleryRepository::setItemCategories(), not the legacy
  * `categories` string column.
+ *
+ * THE PROJECT LAYOUT (Portfolio layout 2.0): `project_layout` is '' for "Gebruik
+ * standaardinstelling" (stored NULL, so the project follows the Portfolio
+ * default whenever that changes) or one of PortfolioProjectLayout::LAYOUTS;
+ * anything else is refused. Only read when the form says it carries the field
+ * (`project_layout_submitted`).
  */
 
 declare(strict_types=1);
@@ -74,6 +80,7 @@ use App\Service\PortfolioImageProcessor;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
 use App\Service\PortfolioProjectGallery;
+use App\Service\PortfolioProjectLayout;
 use App\Service\PortfolioSlug;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
@@ -141,6 +148,21 @@ $catalogueItemIds = array_map(
 [$relatedErrors, $relatedSettings, $relatedItems] = validatePortfolioRelated($_POST, $itemId, $catalogueItemIds);
 $errors = array_merge($errors, $relatedErrors);
 
+// The project's own layout (Portfolio layout 2.0, App\Service\PortfolioProjectLayout):
+// '' follows the Portfolio default, anything else must be a layout. A form
+// without the field (`project_layout_submitted` absent) keeps what is stored.
+$layoutSubmitted = ($_POST['project_layout_submitted'] ?? '') === '1';
+$projectLayout = PortfolioProjectLayout::ownChoice($item['project_layout'] ?? null);
+if ($layoutSubmitted) {
+    $postedLayout = is_string($_POST['project_layout'] ?? null) ? $_POST['project_layout'] : '';
+
+    if ($postedLayout !== '' && !PortfolioProjectLayout::isValid($postedLayout)) {
+        $errors[] = \App\Service\Language\AdminTranslator::trans('validation.portfolio_layout_unknown');
+    }
+
+    $projectLayout = PortfolioProjectLayout::ownChoice($postedLayout);
+}
+
 $gallerySubmitted = ($_POST['gallery_submitted'] ?? '') === '1';
 $galleryTokens = array_values(array_filter(
     is_array($_POST['gallery'] ?? null) ? $_POST['gallery'] : [],
@@ -158,6 +180,7 @@ $old = $words + [
     'slug' => is_string($_POST['slug'] ?? null) ? trim($_POST['slug']) : '',
     'unlink_page' => ($_POST['unlink_page'] ?? '') === '1',
     'gallery' => $gallerySubmitted ? $galleryTokens : null,
+    'project_layout' => $layoutSubmitted && is_string($_POST['project_layout'] ?? null) ? $_POST['project_layout'] : ($projectLayout ?? ''),
 ] + ($relatedSettings ?? []) + ($relatedItems !== null ? ['related_items' => $relatedItems] : []);
 
 if ($errors !== []) {
@@ -193,6 +216,7 @@ try {
     $repository->setItemCategories($itemId, $categoryIds);
     $repository->setItemPage($itemId, $pageId);
     $repository->setItemProjectPage($itemId, $hasDetailPage, $slug);
+    $repository->setItemProjectLayout($itemId, $projectLayout);
 
     if ($relatedSettings !== null) {
         $repository->updateRelatedSettings($itemId, $relatedSettings);

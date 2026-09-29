@@ -68,6 +68,13 @@ try {
     $imageRepository = new PortfolioItemImageRepository();
     $extraImages = $imageRepository->findByPortfolioItemId($itemId);
 
+    // The project's content blocks and its content page first (Product &
+    // Portfolio Content Pages 1.0): portfolio_content_pages is RESTRICT, so
+    // the item cannot go while its page still exists. Each block goes through
+    // the block engine's own delete; a library picture a block used stays in
+    // the library.
+    \App\Service\ContentOwners\ContentPages::deleteFor(\App\Service\PortfolioContentOwner::KIND, $itemId);
+
     $repository->deleteItem($itemId);
 
     // A picture from the Media Library is the library's: deleting the item

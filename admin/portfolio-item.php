@@ -10,6 +10,8 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_item_picker.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_admin_tabs.php';
+require_once __DIR__ . '/_content_blocks.php';
 
 use App\Service\AdminAuth;
 use App\Service\AdminPermissions;
@@ -73,6 +75,15 @@ use App\Repository\PortfolioItemImageRepository;
  * one thing that can still be done with it — unlink it, which hands the
  * address back to the item's own project page and leaves the page itself
  * exactly where it is.
+ *
+ * TWO TABS on an existing item (Product & Portfolio Content Pages 1.0): Project
+ * — everything above, one form, as it always was — and Pagina-inhoud: the
+ * project's layout (Portfolio layout 2.0, App\Service\PortfolioProjectLayout)
+ * at the top, part of the same form and saved by the same Opslaan, then the
+ * project's content blocks through the block list every page has
+ * (admin/_content_blocks.php), which is not part of that form: each block is
+ * saved in its own editor. The block list asks pages.manage, like every block
+ * editor; without it the tab says so.
  *
  * Built from the shared admin controls (ADMIN-UI.md): field help, the media
  * picker, a switch per on/off setting, a checkbox per category, the shared
@@ -158,6 +169,17 @@ $hasDetailPageChecked = $old !== null && array_key_exists('has_detail_page', $ol
 $storedSlug = (string) ($item['slug'] ?? '');
 $slugValue = $old !== null && array_key_exists('slug', $old) ? (string) $old['slug'] : $storedSlug;
 $canManagePages = AdminAuth::can(AdminPermissions::PAGES_MANAGE);
+
+// The project's own layout as the form should show it: a refused save's own
+// choice, else what is stored ('' = follow the Portfolio default).
+$projectLayoutValue = $old !== null && array_key_exists('project_layout', $old)
+    ? (string) $old['project_layout']
+    : (string) (\App\Service\PortfolioProjectLayout::ownChoice($item['project_layout'] ?? null) ?? '');
+$defaultLayoutLabel = \App\Service\PortfolioProjectLayout::label(\App\Service\PortfolioProjectLayout::siteDefault());
+$effectiveLayout = $projectLayoutValue !== '' && \App\Service\PortfolioProjectLayout::isValid($projectLayoutValue)
+    ? $projectLayoutValue
+    : \App\Service\PortfolioProjectLayout::siteDefault();
+$projectKind = \App\Service\PortfolioContentOwner::KIND;
 
 // The item's legacy linked page (phase 4B), only when it has one.
 $legacyPage = $item !== null && (int) ($item['page_id'] ?? 0) > 0
@@ -378,12 +400,22 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
       </form>
     </section>
   <?php else: ?>
+    <?php admin_tabs_start('portfolio-item', [
+        'project' => admin_t('portfolio.tab_project'),
+        'inhoud' => admin_t('content_blocks.tab'),
+    ], [
+        'scope' => (string) (int) $item['id'],
+        'label' => admin_t('portfolio.tabs_label'),
+        'force' => ($_GET['tab'] ?? '') === 'inhoud' ? 'inhoud' : ($errors !== [] ? 'project' : null),
+    ]); ?>
     <form method="post" action="/api/admin/update-portfolio-item.php" enctype="multipart/form-data"<?= $old !== null ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
       <?php /* ONE language per request: the endpoint writes exactly this one
                and leaves every other translation of this item alone. */ ?>
       <?= admin_localized_input($editingLanguage) ?>
+
+      <?php admin_tab_panel('project'); ?>
 
       <section class="admin-card">
         <h2><?= admin_te('portfolio.hoofdafbeelding') ?></h2>
@@ -654,7 +686,42 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
       <section class="admin-card">
         <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
       </section>
+      <?php admin_tab_panel_end(); ?>
+
+      <?php /* The layout belongs to the project, so it is part of this form
+               and saved with it; it sits on the Pagina-inhoud tab because it
+               decides what the blocks below it are for. */ ?>
+      <?php admin_tab_panel('inhoud'); ?>
+      <section class="admin-card">
+        <h2><?= admin_te('portfolio.layout.label') ?></h2>
+        <input type="hidden" name="project_layout_submitted" value="1">
+        <div class="admin-field">
+          <?= admin_field_label('portfolio-project-layout', admin_t('portfolio.layout.label'), admin_t('help.portfolio.layout')) ?>
+          <select class="admin-select" id="portfolio-project-layout" name="project_layout">
+            <option value=""<?= $projectLayoutValue === '' ? ' selected' : '' ?>><?= admin_te('portfolio.layout.inherit', ['layout' => $defaultLayoutLabel]) ?></option>
+            <?php foreach (\App\Service\PortfolioProjectLayout::LAYOUTS as $layout): ?>
+              <option value="<?= $h($layout) ?>"<?= $projectLayoutValue === $layout ? ' selected' : '' ?>><?= admin_te('portfolio.layout.' . $layout) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <p class="admin-text-muted"><?= $effectiveLayout === \App\Service\PortfolioProjectLayout::FREE ? admin_te('content_blocks.project_intro_free') : admin_te('content_blocks.project_intro') ?></p>
+        <?php if ((int) ($item['has_detail_page'] ?? 0) !== 1): ?>
+          <p class="admin-alert admin-alert--warning"><?= admin_te('content_blocks.project_page_off') ?></p>
+        <?php endif; ?>
+        <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
+      </section>
+      <?php admin_tab_panel_end(); ?>
     </form>
+
+    <?php admin_tab_panel('inhoud'); ?>
+    <?php if ($canManagePages): ?>
+      <?php content_blocks_owner_panel($projectKind, (int) $item['id'], $csrfToken); ?>
+    <?php else: ?>
+      <p class="admin-text-muted"><?= admin_te('content_blocks.no_permission') ?></p>
+    <?php endif; ?>
+    <?php admin_tab_panel_end(); ?>
+
+    <?php admin_tab_panel('project'); ?>
 
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>
@@ -669,14 +736,23 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
         <button type="submit" class="admin-btn-danger"><?= admin_te('portfolio.portfolio_item_verwijderen') ?></button>
       </form>
     </section>
+    <?php admin_tab_panel_end(); ?>
+    <?php admin_tabs_end(); ?>
 
-    <?= admin_confirm_dialog() ?>
+    <?php if ($canManagePages): ?>
+      <?php content_blocks_owner_modals($projectKind, (int) $item['id'], $csrfToken); ?>
+    <?php else: ?>
+      <?= admin_confirm_dialog() ?>
+    <?php endif; ?>
   <?php endif; ?>
 </main>
 <?php media_picker_modal(); ?>
 <?php if ($isEdit): ?>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_tabs_script(); ?>
+<?php admin_collapse_script(); ?>
+<?php content_blocks_scripts(); ?>
 <?php endif; ?>
 </body>
 </html>

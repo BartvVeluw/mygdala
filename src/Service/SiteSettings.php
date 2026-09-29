@@ -242,6 +242,11 @@ class SiteSettings
         // word of that collection. Note that all() only overrides a default
         // when the stored value is !== '' (a strict comparison), so a stored
         // '0' really does turn related_products_enabled off.
+        // How a Portfolio project page is built when the project has no layout
+        // of its own (App\Service\PortfolioProjectLayout). Picture on the left:
+        // how every project page looked before it was a choice.
+        'portfolio_project_layout' => 'image_left',
+
         'related_products_enabled' => '1',
         'related_products_max_items' => '4',
 

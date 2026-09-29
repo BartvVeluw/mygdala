@@ -1308,6 +1308,24 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 }
 .project-hero__panel .rich-content + .rich-content{ margin-top: 1.25rem; }
 
+/* Portfolio layout 2.0 (App\Service\PortfolioProjectLayout, partials/project-hero.php):
+   the picture on the right, or on top. Left is the unmodified grid above. On
+   a narrow screen every layout is the same single column, picture first. */
+.project-hero--image-right .project-hero__grid{ grid-template-columns: 1fr 1.1fr; }
+.project-hero--image-right .project-hero__media{ order: 2; }
+.project-hero--image-top .project-hero__grid{ grid-template-columns: 1fr; gap: var(--sp-5); }
+.project-hero--image-top .project-hero__image{ aspect-ratio: 16 / 9; }
+.project-hero--image-top .project-hero__panel{ max-width: 46rem; }
+@media (max-width: 960px){
+  .project-hero--image-right .project-hero__grid{ grid-template-columns: 1fr; }
+  .project-hero--image-right .project-hero__media{ order: 0; }
+  .project-hero--image-top .project-hero__image{ aspect-ratio: 4 / 3; }
+}
+/* The head placed by the Projectinformatie block below other blocks: ordinary
+   section spacing, not the room a page head leaves under the site header.
+   Directly under the breadcrumb, `.breadcrumb-bar + .project-hero` still wins. */
+.project-hero--in-flow{ padding-top: var(--sp-6); }
+
 @media (prefers-reduced-motion: reduce){
   .project-hero__zoom, .project-hero__image{ transition: none; }
   .project-hero__zoom:hover{ transform: none; }

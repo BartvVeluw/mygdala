@@ -13,6 +13,7 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 require_once __DIR__ . '/partials/lightbox.php';
 require_once __DIR__ . '/partials/section-cta-band.php';
 require_once __DIR__ . '/partials/section-item-gallery.php';
+require_once __DIR__ . '/partials/project-hero.php';
 
 /**
  * A Portfolio item's own project page at /portfolio/<slug> (Portfolio 2.0,
@@ -20,8 +21,19 @@ require_once __DIR__ . '/partials/section-item-gallery.php';
  * `pages` row. One fixed structure, filled by the item's own content —
  * breadcrumb, categories, title, short text, main picture, intro,
  * description, the extra photos and a way back to the Portfolio — through
- * App\Service\PortfolioGalleryContent::itemForDetailPage(). V1 is structured
- * content, deliberately not a page builder: no blocks here.
+ * App\Service\PortfolioGalleryContent::itemForDetailPage().
+ *
+ * THE LAYOUT AND THE BLOCKS (Product & Portfolio Content Pages 1.0, Portfolio
+ * layout 2.0, App\Service\PortfolioProjectLayout): the project's own head
+ * (partials/project-hero.php) with the picture on the left — how every
+ * project page looked before —, on the right or on top, followed by the
+ * content blocks of the project's Pagina-inhoud tab; or the FREE layout,
+ * where those blocks are the whole page and the Projectinformatie block puts
+ * the project's head wherever the editor placed it. The blocks come from the
+ * project's content page through the one block engine
+ * (App\Service\ContentOwners\ContentPages); a project without blocks renders
+ * exactly what it did. The title, canonical and share image stay the
+ * project's own (PortfolioSeo): a block adds content, never metadata.
  *
  * Four answers, in this order:
  *
@@ -137,15 +149,13 @@ $breadcrumb = \App\Service\Breadcrumbs\BreadcrumbTrail::home()
 
 // The way back, only to an overview a visitor may open: the overview page
 // while it is published, the module's own overview while there is no page.
-$portfolioPage = \App\Service\PortfolioUrls::overviewPage();
-if ($portfolioPage === null) {
-    $portfolioUrl = \App\Service\Routing\LocalizedUrl::path(\App\Service\PortfolioUrls::OVERVIEW_PATH);
-} else {
-    $portfolioUrl = \App\Service\PageContent::isPublished($portfolioPage)
-        && \App\Service\PageContent::isServedByAnEnabledModule($portfolioPage)
-        ? \App\Service\PageContent::publicUrl($portfolioPage)
-        : null;
-}
+$portfolioUrl = \App\Service\PortfolioUrls::backLink();
+
+// How this project's page is built, and where its content blocks are stored.
+$projectLayout = $portfolioItem !== null ? \App\Service\PortfolioProjectLayout::forItem($portfolioItem) : null;
+$projectContentKey = $portfolioItem !== null
+    ? \App\Service\ContentOwners\ContentPages::contentKey(\App\Service\PortfolioContentOwner::KIND, (int) $portfolioItem['id'])
+    : null;
 
 ?>
 <!doctype html>
@@ -167,6 +177,9 @@ if ($cta['state'] !== \App\Service\CtaBandContent::STATE_HIDDEN) {
 }
 if ($relatedProjects !== null) {
     \App\Service\PageAssets::requireStyle('assets/css/blocks/item-gallery.css');
+}
+if ($projectContentKey !== null) {
+    \App\Service\SectionRegistry::collectPageAssets($projectContentKey);
 }
 require __DIR__ . '/partials/page-assets.php';
 ?>
@@ -195,81 +208,22 @@ require __DIR__ . '/partials/header.php';
   </section>
 <?php else: ?>
   <?php
-    $zoomLabel = static fn (string $name): string => \App\Service\Language\SiteText::pick(['nl' => 'Vergroot afbeelding: ', 'en' => 'Enlarge image: ']) . $name;
-    $hasMainImage = (string) $portfolioItem['image_path'] !== '';
+  // The project's own head, unless the free layout leaves it to the
+  // Projectinformatie block the editor placed; then the project's content
+  // blocks. A free project WITHOUT that block keeps its head on top
+  // (ProjectInfoContent::isPlacedOn()).
+  if ($projectLayout !== \App\Service\PortfolioProjectLayout::FREE
+      || !\App\Service\ProjectInfoContent::isPlacedOn((int) $portfolioItem['id'])
+  ) {
+      render_project_hero(
+          $portfolioItem,
+          \App\Service\PortfolioProjectLayout::imagePosition((string) $projectLayout),
+          true,
+          $portfolioUrl
+      );
+  }
+  \App\Service\SectionRegistry::renderPage((string) $projectContentKey);
   ?>
-  <section class="project-hero" data-lightbox-group>
-    <div class="container">
-      <div class="project-hero__grid">
-        <?php if ($hasMainImage): ?>
-        <figure class="project-hero__media" data-reveal>
-          <button type="button" class="project-hero__zoom" data-lightbox-trigger
-            data-src="/<?= $h($portfolioItem['image_path']) ?>"
-            data-alt="<?= $h($portfolioItem['alt']) ?>"
-            data-caption="<?= $h($portfolioItem['alt']) ?>"
-            aria-label="<?= $h($zoomLabel($projectName)) ?>">
-            <img src="/<?= $h($portfolioItem['image_path']) ?>" alt="<?= $h($portfolioItem['alt']) ?>" class="project-hero__image" fetchpriority="high">
-          </button>
-        </figure>
-        <?php endif; ?>
-
-        <div class="project-hero__panel" data-reveal data-reveal-group="project-hero">
-          <?php if ($portfolioItem['categories'] !== []): ?>
-            <ul class="tag-list">
-              <?php foreach ($portfolioItem['categories'] as $category): ?>
-                <li class="tag"><?= $h($category['name']) ?></li>
-              <?php endforeach; ?>
-            </ul>
-          <?php endif; ?>
-
-          <h1 class="project-hero__title"><?= $h($projectName) ?></h1>
-
-          <?php if ($portfolioItem['subtitle'] !== ''): ?>
-            <p class="lead project-hero__subtitle"><?= $h($portfolioItem['subtitle']) ?></p>
-          <?php endif; ?>
-
-          <span class="project-hero__divider" aria-hidden="true"></span>
-
-          <?php if ($portfolioItem['intro'] !== ''): ?>
-            <?php
-              // `intro` and `description` are already sanitized HTML in the
-              // language of the request (RichTextSanitizer, both at save time
-              // and again in App\Service\PortfolioLocalization::itemRich()) —
-              // rendered here as real markup, never escaped back to plain
-              // text.
-            ?>
-            <div class="rich-content rich-content--intro"><?= $portfolioItem['intro'] ?></div>
-          <?php endif; ?>
-          <?php if ($portfolioItem['description'] !== ''): ?>
-            <div class="rich-content"><?= $portfolioItem['description'] ?></div>
-          <?php endif; ?>
-
-          <?php if ($portfolioUrl !== null): ?>
-            <a class="project-hero__back" href="<?= $h($portfolioUrl) ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => '← Terug naar portfolio', 'en' => '← Back to portfolio']) ?></a>
-          <?php endif; ?>
-        </div>
-      </div>
-
-      <?php if ($portfolioItem['images'] !== []): ?>
-      <div class="project-gallery-section">
-        <h2 class="visually-hidden"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Meer afbeeldingen', 'en' => 'More images']) ?></h2>
-        <div class="project-gallery">
-          <?php foreach ($portfolioItem['images'] as $position => $extraImage): ?>
-            <?php $photoName = $extraImage['alt'] !== '' ? $extraImage['alt'] : $projectName . ' (' . ($position + 2) . ')'; ?>
-            <button type="button" class="project-gallery__item" data-lightbox-trigger
-              data-src="/<?= $h($extraImage['image_path']) ?>"
-              data-alt="<?= $h($extraImage['alt']) ?>"
-              data-caption="<?= $h($extraImage['alt']) ?>"
-              aria-label="<?= $h($zoomLabel($photoName)) ?>"
-              data-reveal data-reveal-group="project-gallery">
-              <img src="/<?= $h($extraImage['thumbnail_path']) ?>" alt="<?= $h($extraImage['alt']) ?>" loading="lazy">
-            </button>
-          <?php endforeach; ?>
-        </div>
-      </div>
-      <?php endif; ?>
-    </div>
-  </section>
 
   <?php
   // The project's related projects, the gallery's own cards and heading. The

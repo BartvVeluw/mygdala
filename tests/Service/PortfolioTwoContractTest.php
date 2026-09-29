@@ -74,7 +74,10 @@ final class PortfolioTwoContractTest extends TestCase
         $this->assertStringContainsString('(current + delta + slides.length) % slides.length', $script, 'it wraps around, like the project lightbox always did');
 
         $this->assertStringContainsString('data-gallery-block data-lightbox-group', self::source('partials/section-item-gallery.php'), 'each gallery block is its own group');
-        $this->assertStringContainsString('<section class="project-hero" data-lightbox-group>', self::source('portfolio-detail.php'), 'a project page is one group');
+        // The project's head is one partial now (Portfolio layout 2.0), printed by
+        // the page and by the Projectinformatie block alike.
+        $this->assertStringContainsString('<section class="project-hero<?= $modifiers ?>" data-lightbox-group>', self::source('partials/project-hero.php'), 'a project page is one group');
+        $this->assertStringContainsString('render_project_hero(', self::source('portfolio-detail.php'));
     }
 
     public function testKeyboardAndFocusAreHandled(): void

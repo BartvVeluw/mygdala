@@ -729,4 +729,14 @@ class PortfolioGalleryRepository extends Repository
 
         return (int) $stmt->fetch()['next_sort_order'];
     }
+
+    /**
+     * The project's own layout (App\Service\PortfolioProjectLayout), or NULL
+     * to follow the Portfolio default. The caller has checked the word.
+     */
+    public function setItemProjectLayout(int $itemId, ?string $layout): void
+    {
+        $stmt = $this->db->prepare('UPDATE portfolio_gallery_items SET project_layout = :layout WHERE id = :id');
+        $stmt->execute(['layout' => $layout, 'id' => $itemId]);
+    }
 }

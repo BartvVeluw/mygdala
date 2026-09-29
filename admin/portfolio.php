@@ -45,6 +45,7 @@ $saved = isset($_GET['saved']);
 $created = isset($_GET['created']);
 $deleted = isset($_GET['deleted']);
 $categorySaved = isset($_GET['category_saved']);
+$defaultLayout = \App\Service\PortfolioProjectLayout::siteDefault();
 
 $csrfToken = Csrf::token();
 
@@ -313,6 +314,25 @@ PortfolioLocalization::preloadItems(array_map(
     </div>
     <p class="admin-text-muted" data-portfolio-empty hidden><?= admin_te('portfolio.portfolio_items_gevonden_zoekopdracht') ?></p>
   <?php endif; ?>
+
+  <?php /* The Portfolio's own settings (Portfolio layout 2.0): how a project
+           page is built for every project that follows the default. A
+           project's own choice is on the project (admin/portfolio-item.php). */ ?>
+  <section class="admin-card" id="portfolio-instellingen">
+    <h2><?= admin_te('portfolio.settings.heading') ?></h2>
+    <form method="post" action="/api/admin/update-portfolio-settings.php" class="admin-product-form">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <div class="admin-field">
+        <?= admin_field_label('portfolio-default-layout', admin_t('portfolio.settings.default_layout'), admin_t('help.portfolio.default_layout')) ?>
+        <select class="admin-select" id="portfolio-default-layout" name="project_layout">
+          <?php foreach (\App\Service\PortfolioProjectLayout::DEFAULTS as $layout): ?>
+            <option value="<?= $h($layout) ?>"<?= $defaultLayout === $layout ? ' selected' : '' ?>><?= admin_te('portfolio.layout.' . $layout) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <button type="submit"><?= admin_te('portfolio.settings.save') ?></button>
+    </form>
+  </section>
 
   <?= admin_confirm_dialog() ?>
 </main>

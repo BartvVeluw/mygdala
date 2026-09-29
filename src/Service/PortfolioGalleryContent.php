@@ -845,6 +845,30 @@ class PortfolioGalleryContent
     }
 
     /**
+     * itemForDetailPage() for the project with this id: the same answer, the
+     * same visibility rules — what the Projectinformatie block asks about the
+     * project whose content page it is on (App\Service\Blocks\ProjectInfoBlock).
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function itemForDetailPageById(int $itemId): ?array
+    {
+        if ($itemId < 1) {
+            return null;
+        }
+
+        try {
+            $item = (new PortfolioGalleryRepository())->findItemById($itemId);
+        } catch (\Throwable $e) {
+            error_log('[PortfolioGalleryContent] itemForDetailPageById lookup failed for #' . $itemId . ': ' . $e->getMessage());
+
+            return null;
+        }
+
+        return $item === null ? null : self::itemForDetailPage((string) ($item['slug'] ?? ''));
+    }
+
+    /**
      * The item's own project page (portfolio-detail.php?slug=...) for an
      * address that has no legacy page to redirect to: the item's words in the
      * language of the request, its categories, its main picture and its extra
@@ -915,6 +939,9 @@ class PortfolioGalleryContent
             'id' => $itemId,
             'slug' => (string) $item['slug'],
             'updated_at' => $item['updated_at'] !== null ? (string) $item['updated_at'] : null,
+            // The project's own layout choice as stored, NULL = the Portfolio
+            // default; App\Service\PortfolioProjectLayout::forItem() decides.
+            'project_layout' => $item['project_layout'] ?? null,
             'image_path' => (string) $item['image_path'],
             'alt' => self::itemAlt($item, $language),
             'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
