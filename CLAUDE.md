@@ -109,6 +109,10 @@ docker compose exec php php vendor/bin/phinx create MyNewMigration
 Werk je in een worktree, dan heeft die eerst zijn eigen `vendor/` nodig, en
 noem je de compose-file van de hoofduitchecking met `-f`. Zie `TESTING.md`.
 
+De echte HTTP-tier, ook vanuit een worktree en zonder `.env`:
+`tests/Support/http-tier.sh run --db <testdatabase>` (`TESTING.md`, "De
+HTTP-tier"). Bij een checkpoint of release mag daarin niets overgeslagen zijn.
+
 Draai de tests in `php_test`. De ontwikkelcontainer heeft modules
 uitstaan, en `fast` faalt daar op zestien tests die niets met je wijziging te
 maken hebben. `TESTING.md` legt uit welke dat zijn.

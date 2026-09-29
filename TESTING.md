@@ -106,7 +106,8 @@ docker ps --filter "label=com.docker.compose.project=<mapnaam>"
 Daarin draaien `fast` en `full` functioneel groen. De HTTP-tests praten echter
 met de testwebcontainers, en slaan zichzelf over als die niet bereikbaar zijn.
 Een groene run met veel overgeslagen HTTP-tests is dus nog geen volledige
-HTTP-verificatie.
+HTTP-verificatie. De echte HTTP-tier draait ook zonder `.env`, met
+`tests/Support/http-tier.sh` (zie "De HTTP-tier").
 
 ### Vanuit een git worktree
 
@@ -1207,6 +1208,91 @@ aanmaken in de echte CMS-inhoud. Overschrijven kan met `TEST_BASE_URL`.
 Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
 Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
+
+### De echte HTTP-tier draaien: `tests/Support/http-tier.sh`
+
+Een run waarin de HTTP-tests zichzelf overslaan bewijst niets over de
+HTTP-laag. Het checkpoint en de release draaien de suite `http` daarom altijd
+tegen echte servers, met één script, vanuit de uitchecking die je test (de
+hoofduitchecking of een worktree):
+
+```bash
+tests/Support/http-tier.sh run --db mygdala_tests
+tests/Support/http-tier.sh run --db mygdala_tests_<naam> --testsuite fast
+tests/Support/http-tier.sh down
+```
+
+`run` start zo nodig twee wegwerpcontainers uit het image van de installatie,
+op haar eigen Docker-netwerk, onder de aliassen `php_test` en `php_cms`. Ze
+serveren **deze** uitchecking tegen de genoemde testdatabase, en PHPUnit draait
+in de `php_test`-container, zodat testproces en webserver dezelfde bestanden en
+dezelfde database zien. Zonder PHPUnit-argumenten draait `--testsuite http`.
+`down` ruimt de containers op; `status` laat ze zien.
+
+Waarom niet `docker compose --profile test up -d`: die services mounten de
+hoofduitchecking, dus vanuit een worktree zou je de verkeerde code testen, en
+ze hebben het `.env` van de hoofduitchecking nodig. Wat het script van de
+installatie overneemt zijn alleen de databasegegevens, uit haar draaiende
+`php`-container, als omgevingsvariabelen: nooit in een bestand, nooit op een
+commandoregel en nooit geprint.
+
+**Het contract staat in het script en in `docker-compose.yml`, niet in `.env`.**
+Beide routes zetten hetzelfde vast:
+
+- `APP_ENV=production`. De SEO-tests bewijzen wat een live site doet
+  (robots, `noindex`), en een `APP_ENV=local` uit `.env` veranderde dat
+  stilletjes. Productie is ook wat een lege `APP_ENV` betekent.
+- Elke module expliciet. `php_test`: Shop, Personalisatie, Blog, Portfolio en
+  Meertaligheid aan. `php_cms`: Shop, Personalisatie, Blog en Portfolio uit,
+  Meertaligheid aan (dezelfde header als `php_test`). Zonder die regels
+  besliste de voorkeur die toevallig in de testdatabase stond, en faalden
+  ruim veertig tests om die reden.
+- De database: het script weigert de ontwikkeldatabase en elke naam zonder
+  `test` erin, nog vóór er een server bestaat; `tests/bootstrap.php` weigert
+  daarna nog eens.
+- Opslag in een tmpfs: uploads en bestanden van de servers bestaan niet
+  langer dan de container.
+
+**Wat een HTTP-test zelf regelt.** Een test mag niet leunen op wat de
+testdatabase toevallig bevat. Hij maakt zijn eigen pagina's, producten,
+blokken en instellingen aan, via de huidige repositories en
+localisatieservices (woorden in de per-taaltabellen, niet in oude kolommen), en
+zet in `tearDown()` precies terug wat hij veranderde. Twee helpers:
+
+- `Tests\Support\TemplatePageFixture` — `contact.php`, `diensten.php` en
+  `over-mij.php` renderen alleen met hun gepubliceerde `pages`-rij. Die rijen
+  hoorden bij de installatie waar deze code uit is gegroeid, niet bij een
+  verse. `ensureAll([...])` maakt ze aan waar ze ontbreken, `remove()` haalt
+  alleen weg wat hij zelf maakte.
+- `Tests\Support\AdminTestSession` — PHPUnit draait in `php_test` als root en
+  Apache als `www-data`. Een sessiebestand van root (0600) kon Apache niet
+  lezen, zodat elk ingelogd verzoek via Apache uitgelogd aankwam. `signIn()`
+  geeft het bestand daarom aan `www-data` als het testproces root is; onder
+  `php -S` verandert er niets.
+
+**Taal en cookies.** Elk verzoek in de HTTP-tier gaat zonder cookiejar de
+deur uit, dus geen test erft de `site_language`-cookie van een vorige. Een
+eerste bezoek zonder die cookie krijgt hem wel: `LanguagePreference` bewaart de
+gelezen taal zodra die zou veranderen, en bij een eerste bezoek is dat altijd
+(`docs/multilingual/ROUTING.md`). `AnalyticsTrackingHttpTest` staat daarom
+precies die ene, noodzakelijke cookie toe en weigert elke andere.
+
+**Stand bij v0.1.13.** Tegen echte servers: 327 tests, 2252 asserties, 0
+overgeslagen, 0 failures, ongeveer twee minuten. Tot v0.1.12 sloegen 222 van
+de toen 310 tests zichzelf over, en 49 van die 310 faalden tegen echte servers
+door verouderde fixtures (van vóór Meertaligheid 2.0), ontbrekende
+Van Veluw-pagina's, `APP_ENV=local`, opgeslagen modulevoorkeuren en de
+sessierechten hierboven. Een overgeslagen HTTP-test in een run met het script
+is dus een fout, geen omstandigheid.
+
+De suite `http` bevat sinds v0.1.13 ook drie Apache-getuigen die alleen een
+echte server kan leveren: `Search\SearchHttpTest` (`/zoeken` en
+`/en/search` aan/uit, escaping, meerdere woorden),
+`ContentOwnerPagesRoutingTest` (blokken op product- en projectpagina's, de
+vrije layout, Detailsectie-ankers en een gekoppelde galerijbron, 404 op
+`php_cms`) en `OrderFieldUploadHttpTest` (de upload via Apache, SVG
+geweigerd, bestanden niet per URL bereikbaar, de beheerdersdownload alleen
+met `orders.view`).
 
 **Tien HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
 (suite `cms`), `PageBuilderScreenTest` (suites `blocks` en `cms`),

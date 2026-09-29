@@ -571,7 +571,8 @@ ervoor), en een rustig moment. Zo:
 ## Checklist
 
 - [ ] `VERSION` opgehoogd en gecommit; tag gezet
-- [ ] suites groen op die commit (`TESTING.md`)
+- [ ] suites groen op die commit (`TESTING.md`), de suite `http` tegen echte
+  servers met `tests/Support/http-tier.sh` en zonder één overgeslagen test
 - [ ] `git archive` van de tag, build met sleutel en notities
 - [ ] `release.php verify` zegt OK
 - [ ] draft-release op de tag: pakket, handtekening, manifest; dan publiceren

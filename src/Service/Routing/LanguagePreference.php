@@ -32,7 +32,8 @@ use App\Service\Language\SiteLanguages;
  * anywhere near it.
  *
  * It is only ever written when the value would actually change, so an
- * ordinary page view sends no Set-Cookie header at all.
+ * ordinary page view by a visitor who already has it sends no Set-Cookie
+ * header at all. A first visit without the cookie always gets it.
  */
 final class LanguagePreference
 {

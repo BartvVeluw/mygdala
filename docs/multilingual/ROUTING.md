@@ -129,8 +129,9 @@ voorkeur".
 
 Hij wordt geschreven voor **de taal die een bezoeker daadwerkelijk leest**,
 door de dispatcher en door `partials/public-request.php` — en alleen wanneer
-hij zou veranderen, dus een gewone paginaweergave stuurt helemaal geen
-`Set-Cookie`. Dat is wat de taalwisselaar gewone links laat zijn: er is geen
+hij zou veranderen, dus een gewone paginaweergave van een bezoeker die de
+cookie al heeft stuurt helemaal geen `Set-Cookie`. Het eerste bezoek zonder
+cookie krijgt hem wel: dan verandert hij altijd. Dat is wat de taalwisselaar gewone links laat zijn: er is geen
 keuze-endpoint, geen return-URL, en dus nergens in de buurt een open redirect.
 
 ### De ene uitzondering: kiezen voor de standaardtaal op de home
