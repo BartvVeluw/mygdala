@@ -267,6 +267,14 @@ final class MainNavMarkupTest extends TestCase
             'the start height is measured before the class changes'
         );
         $this->assertStringContainsString('if (changes) slide(item, open, from);', $script);
+        // The measured height is pinned at once: closing a list first closes
+        // its open nested lists, whose slide forces a style pass — without
+        // the pin the parent was recomputed from auto to 0 and jumped shut
+        // (found in the v0.1.12 browser acceptance).
+        $this->assertMatchesRegularExpression(
+            '/function slideFrom\(item\) \{.*?var height = panel\.getBoundingClientRect\(\)\.height;\s*if \(!desktop\.matches && !reducedMotion\.matches\) panel\.style\.height = height \+ "px";\s*return height;/s',
+            $script
+        );
         $this->assertStringContainsString('var to = open ? panel.scrollHeight : 0;', $script, 'measured, both directions');
         $this->assertStringContainsString('void panel.offsetHeight;', $script, 'the start height is committed before the change');
         $this->assertMatchesRegularExpression('/if \(desktop\.matches \|\| reducedMotion\.matches\) \{\s*panel\.style\.height = "";\s*return;\s*\}/', $script);

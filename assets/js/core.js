@@ -147,9 +147,17 @@
     var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     var SLIDE_FALLBACK = 700;
 
+    /* Measures the list's height AND pins it as an inline height, before
+       anything else changes. Closing a list closes its open nested lists
+       first, and their slide forces a style pass: a list that had already
+       lost .is-open without a pinned height would be recomputed from auto to
+       0 in that pass — not animatable, so it jumped shut. */
     function slideFrom(item) {
       var panel = panelOf(item);
-      return panel ? panel.getBoundingClientRect().height : 0;
+      if (!panel) return 0;
+      var height = panel.getBoundingClientRect().height;
+      if (!desktop.matches && !reducedMotion.matches) panel.style.height = height + "px";
+      return height;
     }
 
     function slide(item, open, from) {
