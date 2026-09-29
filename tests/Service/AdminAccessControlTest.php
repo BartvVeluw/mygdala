@@ -156,6 +156,11 @@ final class AdminAccessControlTest extends TestCase
         // the caller's page holds; every button in it posts to an endpoint
         // that guards itself.
         '_content_blocks.php',
+        // Where a gallery item's picture comes from (Detailsectie 2.0): an
+        // output function over the Destination Picker's own choices, printed
+        // by admin/detail-section.php behind its pages.manage check. The
+        // endpoint checks every posted kind and id itself.
+        '_gallery_source_field.php',
         // The schematic drawing and icon on a block card, shared by the
         // picker and the Contentblokken catalogue. Two output functions over
         // constant, first-party markup; no URL, no data, nothing to guard.

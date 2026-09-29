@@ -127,6 +127,7 @@
              source files and assert rules about them. No database, no web
              server, so CMS content cannot affect them at all. -->
         <testsuite name="contract">
+            <file>tests/Service/DetailSectionTwoContractTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
@@ -202,6 +203,7 @@
         <!-- unit + contract: everything that needs nothing but PHP. The one
              to run constantly while writing code. -->
         <testsuite name="fast">
+            <file>tests/Service/DetailSectionTwoContractTest.php</file>
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/Blocks/EditorChildListTest.php</file>
@@ -402,6 +404,7 @@
              keeping, not worth running on every edit. None of them reads
              what the test database happens to contain. -->
         <testsuite name="migration">
+            <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
             <file>tests/Install/AdminAccountMigrationTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
@@ -488,6 +491,7 @@
         </testsuite>
 
         <testsuite name="blocks">
+            <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
@@ -550,6 +554,9 @@
             <file>tests/Service/OptionalEyebrowTest.php</file>
             <file>tests/Service/ContentOwnerPagesTest.php</file>
             <file>tests/Service/ProductPortfolioContentPagesHttpTest.php</file>
+            <file>tests/Service/DetailSectionTwoTest.php</file>
+            <file>tests/Service/DetailSectionTwoContractTest.php</file>
+            <file>tests/Service/DetailSectionTwoHttpTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
             <file>tests/Repository/BlockTranslationTreeTest.php</file>
