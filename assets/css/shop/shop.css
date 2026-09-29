@@ -319,20 +319,36 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 
 /* Bestelvelden (partials/product-order-fields.php): the product's own
    questions above the quantity and the button, one under the other, full
-   width on a phone. The error line is the soft red of every form error. */
+   width on a phone. Every question is the site's own form field (core.css
+   .form-field, .checkbox-field, .hint, .req): the same border, surface,
+   focus ring and error colour as the contact form and the checkout. This
+   block only fits them into the purchase column — no second form style. */
 .product-order-fields{ display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
-.product-order-fields__heading{ margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text); }
-.product-order-field{ display: flex; flex-direction: column; gap: 0.35rem; }
-.product-order-field > label{ font-size: 0.88rem; color: var(--color-text); }
+.product-order-fields__heading{ margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--color-text); }
+.product-order-field.form-field{ margin-bottom: 0; min-width: 0; }
+.product-order-field.form-field > label{ overflow-wrap: anywhere; }
 .product-order-field input[type="text"],
 .product-order-field textarea,
-.product-order-field select{ width: 100%; max-width: 32rem; }
-.product-order-field__group{ border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
-.product-order-field__group legend{ font-size: 0.88rem; color: var(--color-text); margin-bottom: 0.25rem; padding: 0; }
-.product-order-field__choice{ display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--color-text); cursor: pointer; }
-.product-order-field__required{ color: #F0897E; }
-.product-order-field__help{ margin: 0; font-size: 0.78rem; color: var(--color-text-faint); }
+.product-order-field select{ width: 100%; max-width: 32rem; box-sizing: border-box; }
+.product-order-field textarea{ min-height: 6.5rem; }
+/* core.css draws invalid inputs and textareas; a dropdown gets the same. */
+.product-order-field select[aria-invalid="true"]{ border-color: #E2685C; }
+.product-order-field__group{ margin: 0; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.product-order-field__group legend{ margin-bottom: 0.35rem; overflow-wrap: anywhere; }
+/* A choice is a whole row to tap (44px), its label wraps beside the box. */
+.product-order-field .product-order-field__choice{
+  align-items: center; min-height: 44px; padding: 0.2rem 0;
+  font-weight: 400; color: var(--color-text); overflow-wrap: anywhere;
+}
+.product-order-field .product-order-field__choice input{
+  width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0;
+  flex-shrink: 0; accent-color: var(--color-primary); border-radius: 0; box-shadow: none;
+}
+.product-order-field .product-order-field__choice input:focus-visible{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
+.product-order-field--choice[data-order-field-invalid] .product-order-field__choice input{ outline: 1.5px solid #E2685C; outline-offset: 2px; }
+.product-order-field__help{ margin: 0; }
 .product-order-field__error{ margin: 0; font-size: 0.82rem; color: #F0897E; }
+.product-order-field__error[hidden]{ display: none; }
 
 /* A cart line's answers, under its name: dropdown, cart and checkout. */
 .cart-order-fields{ margin: 0.25rem 0 0; display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.8rem; color: var(--color-text-muted); }

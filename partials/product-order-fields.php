@@ -34,7 +34,7 @@ function render_product_order_fields(array $questions, string $scope = ''): void
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $requiredMark = ' <span class="product-order-field__required" aria-hidden="true">*</span>';
+    $requiredMark = ' <span class="req product-order-field__required" aria-hidden="true">*</span>';
     ?>
     <div class="product-order-fields" data-product-order-fields>
       <p class="product-order-fields__heading"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Jouw bestelgegevens', 'en' => 'Your order details']) ?></p>
@@ -46,20 +46,25 @@ function render_product_order_fields(array $questions, string $scope = ''): void
           $errorId = $id . '-error';
           $described = ($question['help'] !== '' ? $helpId . ' ' : '') . $errorId;
           $required = $question['required'] ? ' required aria-required="true"' : '';
+          $isChoice = $question['type'] === 'radio' || $question['type'] === 'checkbox';
         ?>
-        <div class="product-order-field" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>">
+        <?php /* The site's own form field (core.css .form-field): the same
+                 label, control, focus ring, hint and error as every other
+                 form. A tick box or a group of radios is a row of
+                 .checkbox-field choices instead. */ ?>
+        <div class="product-order-field form-field<?= $isChoice ? ' product-order-field--choice' : '' ?>" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>">
           <?php if ($question['type'] === 'radio'): ?>
             <fieldset class="product-order-field__group" aria-describedby="<?= $h($described) ?>">
               <legend><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></legend>
               <?php foreach ($question['options'] as $option): ?>
-                <label class="product-order-field__choice">
+                <label class="checkbox-field product-order-field__choice">
                   <input type="radio" name="<?= $h($name) ?>" value="<?= (int) $option['id'] ?>"<?= $required ?>>
                   <span><?= $h($option['label']) ?></span>
                 </label>
               <?php endforeach; ?>
             </fieldset>
           <?php elseif ($question['type'] === 'checkbox'): ?>
-            <label class="product-order-field__choice">
+            <label class="checkbox-field product-order-field__choice">
               <input type="checkbox" id="<?= $h($id) ?>" name="<?= $h($name) ?>" value="1" aria-describedby="<?= $h($described) ?>"<?= $required ?>>
               <span><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></span>
             </label>
@@ -79,7 +84,7 @@ function render_product_order_fields(array $questions, string $scope = ''): void
             <?php endif; ?>
           <?php endif; ?>
           <?php if ($question['help'] !== ''): ?>
-            <p class="product-order-field__help" id="<?= $h($helpId) ?>"><?= $h($question['help']) ?></p>
+            <p class="hint product-order-field__help" id="<?= $h($helpId) ?>"><?= $h($question['help']) ?></p>
           <?php endif; ?>
           <p class="product-order-field__error" id="<?= $h($errorId) ?>" data-order-field-error hidden></p>
         </div>

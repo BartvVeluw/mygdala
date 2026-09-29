@@ -761,6 +761,8 @@
             errorEl.textContent = message;
             errorEl.hidden = !message;
           }
+          // The site's own error look (core.css [aria-invalid]) on the control.
+          markInvalid(fieldEl, !!message);
           if (message) {
             if (!result.firstInvalid) result.firstInvalid = fieldEl.querySelector("input, select, textarea");
             return;
@@ -774,6 +776,31 @@
 
         result.answers = Object.keys(answers).length ? answers : null;
         return result;
+      }
+
+      // A question the customer is answering stops saying what was wrong.
+      if (orderFieldsEl) {
+        ["input", "change"].forEach(function (type) {
+          orderFieldsEl.addEventListener(type, function (event) {
+            var fieldEl = event.target && event.target.closest ? event.target.closest("[data-order-field]") : null;
+            if (!fieldEl || !fieldEl.hasAttribute("data-order-field-invalid")) return;
+            var errorEl = fieldEl.querySelector("[data-order-field-error]");
+            if (errorEl) {
+              errorEl.textContent = "";
+              errorEl.hidden = true;
+            }
+            markInvalid(fieldEl, false);
+          });
+        });
+      }
+
+      function markInvalid(fieldEl, invalid) {
+        Array.prototype.forEach.call(fieldEl.querySelectorAll("input, select, textarea"), function (control) {
+          if (invalid) control.setAttribute("aria-invalid", "true");
+          else control.removeAttribute("aria-invalid");
+        });
+        if (invalid) fieldEl.setAttribute("data-order-field-invalid", "");
+        else fieldEl.removeAttribute("data-order-field-invalid");
       }
 
       function resetOrderFields() {
