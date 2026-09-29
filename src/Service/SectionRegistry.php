@@ -6,7 +6,10 @@ use App\Repository\PageSectionRepository;
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\AnchorNavigation;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\ContributesAnchor;
+use App\Service\Blocks\RendersAnchorNavigation;
 use App\Service\Blocks\CarriesBreadcrumb;
 use App\Service\Blocks\OffersPickerPresets;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
@@ -504,14 +507,26 @@ class SectionRegistry
      * (App\Service\Blocks\CarriesBreadcrumb — a Paginakop with a picture),
      * else just before that block, and on a page without blocks on its own.
      * Only the first block is asked, because a trail belongs at the top.
+     *
+     * THE PAGE'S ANCHOR NAVIGATION (Detailsectie 2.0, App\Service\Blocks\AnchorNavigation)
+     * comes along by itself: when blocks on the page carry an anchor
+     * (ContributesAnchor) and no block on it is the navigation already
+     * (RendersAnchorNavigation), the links are printed once — directly under
+     * the page's head (a block of category HERO), or above the first block
+     * when the page starts without one. No block type is named for it.
      */
     public static function renderPage(string $pageContentKey, ?BreadcrumbTrail $trail = null): void
     {
         $previous = null;
         $sections = self::visibleSections($pageContentKey);
 
+        // The page's anchor navigation, asked of its blocks up front
+        // (anchorNavigation() loads their words first).
+        $anchors = self::anchorNavigation($sections);
+
         // The words of every block on the page, in every language, in one
-        // query rather than one per block (BlockLocalization).
+        // query rather than one per block (BlockLocalization); already done
+        // just above, so this asks nothing twice.
         BlockLocalization::preloadSections($sections);
 
         foreach ($sections as $pageSection) {
@@ -527,12 +542,26 @@ class SectionRegistry
 
             $tightTop = $previous !== null && $previous->tightensFollowingBlock();
             $revealGroup = $pageSection['section_type'] . '-' . $pageSection['id'];
+            $isHead = $definition->category() === BlockCategories::HERO;
 
             if ($trail !== null && $definition instanceof CarriesBreadcrumb && $definition->carriesBreadcrumb($pageSection)) {
                 $definition->renderWithBreadcrumb($pageSection, $tightTop, $revealGroup, $trail);
             } else {
                 self::renderBreadcrumb($trail);
+
+                // A page that starts without a head: the navigation first.
+                if ($anchors !== null && !$isHead) {
+                    AnchorNavigation::render($anchors);
+                    $anchors = null;
+                }
+
                 $definition->render($pageSection, $tightTop, $revealGroup);
+            }
+
+            // Directly under the page's head.
+            if ($anchors !== null && $isHead) {
+                AnchorNavigation::render($anchors);
+                $anchors = null;
             }
 
             $trail = null;
@@ -540,6 +569,47 @@ class SectionRegistry
         }
 
         self::renderBreadcrumb($trail);
+
+        if ($anchors !== null) {
+            AnchorNavigation::render($anchors);
+        }
+    }
+
+    /**
+     * The links of the page's anchor navigation, when renderPage() has to
+     * print it: every visible block that carries an anchor, in page order —
+     * or null when there are none, or when a block on the page is the
+     * navigation itself (the Snelnavigatie), which then shows them where it
+     * was placed.
+     *
+     * @param list<array<string, mixed>> $sections
+     *
+     * @return list<array{anchor: string, label: string}>|null
+     */
+    private static function anchorNavigation(array $sections): ?array
+    {
+        // The words of every block at once, before any block is asked for
+        // its label.
+        BlockLocalization::preloadSections($sections);
+
+        $items = [];
+
+        foreach ($sections as $pageSection) {
+            $definition = BlockDefinitions::get((string) $pageSection['section_type']);
+
+            if ($definition instanceof RendersAnchorNavigation) {
+                return null;
+            }
+
+            if ($definition instanceof ContributesAnchor) {
+                $item = $definition->anchorFor($pageSection);
+                if ($item !== null) {
+                    $items[] = $item;
+                }
+            }
+        }
+
+        return $items === [] ? null : $items;
     }
 
     /** The page's trail on its own (partials/breadcrumb.php); nothing for null. */

@@ -10,8 +10,13 @@ require_once dirname(__DIR__, 3) . '/partials/section-quicknav.php';
  * The Diensten quicknav: a link to every Detailsectie with an anchor on the
  * SAME page, derived at render time (phase 3) rather than listed anywhere, so
  * there is nothing to keep in sync by hand and nothing to edit.
+ *
+ * On any other page the same navigation is printed by
+ * SectionRegistry::renderPage() under the page's head
+ * (App\Service\Blocks\AnchorNavigation, Detailsectie 2.0); a page that has
+ * this block gets it here instead, never twice (RendersAnchorNavigation).
  */
-final class QuicknavBlock extends FixedBlockDefinition
+final class QuicknavBlock extends FixedBlockDefinition implements RendersAnchorNavigation
 {
     public function type(): string
     {
