@@ -221,6 +221,13 @@ class SiteSettings
         'footer_show_kvk' => '1',
         'footer_copyright_template' => '© {{year}} {{site_name}}',
 
+        // "Zoeken tonen" in Navigatie (App\Service\Search\SearchService,
+        // SEARCH.md): the site search in the header, and its results page.
+        // Off by default, and no migration writes it, so an update leaves an
+        // existing site's header exactly as it was until someone switches
+        // it on.
+        'nav_search_enabled' => '0',
+
         // "Gerelateerde producten" on a product detail page — see
         // App\Service\RelatedProductsContent, which owns the reading and
         // validation of these, and

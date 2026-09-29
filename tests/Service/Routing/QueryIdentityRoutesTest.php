@@ -68,6 +68,7 @@ final class QueryIdentityRoutesTest extends TestCase
         'collectie.php' => 'the path names the collection, and collectie.php declares it',
         'pagina.php' => 'the path names the page, and partials/page-head.php declares it',
         'portfolio-detail.php' => 'the path names the project, and /portfolio/<slug> is the same in every language',
+        'zoeken.php' => 'one results page per language; ?q= is the visitor\'s query and ?pagina=N view state, neither names a resource (not indexable, canonical to the bare route)',
     ];
 
     public function testEveryRoutedTemplateIsClassified(): void

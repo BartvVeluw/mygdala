@@ -92,6 +92,9 @@ final class RouteTable
         ['key' => 'core.over-mij', 'pattern' => 'over-mij.php', 'template' => 'over-mij.php'],
         ['key' => 'core.cookiebeleid', 'pattern' => 'cookiebeleid.php', 'template' => 'cookiebeleid.php'],
         ['key' => 'core.herroeping', 'pattern' => 'herroeping.php', 'template' => 'herroeping.php'],
+        // The site search's results page. Always routed; zoeken.php itself
+        // answers 404 while search is switched off (SearchService::isEnabled()).
+        ['key' => 'core.search', 'pattern' => '{core.search}', 'template' => 'zoeken.php'],
     ];
 
     /** @var list<array<string, mixed>>|null */

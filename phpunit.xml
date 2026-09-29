@@ -84,6 +84,7 @@
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
+            <file>tests/Service/Search/SearchNavigationTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
@@ -298,6 +299,7 @@
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
+            <file>tests/Service/Search/SearchNavigationTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
@@ -692,6 +694,7 @@
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
+            <file>tests/Service/Search/SearchNavigationTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
             <file>tests/Service/FooterAdminHttpTest.php</file>

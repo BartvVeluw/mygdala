@@ -97,6 +97,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <div class="main-nav__panel">
 <?php require __DIR__ . '/main-nav-list.php'; ?>
       <div class="header-actions">
+<?php /* The site search: prints nothing unless Navigatie → "Zoeken tonen"
+         is on (SEARCH.md). First in the row, so on a phone it heads the
+         menu's actions. */ ?>
+<?php require __DIR__ . '/header-search.php'; ?>
 <?php /* The switch exists only on a site that actually publishes more than
          one language. On a single-language site every option would show the
          visitor the same page in the same words, so there is nothing to

@@ -84,6 +84,12 @@ final class PublicRouteContractTest extends TestCase
         'core.over-mij' => ['witness' => '/over-mij.php', 'canonical' => '/over-mij.php', 'post' => self::POST_FORM_SOURCE],
         'core.cookiebeleid' => ['witness' => '/cookiebeleid.php', 'canonical' => '/cookiebeleid.php', 'post' => self::POST_NONE],
         'core.herroeping' => ['witness' => '/herroeping.php?order={order}', 'canonical' => '/herroeping.php', 'post' => self::POST_LANGUAGE_FIELD],
+        'core.search' => [
+            'witness' => null,
+            'canonical' => null,
+            'post' => self::POST_NONE,
+            'why' => 'the site search\'s results page answers 404 until an administrator switches search on (SearchService::isEnabled()), so no HTTP witness can rely on it; a per-language word (/zoeken, /en/search) that Tests\Service\Search\SearchRoutingTest resolves, with a GET form only',
+        ],
         'blog.feed' => [
             'witness' => null,
             'canonical' => null,

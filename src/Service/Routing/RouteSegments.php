@@ -44,8 +44,14 @@ use App\Module\ModuleRegistry;
  */
 final class RouteSegments
 {
-    /** Core owns no localized segment today; every one of them is a module's. */
-    private const CORE_SEGMENTS = [];
+    /**
+     * Core's own localized words. Only the site search's results page
+     * (zoeken.php, SEARCH.md): /zoeken, /en/search. Every other localized
+     * segment is a module's.
+     */
+    private const CORE_SEGMENTS = [
+        'core.search' => ['default' => 'zoeken', 'en' => 'search'],
+    ];
 
     /** @var array<string, array<string, string>>|null */
     private static ?array $segments = null;

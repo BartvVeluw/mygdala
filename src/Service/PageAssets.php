@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Module\ModuleRegistry;
+use App\Service\Search\SearchService;
 use App\Service\Theme\ThemeCss;
 
 /**
@@ -244,12 +245,24 @@ final class PageAssets
             self::add(self::$styles, (string) $path);
         }
 
+        // The site search's header control is in the shared header, so its
+        // files are shell files — but only on a site that switched search on
+        // (SEARCH.md); every other site loads exactly what it did before.
+        $search = SearchService::isEnabled();
+        if ($search) {
+            self::add(self::$styles, SearchService::STYLE);
+        }
+
         foreach (self::SHELL_SCRIPTS as $path) {
             self::add(self::$scripts, $path);
         }
 
         foreach (ModuleRegistry::collect('shellScripts') as $path) {
             self::add(self::$scripts, (string) $path);
+        }
+
+        if ($search) {
+            self::add(self::$scripts, SearchService::SCRIPT);
         }
     }
 

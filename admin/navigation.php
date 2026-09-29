@@ -76,6 +76,8 @@ $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
 $deleted = (string) ($_GET['deleted'] ?? '');
+$searchSaved = ($_GET['saved'] ?? '') === '1';
+$searchEnabled = \App\Service\Search\SearchService::isEnabled();
 $navError = $_SESSION['admin_nav_error'] ?? null;
 unset($_SESSION['admin_nav_error']);
 
@@ -254,6 +256,29 @@ function navigation_menu_rows(array $rows, int $level, array $menuByParent, arra
         <?php navigation_row($button, $position, count($buttons), 0, false, $pagesById, $routes, $csrfToken); ?>
       <?php endforeach; ?>
     </div>
+  </section>
+
+  <?php /* The site search in the header (SEARCH.md): one switch, off until
+           an administrator turns it on. api/admin/update-navigation-settings.php */ ?>
+  <section class="admin-card" id="navigation-search" aria-labelledby="navigation-search-heading">
+    <div class="admin-card__heading">
+      <h2 id="navigation-search-heading"><?= admin_te('navigation.search_heading') ?></h2>
+    </div>
+    <p class="admin-text-muted"><?= admin_te('navigation.search_intro') ?></p>
+    <?php if ($searchSaved): ?>
+      <p class="admin-alert admin-alert--success" role="status"><?= admin_te($searchEnabled ? 'navigation.search_saved_on' : 'navigation.search_saved_off') ?></p>
+    <?php endif; ?>
+    <form method="post" action="/api/admin/update-navigation-settings.php" class="admin-product-form admin-navigation-search" data-no-dirty-track>
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <label class="admin-checkbox-label">
+        <input type="checkbox" class="admin-switch" role="switch" name="<?= $h(\App\Service\Search\SearchService::SETTING) ?>" value="1" aria-describedby="navigation-search-help"<?= $searchEnabled ? ' checked' : '' ?>>
+        <?= admin_te('navigation.search_toggle') ?>
+      </label>
+      <p class="admin-text-muted" id="navigation-search-help"><?= admin_te('navigation.search_help') ?></p>
+      <div class="admin-card--actions">
+        <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
+      </div>
+    </form>
   </section>
 </main>
 <?= admin_confirm_dialog() ?>

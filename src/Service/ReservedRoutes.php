@@ -60,6 +60,9 @@ class ReservedRoutes
         'over-mij',
         'cookiebeleid',
         'herroeping',
+        // The site search's results template (zoeken.php, SEARCH.md); its
+        // localized words are reserved through RouteSegments.
+        'zoeken',
         'pagina',
         'phinx',
         // The router every public URL that is not a file on disk comes
