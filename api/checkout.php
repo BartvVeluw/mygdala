@@ -102,8 +102,8 @@ use App\Service\LegalPages;
 use App\Service\OrderPaymentStartFailure;
 use App\Service\OrderItemNameSnapshot;
 use App\Service\OrderFields\OrderFields;
+use App\Service\OrderFields\OrderFieldUploadException;
 use App\Service\OrderFields\OrderFieldValidationException;
-use App\Repository\OrderItemFieldRepository;
 use App\Service\Payment\PaymentProviderException;
 use App\Service\Payment\PaymentProviders;
 use App\Service\Payment\PaymentRequest;
@@ -713,11 +713,15 @@ try {
      * this same transaction: the question and the answer as they are now, in
      * the default language (App\Service\OrderFields\OrderFields::snapshot()).
      * A question renamed or removed tomorrow never changes this order.
+     *
+     * A customer's PICTURE is bound to its answer here too, by one
+     * conditional claim (OrderFields::record()): a picture another order took
+     * first, or one that expired a moment ago, throws and rolls this whole
+     * order back — no order, no line, no unit taken.
      */
-    $itemFields = new OrderItemFieldRepository($db);
     foreach ($orderItems as $index => $orderItem) {
         if ($orderItem['order_fields'] !== [] && isset($orderItemIds[$index])) {
-            $itemFields->create((int) $orderItemIds[$index], $orderFields->snapshot((int) $orderItem['product_id'], $orderItem['order_fields']));
+            $orderFields->record((int) $orderItemIds[$index], (int) $orderItem['product_id'], $orderItem['order_fields'], $checkoutLanguage);
         }
     }
 
@@ -784,6 +788,11 @@ try {
     }
 
     $db->commit();
+} catch (OrderFieldUploadException $e) {
+    // A picture of this cart can no longer be used: nothing of this order
+    // was stored. Written for the customer, naming the question.
+    $db->rollBack();
+    fail(409, $e->getMessage());
 } catch (InsufficientStockException $e) {
     // A customer who was a moment faster took the last units: nothing of
     // this order was stored.

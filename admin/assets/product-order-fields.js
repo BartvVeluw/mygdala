@@ -7,8 +7,10 @@
  *   - "Bestelgegevens vragen" off hides the list of questions (it is still
  *     sent, and kept, so switching it on again brings them back);
  *   - a question's type decides what it shows: a maximum length for a text
- *     question, the list of choices for keuzerondjes and a dropdown, neither
- *     for a tick box.
+ *     question, the list of choices for keuzerondjes and a dropdown, a
+ *     maximum file size for an image question, none of these for a tick box.
+ *     What a type does not show is still sent, and the server keeps only
+ *     what belongs to the saved type.
  *
  * Owned by admin/product-form.php. Nothing here decides what is valid: the
  * server (App\Service\OrderFields\ProductOrderFieldEditor) checks every
@@ -20,6 +22,7 @@
 
   var TEXT_TYPES = ["text", "textarea"];
   var OPTION_TYPES = ["radio", "select"];
+  var IMAGE_TYPES = ["image"];
 
   function applyRow(row) {
     var select = row.querySelector("[data-order-field-type]");
@@ -30,6 +33,9 @@
     });
     Array.prototype.forEach.call(row.querySelectorAll('[data-order-field-when="options"]'), function (el) {
       el.hidden = OPTION_TYPES.indexOf(type) === -1;
+    });
+    Array.prototype.forEach.call(row.querySelectorAll('[data-order-field-when="image"]'), function (el) {
+      el.hidden = IMAGE_TYPES.indexOf(type) === -1;
     });
   }
 

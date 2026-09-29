@@ -346,6 +346,25 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 }
 .product-order-field .product-order-field__choice input:focus-visible{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
 .product-order-field--choice[data-order-field-invalid] .product-order-field__choice input{ outline: 1.5px solid #E2685C; outline-offset: 2px; }
+/* An image question: the native file control stays the focused, announced
+   one but is drawn as the site's own ghost button (its second label); a
+   chosen picture shows as a small thumbnail with its name and two buttons.
+   Nothing wider than the column, whatever the filename. */
+.product-order-field__file{ position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; opacity: 0; }
+.product-order-field__upload{ display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.product-order-field__pick{ align-self: flex-start; min-height: 44px; }
+.product-order-field__pick[hidden]{ display: none; }
+.product-order-field__file:focus-visible + .product-order-field__upload .product-order-field__pick{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
+.product-order-field__file[aria-invalid="true"] + .product-order-field__upload .product-order-field__pick{ border-color: #E2685C; }
+.product-order-field__preview{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; min-width: 0; max-width: 32rem; }
+.product-order-field__preview[hidden]{ display: none; }
+.product-order-field__thumb{ width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; }
+.product-order-field__file-name{ flex: 1 1 8rem; min-width: 0; font-size: 0.9rem; color: var(--color-text); overflow-wrap: anywhere; }
+.product-order-field__actions{ display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.product-order-field__actions .btn{ min-height: 44px; }
+.product-order-field__status{ margin: 0; font-size: 0.82rem; color: var(--color-text-muted); }
+.product-order-field__status:empty{ display: none; }
+.product-order-field__rules{ margin: 0; }
 .product-order-field__help{ margin: 0; }
 .product-order-field__error{ margin: 0; font-size: 0.82rem; color: #F0897E; }
 .product-order-field__error[hidden]{ display: none; }

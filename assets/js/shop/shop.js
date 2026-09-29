@@ -594,6 +594,20 @@
         addBtn.onclick = function () {
           if (hasVariants && !selectedVariant) return;
 
+          /* A picture still on its way (an "Afbeelding uploaden" question)
+             is waited for: a cart line only ever gets a picture that
+             arrived and passed the server's checks. Then the same click
+             runs again, now with the token in hand. */
+          var uploading = pendingImageUploads();
+          if (uploading) {
+            addBtn.disabled = true;
+            uploading.then(function () {
+              addBtn.disabled = hasVariants && !selectedVariant;
+              addBtn.onclick();
+            });
+            return;
+          }
+
           /* Personalization, when this product has it. The module is only
              loaded on a product whose CMS configuration offers it (see
              product.php), so on every other product this is simply absent
@@ -743,6 +757,12 @@
             value = checked ? checked.value : "";
             shown = checked && checked.parentNode ? checked.parentNode.textContent.trim() : "";
             if (required && !value) message = S.text("order_field_choose");
+          } else if (type === "image") {
+            // The answer is the upload's token, never the picture itself.
+            var image = imageStates.get(fieldEl);
+            value = image && image.token ? image.token : "";
+            shown = image && image.token ? image.filename : "";
+            if (required && !value) message = S.text("order_field_image_required");
           } else if (type === "select") {
             var select = fieldEl.querySelector("select");
             value = select ? select.value : "";
@@ -809,6 +829,202 @@
           if (control.type === "checkbox" || control.type === "radio") control.checked = false;
           else control.value = "";
         });
+        // A picture that went into the cart belongs to that line now: the
+        // page forgets it without discarding it.
+        imageStates.forEach(function (image) { image.clear(false); });
+      }
+
+      /* ---------------------------------------------------------------
+         AFBEELDING UPLOADEN (an "image" order question, Shop Admin UX &
+         Order Fields 2.0). The picture goes to api/order-field-upload.php
+         the moment it is chosen; the page keeps only the token it gets
+         back, the customer's filename and a small local preview. Nothing
+         of the picture is kept in the cart or in localStorage.
+
+         Replacing or removing a picture discards the old upload on the
+         server at once. The type and size are checked here first for a
+         quick answer; the server checks everything again and its sentence
+         is shown when it refuses.
+         --------------------------------------------------------------- */
+      var imageStates = new Map();
+      var IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+      function pendingImageUploads() {
+        var pending = [];
+        imageStates.forEach(function (image) {
+          if (image.pending) pending.push(image.pending);
+        });
+        return pending.length ? Promise.all(pending) : null;
+      }
+
+      function formatMegabytes(bytes) {
+        var mb = bytes / (1024 * 1024);
+        var text = Math.floor(mb) === mb ? String(mb) : mb.toFixed(1);
+        return (document.documentElement.lang === "en" ? text : text.replace(".", ",")) + " MB";
+      }
+
+      function discardUpload(token) {
+        if (!token) return;
+        var body = new FormData();
+        body.append("action", "discard");
+        body.append("token", token);
+        fetch(S.apiUrl("/api/order-field-upload.php"), { method: "POST", body: body }).catch(function () {
+          // An upload that is not discarded now simply expires.
+        });
+      }
+
+      /* A small preview for the page: drawn from the chosen file at
+         thumbnail size where the browser can, so no full-size photo sits
+         in the page; else the file itself through an object URL. */
+      function previewUrl(file) {
+        if (typeof createImageBitmap !== "function") return Promise.resolve(URL.createObjectURL(file));
+        return createImageBitmap(file, { resizeWidth: 128, resizeQuality: "medium" })
+          .then(function (bitmap) {
+            var canvas = document.createElement("canvas");
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            canvas.getContext("2d").drawImage(bitmap, 0, 0);
+            if (bitmap.close) bitmap.close();
+            return new Promise(function (resolve) {
+              canvas.toBlob(function (blob) { resolve(URL.createObjectURL(blob || file)); }, "image/jpeg", 0.8);
+            });
+          })
+          .catch(function () { return URL.createObjectURL(file); });
+      }
+
+      function setupImageField(fieldEl) {
+        var input = fieldEl.querySelector("[data-order-field-file]");
+        var pick = fieldEl.querySelector("[data-order-field-pick]");
+        var preview = fieldEl.querySelector("[data-order-field-preview]");
+        var thumb = fieldEl.querySelector("[data-order-field-thumb]");
+        var nameEl = fieldEl.querySelector("[data-order-field-filename]");
+        var statusEl = fieldEl.querySelector("[data-order-field-status]");
+        var errorEl = fieldEl.querySelector("[data-order-field-error]");
+        var replaceBtn = fieldEl.querySelector("[data-order-field-replace]");
+        var removeBtn = fieldEl.querySelector("[data-order-field-remove]");
+        var fieldId = fieldEl.getAttribute("data-order-field");
+        var maxBytes = parseInt(fieldEl.getAttribute("data-order-field-max-bytes"), 10) || 0;
+        if (!input) return;
+
+        var image = { token: null, filename: "", pending: null, url: null, clear: clear };
+        imageStates.set(fieldEl, image);
+
+        function say(text) {
+          if (statusEl) statusEl.textContent = text || "";
+        }
+
+        function showError(text) {
+          if (errorEl) {
+            errorEl.textContent = text || "";
+            errorEl.hidden = !text;
+          }
+          markInvalid(fieldEl, !!text);
+        }
+
+        function revoke() {
+          if (image.url) URL.revokeObjectURL(image.url);
+          image.url = null;
+        }
+
+        /* Back to "no picture". discard: whether the server may drop the
+           upload too — not when it just went into the cart. */
+        function clear(discard) {
+          if (discard) discardUpload(image.token);
+          image.token = null;
+          image.filename = "";
+          revoke();
+          if (thumb) thumb.removeAttribute("src");
+          if (nameEl) nameEl.textContent = "";
+          if (preview) preview.hidden = true;
+          if (pick) pick.hidden = false;
+          input.value = "";
+          input.required = fieldEl.hasAttribute("data-order-field-required");
+          say("");
+        }
+
+        function show(filename, url) {
+          revoke();
+          image.url = url;
+          if (thumb) thumb.src = url;
+          if (nameEl) nameEl.textContent = filename;
+          if (preview) preview.hidden = false;
+          if (pick) pick.hidden = true;
+          // The picture is on the server; the empty file control no longer
+          // stands for a missing answer.
+          input.required = false;
+        }
+
+        function upload(file) {
+          showError("");
+          if (IMAGE_TYPES.indexOf(file.type) === -1) {
+            showError(S.text("order_field_image_type"));
+            input.value = "";
+            return;
+          }
+          if (maxBytes && file.size > maxBytes) {
+            showError(S.text("order_field_image_too_large", { max: formatMegabytes(maxBytes) }));
+            input.value = "";
+            return;
+          }
+
+          var body = new FormData();
+          body.append("action", "upload");
+          body.append("product_id", String(product.id));
+          body.append("field_id", String(fieldId));
+          body.append("language", document.documentElement.lang || "");
+          body.append("file", file);
+
+          fieldEl.setAttribute("aria-busy", "true");
+          say(S.text("order_field_image_uploading"));
+
+          var previous = image.token;
+          image.pending = fetch(S.apiUrl("/api/order-field-upload.php"), { method: "POST", body: body })
+            .then(function (res) {
+              return res.json().catch(function () { return {}; }).then(function (payload) {
+                return { ok: res.ok, payload: payload || {} };
+              });
+            })
+            .catch(function () { return { ok: false, payload: {} }; })
+            .then(function (result) {
+              if (!result.ok || !result.payload.token) {
+                // The earlier picture, if any, stays as it was.
+                say("");
+                showError(result.payload.error || S.text("order_field_image_failed"));
+                input.value = "";
+                return;
+              }
+              if (previous) discardUpload(previous);
+              image.token = result.payload.token;
+              image.filename = result.payload.filename || file.name;
+              return previewUrl(file).then(function (url) {
+                show(image.filename, url);
+                say(S.text("order_field_image_received", { name: image.filename }));
+              });
+            })
+            .then(function () {
+              image.pending = null;
+              fieldEl.removeAttribute("aria-busy");
+            });
+        }
+
+        input.addEventListener("change", function () {
+          var file = input.files && input.files[0];
+          // Cancelling the picker keeps whatever was there.
+          if (file) upload(file);
+        });
+
+        if (replaceBtn) replaceBtn.addEventListener("click", function () { input.click(); });
+        if (removeBtn) {
+          removeBtn.addEventListener("click", function () {
+            clear(true);
+            say(S.text("order_field_image_removed"));
+            input.focus();
+          });
+        }
+      }
+
+      if (orderFieldsEl) {
+        Array.prototype.forEach.call(orderFieldsEl.querySelectorAll('[data-order-field-type="image"]'), setupImageField);
       }
 
       /* Puts the line in the cart once the server said it can be ordered. */

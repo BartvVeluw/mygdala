@@ -92,6 +92,16 @@ final class ShopScriptText
         'order_field_choose' => ['nl' => 'Maak een keuze.', 'en' => 'Please choose one.'],
         'order_field_tick' => ['nl' => 'Vink dit aan om verder te gaan.', 'en' => 'Please tick this to continue.'],
         'order_field_too_long' => ['nl' => 'Hooguit {max} tekens.', 'en' => 'At most {max} characters.'],
+        // An "Afbeelding uploaden" question (api/order-field-upload.php): the
+        // page checks type and size first for a quick answer; the server
+        // decides, and its own sentence is shown when it refuses.
+        'order_field_image_required' => ['nl' => 'Kies een afbeelding.', 'en' => 'Please choose a picture.'],
+        'order_field_image_type' => ['nl' => 'Kies een JPG-, PNG- of WebP-afbeelding.', 'en' => 'Please choose a JPG, PNG or WebP picture.'],
+        'order_field_image_too_large' => ['nl' => 'Deze afbeelding is te groot. Het maximum is {max}.', 'en' => 'This picture is too large. The maximum is {max}.'],
+        'order_field_image_uploading' => ['nl' => 'Afbeelding wordt geüpload…', 'en' => 'Uploading picture…'],
+        'order_field_image_received' => ['nl' => 'Afbeelding ontvangen: {name}', 'en' => 'Picture received: {name}'],
+        'order_field_image_removed' => ['nl' => 'Afbeelding verwijderd.', 'en' => 'Picture removed.'],
+        'order_field_image_failed' => ['nl' => 'Het uploaden is mislukt. Probeer het opnieuw.', 'en' => 'The upload failed. Please try again.'],
         'yes' => ['nl' => 'Ja', 'en' => 'Yes'],
         'no' => ['nl' => 'Nee', 'en' => 'No'],
         'line_order_fields' => [

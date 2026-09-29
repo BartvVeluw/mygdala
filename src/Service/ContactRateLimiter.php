@@ -29,6 +29,8 @@ class ContactRateLimiter
     public const PERSONALIZATION_UPLOAD_SALT = 'vvl-personalization-upload-rate-limit';
     /** POST /api/stock-notification.php: "mail me when this is back" (Shop Product & Ordering 2.0). */
     public const STOCK_NOTIFICATION_SALT = 'vvl-stock-notification-rate-limit';
+    /** POST /api/order-field-upload.php: a customer's picture for an order question (Shop). */
+    public const ORDER_FIELD_UPLOAD_SALT = 'vvl-order-field-upload-rate-limit';
 
     private const PRUNE_AFTER_SECONDS = 86400; // keep the table small
 

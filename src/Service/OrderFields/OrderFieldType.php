@@ -14,6 +14,10 @@ namespace App\Service\OrderFields;
  *   radio      Keuzerondjes: one of the listed choices
  *   select     Dropdown: one of the listed choices
  *   checkbox   Selectievakje: yes or no ("Cadeauverpakking")
+ *   image      Afbeelding uploaden: ONE picture the customer sends along
+ *              ("Foto van je huisdier"), stored privately
+ *              (App\Service\OrderFields\OrderFieldUploads). One per
+ *              question: a product that needs two pictures asks twice.
  *
  * A text answer is limited by the question's own maximum, and never beyond
  * the type's CAP; without its own maximum it gets the type's DEFAULT.
@@ -25,8 +29,9 @@ final class OrderFieldType
     public const RADIO = 'radio';
     public const SELECT = 'select';
     public const CHECKBOX = 'checkbox';
+    public const IMAGE = 'image';
 
-    public const ALL = [self::TEXT, self::TEXTAREA, self::RADIO, self::SELECT, self::CHECKBOX];
+    public const ALL = [self::TEXT, self::TEXTAREA, self::RADIO, self::SELECT, self::CHECKBOX, self::IMAGE];
 
     /** @var array<string, int> the length a text answer gets without a maximum of its own */
     public const DEFAULT_MAX_LENGTH = [self::TEXT => 100, self::TEXTAREA => 1000];
@@ -49,6 +54,12 @@ final class OrderFieldType
     public static function isText(string $type): bool
     {
         return $type === self::TEXT || $type === self::TEXTAREA;
+    }
+
+    /** Whether the answer is a picture the customer uploads (image). */
+    public static function isImage(string $type): bool
+    {
+        return $type === self::IMAGE;
     }
 
     /** The maximum length a text answer may have: the question's own, within the cap. */

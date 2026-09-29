@@ -40,6 +40,13 @@ docker/volumes/
 # override that points back inside the repo.
 /storage/personalization-uploads/*
 
+# Customer pictures for "Afbeelding uploaden" order questions (private ORDER
+# data - see src/Service/OrderFields/OrderFieldUploadStorage.php). Stored one
+# directory above the project root by default, so this normally matches
+# nothing - kept as a safety net for an ORDER_FIELD_UPLOADS_PATH override
+# that points back inside the repo.
+/storage/order-field-uploads/*
+
 # The application key that encrypts the secrets stored in the CMS (see
 # src/Service/Secrets/MasterKey.php). Made one directory above the project
 # root by default, so this normally matches nothing - kept as a safety net for

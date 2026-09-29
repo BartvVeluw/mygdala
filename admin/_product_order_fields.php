@@ -7,6 +7,7 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_product_variants.php';
 
 use App\Service\OrderFields\OrderFieldType;
+use App\Service\OrderFields\OrderFieldUploadPolicy;
 use App\Service\OrderFields\ProductOrderFieldEditor;
 
 /**
@@ -20,16 +21,17 @@ use App\Service\OrderFields\ProductOrderFieldEditor;
  * it (admin/assets/row-list.js): adding, moving and removing them changes
  * only the screen. Rows go by key — an id, or "new<n>" for one typed here.
  * The words are in the language the editor is in; every other language stays.
- * admin/assets/product-order-fields.js shows the length for a text question
- * and the choices for a radio or dropdown one, and hides the list while the
- * switch is off (it is still sent, and kept).
+ * admin/assets/product-order-fields.js shows the length for a text question,
+ * the choices for a radio or dropdown one and the file size for an image
+ * question ("Afbeelding uploaden"), and hides the list while the switch is
+ * off (it is still sent, and kept).
  *
  * A region of the editor: after a save the server draws it again, and every
  * new row carries its id from then on.
  */
 
 /**
- * @param list<array{id: int, type: string, required: bool, max_length: ?int, label: string, help: string, options: list<array{id: int, label: string}>}> $fields the questions with their words in the editing language
+ * @param list<array{id: int, type: string, required: bool, max_length: ?int, max_file_size_mb?: ?int, label: string, help: string, options: list<array{id: int, label: string}>}> $fields the questions with their words in the editing language
  */
 function product_order_fields_section(bool $enabled, array $fields): void
 {
@@ -51,7 +53,7 @@ function product_order_fields_section(bool $enabled, array $fields): void
           <?php endforeach; ?>
         </div>
         <p class="admin-text-muted" data-order-fields-empty<?= $fields !== [] ? ' hidden' : '' ?>><?= admin_te('shop.order_fields.empty') ?></p>
-        <template data-row-list-template="order-fields"><?php product_order_field_row('__KEY__', ['type' => OrderFieldType::TEXT, 'required' => false, 'max_length' => null, 'label' => '', 'help' => '', 'options' => []]); ?></template>
+        <template data-row-list-template="order-fields"><?php product_order_field_row('__KEY__', ['type' => OrderFieldType::TEXT, 'required' => false, 'max_length' => null, 'max_file_size_mb' => null, 'label' => '', 'help' => '', 'options' => []]); ?></template>
         <p class="admin-visually-hidden" role="status" aria-live="polite" data-row-list-status="order-fields" data-row-list-moved="<?= admin_te('editor_rows.verplaatst') ?>"></p>
         <div class="admin-option-rows__tools">
           <button type="button" class="admin-btn-secondary" data-row-list-add="order-fields" hidden>+ <?= admin_te('shop.order_fields.add') ?></button>
@@ -64,7 +66,7 @@ function product_order_fields_section(bool $enabled, array $fields): void
 /**
  * One question.
  *
- * @param array{type: string, required: bool, max_length: ?int, label: string, help: string, options: list<array{id: int, label: string}>} $field
+ * @param array{type: string, required: bool, max_length: ?int, max_file_size_mb?: ?int, label: string, help: string, options: list<array{id: int, label: string}>} $field
  */
 function product_order_field_row(string $key, array $field): void
 {
@@ -103,7 +105,27 @@ function product_order_field_row(string $key, array $field): void
           <label for="<?= $h($id) ?>-max"><?= admin_te('shop.order_fields.max_length') ?></label>
           <input type="number" id="<?= $h($id) ?>-max" name="<?= $h($name('max_length')) ?>" min="1" max="<?= OrderFieldType::CAP[OrderFieldType::TEXTAREA] ?>" step="1" inputmode="numeric" value="<?= $field['max_length'] !== null ? (int) $field['max_length'] : '' ?>" placeholder="<?= admin_te('shop.order_fields.max_length_placeholder') ?>">
         </div>
+        <?php
+          // An image question: one of the offered sizes, never more than
+          // this server takes (OrderFieldUploadPolicy::effectiveMaxBytes()).
+          $ownSize = $field['max_file_size_mb'] ?? null;
+          $serverMb = intdiv(OrderFieldUploadPolicy::serverMaxBytes(), 1024 * 1024);
+        ?>
+        <div class="admin-field" data-order-field-when="image"<?= OrderFieldType::isImage($type) ? '' : ' hidden' ?>>
+          <label for="<?= $h($id) ?>-size"><?= admin_te('shop.order_fields.max_file_size') ?></label>
+          <select class="admin-select" id="<?= $h($id) ?>-size" name="<?= $h($name('max_file_size_mb')) ?>">
+            <option value=""<?= $ownSize === null ? ' selected' : '' ?>><?= admin_te('shop.order_fields.max_file_size_default', ['mb' => (string) OrderFieldUploadPolicy::DEFAULT_MB]) ?></option>
+            <?php foreach (OrderFieldUploadPolicy::SIZE_CHOICES_MB as $mb): ?>
+              <option value="<?= $mb ?>"<?= $ownSize === $mb ? ' selected' : '' ?>><?= $mb ?> MB</option>
+            <?php endforeach; ?>
+          </select>
+          <?php if ($serverMb < max(OrderFieldUploadPolicy::SIZE_CHOICES_MB)): ?>
+            <p class="admin-text-muted"><?= admin_te('shop.order_fields.max_file_size_server', ['mb' => (string) $serverMb]) ?></p>
+          <?php endif; ?>
+        </div>
       </div>
+
+      <p class="admin-text-muted admin-order-field__image-note" data-order-field-when="image"<?= OrderFieldType::isImage($type) ? '' : ' hidden' ?>><?= admin_te('shop.order_fields.image_note') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="<?= $h($name('required')) ?>" value="1"<?= $field['required'] ? ' checked' : '' ?>>

@@ -34,12 +34,12 @@ class OrderFieldRepository extends Repository
     /**
      * A product's questions in their order, each with its choices in theirs.
      *
-     * @return list<array{id: int, product_id: int, field_type: string, is_required: bool, max_length: ?int, sort_order: int, options: list<array{id: int, sort_order: int}>}>
+     * @return list<array{id: int, product_id: int, field_type: string, is_required: bool, max_length: ?int, max_file_size_mb: ?int, sort_order: int, options: list<array{id: int, sort_order: int}>}>
      */
     public function fieldsForProduct(int $productId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, product_id, field_type, is_required, max_length, sort_order
+            'SELECT id, product_id, field_type, is_required, max_length, max_file_size_mb, sort_order
              FROM product_order_fields
              WHERE product_id = :product_id
              ORDER BY sort_order ASC, id ASC'
@@ -54,6 +54,7 @@ class OrderFieldRepository extends Repository
                 'field_type' => (string) $row['field_type'],
                 'is_required' => (int) $row['is_required'] === 1,
                 'max_length' => $row['max_length'] !== null ? (int) $row['max_length'] : null,
+                'max_file_size_mb' => $row['max_file_size_mb'] !== null ? (int) $row['max_file_size_mb'] : null,
                 'sort_order' => (int) $row['sort_order'],
                 'options' => [],
             ];
@@ -75,34 +76,37 @@ class OrderFieldRepository extends Repository
         return array_values($fields);
     }
 
-    public function createField(int $productId, string $type, bool $required, ?int $maxLength, int $sortOrder): int
+    public function createField(int $productId, string $type, bool $required, ?int $maxLength, int $sortOrder, ?int $maxFileSizeMb = null): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO product_order_fields (product_id, field_type, is_required, max_length, sort_order, created_at, updated_at)
-             VALUES (:product_id, :field_type, :is_required, :max_length, :sort_order, NOW(), NOW())'
+            'INSERT INTO product_order_fields (product_id, field_type, is_required, max_length, max_file_size_mb, sort_order, created_at, updated_at)
+             VALUES (:product_id, :field_type, :is_required, :max_length, :max_file_size_mb, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'product_id' => $productId,
             'field_type' => $type,
             'is_required' => $required ? 1 : 0,
             'max_length' => $maxLength,
+            'max_file_size_mb' => $maxFileSizeMb,
             'sort_order' => $sortOrder,
         ]);
 
         return (int) $this->db->lastInsertId();
     }
 
-    public function updateField(int $id, int $productId, string $type, bool $required, ?int $maxLength, int $sortOrder): void
+    public function updateField(int $id, int $productId, string $type, bool $required, ?int $maxLength, int $sortOrder, ?int $maxFileSizeMb = null): void
     {
         $stmt = $this->db->prepare(
             'UPDATE product_order_fields
-             SET field_type = :field_type, is_required = :is_required, max_length = :max_length, sort_order = :sort_order, updated_at = NOW()
+             SET field_type = :field_type, is_required = :is_required, max_length = :max_length, max_file_size_mb = :max_file_size_mb,
+                 sort_order = :sort_order, updated_at = NOW()
              WHERE id = :id AND product_id = :product_id'
         );
         $stmt->execute([
             'field_type' => $type,
             'is_required' => $required ? 1 : 0,
             'max_length' => $maxLength,
+            'max_file_size_mb' => $maxFileSizeMb,
             'sort_order' => $sortOrder,
             'id' => $id,
             'product_id' => $productId,

@@ -17,6 +17,13 @@ declare(strict_types=1);
  * again (App\Service\OrderFields\OrderFields::validate()).
  *
  * Every word is the product's own, in the language of the page, escaped.
+ *
+ * AN IMAGE QUESTION ("Afbeelding uploaden", Shop Admin UX & Order Fields 2.0)
+ * is a file control with the formats and the size it takes, a small local
+ * preview once a picture is chosen, and buttons to replace or remove it.
+ * shop.js uploads the picture as soon as it is chosen
+ * (api/order-field-upload.php) and keeps only the token it gets back; the
+ * picture never goes into the cart, localStorage or the page as data.
  */
 
 /**
@@ -25,7 +32,7 @@ declare(strict_types=1);
  * label target or a radio group. The product page passes '' and keeps the
  * ids it always had.
  *
- * @param list<array{id: int, type: string, required: bool, max_length: int, label: string, help: string, options: list<array{id: int, label: string}>}> $questions
+ * @param list<array{id: int, type: string, required: bool, max_length: int, max_bytes?: int, label: string, help: string, options: list<array{id: int, label: string}>}> $questions
  */
 function render_product_order_fields(array $questions, string $scope = ''): void
 {
@@ -34,6 +41,7 @@ function render_product_order_fields(array $questions, string $scope = ''): void
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $language = \App\Service\Language\SiteText::documentLanguage();
     $requiredMark = ' <span class="req product-order-field__required" aria-hidden="true">*</span>';
     ?>
     <div class="product-order-fields" data-product-order-fields>
@@ -44,7 +52,8 @@ function render_product_order_fields(array $questions, string $scope = ''): void
           $name = $scope . 'order_field_' . (int) $question['id'];
           $helpId = $id . '-help';
           $errorId = $id . '-error';
-          $described = ($question['help'] !== '' ? $helpId . ' ' : '') . $errorId;
+          $rulesId = $id . '-rules';
+          $described = ($question['help'] !== '' ? $helpId . ' ' : '') . ($question['type'] === 'image' ? $rulesId . ' ' : '') . $errorId;
           $required = $question['required'] ? ' required aria-required="true"' : '';
           $isChoice = $question['type'] === 'radio' || $question['type'] === 'checkbox';
         ?>
@@ -52,8 +61,28 @@ function render_product_order_fields(array $questions, string $scope = ''): void
                  label, control, focus ring, hint and error as every other
                  form. A tick box or a group of radios is a row of
                  .checkbox-field choices instead. */ ?>
-        <div class="product-order-field form-field<?= $isChoice ? ' product-order-field--choice' : '' ?>" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>">
-          <?php if ($question['type'] === 'radio'): ?>
+        <div class="product-order-field form-field<?= $isChoice ? ' product-order-field--choice' : '' ?><?= $question['type'] === 'image' ? ' product-order-field--image' : '' ?>" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>"<?= $question['type'] === 'image' ? ' data-order-field-max-bytes="' . (int) ($question['max_bytes'] ?? 0) . '"' : '' ?>>
+          <?php if ($question['type'] === 'image'): ?>
+            <?php $maxBytes = (int) ($question['max_bytes'] ?? 0); ?>
+            <label for="<?= $h($id) ?>"><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></label>
+            <?php /* The native control stays the one that is focused and
+                     announced; it is only visually replaced by the button
+                     that is its second label. */ ?>
+            <input type="file" class="product-order-field__file" id="<?= $h($id) ?>" name="<?= $h($name) ?>" accept="<?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::acceptAttribute()) ?>" aria-describedby="<?= $h($described) ?>" data-order-field-file<?= $required ?>>
+            <div class="product-order-field__upload">
+              <label for="<?= $h($id) ?>" class="btn btn--ghost btn--sm product-order-field__pick" data-order-field-pick aria-hidden="true"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Afbeelding kiezen', 'en' => 'Choose a picture']) ?></label>
+              <div class="product-order-field__preview" data-order-field-preview hidden>
+                <img class="product-order-field__thumb" alt="" width="64" height="64" data-order-field-thumb>
+                <span class="product-order-field__file-name" data-order-field-filename></span>
+                <span class="product-order-field__actions">
+                  <button type="button" class="btn btn--ghost btn--sm" data-order-field-replace><?= \App\Service\Language\SiteText::escaped(['nl' => 'Vervangen', 'en' => 'Replace']) ?><span class="visually-hidden"> — <?= $h($question['label']) ?></span></button>
+                  <button type="button" class="btn btn--ghost btn--sm" data-order-field-remove><?= \App\Service\Language\SiteText::escaped(['nl' => 'Verwijderen', 'en' => 'Remove']) ?><span class="visually-hidden"> — <?= $h($question['label']) ?></span></button>
+                </span>
+              </div>
+            </div>
+            <p class="hint product-order-field__rules" id="<?= $h($rulesId) ?>"><?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatsText($language)) ?> · <?= $h(\App\Service\Language\SiteText::pick(['nl' => 'max.', 'en' => 'max.'], $language)) ?> <?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatBytes($maxBytes, $language)) ?></p>
+            <p class="product-order-field__status" role="status" aria-live="polite" data-order-field-status></p>
+          <?php elseif ($question['type'] === 'radio'): ?>
             <fieldset class="product-order-field__group" aria-describedby="<?= $h($described) ?>">
               <legend><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></legend>
               <?php foreach ($question['options'] as $option): ?>

@@ -255,6 +255,7 @@ if ($isEdit) {
             'type' => $storedField['field_type'],
             'required' => $storedField['is_required'],
             'max_length' => $storedField['max_length'],
+            'max_file_size_mb' => $storedField['max_file_size_mb'],
             'label' => ShopLocalization::rawOrderField($storedField['id'], ShopLocalization::LABEL, $editingLanguage),
             'help' => ShopLocalization::rawOrderField($storedField['id'], ShopLocalization::HELP_TEXT, $editingLanguage),
             'options' => array_map(static fn (array $option): array => [

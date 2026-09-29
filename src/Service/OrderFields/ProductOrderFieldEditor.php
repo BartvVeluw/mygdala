@@ -44,7 +44,7 @@ final class ProductOrderFieldEditor
 
     /**
      * @param array<int, array<string, mixed>> $stored the product's questions by id (OrderFieldRepository::fieldsForProduct())
-     * @param list<array{key: string, id: int, type: string, label: string, help: string, required: bool, max_length: string, options: list<array{key: string, id: int, label: string}>}>|null $fields null: not on the form
+     * @param list<array{key: string, id: int, type: string, label: string, help: string, required: bool, max_length: string, max_file_size_mb: string, options: list<array{key: string, id: int, label: string}>}>|null $fields null: not on the form
      */
     private function __construct(
         private readonly int $productId,
@@ -100,6 +100,7 @@ final class ProductOrderFieldEditor
                 'help' => (string) ($row['fields']['help'] ?? ''),
                 'required' => ($row['fields']['required'] ?? '') === '1',
                 'max_length' => (string) ($row['fields']['max_length'] ?? ''),
+                'max_file_size_mb' => (string) ($row['fields']['max_file_size_mb'] ?? ''),
                 'options' => $options,
             ];
         }
@@ -135,6 +136,13 @@ final class ProductOrderFieldEditor
                 if (preg_match('/^\d{1,5}$/', $field['max_length']) !== 1 || (int) $field['max_length'] < 1 || (int) $field['max_length'] > $cap) {
                     $errors[self::field($field['key'], 'max_length')] = AdminTranslator::trans('validation.order_field_max_length', ['max' => (string) $cap]);
                 }
+            }
+
+            // An image question's size is one of the offered choices, or
+            // empty for the default; the server's own limit caps it anyway.
+            if (OrderFieldType::isImage($field['type']) && $field['max_file_size_mb'] !== ''
+                && !OrderFieldUploadPolicy::isSizeChoice(ctype_digit($field['max_file_size_mb']) ? (int) $field['max_file_size_mb'] : null)) {
+                $errors[self::field($field['key'], 'max_file_size_mb')] = AdminTranslator::trans('validation.order_field_max_file_size');
             }
 
             if (OrderFieldType::hasOptions($field['type'])) {
@@ -179,13 +187,17 @@ final class ProductOrderFieldEditor
         }
 
         foreach (array_values($this->fields ?? []) as $position => $field) {
+            // What does not belong to the type is not kept: a length only for
+            // text, a file size only for an image, choices only for a radio
+            // or dropdown (below) — so a changed type leaves nothing stale.
             $maxLength = OrderFieldType::isText($field['type']) && $field['max_length'] !== '' ? (int) $field['max_length'] : null;
+            $maxFileSize = OrderFieldType::isImage($field['type']) && $field['max_file_size_mb'] !== '' ? (int) $field['max_file_size_mb'] : null;
 
             if ($field['id'] > 0) {
                 $fieldId = $field['id'];
-                $this->repository->updateField($fieldId, $this->productId, $field['type'], $field['required'], $maxLength, $position);
+                $this->repository->updateField($fieldId, $this->productId, $field['type'], $field['required'], $maxLength, $position, $maxFileSize);
             } else {
-                $fieldId = $this->repository->createField($this->productId, $field['type'], $field['required'], $maxLength, $position);
+                $fieldId = $this->repository->createField($this->productId, $field['type'], $field['required'], $maxLength, $position, $maxFileSize);
             }
 
             ShopLocalization::saveOrderField($fieldId, $this->language, [

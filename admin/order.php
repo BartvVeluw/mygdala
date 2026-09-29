@@ -218,7 +218,39 @@ $orderNumber = OrderRepository::orderNumber($order);
                 <dl class="admin-order-fields">
                   <?php foreach ($itemAnswers as $answer): ?>
                     <dt><?= htmlspecialchars($answer['label'], ENT_QUOTES, 'UTF-8') ?></dt>
-                    <dd><?= nl2br(htmlspecialchars($answer['value'], ENT_QUOTES, 'UTF-8')) ?></dd>
+                    <?php if ($answer['field_type'] === 'image'): ?>
+                      <?php
+                        /* A customer's picture (Shop Admin UX & Order Fields
+                           2.0): only through the authenticated file route,
+                           by the upload's id — never a storage path. */
+                        $upload = $answer['upload'];
+                      ?>
+                      <dd class="admin-order-field-image">
+                        <?php if ($upload !== null): ?>
+                          <?php $fileUrl = '/api/admin/order-field-upload.php?id=' . (int) $upload['id']; ?>
+                          <a href="<?= htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8') ?>" class="admin-order-field-image__thumb" target="_blank" rel="noopener">
+                            <img src="<?= htmlspecialchars($fileUrl . '&variant=thumb', ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($answer['label'] . ': ' . $upload['original_filename'], ENT_QUOTES, 'UTF-8') ?>" loading="lazy">
+                          </a>
+                          <span class="admin-order-field-image__meta">
+                            <span class="admin-order-field-image__name"><?= htmlspecialchars($upload['original_filename'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <span class="admin-text-muted"><?= admin_te('shop.order_fields.image_details', [
+                                'width' => (string) $upload['width'],
+                                'height' => (string) $upload['height'],
+                                'size' => number_format($upload['byte_size'] / (1024 * 1024), 1, ',', '.') . ' MB',
+                            ]) ?></span>
+                            <span class="admin-order-field-image__actions">
+                              <a href="<?= htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8') ?>" class="admin-btn-text" target="_blank" rel="noopener"><?= admin_te('shop.order_fields.image_view') ?><span class="admin-visually-hidden">: <?= htmlspecialchars($upload['original_filename'], ENT_QUOTES, 'UTF-8') ?></span></a>
+                              <a href="<?= htmlspecialchars($fileUrl . '&mode=download', ENT_QUOTES, 'UTF-8') ?>" class="admin-btn-text" download><?= admin_te('shop.order_fields.image_download') ?><span class="admin-visually-hidden">: <?= htmlspecialchars($upload['original_filename'], ENT_QUOTES, 'UTF-8') ?></span></a>
+                            </span>
+                          </span>
+                        <?php else: ?>
+                          <?= htmlspecialchars($answer['value'], ENT_QUOTES, 'UTF-8') ?>
+                          <span class="admin-text-muted">— <?= admin_te('shop.order_fields.image_missing') ?></span>
+                        <?php endif; ?>
+                      </dd>
+                    <?php else: ?>
+                      <dd><?= nl2br(htmlspecialchars($answer['value'], ENT_QUOTES, 'UTF-8')) ?></dd>
+                    <?php endif; ?>
                   <?php endforeach; ?>
                 </dl>
               </td>
