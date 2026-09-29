@@ -61,7 +61,7 @@ function render_product_order_fields(array $questions, string $scope = ''): void
                  label, control, focus ring, hint and error as every other
                  form. A tick box or a group of radios is a row of
                  .checkbox-field choices instead. */ ?>
-        <div class="product-order-field form-field<?= $isChoice ? ' product-order-field--choice' : '' ?><?= $question['type'] === 'image' ? ' product-order-field--image' : '' ?>" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>"<?= $question['type'] === 'image' ? ' data-order-field-max-bytes="' . (int) ($question['max_bytes'] ?? 0) . '"' : '' ?>>
+        <div class="product-order-field form-field<?= $isChoice ? ' product-order-field--choice' : '' ?><?= $question['type'] === 'image' ? ' product-order-field--image' : '' ?>" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>"<?= $question['type'] === 'image' ? ' data-order-field-max-bytes="' . (int) ($question['max_bytes'] ?? 0) . '" data-order-field-max-label="' . $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatBytes((int) ($question['max_bytes'] ?? 0), $language)) . '"' : '' ?>>
           <?php if ($question['type'] === 'image'): ?>
             <label for="<?= $h($id) ?>"><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></label>
             <?php /* The native control stays the one that is focused and

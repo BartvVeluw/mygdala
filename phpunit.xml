@@ -450,6 +450,7 @@
             <file>tests/Service/UnknownContentBlockTest.php</file>
             <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
             <file>tests/Install/ShopProductOrderingMigrationTest.php</file>
+            <file>tests/Install/ImageOrderFieldUploadsMigrationTest.php</file>
         </testsuite>
 
         <!-- ============================================================
@@ -838,6 +839,10 @@
             <file>tests/Service/PurchaseModeHttpTest.php</file>
             <file>tests/Service/OrderFieldsTest.php</file>
             <file>tests/Service/OrderFieldsHttpTest.php</file>
+            <file>tests/Service/OrderFieldImageUploadTest.php</file>
+            <file>tests/Service/OrderFieldStylingTest.php</file>
+            <file>tests/Service/ProductAdminOverviewTest.php</file>
+            <file>tests/Install/ImageOrderFieldUploadsMigrationTest.php</file>
             <file>tests/Service/ProductSpecificationsTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
             <file>tests/Install/ShopProductOrderingMigrationTest.php</file>

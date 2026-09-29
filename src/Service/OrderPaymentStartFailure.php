@@ -45,7 +45,7 @@ final class OrderPaymentStartFailure
 
             // A customer's pictures for order questions go back to the cart
             // too, so trying again with the same cart can order them.
-            (new OrderFieldUploadRepository($db))->releaseForOrder($orderId, OrderFieldUploadPolicy::TTL_HOURS);
+            (new OrderFieldUploadRepository($db))->returnToCartForOrder($orderId, OrderFieldUploadPolicy::TTL_HOURS);
 
             // Units that are orderable again: whoever waits for them hears it.
             if ($cameBack !== []) {

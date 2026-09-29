@@ -35,6 +35,7 @@ final class SvgUploadRoutesTest extends TestCase
         'src/Service/Personalization/PersonalizationFontUploader.php' => 'font',
         'src/Service/SectionVideoUploader.php' => 'video',
         'src/Service/ContactAttachmentStorage.php' => 'validated',
+        'src/Service/OrderFields/OrderFieldUploadStorage.php' => 'validated',
     ];
 
     public function testEveryClassThatStoresAnUploadIsOnTheList(): void
@@ -89,7 +90,7 @@ final class SvgUploadRoutesTest extends TestCase
     {
         $root = dirname(__DIR__, 3);
 
-        foreach (['src/Service/Forms/FormUploadInspector.php', 'src/Service/Personalization/PersonalizationUploadValidator.php'] as $file) {
+        foreach (['src/Service/Forms/FormUploadInspector.php', 'src/Service/Personalization/PersonalizationUploadValidator.php', 'src/Service/OrderFields/OrderFieldUploadValidator.php'] as $file) {
             $source = (string) file_get_contents($root . '/' . $file);
             self::assertStringContainsString('getimagesize(', $source, $file);
         }
@@ -104,6 +105,12 @@ final class SvgUploadRoutesTest extends TestCase
             array_keys(\App\Service\Personalization\PersonalizationRules::ALLOWED_UPLOAD_TYPES),
             'a customer upload is a PNG or a JPEG'
         );
+        self::assertSame(
+            [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP],
+            array_keys(\App\Service\OrderFields\OrderFieldUploadPolicy::FORMATS),
+            'a picture for an order question is a JPEG, PNG or WebP (MODULES.md, "Bestelvelden")'
+        );
+        self::assertStringContainsString('new \finfo(FILEINFO_MIME_TYPE)', (string) file_get_contents($root . '/src/Service/OrderFields/OrderFieldUploadValidator.php'));
     }
 
     /**

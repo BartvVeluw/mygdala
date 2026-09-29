@@ -42,7 +42,7 @@ use PDO;
  *                 money (could not start, failed, canceled, expired) gives
  *                 its pictures back to the cart — temporary again with a
  *                 fresh lifetime — because the cart stays in the browser until
- *                 an order is paid (OrderFieldUploadRepository::releaseForOrder(),
+ *                 an order is paid (OrderFieldUploadRepository::returnToCartForOrder(),
  *                 called next to the stock release).
  *   5. sweep()    expired temporary uploads are deleted with their files — on
  *                 roughly one in SWEEP_CHANCE uploads, and by

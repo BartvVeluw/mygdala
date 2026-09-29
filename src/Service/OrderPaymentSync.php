@@ -101,7 +101,7 @@ class OrderPaymentSync
             // cart, which stays in the browser until an order is paid, so
             // checking out again can order them. Repeating this is harmless.
             try {
-                (new \App\Repository\OrderFieldUploadRepository())->releaseForOrder((int) $order['id'], \App\Service\OrderFields\OrderFieldUploadPolicy::TTL_HOURS);
+                (new \App\Repository\OrderFieldUploadRepository())->returnToCartForOrder((int) $order['id'], \App\Service\OrderFields\OrderFieldUploadPolicy::TTL_HOURS);
             } catch (\Throwable $e) {
                 error_log('[OrderPaymentSync] order-field pictures for order ' . $order['id'] . ': ' . $e->getMessage());
             }

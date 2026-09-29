@@ -860,12 +860,6 @@
         return pending.length ? Promise.all(pending) : null;
       }
 
-      function formatMegabytes(bytes) {
-        var mb = bytes / (1024 * 1024);
-        var text = Math.floor(mb) === mb ? String(mb) : mb.toFixed(1);
-        return (document.documentElement.lang === "en" ? text : text.replace(".", ",")) + " MB";
-      }
-
       function discardUpload(token) {
         if (!token) return;
         var body = new FormData();
@@ -907,6 +901,8 @@
         var removeBtn = fieldEl.querySelector("[data-order-field-remove]");
         var fieldId = fieldEl.getAttribute("data-order-field");
         var maxBytes = parseInt(fieldEl.getAttribute("data-order-field-max-bytes"), 10) || 0;
+        // The limit as the page says it ("5 MB"), written by the server.
+        var maxLabel = fieldEl.getAttribute("data-order-field-max-label") || "";
         if (!input) return;
 
         var image = { token: null, filename: "", pending: null, url: null, seq: 0, clear: clear };
@@ -969,7 +965,7 @@
             return;
           }
           if (maxBytes && file.size > maxBytes) {
-            showError(S.text("order_field_image_too_large", { max: formatMegabytes(maxBytes) }));
+            showError(S.text("order_field_image_too_large", { max: maxLabel }));
             input.value = "";
             return;
           }

@@ -496,12 +496,12 @@ final class OrderFieldImageUploadTest extends TestCase
         // A paid order keeps its picture, whatever is asked.
         $retryOrder = (int) $db->query('SELECT order_id FROM order_items WHERE id = ' . $retry)->fetchColumn();
         $db->prepare("UPDATE orders SET status = 'paid' WHERE id = :id")->execute(['id' => $retryOrder]);
-        self::assertSame(0, $repository->releaseForOrder($retryOrder, OrderFieldUploadPolicy::TTL_HOURS));
+        self::assertSame(0, $repository->returnToCartForOrder($retryOrder, OrderFieldUploadPolicy::TTL_HOURS));
         $db->prepare("UPDATE orders SET status = 'canceled' WHERE id = :id")->execute(['id' => $retryOrder]);
-        self::assertSame(1, $repository->releaseForOrder($retryOrder, OrderFieldUploadPolicy::TTL_HOURS), 'canceled at the payment provider: back to the cart');
+        self::assertSame(1, $repository->returnToCartForOrder($retryOrder, OrderFieldUploadPolicy::TTL_HOURS), 'canceled at the payment provider: back to the cart');
 
         $sync = (string) file_get_contents(__DIR__ . '/../../src/Service/OrderPaymentSync.php');
-        self::assertStringContainsString('OrderFieldUploadRepository())->releaseForOrder(', $sync, 'the webhook gives pictures back next to the stock');
+        self::assertStringContainsString('OrderFieldUploadRepository())->returnToCartForOrder(', $sync, 'the webhook gives pictures back next to the stock');
     }
 
     /* ---- the cart --------------------------------------------------------- */

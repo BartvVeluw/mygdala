@@ -767,7 +767,7 @@ Alles wat er ook zou zijn zonder webshop.
     - **Een betaling zonder geld geeft de afbeelding terug.** De winkelwagen
       blijft in de browser tot een bestelling betaald is. Start de betaling
       niet, of wordt ze `failed`, `canceled` of `expired`, dan maakt
-      `OrderFieldUploadRepository::releaseForOrder()` de afbeeldingen weer
+      `OrderFieldUploadRepository::returnToCartForOrder()` de afbeeldingen weer
       tijdelijk, met een nieuwe levensduur, naast het teruggeven van de
       voorraad (`OrderPaymentStartFailure`, `OrderPaymentSync`). Opnieuw
       afrekenen met dezelfde winkelwagen bestelt ze dan alsnog. De

@@ -135,7 +135,7 @@ class OrderFieldUploadRepository extends Repository
      *
      * @return int how many pictures came back
      */
-    public function releaseForOrder(int $orderId, int $ttlHours): int
+    public function returnToCartForOrder(int $orderId, int $ttlHours): int
     {
         $stmt = $this->db->prepare(
             "UPDATE order_field_uploads u
