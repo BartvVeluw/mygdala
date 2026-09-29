@@ -273,6 +273,12 @@ final class BlogModule extends ModuleDefinition
      * BlogSeo). An empty category is absent too — a sitemap entry for a
      * listing with nothing in it is an invitation to index a blank page.
      */
+    /** Published posts in the site search (SEARCH.md). */
+    public function searchProviders(): array
+    {
+        return ['post' => new \App\Service\Blog\BlogSearchProvider()];
+    }
+
     public function sitemapCollectors(): array
     {
         return [

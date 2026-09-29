@@ -358,6 +358,45 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
+     * The items among $ids whose project page is public — the three
+     * conditions of findDetailPageItemsForSitemap(), in the same catalogue
+     * order — with what a search result shows: the picture paths every public
+     * reader uses. For App\Service\PortfolioSearchProvider, one query for any
+     * number of ids.
+     *
+     * @param list<int> $ids
+     * @return list<array{id: int, slug: string, page_id: ?int, image_path: ?string, thumbnail_path: ?string}>
+     */
+    public function findPublicProjectsByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT id, slug, page_id, image_path, thumbnail_path
+             FROM portfolio_gallery_items
+             WHERE is_active = 1 AND has_detail_page = 1 AND slug IS NOT NULL AND slug <> ''
+               AND id IN ({$placeholders})
+             ORDER BY sort_order ASC, id ASC"
+        );
+        $stmt->execute($ids);
+
+        return array_map(
+            static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'slug' => (string) $row['slug'],
+                'page_id' => $row['page_id'] !== null ? (int) $row['page_id'] : null,
+                'image_path' => $row['image_path'] !== null ? (string) $row['image_path'] : null,
+                'thumbnail_path' => $row['thumbnail_path'] !== null ? (string) $row['thumbnail_path'] : null,
+            ],
+            $stmt->fetchAll()
+        );
+    }
+
+    /**
      * Looks up the item behind a project address
      * (portfolio-detail.php?slug=...). What that address does is the caller's
      * question — redirect to a legacy linked page, or show the item's own

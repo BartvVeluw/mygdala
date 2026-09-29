@@ -297,6 +297,19 @@ abstract class ModuleDefinition
     }
 
     /**
+     * Site-search providers, keyed by result type ("product", "project",
+     * "post"), in App\Service\Search\SearchService's order. Read only while
+     * the module is enabled, so a module that is off can never put its
+     * content in the search results (SEARCH.md).
+     *
+     * @return array<string, \App\Service\Search\SearchProvider>
+     */
+    public function searchProviders(): array
+    {
+        return [];
+    }
+
+    /**
      * Content-block types this module owns, in App\Service\Blocks\BlockDefinitions'
      * shape: type key => definition class.
      *

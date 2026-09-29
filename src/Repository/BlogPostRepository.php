@@ -89,6 +89,36 @@ class BlogPostRepository extends Repository
         return $row === false ? null : $row;
     }
 
+    /**
+     * The public posts among $ids, newest first: the site search's
+     * candidates (App\Service\Blog\BlogSearchProvider), which found them by
+     * their words and needs this one visibility rule applied in one query for
+     * all of them.
+     *
+     * @param list<int> $ids
+     * @return list<array<string, mixed>>
+     */
+    public function findPublicByIds(array $ids, string $now): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $named = [];
+        foreach ($ids as $index => $id) {
+            $named['id' . $index] = $id;
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT p.* FROM blog_posts p WHERE p.id IN (:' . implode(', :', array_keys($named)) . ') AND ' . self::PUBLIC_WHERE
+            . ' ORDER BY ' . self::PUBLIC_ORDER
+        );
+        $stmt->execute($named + ['now' => $now]);
+
+        return $stmt->fetchAll();
+    }
+
     public function findPublicBySlug(string $slug, string $now): ?array
     {
         $stmt = $this->db->prepare(

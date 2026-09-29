@@ -83,6 +83,7 @@
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
+            <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
@@ -296,6 +297,7 @@
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
+            <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
@@ -467,6 +469,7 @@
              it skips itself when that is not running. -->
         <testsuite name="modules">
             <directory>tests/Module</directory>
+            <file>tests/Service/Search/SearchProvidersTest.php</file>
         </testsuite>
 
         <!-- The Blog module: posts, taxonomy, its SEO and feed, its media
@@ -476,6 +479,7 @@
              say "the Blog" without running the whole CMS. -->
         <testsuite name="blog">
             <directory>tests/Blog</directory>
+            <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
         </testsuite>
@@ -687,6 +691,7 @@
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
+            <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
             <file>tests/Service/FooterAdminHttpTest.php</file>
@@ -765,6 +770,7 @@
         </testsuite>
 
         <testsuite name="shop">
+            <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>

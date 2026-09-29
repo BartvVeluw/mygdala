@@ -794,6 +794,27 @@ class PortfolioGalleryContent
     }
 
     /**
+     * The items among $ids a site search may show as a project: a public
+     * project page (the repository's three conditions) that does NOT redirect
+     * to a legacy published page — that page is found by Core's own page
+     * search under its own address, exactly as projectPagesForSitemap()
+     * leaves it to Core's pages collector. Catalogue order.
+     *
+     * @param list<int> $ids
+     * @return list<array{id: int, slug: string, page_id: ?int, image_path: ?string, thumbnail_path: ?string}>
+     */
+    public static function searchableProjects(array $ids): array
+    {
+        $items = (new PortfolioGalleryRepository())->findPublicProjectsByIds($ids);
+        $pagesById = self::publishedPagesById($items);
+
+        return array_values(array_filter(
+            $items,
+            static fn (array $item): bool => !isset($pagesById[(int) ($item['page_id'] ?? 0)])
+        ));
+    }
+
+    /**
      * The address of a project page. The single place that knows the
      * /portfolio/ prefix: portfolio-detail.php's canonical tag, its og:url,
      * the card's "Bekijk project", the redirect a slug change records and the

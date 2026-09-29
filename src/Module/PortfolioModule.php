@@ -271,6 +271,12 @@ final class PortfolioModule extends ModuleDefinition
      * address that redirects is not listed, and neither is one that answers
      * 404, so the sitemap never names an address that shows no page.
      */
+    /** Public project pages in the site search (SEARCH.md). */
+    public function searchProviders(): array
+    {
+        return ['project' => new \App\Service\PortfolioSearchProvider()];
+    }
+
     public function sitemapCollectors(): array
     {
         return [

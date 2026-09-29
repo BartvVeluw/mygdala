@@ -402,6 +402,12 @@ final class ShopModule extends ModuleDefinition
         ];
     }
 
+    /** Active products in the site search (SEARCH.md). */
+    public function searchProviders(): array
+    {
+        return ['product' => new \App\Service\ProductSearchProvider()];
+    }
+
     public function sitemapCollectors(): array
     {
         return [
