@@ -326,6 +326,61 @@ final class SearchProvidersTest extends TestCase
         return (int) $this->db->query("SHOW SESSION STATUS LIKE 'Com_select'")->fetch()['Value'];
     }
 
+    // ------------------------------------------------------------ more words
+
+    /**
+     * Every provider finds a result whose words are all there but apart, or
+     * split over title and text; none finds one that has only one of them;
+     * and no visibility rule loosens for a query of more words.
+     */
+    public function testEveryProviderFindsTermsApartAndSplit(): void
+    {
+        $this->page('zq-terms-page', 'Zqxlaseren en graveren op zqxhout');
+        $this->page('zq-terms-page-split', 'Zqxlaseren', PageContent::STATUS_PUBLISHED, [], 'Werk op zqxhout.');
+        $this->page('zq-terms-page-one', 'Alleen zqxlaseren');
+        $this->product('Zqxlaseren lamp', true, '<p>Van <strong>zqxhout</strong>.</p>');
+        $this->product('Zqxlaseren alleen', true, '<p>Van metaal.</p>');
+        $this->project('Kast zqxhout', true, true, 'Zqxlaseren en schuren');
+        $this->post('Zqxhout nieuws', 'published', '2026-01-10 10:00:00', false, 'Over zqxlaseren.');
+
+        self::assertSame(
+            [
+                'page Zqxlaseren en graveren op zqxhout',
+                'page Zqxlaseren',
+                'product Zqxlaseren lamp',
+                'post Zqxhout nieuws',
+                'project Kast zqxhout',
+            ],
+            $this->found('zqxlaseren zqxhout'),
+            'both terms in the title first; then one of two in the title and one in the text, in provider order (pages, then the modules in registry order); never a result with only one term'
+        );
+        self::assertSame($this->found('zqxlaseren zqxhout'), $this->found('zqxhout   zqxlaseren'), 'order and spacing of the terms do not matter for which results');
+    }
+
+    public function testThePhraseRanksAboveLooseTermsAcrossProviders(): void
+    {
+        $this->product('Zqxgraveren op zqxhout', true);
+        $this->page('zq-phrase', 'Over zqxhout zqxgraveren');
+
+        self::assertSame(['page Over zqxhout zqxgraveren', 'product Zqxgraveren op zqxhout'], $this->found('zqxhout zqxgraveren'));
+    }
+
+    public function testMoreWordsNeverLoosenVisibility(): void
+    {
+        $this->page('zq-hidden-draft', 'Zqxlaseren zqxhout concept', PageContent::STATUS_DRAFT);
+        $this->product('Zqxlaseren zqxhout oud', false);
+        $this->project('Zqxlaseren zqxhout verborgen', false);
+        $this->project('Zqxlaseren zqxhout zonder pagina', true, false);
+        $this->post('Zqxlaseren zqxhout concept', 'draft');
+        $this->post('Zqxlaseren zqxhout later', 'scheduled', '2099-01-01 09:00:00');
+
+        self::assertSame([], $this->found('zqxhout zqxlaseren'));
+
+        $this->product('Zqxlaseren zqxhout lamp', true);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false] + self::ALL_ON);
+        self::assertSame([], $this->found('zqxhout zqxlaseren'), 'a module that is off has no provider, whatever the query');
+    }
+
     public function testAWildcardInTheQueryIsNotAWildcard(): void
     {
         $this->page('zq-pct', 'Zqxatlas');

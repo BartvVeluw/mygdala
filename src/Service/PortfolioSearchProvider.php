@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Service\Language\SiteText;
 use App\Service\Routing\LocalizedUrl;
+use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
 use App\Service\Search\SearchQuery;
@@ -22,8 +23,9 @@ use App\Service\Search\SearchText;
  * that page itself. A hidden item, or one without a project page, is never
  * a result: it has no address a visitor could open.
  *
- * COST, per search: one LIKE per field over portfolio_item_translations (any
- * language, escaped), one query for the public rows among those ids, one for
+ * COST, per search: one LIKE per field and term over
+ * portfolio_item_translations (SearchCandidates::ids(), any language,
+ * escaped), one query for the public rows among those ids, one for
  * the linked pages, one for their words. The picture is the item's own
  * thumbnail path, already on the row.
  */
@@ -38,11 +40,7 @@ final class PortfolioSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $ids = [];
-        foreach (self::FIELDS as $field) {
-            $ids = array_merge($ids, PortfolioLocalization::items()->ownersMatching($field, $query->text));
-        }
-        $ids = array_values(array_unique($ids));
+        $ids = SearchCandidates::ids(PortfolioLocalization::items(), self::FIELDS, $query);
         if ($ids === []) {
             return [];
         }

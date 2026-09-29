@@ -35,6 +35,16 @@ final class SearchText
     /** Only the description, intro or excerpt contains it. */
     public const SCORE_TEXT = 100;
 
+    /**
+     * Not the phrase, but every separate term somewhere (a query of more
+     * words): from SCORE_TERMS up to SCORE_TERMS + SCORE_TERMS_TITLE, more
+     * the more terms stand in the title. Always below SCORE_TEXT, so the
+     * whole phrase, anywhere, outranks words that are merely all present.
+     */
+    public const SCORE_TERMS = 10;
+
+    public const SCORE_TERMS_TITLE = 60;
+
     public const EXCERPT_LENGTH = 160;
 
     private const ACCENTS = [
@@ -71,8 +81,41 @@ final class SearchText
      * How well a document matches: one of the SCORE_* levels, 0 for no
      * match. Higher is better; nothing else counts (no word frequency, no
      * AI) — the order is predictable from the words alone.
+     *
+     * The phrase levels come first. Only when the phrase is nowhere does the
+     * term rule apply: every term in title or text, in any order, split over
+     * both if need be (SearchQuery::terms()), scored below every phrase level
+     * and higher the more terms stand in the title. One word is one term, so
+     * a query of one word scores exactly as before.
+     *
+     * @param list<string> $foldedTerms SearchQuery::foldedTerms()
      */
-    public static function score(string $foldedQuery, string $title, string $text): int
+    public static function score(string $foldedQuery, string $title, string $text, array $foldedTerms = []): int
+    {
+        $phrase = self::phraseScore($foldedQuery, $title, $text);
+        // A query of one word IS its one term: the phrase levels alone, as
+        // before. ("laser a" has one term that is not the phrase: it does
+        // get the term rule.)
+        if ($phrase > 0 || $foldedTerms === [] || $foldedTerms === [$foldedQuery]) {
+            return $phrase;
+        }
+
+        $foldedTitle = self::fold($title);
+        $all = $foldedTitle . ' ' . self::fold($text);
+        $inTitle = 0;
+        foreach ($foldedTerms as $term) {
+            if (!str_contains($all, $term)) {
+                return 0;
+            }
+            if (str_contains($foldedTitle, $term)) {
+                $inTitle++;
+            }
+        }
+
+        return self::SCORE_TERMS + intdiv(self::SCORE_TERMS_TITLE * $inTitle, count($foldedTerms));
+    }
+
+    private static function phraseScore(string $foldedQuery, string $title, string $text): int
     {
         if ($foldedQuery === '') {
             return 0;
@@ -104,12 +147,24 @@ final class SearchText
     }
 
     /**
-     * A short plain-text excerpt: around the first match when the text has
-     * one, else its beginning. Plain text in, plain text out — the caller
-     * escapes it like any other string.
+     * A short plain-text excerpt: around the phrase when the text has it,
+     * else around the first term it has, else its beginning. Plain text in,
+     * plain text out — the caller escapes it like any other string.
+     *
+     * @param list<string> $foldedTerms
      */
-    public static function excerpt(string $text, string $foldedQuery, int $length = self::EXCERPT_LENGTH): string
+    public static function excerpt(string $text, string $foldedQuery, int $length = self::EXCERPT_LENGTH, array $foldedTerms = []): string
     {
+        $folded = self::fold($text);
+        if ($foldedQuery === '' || !str_contains($folded, $foldedQuery)) {
+            foreach ($foldedTerms as $term) {
+                if ($term !== '' && str_contains($folded, $term)) {
+                    $foldedQuery = $term;
+                    break;
+                }
+            }
+        }
+
         $text = trim($text);
         if ($text === '') {
             return '';

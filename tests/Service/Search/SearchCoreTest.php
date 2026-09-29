@@ -152,6 +152,101 @@ final class SearchCoreTest extends TestCase
         self::assertStringStartsWith('Voorwoord', SearchText::excerpt($text, SearchText::fold('nergens')), 'no match: the beginning');
     }
 
+    // ------------------------------------------------------------ more words
+
+    /** @return int the score of one document for a query, as SearchService computes it */
+    private static function scoreOf(string $raw, string $title, string $text = ''): int
+    {
+        $query = SearchQuery::fromInput($raw);
+
+        return SearchText::score($query->folded(), $title, $text, $query->foldedTerms());
+    }
+
+    public function testAQueryOfMoreWordsIsSplitIntoTerms(): void
+    {
+        self::assertSame(['laser', 'hout'], SearchQuery::fromInput('laser hout')->terms());
+        self::assertSame(['laser', 'hout'], SearchQuery::fromInput("  laser \t   hout  ")->terms(), 'several spaces are one separator');
+        self::assertSame(['Laser', 'hout'], SearchQuery::fromInput('Laser hout LASER')->terms(), 'each folded term once');
+        self::assertSame(['laser'], SearchQuery::fromInput('laser a')->terms(), 'a one-letter word is no term of its own');
+        self::assertSame([], SearchQuery::fromInput('a b')->terms());
+        self::assertSame(['laser'], SearchQuery::fromInput('laser')->terms());
+    }
+
+    public function testAtMostEightTermsAreUsed(): void
+    {
+        $query = SearchQuery::fromInput('een twee drie vier vijf zes zeven acht negen tien');
+
+        self::assertSame(SearchQuery::MAX_TERMS, count($query->terms()));
+        self::assertSame(8, SearchQuery::MAX_TERMS);
+        self::assertNotContains('negen', $query->terms());
+        self::assertSame(100, SearchQuery::MAX_LENGTH, 'the 2–100 character limit is unchanged');
+        self::assertSame(2, SearchQuery::MIN_LENGTH);
+        self::assertGreaterThan(0, self::scoreOf('een twee drie vier vijf zes zeven acht negen', 'een twee drie vier', 'vijf zes zeven acht'), 'a ninth term is not required');
+    }
+
+    public function testTermsMayStandApartInTheTitle(): void
+    {
+        self::assertGreaterThan(0, self::scoreOf('laser hout', 'Laseren en graveren op hout'));
+        self::assertGreaterThan(0, self::scoreOf('houten laser', 'Lasersnijden in houten platen'), 'in any order');
+    }
+
+    public function testTermsMayBeSplitOverTitleAndText(): void
+    {
+        self::assertGreaterThan(0, self::scoreOf('lamp eiken', 'Hanglamp', 'Gemaakt van massief eiken.'));
+        self::assertSame(0, self::scoreOf('lamp eiken', 'Hanglamp', 'Gemaakt van massief beuken.'), 'one of two terms is not a match');
+        self::assertSame(0, self::scoreOf('laser hout', 'Laserwerk op metaal'));
+    }
+
+    public function testThePhraseOutranksLooseTermsAndTheTitleOutranksTheText(): void
+    {
+        $exact = self::scoreOf('laser hout', 'Laser hout');
+        $phraseInTitle = self::scoreOf('laser hout', 'Graveren met laser hout en meer');
+        $phraseInText = self::scoreOf('laser hout', 'Graveren', 'Met de laser hout bewerken.');
+        $termsInTitle = self::scoreOf('laser hout', 'Laseren op hout');
+        $termsSplit = self::scoreOf('laser hout', 'Laseren', 'Op hout.');
+        $termsInText = self::scoreOf('laser hout', 'Graveren', 'Laseren op hout.');
+
+        self::assertSame(SearchText::SCORE_EXACT, $exact);
+        self::assertGreaterThan($phraseInTitle, $exact);
+        self::assertGreaterThan($phraseInText, $phraseInTitle);
+        self::assertGreaterThan($termsInTitle, $phraseInText, 'the whole phrase, even only in the text, beats loose terms');
+        self::assertGreaterThan($termsSplit, $termsInTitle, 'more terms in the title rank higher');
+        self::assertGreaterThan($termsInText, $termsSplit);
+        self::assertGreaterThan(0, $termsInText);
+    }
+
+    public function testOneWordScoresExactlyAsBefore(): void
+    {
+        foreach (['Laser' => SearchText::SCORE_EXACT, 'Lasersnijden' => SearchText::SCORE_PREFIX, 'Houten laserbord' => SearchText::SCORE_WORD, 'Diodelaser' => SearchText::SCORE_TITLE] as $title => $expected) {
+            self::assertSame($expected, self::scoreOf('laser', $title));
+        }
+        self::assertSame(SearchText::SCORE_TEXT, self::scoreOf('laser', 'Bord', 'met de laser'));
+        self::assertSame(0, self::scoreOf('laser', 'Bord', 'met de hand'));
+    }
+
+    public function testTermsAreUnicodeAndCaseAware(): void
+    {
+        self::assertGreaterThan(0, self::scoreOf('CAFÉ crème', 'Crème brûlée', 'In het cafe'));
+        self::assertGreaterThan(0, self::scoreOf('überraschung köln', 'Köln', 'Eine Überraschung'));
+        self::assertSame(0, self::scoreOf('café thee', 'Café', 'Alleen koffie'));
+    }
+
+    public function testWildcardsStayLiteralInTerms(): void
+    {
+        self::assertSame(['50%', 'a_b'], SearchQuery::fromInput('50% a_b')->terms());
+        self::assertGreaterThan(0, self::scoreOf('50% korting', 'Korting', 'Nu 50% op alles'));
+        self::assertSame(0, self::scoreOf('5% korting', 'Korting', 'Nu 50 op alles'), '% is not "anything"');
+        self::assertSame(0, self::scoreOf('a_b test', 'Test', 'axb'), '_ is not "one character"');
+    }
+
+    public function testTheExcerptFollowsATermWhenThePhraseIsNotInTheText(): void
+    {
+        $text = str_repeat('Inleiding zonder de woorden. ', 10) . 'Hier gaat het over hout. ' . str_repeat('Slot. ', 20);
+        $query = SearchQuery::fromInput('laser hout');
+
+        self::assertStringContainsString('hout', SearchText::excerpt($text, $query->folded(), SearchText::EXCERPT_LENGTH, $query->foldedTerms()));
+    }
+
     // ------------------------------------------------------------ the service
 
     public function testNothingIsAskedForAQueryThatCannotBeSearched(): void

@@ -57,12 +57,13 @@ final class PageSearchProvider implements SearchProvider
         // applies), so $limit counts matches and a large site's later pages
         // are never cut off before they were compared.
         $folded = $query->folded();
+        $terms = $query->foldedTerms();
         $documents = [];
         foreach ($pages as $page) {
             $id = (int) $page['id'];
             $title = trim(PageLocalization::title($id, $language));
             $text = SearchText::plain(PageLocalization::value($id, PageTranslation::META_DESCRIPTION, $language));
-            if ($title === '' || SearchText::score($folded, $title, $text) === 0) {
+            if ($title === '' || SearchText::score($folded, $title, $text, $terms) === 0) {
                 continue;
             }
 

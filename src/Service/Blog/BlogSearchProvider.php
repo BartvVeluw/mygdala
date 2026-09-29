@@ -8,6 +8,7 @@ use App\Repository\BlogPostRepository;
 use App\Service\Language\SiteText;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LanguageResolver;
+use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
 use App\Service\Search\SearchQuery;
@@ -27,8 +28,9 @@ use App\Service\Search\SearchText;
  * (BlogContent::postUrl()'s rule, with the language passed in): the post's
  * own address there, else its default-language address.
  *
- * COST, per search: one LIKE per field over blog_post_translations (any
- * language, escaped), one query for the public rows, one for their words,
+ * COST, per search: one LIKE per field and term over blog_post_translations
+ * (SearchCandidates::ids(), any language, escaped), one query for the public
+ * rows, one for their words,
  * one for their featured pictures. Newest first, the Blog's own order.
  */
 final class BlogSearchProvider implements SearchProvider
@@ -40,11 +42,7 @@ final class BlogSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $translations = BlogLocalization::posts();
-        $ids = array_values(array_unique(array_merge(
-            $translations->ownersMatching(BlogLocalization::TITLE, $query->text),
-            $translations->ownersMatching(BlogLocalization::EXCERPT, $query->text)
-        )));
+        $ids = SearchCandidates::ids(BlogLocalization::posts(), [BlogLocalization::TITLE, BlogLocalization::EXCERPT], $query);
         if ($ids === []) {
             return [];
         }

@@ -105,6 +105,7 @@ final class SearchService
         }
 
         $folded = $query->folded();
+        $terms = $query->foldedTerms();
         $scored = [];
         $failed = [];
         $typeOrder = 0;
@@ -126,7 +127,7 @@ final class SearchService
                     continue;
                 }
 
-                $score = SearchText::score($folded, $document->title, $document->text);
+                $score = SearchText::score($folded, $document->title, $document->text, $terms);
                 if ($score === 0) {
                     continue;
                 }
@@ -136,7 +137,7 @@ final class SearchService
                         (string) $type,
                         $label,
                         $document->title,
-                        SearchText::excerpt($document->text, $folded),
+                        SearchText::excerpt($document->text, $folded, SearchText::EXCERPT_LENGTH, $terms),
                         $document->url,
                         $document->thumbnail !== null && self::isSafeUrl($document->thumbnail) ? $document->thumbnail : null,
                         $score

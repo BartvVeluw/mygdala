@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Repository\ProductImageRepository;
 use App\Repository\ProductRepository;
 use App\Service\Language\SiteText;
+use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
 use App\Service\Search\SearchQuery;
@@ -21,8 +22,8 @@ use App\Service\Search\SearchText;
  * listed in the shop overview (in_shop = 0, a personalisation product):
  * product.php shows it and the sitemap lists it, so the search finds it too.
  *
- * COST, per search: one LIKE per field over product_translations
- * (ShopLocalization::products()->ownersMatching(), any language, escaped),
+ * COST, per search: one LIKE per field and term over product_translations
+ * (SearchCandidates::ids(), any language, escaped),
  * one query for the active rows among those ids, one for their words
  * (preload) and one for their primary pictures. Never one per result.
  */
@@ -35,11 +36,7 @@ final class ProductSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $translations = ShopLocalization::products();
-        $ids = array_values(array_unique(array_merge(
-            $translations->ownersMatching(ShopLocalization::NAME, $query->text),
-            $translations->ownersMatching(ShopLocalization::DESCRIPTION, $query->text)
-        )));
+        $ids = SearchCandidates::ids(ShopLocalization::products(), [ShopLocalization::NAME, ShopLocalization::DESCRIPTION], $query);
         if ($ids === []) {
             return [];
         }

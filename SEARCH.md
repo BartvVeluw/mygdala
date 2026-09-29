@@ -96,11 +96,21 @@ Een provider:
 - minder dan **2 tekens** heet te kort: er wordt niets gezocht en het scherm
   zegt dat.
 
-`%` en `_` zijn gewone tekens. De voorselectie gebruikt
+Naast de hele vraag (de *phrase*) kent een vraag zijn **termen**
+(`SearchQuery::terms()`). Dat zijn de woorden, gesplitst op witruimte, elk
+gevouwen woord één keer. Een woord van één teken telt niet als term (het zou
+bijna alles vinden), en na **8 termen** stopt het. Eén woord is één term: de
+vraag zelf.
+
+`%` en `_` zijn gewone tekens, ook in een term. De voorselectie van de
+modules (`SearchCandidates::ids()`) gebruikt
 `EntityTranslationRepository::ownersMatching()`: een prepared `LIKE` waarin
-die tekens geëscapet zijn, over alle talen. Pagina's hebben geen `LIKE`
-nodig. Er zijn er weinig, dus alle gepubliceerde pagina's en hun woorden
-komen in twee queries binnen, en `page_translations` blijft het domein van
+die tekens geëscapet zijn, over alle talen. Die draait één keer per veld en
+per term, en een eigenaar blijft over als **elke** term in minstens één veld
+staat. Het maakt niet uit in welk veld: de ene term mag in de titel staan,
+de andere in de omschrijving. Pagina's hebben geen `LIKE` nodig. Er zijn er
+weinig, dus alle gepubliceerde pagina's en hun woorden komen in twee queries
+binnen, en `page_translations` blijft het domein van
 `PageTranslationRepository` (`MultilingualBoundaryTest`).
 
 ## Rangschikken
@@ -115,6 +125,7 @@ woordfrequentie en geen externe dienst:
 | 250 | een woord in de titel begint met de vraag |
 | 200 | de titel bevat de vraag |
 | 100 | alleen de tekst (beschrijving, intro, samenvatting) bevat de vraag |
+| 10–70 | niet de hele vraag, maar **elke term** komt ergens voor, in willekeurige volgorde, verdeeld over titel en tekst: 10 + 60 × (het deel van de termen dat in de titel staat) |
 
 Bij gelijke score komt eerst de volgorde van de providers (pagina's, dan de
 modules in registervolgorde) en daarna de eigen volgorde van de provider.
@@ -123,8 +134,14 @@ Vergelijken gaat zonder hoofdletters en met de gewone accenten gevouwen
 intl-extensie niet nodig. De voorselectie in MySQL is al ongevoelig voor
 hoofdletters en accenten.
 
-Een zoekvraag van meer woorden zoekt de woorden als één reeks: *laser hout*
-vindt *Laser houtbewerking*, maar niet *Houten laserbord*.
+De hele vraag weegt dus het zwaarst: een exacte titel en de volledige
+phrase, ook als die alleen in de tekst staat, komen altijd boven losse
+termen. *laser hout* vindt ook *Laseren en graveren op hout* (beide termen in
+de titel, 70) en *Hanglamp* met *laser* en *hout* in de omschrijving (10).
+Een resultaat met maar één van de twee termen valt weg. Een vraag van één
+woord scoort precies zoals voorheen. Er is geen stemming en geen fuzzy
+zoeken: *laser* vindt *Laseren* omdat het er letterlijk in staat, niet
+omdat het dezelfde stam heeft.
 
 ## Talen
 
@@ -220,7 +237,7 @@ klein.
   bloktype in `block_translations`. Doorzoeken zou betekenen dat elk blok van
   elke pagina bij elke toetsaanslag wordt opgebouwd. Dat vraagt een eigen
   zoekindex, bijgewerkt bij opslaan, en dat is bewust niet V1.
-- Zoeken op alle woorden los ("en"), synoniemen en spelfouten.
+- Stemming, synoniemen en spelfouten.
 - Instellen per soort welke inhoud mee doet: V1 neemt elke actieve publieke
   provider mee.
 
