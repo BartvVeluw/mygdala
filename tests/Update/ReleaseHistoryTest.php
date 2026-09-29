@@ -269,6 +269,16 @@ final class ReleaseHistoryTest extends TestCase
         $this->assertSame([], array_diff(array_unique($tags[1]), ['h3', 'h4', 'h5', 'ul', 'ol', 'li', 'p', 'strong', 'em', 'code', 'a', 'br']), 'only its own closed list of tags');
     }
 
+    public function testEmphasisNeverCrossesAnotherElement(): void
+    {
+        $html = ReleaseNotesMarkdown::toHtml('**a *b** c* en [**x](https://example.com) y**');
+
+        self::assertSame(substr_count($html, '<strong>'), substr_count($html, '</strong>'));
+        self::assertSame(substr_count($html, '<em>'), substr_count($html, '</em>'));
+        self::assertDoesNotMatchRegularExpression('#<strong>[^<]*<em>[^<]*</strong>#', $html, 'no crossed strong/em');
+        self::assertDoesNotMatchRegularExpression('#<strong>[^<]*<a [^>]*>[^<]*</strong>#', $html, 'no strong half inside a link');
+    }
+
     public function testRealReleaseNotesKeepTheirStructure(): void
     {
         $html = ReleaseNotesMarkdown::toHtml("Intro regel.\n\n# Nieuwe contentblokken\n\n## Uitgelicht product\n\n- Zet één product groot op een pagina.\n- Bestellen vanuit het blok.\n\n### Klein\nTekst\nop twee regels");

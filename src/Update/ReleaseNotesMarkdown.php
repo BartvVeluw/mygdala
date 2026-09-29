@@ -114,8 +114,10 @@ final class ReleaseNotesMarkdown
             $escaped
         );
 
-        $escaped = (string) preg_replace('/\*\*(.+?)\*\*/u', '<strong>$1</strong>', $escaped);
-        $escaped = (string) preg_replace('/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/u', '<em>$1</em>', $escaped);
+        // Neither may span a tag written above (a link, a strong), so
+        // "**a *b** c*" never produces crossed, misnested elements.
+        $escaped = (string) preg_replace('/\*\*([^<>]+?)\*\*/u', '<strong>$1</strong>', $escaped);
+        $escaped = (string) preg_replace('/(?<![\w*])\*(?!\s)([^<>*]+?)(?<!\s)\*(?![\w*])/u', '<em>$1</em>', $escaped);
 
         return (string) preg_replace_callback("/\x00(\\d+)\x00/", static fn (array $m): string => $codes[(int) $m[1]], $escaped);
     }
