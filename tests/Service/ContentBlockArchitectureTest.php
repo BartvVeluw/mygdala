@@ -12,7 +12,12 @@ use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\RouteRegistry;
 use App\Service\SectionRegistry;
+use App\Repository\DetailSectionRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\DetailSectionContent;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\BlockTextFixture;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -341,25 +346,35 @@ final class ContentBlockArchitectureTest extends TestCase
             $this->markTestSkipped(TestEnvironment::unreachableMessage());
         }
 
-        // Being allowed to unpublish these pages is only honest if their URL
-        // really stops answering; otherwise /diensten.php would keep
-        // returning 200 with an empty page.
-        $page = $this->pages->findByContentKey('over-mij');
-        $this->assertNotNull($page);
-
-        $this->setStatus((int) $page['id'], PageContent::STATUS_DRAFT);
+        // The page behind /over-mij.php, brought by the test: a fresh
+        // installation has none, and the URL would then 404 for the wrong
+        // reason before this test changed anything.
+        $created = TemplatePageFixture::ensureAll(['over-mij']);
 
         try {
-            $response = $this->request('/over-mij.php');
-            $this->assertNotNull($response);
-            $this->assertSame(404, $response['status'], 'a drafted content page must 404 at its own route');
-            $this->assertStringContainsString('Pagina niet gevonden', $response['body']);
-        } finally {
-            $this->setStatus((int) $page['id'], PageContent::STATUS_PUBLISHED);
-        }
+            $page = $this->pages->findByContentKey('over-mij');
+            $this->assertNotNull($page);
+            $this->assertSame(200, $this->request('/over-mij.php')['status'], 'precondition: the published page answers');
 
-        $restored = $this->request('/over-mij.php');
-        $this->assertSame(200, $restored['status'], 'republishing must bring the page straight back');
+            // Being allowed to unpublish these pages is only honest if their
+            // URL really stops answering; otherwise /over-mij.php would keep
+            // returning 200 with an empty page.
+            $this->setStatus((int) $page['id'], PageContent::STATUS_DRAFT);
+
+            try {
+                $response = $this->request('/over-mij.php');
+                $this->assertNotNull($response);
+                $this->assertSame(404, $response['status'], 'a drafted content page must 404 at its own route');
+                $this->assertStringContainsString('Pagina niet gevonden', $response['body']);
+            } finally {
+                $this->setStatus((int) $page['id'], PageContent::STATUS_PUBLISHED);
+            }
+
+            $restored = $this->request('/over-mij.php');
+            $this->assertSame(200, $restored['status'], 'republishing must bring the page straight back');
+        } finally {
+            TemplatePageFixture::remove($created);
+        }
     }
 
     // ------------------------------------------------------------- registry
@@ -586,41 +601,117 @@ final class ContentBlockArchitectureTest extends TestCase
         $this->assertStringContainsString('SectionRegistry::renderPage(', $this->sourceOf('pagina.php'));
     }
 
+    /**
+     * The content each root-level page template used to hardcode became
+     * blocks; what such a template shows at runtime must therefore be its
+     * own page's block list, fixed block included.
+     *
+     * Asserted with this test's own blocks, not with one site's content (the
+     * orbit carousel and the contact form of the installation this code grew
+     * out of are that site's data; an empty carousel rightly renders
+     * nothing). Every template page gets a Tekst block with a marker of its
+     * own at the end of its list, and Diensten — the page the one remaining
+     * fixed block, the quicknav, belongs to — also gets that quicknav and an
+     * anchored Detailsectie, so the derived link proves the fixed block
+     * still renders. All of it is removed again afterwards.
+     *
+     * /shop.php and /portfolio are not in the list: which page, if any, they
+     * render is decided by their module's overview (App\Service\ShopOverview,
+     * the Portfolio root), which those modules' own HTTP tests cover.
+     */
     public function testTemplateOwnedContentStillRendersOnItsPage(): void
     {
         if ($this->request('/') === null) {
             $this->markTestSkipped(TestEnvironment::unreachableMessage());
         }
 
-        // One marker per fixed block: markup that only exists inside the
-        // content each page template used to hardcode, and that must survive
-        // its promotion to a block.
-        $expectations = [
-            '/' => ['orbit-carousel', 'gallery-item'],
-            '/shop.php' => ['data-products-grid'],
-            '/diensten.php' => ['quicknav', 'service-detail'],
-            '/portfolio' => ['filter-bar', 'gallery-grid'],
-            // Since Core Forms the quote form is rendered by the shared
-            // form renderer, so the marker is `data-form-block` rather
-            // than the old `data-quote-form`. The guarantee is unchanged:
-            // the contact page still shows a working form beside its
-            // details card.
-            '/contact.php' => ['data-form-block', 'contact-grid'],
-        ];
+        $createdPages = TemplatePageFixture::ensureAll(['diensten', 'over-mij', 'contact']);
+        /** @var list<int> $createdSections */
+        $createdSections = [];
 
-        foreach ($expectations as $path => $markers) {
-            $response = $this->request($path);
-            $this->assertNotNull($response);
-            $this->assertSame(200, $response['status'], "{$path} must still render");
+        try {
+            $markers = [];
+            foreach (['/' => 'index', '/diensten.php' => 'diensten', '/over-mij.php' => 'over-mij', '/contact.php' => 'contact'] as $path => $contentKey) {
+                $page = $this->pages->findByContentKey($contentKey);
+                $this->assertNotNull($page, "{$contentKey} must exist");
 
-            foreach ($markers as $marker) {
-                $this->assertStringContainsString(
-                    $marker,
-                    $response['body'],
-                    "\"{$marker}\" disappeared from {$path} when its content became a block"
-                );
+                if ($contentKey === 'diensten') {
+                    $createdSections = array_merge($createdSections, $this->anchoredDetailSectionWithQuicknav($page));
+                }
+
+                $markers[$path] = 'zz-template-marker-' . $contentKey . '-' . bin2hex(random_bytes(3));
+                [$sectionId, $sectionKey] = SectionRegistry::create('rich_text', $contentKey);
+                BlockTextFixture::richText($sectionId, '<p>' . $markers[$path] . '</p>');
+                $createdSections[] = $this->sections->create((int) $page['id'], $contentKey, 'rich_text', $sectionKey, $sectionId);
             }
+            PageContent::clearCache();
+
+            foreach ($markers as $path => $marker) {
+                $response = $this->request($path);
+                $this->assertNotNull($response);
+                $this->assertSame(200, $response['status'], "{$path} must still render");
+                $this->assertStringContainsString($marker, $response['body'], "{$path} must render the blocks of its own page");
+            }
+
+            $diensten = (string) $this->request('/diensten.php')['body'];
+            $this->assertStringContainsString('<nav class="quicknav"', $diensten, 'the fixed quicknav must still render on its page');
+            $this->assertStringContainsString('<a href="#zz-template-anker">ZZ Snel</a>', $diensten, 'its link is derived from the Detailsectie below it');
+            $this->assertStringContainsString('id="zz-template-anker"', $diensten, 'and that Detailsectie renders with its anchor');
+            $this->assertStringContainsString('class="service-detail', $diensten);
+        } finally {
+            foreach (array_reverse($createdSections) as $id) {
+                $row = $this->sections->findById($id);
+                if ($row === null) {
+                    continue;
+                }
+
+                if (SectionRegistry::isDeletable((string) $row['section_type'])) {
+                    SectionRegistry::delete($row, $this->sections);
+                } else {
+                    $this->sections->delete($id);
+                }
+            }
+            TemplatePageFixture::remove($createdPages);
+            PageContent::clearCache();
         }
+    }
+
+    /**
+     * Diensten's quicknav (unless the page already has one) and one anchored
+     * Detailsectie below it, the way an editor leaves them.
+     *
+     * @param array<string, mixed> $diensten
+     *
+     * @return list<int> the page_sections rows this created
+     */
+    private function anchoredDetailSectionWithQuicknav(array $diensten): array
+    {
+        $created = [];
+
+        $hasQuicknav = false;
+        foreach ($this->sections->findForPage((int) $diensten['id']) as $row) {
+            $hasQuicknav = $hasQuicknav || $row['section_type'] === 'quicknav';
+        }
+
+        if (!$hasQuicknav) {
+            // A fixed block cannot be created from the page builder; it is
+            // attached the way the migrations attached it, with no content row.
+            $created[] = $this->sections->create((int) $diensten['id'], 'diensten', 'quicknav', null, 0);
+        }
+
+        [$detailId, $detailKey] = SectionRegistry::create('detail_section', 'diensten');
+        (new DetailSectionRepository())->upsertSection(
+            'diensten',
+            $detailKey,
+            ['anchor' => 'zz-template-anker', 'is_active' => true] + DetailSectionContent::startingValues()
+        );
+        BlockLocalization::save('detail_sections', $detailId, BlockLocalization::defaultLanguage(), [
+            'title' => 'ZZ Detailsectie van de test',
+            'nav_label' => 'ZZ Snel',
+        ]);
+        $created[] = $this->sections->create((int) $diensten['id'], 'diensten', 'detail_section', $detailKey, $detailId);
+
+        return $created;
     }
 
     // ----------------------------------------------------------- admin side

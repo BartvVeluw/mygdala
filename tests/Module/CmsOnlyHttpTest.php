@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Module;
 
+use App\Database;
+use App\Repository\PageRepository;
+use App\Repository\SiteSettingRepository;
+use App\Service\PageContent;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\PageFixture;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -26,11 +33,92 @@ use Tests\Support\TestEnvironment;
  */
 final class CmsOnlyHttpTest extends TestCase
 {
+    /**
+     * The address of the page this test creates as "a page the owner made
+     * themselves": an ordinary page served by the generic template. Made of
+     * slug characters, so .htaccess rewrites it to pagina.php.
+     */
+    private const OWN_PAGE_SLUG = 'zz-cms-only-eigen-pagina';
+
+    /** @var list<int> pages this test created, removed again in tearDown() */
+    private array $templatePageIds = [];
+
+    private ?int $ownPageId = null;
+
+    /** @var array<string, string|null> site settings this test wrote, with what they held before (null: no row) */
+    private array $originalSettings = [];
+
     protected function setUp(): void
     {
         if (!TestEnvironment::cmsOnlySiteIsReachable()) {
             $this->markTestSkipped(TestEnvironment::cmsOnlyUnreachableMessage());
         }
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->ownPageId !== null) {
+            (new PageRepository())->delete($this->ownPageId);
+            $this->ownPageId = null;
+        }
+        TemplatePageFixture::remove($this->templatePageIds);
+        $this->templatePageIds = [];
+
+        if ($this->originalSettings !== []) {
+            $repository = new SiteSettingRepository();
+            foreach ($this->originalSettings as $key => $value) {
+                if ($value === null) {
+                    Database::connection()
+                        ->prepare('DELETE FROM site_settings WHERE setting_key = :key')
+                        ->execute(['key' => $key]);
+                } else {
+                    $repository->upsertMany([$key => $value]);
+                }
+            }
+            $this->originalSettings = [];
+            SiteSettings::clearCache();
+        }
+    }
+
+    /**
+     * The CMS pages this test requests, brought by the test itself: the
+     * three pages with a root-level template (a fresh installation has none
+     * of them, and their URL then 404s exactly as it should) and one
+     * ordinary page of the owner's own. Both servers share the test
+     * database, so what is made here is what php_cms serves.
+     */
+    private function bringTheCmsPages(): void
+    {
+        $this->templatePageIds = TemplatePageFixture::ensureAll(['diensten', 'over-mij', 'contact']);
+
+        if ((new PageRepository())->findByContentKey(self::OWN_PAGE_SLUG) === null) {
+            $this->ownPageId = PageFixture::create([
+                'content_key' => self::OWN_PAGE_SLUG,
+                'slug' => self::OWN_PAGE_SLUG,
+                'status' => PageContent::STATUS_PUBLISHED,
+            ], 'ZZ Eigen pagina');
+        }
+        PageContent::clearCache();
+    }
+
+    /**
+     * Writes site settings for this test; tearDown() puts back exactly what
+     * was there before, a missing row included.
+     *
+     * @param array<string, string> $values
+     */
+    private function setSiteSettings(array $values): void
+    {
+        $repository = new SiteSettingRepository();
+        $stored = $repository->findAll();
+        foreach (array_keys($values) as $key) {
+            if (!array_key_exists($key, $this->originalSettings)) {
+                $this->originalSettings[$key] = array_key_exists($key, $stored) ? $stored[$key] : null;
+            }
+        }
+
+        $repository->upsertMany($values);
+        SiteSettings::clearCache();
     }
 
     /**
@@ -93,7 +181,7 @@ final class CmsOnlyHttpTest extends TestCase
             // A page the owner created themselves, served by the generic
             // template — the case that proves this is a CMS and not five
             // hardcoded files.
-            'own page' => ['/algemene-voorwaarden'],
+            'own page' => ['/' . self::OWN_PAGE_SLUG],
             'legal page' => ['/cookiebeleid.php'],
             'sitemap' => ['/sitemap.xml'],
         ];
@@ -104,6 +192,8 @@ final class CmsOnlyHttpTest extends TestCase
      */
     public function testTheCmsStillServesItsPages(string $path): void
     {
+        $this->bringTheCmsPages();
+
         $response = $this->get($path);
 
         $this->assertSame(200, $response['status'], $path . ' must render on a CMS-only deployment');
@@ -232,8 +322,12 @@ final class CmsOnlyHttpTest extends TestCase
 
     public function testNoShopStylesheetOrScriptIsLoadedAnywhere(): void
     {
-        foreach (['/index.php', '/contact.php', '/algemene-voorwaarden'] as $path) {
-            $body = $this->get($path)['body'];
+        $this->bringTheCmsPages();
+
+        foreach (['/index.php', '/contact.php', '/' . self::OWN_PAGE_SLUG] as $path) {
+            $response = $this->get($path);
+            $this->assertSame(200, $response['status'], $path . ' must render, or this asserts nothing');
+            $body = $response['body'];
 
             $this->assertStringNotContainsString('assets/css/shop/', $body, $path);
             $this->assertStringNotContainsString('assets/js/shop/', $body, $path);
@@ -246,23 +340,40 @@ final class CmsOnlyHttpTest extends TestCase
      * the stylesheet that declares the tokens, the font for the selected
      * pairing, and the theme-coloured browser chrome. Switching the Shop off
      * changes what a page loads, never how it looks.
+     *
+     * The favicon is branding the owner configures (App\Service\Branding):
+     * an installation without one renders no <link rel="icon"> at all, so
+     * the test configures one itself to see that it still arrives.
      */
     public function testTheThemeIsStillCompleteWithoutTheShop(): void
     {
+        $this->bringTheCmsPages();
+        $this->setSiteSettings(['favicon_path' => 'assets/images/zz-cms-only-favicon.png', 'favicon_media_id' => '']);
+
         foreach (['/index.php', '/contact.php'] as $path) {
-            $body = $this->get($path)['body'];
+            $response = $this->get($path);
+            $this->assertSame(200, $response['status'], $path);
+            $body = $response['body'];
 
             $this->assertStringContainsString('assets/css/core.css', $body, $path);
             $this->assertStringContainsString('fonts.googleapis.com/css2', $body, $path);
             $this->assertStringContainsString('<meta name="theme-color" content="#', $body, $path);
-            $this->assertStringContainsString('rel="icon"', $body, $path);
+            $this->assertStringContainsString(
+                '<link rel="icon" href="/assets/images/zz-cms-only-favicon.png" type="image/png">',
+                $body,
+                $path
+            );
         }
     }
 
     public function testTheSharedHeaderRendersNoMiniCart(): void
     {
+        $this->bringTheCmsPages();
+
         foreach (['/index.php', '/contact.php'] as $path) {
-            $body = $this->get($path)['body'];
+            $response = $this->get($path);
+            $this->assertSame(200, $response['status'], $path . ' must render, or this asserts nothing');
+            $body = $response['body'];
 
             $this->assertStringNotContainsString('data-cart-trigger', $body, $path);
             $this->assertStringNotContainsString('cart-dropdown', $body, $path);
@@ -273,10 +384,13 @@ final class CmsOnlyHttpTest extends TestCase
 
     public function testTheSitemapAdvertisesNoShopUrl(): void
     {
+        $this->bringTheCmsPages();
+
         $body = $this->get('/sitemap.xml')['body'];
 
         $this->assertStringContainsString('<urlset', $body);
-        $this->assertStringContainsString('/contact.php', $body, 'CMS pages must still be listed');
+        $this->assertStringContainsString('/contact.php</loc>', $body, 'CMS pages must still be listed');
+        $this->assertStringContainsString('/' . self::OWN_PAGE_SLUG . '</loc>', $body, 'so must a page the owner made');
 
         foreach (['/shop.php', '/product.php', '/collecties/', '/personaliseren'] as $shopUrl) {
             $this->assertStringNotContainsString($shopUrl, $body, $shopUrl . ' must not be advertised');

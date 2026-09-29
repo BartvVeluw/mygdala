@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Service\Analytics;
 
 use App\Database;
+use App\Service\Routing\LanguagePreference;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -21,6 +23,10 @@ use Tests\Support\TestEnvironment;
  * before the requests and everything above it is deleted afterwards, so a
  * failing assertion cannot leave test traffic behind in the owner's
  * statistics.
+ *
+ * Every request is its own: file_get_contents() keeps no cookie jar, so no
+ * cookie one request was given (such as the language preference) travels to
+ * the next, and every request is a first visit.
  */
 final class AnalyticsTrackingHttpTest extends TestCase
 {
@@ -28,6 +34,9 @@ final class AnalyticsTrackingHttpTest extends TestCase
     private const CRAWLER = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 
     private int $highestIdBefore = 0;
+
+    /** @var list<int> template pages this test created, see TemplatePageFixture */
+    private array $createdTemplatePages = [];
 
     protected function setUp(): void
     {
@@ -38,6 +47,9 @@ final class AnalyticsTrackingHttpTest extends TestCase
     {
         $stmt = Database::connection()->prepare('DELETE FROM page_views WHERE id > :id');
         $stmt->execute(['id' => $this->highestIdBefore]);
+
+        TemplatePageFixture::remove($this->createdTemplatePages);
+        $this->createdTemplatePages = [];
     }
 
     private function highestId(): int
@@ -145,12 +157,18 @@ final class AnalyticsTrackingHttpTest extends TestCase
 
     public function testTwoPagesFromTheSameVisitorShareOneHash(): void
     {
+        // contact.php renders (and is counted) only with its page row, which
+        // the test database need not have; a 404 is never recorded.
+        $this->createdTemplatePages = TemplatePageFixture::ensureAll(['contact']);
+
         $this->skipWithoutSite($this->get('/', self::BROWSER));
-        $this->get('/contact.php', self::BROWSER);
+        $second = $this->get('/contact.php', self::BROWSER);
+        $this->assertSame(200, $second['status'], 'the second page must exist to be counted');
 
         $rows = $this->newRows();
 
         $this->assertCount(2, $rows);
+        $this->assertSame(['/', '/contact.php'], array_column($rows, 'path'));
         $this->assertSame($rows[0]['visitor_hash'], $rows[1]['visitor_hash']);
     }
 
@@ -189,6 +207,13 @@ final class AnalyticsTrackingHttpTest extends TestCase
      * The measurement is cookieless — that is what keeps it outside the
      * cookie-consent obligation (see App\Service\CookieConsentConfig, whose
      * 'analytics' category stays deliberately unused).
+     *
+     * A first visit does get ONE cookie, and it is not the tracker's: the
+     * language preference (App\Service\Routing\LanguagePreference,
+     * docs/multilingual/ROUTING.md), a necessary cookie holding nothing but a
+     * language code, written whenever the language read differs from the
+     * stored one — and on a first visit nothing is stored yet. That cookie is
+     * excused by name; any other cookie still fails this test.
      */
     public function testTrackingSetsNoCookie(): void
     {
@@ -196,7 +221,17 @@ final class AnalyticsTrackingHttpTest extends TestCase
         $this->skipWithoutSite($response);
 
         foreach ($response['headers'] as $line) {
-            $this->assertStringStartsNotWith('Set-Cookie:', $line);
+            if (stripos($line, 'Set-Cookie:') !== 0) {
+                continue;
+            }
+
+            $this->assertStringStartsWith(
+                'Set-Cookie: ' . LanguagePreference::COOKIE_NAME . '=',
+                $line,
+                'the only cookie a public page may set is the language preference'
+            );
         }
+
+        $this->assertCount(1, $this->newRows(), 'and the visit was still counted without one');
     }
 }

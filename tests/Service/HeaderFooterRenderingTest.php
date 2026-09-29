@@ -8,6 +8,8 @@ use App\Database;
 use App\Module\ModuleRegistry;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
+use App\Repository\SiteSettingRepository;
+use App\Service\LocalizedSiteSettings;
 use App\Service\NavigationPresentation;
 use App\Service\NavigationService;
 use App\Service\PageService;
@@ -22,9 +24,10 @@ use Tests\Support\TestEnvironment;
  *  - a header button with a CMS-PAGE target, which needs actual `pages` and
  *    `nav_items` rows (the route and external targets are covered without a
  *    database in Tests\Service\NavigationServiceTest);
- *  - what a page actually renders, with the data this installation has —
- *    the proof that moving the single button into the navigation changed
- *    nothing a visitor sees;
+ *  - what a page actually renders, with a button and a slogan this test
+ *    configures itself (a fresh installation has neither) — the proof that
+ *    the button kept its markup when it moved into the navigation, in the
+ *    one language the document is in;
  *  - and the same over the CMS-only deployment, where the Shop is off.
  *
  * Deliberately NOT a snapshot of the header and the footer. It asserts the
@@ -41,6 +44,12 @@ final class HeaderFooterRenderingTest extends TestCase
 
     /** @var list<int> */
     private array $createdNavIds = [];
+
+    /** @var array<string, string|null> site settings this test wrote, with what they held before (null: no row) */
+    private array $originalSettings = [];
+
+    /** @var array<string, string> language => the footer slogan's stored words before this test ('' = none) */
+    private array $originalSlogans = [];
 
     protected function setUp(): void
     {
@@ -59,6 +68,27 @@ final class HeaderFooterRenderingTest extends TestCase
         }
         $this->createdNavIds = [];
         $this->createdPageIds = [];
+
+        // An empty value removes that language's row again, so a slogan that
+        // was not there before is gone afterwards.
+        foreach ($this->originalSlogans as $language => $words) {
+            LocalizedSiteSettings::save($language, [LocalizedSiteSettings::FOOTER_SLOGAN => $words]);
+        }
+        $this->originalSlogans = [];
+        LocalizedSiteSettings::clearCache();
+
+        $settings = new SiteSettingRepository();
+        foreach ($this->originalSettings as $key => $value) {
+            if ($value === null) {
+                Database::connection()
+                    ->prepare('DELETE FROM site_settings WHERE setting_key = :key')
+                    ->execute(['key' => $key]);
+            } else {
+                $settings->upsertMany([$key => $value]);
+            }
+        }
+        $this->originalSettings = [];
+        SiteSettings::clearCache();
 
         SiteSettings::overrideForTests(null);
         ModuleRegistry::overrideForTests(null);
@@ -214,26 +244,78 @@ final class HeaderFooterRenderingTest extends TestCase
     }
 
     /**
-     * Two migrations' whole job: this installation's header and footer read
-     * exactly as they did when the same words were literals in the partials,
-     * and the button kept its markup when it moved from site_settings into
-     * the navigation (20260916230000).
+     * A header button and a footer slogan of this test's own, written the
+     * way the Navigatie and Footer screens store them: the button as a
+     * nav_items row with a label per website language, the slogan as the
+     * footer_slogan_enabled switch plus its words per language in
+     * site_setting_translations. Everything is put back in tearDown().
+     *
+     * @return array{nl_label: string, en_label: string, nl_slogan: string, en_slogan: string, href: string}
+     */
+    private function configureButtonAndSlogan(): array
+    {
+        $pageId = $this->makePage('zz-header-button-target');
+        $this->buttonPointingAtPage($pageId);
+
+        $this->setSiteSetting('footer_slogan_enabled', '1');
+        LocalizedSiteSettings::clearCache();
+        foreach (['nl' => 'ZZ Ontworpen & gebouwd met zorg', 'en' => 'ZZ Designed & built with care'] as $language => $slogan) {
+            if (!array_key_exists($language, $this->originalSlogans)) {
+                $this->originalSlogans[$language] = LocalizedSiteSettings::raw(LocalizedSiteSettings::FOOTER_SLOGAN, $language);
+            }
+            LocalizedSiteSettings::save($language, [LocalizedSiteSettings::FOOTER_SLOGAN => $slogan]);
+        }
+        LocalizedSiteSettings::clearCache();
+
+        return [
+            'nl_label' => 'Vraag offerte aan',
+            'en_label' => 'Request a quote',
+            'nl_slogan' => 'ZZ Ontworpen &amp; gebouwd met zorg',
+            'en_slogan' => 'ZZ Designed &amp; built with care',
+            'href' => '/zz-header-button-target',
+        ];
+    }
+
+    private function setSiteSetting(string $key, string $value): void
+    {
+        $repository = new SiteSettingRepository();
+        if (!array_key_exists($key, $this->originalSettings)) {
+            $stored = $repository->findAll();
+            $this->originalSettings[$key] = array_key_exists($key, $stored) ? $stored[$key] : null;
+        }
+
+        $repository->upsertMany([$key => $value]);
+        SiteSettings::clearCache();
+    }
+
+    /**
+     * The button kept its markup when it moved from site_settings into the
+     * navigation (20260916230000), and the slogan still closes the footer —
+     * one language per document since Multilingual 2.0: the Dutch page
+     * carries the Dutch words only, as plain text with no data-nl/data-en
+     * variants, and /en/ carries the English ones.
      */
     public function testThisInstallationsHeaderAndFooterAreUnchanged(): void
     {
-        $body = $this->get($this->requireSite(), '/index.php');
+        $baseUrl = $this->requireSite();
+        $expected = $this->configureButtonAndSlogan();
+
+        $body = $this->get($baseUrl, '/index.php');
 
         $this->assertStringContainsString(
-            '<a href="/contact.php" class="btn btn--sm" data-nl="Vraag offerte aan" data-en="Request a quote">Vraag offerte aan</a>',
+            '<a href="' . $expected['href'] . '" class="btn btn--sm">' . $expected['nl_label'] . '</a>',
             $body,
-            'the header button must render byte for byte as it did before it became a setting'
+            'the header button must render byte for byte: its href, the primary button class and its label'
         );
+        $this->assertStringContainsString('<span>' . $expected['nl_slogan'] . '</span>', $body, 'the footer slogan must close the footer');
+        $this->assertStringNotContainsString($expected['en_label'], $body, 'one language per document');
+        $this->assertStringNotContainsString($expected['en_slogan'], $body, 'one language per document');
+        $this->assertStringNotContainsString('data-nl="' . $expected['nl_label'] . '"', $body);
 
-        $this->assertStringContainsString(
-            'data-nl="Ontworpen &amp; gebouwd met zorg in Nijmegen" data-en="Designed &amp; built with care in Nijmegen"',
-            $body,
-            'the footer slogan must render as it did before it became a setting'
-        );
+        $english = $this->get($baseUrl, '/en/');
+        $this->assertStringContainsString('>' . $expected['en_label'] . '</a>', $english, 'the English page carries the English label');
+        $this->assertStringContainsString('<span>' . $expected['en_slogan'] . '</span>', $english);
+        $this->assertStringNotContainsString($expected['nl_slogan'], $english);
     }
 
     public function testNoSocialRowIsRenderedWhenNoProfileIsConfigured(): void
@@ -253,10 +335,15 @@ final class HeaderFooterRenderingTest extends TestCase
             $this->markTestSkipped(TestEnvironment::cmsOnlyUnreachableMessage());
         }
 
+        $expected = $this->configureButtonAndSlogan();
+
         $body = $this->get(TestEnvironment::cmsOnlyBaseUrl(), '/index.php');
 
-        $this->assertStringContainsString('data-nl="Vraag offerte aan"', $body);
-        $this->assertStringContainsString('data-nl="Ontworpen &amp; gebouwd met zorg in Nijmegen"', $body);
+        $this->assertStringContainsString(
+            '<a href="' . $expected['href'] . '" class="btn btn--sm">' . $expected['nl_label'] . '</a>',
+            $body
+        );
+        $this->assertStringContainsString('<span>' . $expected['nl_slogan'] . '</span>', $body);
         $this->assertStringNotContainsString('social-row', $body);
 
         $this->assertStringNotContainsString('assets/css/shop/', $body, 'no Shop stylesheet may return through the shell');

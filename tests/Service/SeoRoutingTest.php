@@ -6,8 +6,10 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Repository\PageRepository;
+use App\Repository\SiteSettingRepository;
 use App\Service\AppUrl;
 use App\Service\PageContent;
+use App\Service\SiteSettings;
 use App\Service\Sitemap;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
@@ -171,18 +173,86 @@ final class SeoRoutingTest extends TestCase
 
     // ------------------------------------------------- the indexable pages
 
+    /**
+     * The whole share block, including the Twitter card. That card is only
+     * rendered with an image to show (SeoMetadata::twitterCard(): no image,
+     * no twitter:* block at all), so the test configures the site-wide
+     * default share image itself and puts the setting back afterwards.
+     */
     public function testThePublicPagesCarryTheirFullHead(): void
     {
-        $response = $this->request('/');
+        $imagePath = 'assets/images/zz-seo-routing-share.jpg';
+        $restore = $this->withSiteSettings(['og_image_path' => $imagePath, 'og_image_media_id' => '']);
+
+        try {
+            $response = $this->request('/');
+        } finally {
+            $restore();
+        }
 
         $this->assertNotNull($response);
         $this->assertStringContainsString('name="robots" content="index,follow"', $response['body']);
         $this->assertStringContainsString('<link rel="canonical" href="' . AppUrl::canonical('/') . '">', $response['body']);
         $this->assertStringContainsString('property="og:url" content="' . AppUrl::canonical('/') . '"', $response['body']);
-        $this->assertStringContainsString('name="twitter:card"', $response['body']);
+        $this->assertStringContainsString('<meta name="twitter:card" content="summary_large_image">', $response['body']);
+        $this->assertMatchesRegularExpression(
+            '#<meta property="og:image" content="([^"]+)">[\s\S]*<meta name="twitter:image" content="\1">#',
+            $response['body'],
+            'the Twitter card shows the same image as the Open Graph block'
+        );
+    }
+
+    public function testAHeadWithoutAnyShareImageRendersNoTwitterCard(): void
+    {
+        $restore = $this->withSiteSettings(['og_image_path' => '', 'og_image_media_id' => '']);
+
+        try {
+            $this->createTestPage(noindex: false);
+            $response = $this->request('/' . self::TEST_KEY);
+        } finally {
+            $restore();
+        }
+
+        $this->assertNotNull($response);
+        $this->assertSame(200, $response['status']);
+        $this->assertStringContainsString('property="og:url"', $response['body'], 'the share block itself is there');
+        $this->assertStringNotContainsString('name="twitter:', $response['body'], 'an empty card is worse than none');
+        $this->assertStringNotContainsString('property="og:image"', $response['body']);
     }
 
     // ------------------------------------------------------------- helpers
+
+    /**
+     * Writes site settings for one test and returns the closure that puts
+     * back exactly what was there before, a missing row included.
+     *
+     * @param array<string, string> $values
+     */
+    private function withSiteSettings(array $values): \Closure
+    {
+        $repository = new SiteSettingRepository();
+        $stored = $repository->findAll();
+        $original = [];
+        foreach (array_keys($values) as $key) {
+            $original[$key] = array_key_exists($key, $stored) ? $stored[$key] : null;
+        }
+
+        $repository->upsertMany($values);
+        SiteSettings::clearCache();
+
+        return static function () use ($repository, $original): void {
+            foreach ($original as $key => $value) {
+                if ($value === null) {
+                    Database::connection()
+                        ->prepare('DELETE FROM site_settings WHERE setting_key = :key')
+                        ->execute(['key' => $key]);
+                } else {
+                    $repository->upsertMany([$key => $value]);
+                }
+            }
+            SiteSettings::clearCache();
+        };
+    }
 
     private function updateData(bool $noindex, string $status = 'published'): array
     {

@@ -7,10 +7,13 @@ use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
+use App\Service\PageTranslation;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\BlockTextFixture;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -50,6 +53,9 @@ class PageRoutingTest extends TestCase
     private PageRepository $repository;
     private ?int $pageId = null;
 
+    /** @var list<int> template pages this test created, removed again in tearDown() */
+    private array $templatePageIds = [];
+
     /** What `site_name` held before this test, null when there was no row. */
     private ?string $originalSiteName = null;
 
@@ -72,6 +78,9 @@ class PageRoutingTest extends TestCase
     protected function tearDown(): void
     {
         $this->cleanUp();
+
+        TemplatePageFixture::remove($this->templatePageIds);
+        $this->templatePageIds = [];
 
         if ($this->siteNameWritten) {
             if ($this->originalSiteName === null) {
@@ -200,6 +209,11 @@ class PageRoutingTest extends TestCase
 
     public function testApplicationRoutesTakePrecedenceOverGenericPageRouting(): void
     {
+        // /contact.php answers only while its page exists, and a fresh
+        // installation has none: the test brings it rather than relying on
+        // what the test database was copied from.
+        $this->templatePageIds = TemplatePageFixture::ensureAll(['contact']);
+
         // Every real root-level route keeps answering from its own template.
         foreach (['/shop.php', '/cart.php', '/checkout.php', '/contact.php', '/cookiebeleid.php'] as $route) {
             $this->assertSame(200, $this->request($route)['status'], "{$route} must keep working");
@@ -246,21 +260,32 @@ class PageRoutingTest extends TestCase
         $this->assertStringContainsString(self::SITE_NAME, $response['body']);
     }
 
+    /**
+     * The SEO title and meta description are page text in a language
+     * (page_translations, Multilingual 2.0 phase 2), so they are written the
+     * way the page editor writes them, and the document carries the
+     * request's language only: one <title>, no data-nl/data-en variants.
+     */
     public function testSeoTitleAndMetaDescriptionAreRenderedFromThePage(): void
     {
         $this->createTestPage(PageContent::STATUS_PUBLISHED);
-        $this->repository->update((int) $this->pageId, [
-            'slug' => self::TEST_KEY,
-            'status' => PageContent::STATUS_PUBLISHED,
+        PageLocalization::save((int) $this->pageId, PageLocalization::defaultLanguage(), [
+            PageTranslation::TITLE => 'Routing testpagina',
+            PageTranslation::META_TITLE => 'Aangepaste SEO-titel voor de test',
+            PageTranslation::META_DESCRIPTION => 'Een testomschrijving met "aanhalingstekens" & een ampersand.',
         ]);
+        PageContent::clearCache();
 
         $response = $this->request('/' . self::TEST_KEY);
 
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('<title data-nl="Aangepaste SEO-titel voor de test"', $response['body']);
+        $this->assertStringContainsString('<title>Aangepaste SEO-titel voor de test</title>', $response['body']);
         // Escaped safely: the raw quote/ampersand must never reach the
         // attribute unencoded.
-        $this->assertStringContainsString('&amp; een ampersand', $response['body']);
+        $this->assertStringContainsString(
+            '<meta name="description" content="Een testomschrijving met &quot;aanhalingstekens&quot; &amp; een ampersand.">',
+            $response['body']
+        );
         $this->assertStringNotContainsString('content="Een testomschrijving met "aanhalingstekens"', $response['body']);
     }
 
@@ -271,11 +296,11 @@ class PageRoutingTest extends TestCase
         $response = $this->request('/' . self::TEST_KEY);
         $page = $this->repository->findById((int) $this->pageId);
 
+        $this->assertSame('Routing testpagina — ' . self::SITE_NAME, PageContent::seoTitle($page, PageLocalization::defaultLanguage()));
         $this->assertStringContainsString(
-            '<title data-nl="' . htmlspecialchars(PageContent::seoTitle($page, 'nl'), ENT_QUOTES, 'UTF-8') . '"',
+            '<title>' . htmlspecialchars('Routing testpagina — ' . self::SITE_NAME, ENT_QUOTES, 'UTF-8') . '</title>',
             $response['body']
         );
-        $this->assertStringContainsString('Routing testpagina — ', $response['body']);
     }
 
     public function testAPageWithNoMetaDescriptionRendersNoDescriptionTag(): void

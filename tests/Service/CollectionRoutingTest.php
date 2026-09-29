@@ -6,9 +6,13 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Repository\CollectionRepository;
+use App\Repository\PageSectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\CollectionContent;
+use App\Service\ShopLocalization;
+use App\Service\ShopOverview;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -41,6 +45,10 @@ final class CollectionRoutingTest extends TestCase
     private array $collectionIds = [];
     /** @var list<int> */
     private array $productIds = [];
+    /** @var list<int> the page_sections rows this test attached, removed again in tearDown() */
+    private array $sectionIds = [];
+    /** @var list<int> the template pages this test created, removed again in tearDown() */
+    private array $templatePageIds = [];
 
     protected function setUp(): void
     {
@@ -51,6 +59,12 @@ final class CollectionRoutingTest extends TestCase
 
     protected function tearDown(): void
     {
+        $sections = new PageSectionRepository();
+        foreach ($this->sectionIds as $id) {
+            $sections->delete($id);
+        }
+        TemplatePageFixture::remove($this->templatePageIds);
+
         $db = Database::connection();
 
         foreach ($this->collectionIds as $id) {
@@ -62,7 +76,10 @@ final class CollectionRoutingTest extends TestCase
 
         $this->collectionIds = [];
         $this->productIds = [];
+        $this->sectionIds = [];
+        $this->templatePageIds = [];
         CollectionContent::clearCache();
+        ShopLocalization::clearCache();
     }
 
     private function skipUnlessServerReachable(): void
@@ -100,15 +117,21 @@ final class CollectionRoutingTest extends TestCase
     {
         $slug = self::SLUG_PREFIX . bin2hex(random_bytes(4));
 
-        $this->collectionIds[] = $this->collections->create([
-            'name' => $name,
-            'name_en' => null,
+        $id = $this->collections->create([
             'slug' => $slug,
-            'description' => $description,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => $isActive,
         ]);
+        $this->collectionIds[] = $id;
+
+        // A collection's words are per language since Multilingual 2.0
+        // phase 5; the neutral `collections.slug` above is its address in the
+        // default language, the one these requests are read in.
+        ShopLocalization::saveCollection($id, ShopLocalization::defaultLanguage(), [
+            ShopLocalization::NAME => $name,
+            ShopLocalization::DESCRIPTION => $description,
+        ]);
+        ShopLocalization::clearCache();
 
         return $slug;
     }
@@ -121,11 +144,7 @@ final class CollectionRoutingTest extends TestCase
     private function createProduct(string $name, bool $active = true): int
     {
         $id = $this->products->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => 'zz-test-collection-product-' . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 12.00,
             'image_path' => null,
             'active' => $active,
@@ -136,7 +155,34 @@ final class CollectionRoutingTest extends TestCase
 
         $this->productIds[] = $id;
 
+        ShopLocalization::saveProduct($id, ShopLocalization::defaultLanguage(), [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
+
         return $id;
+    }
+
+    /**
+     * The collection tiles are a block of their own since the page builder
+     * (App\Service\Blocks\ShopCollectionsBlock), no longer a fixed part of
+     * /shop.php: the storefront page shows them only where the owner placed
+     * one. The test database's storefront page carries the product grid
+     * alone, so a test about the tiles on /shop.php places the block itself,
+     * the way the page builder does, and removes it again. A storefront page
+     * that already has one is left exactly as it is.
+     */
+    private function ensureCollectionTilesOnTheShopPage(): void
+    {
+        $page = ShopOverview::storefrontPage();
+        $this->assertNotNull($page, 'the test database has a storefront page for /shop.php');
+
+        $pageId = (int) $page['id'];
+        $sections = new PageSectionRepository();
+        if ($sections->findBySectionTypeAndId('shop_collections', $pageId) !== null) {
+            return;
+        }
+
+        // section_id is the page's own id: the tiles have no content row.
+        $this->sectionIds[] = $sections->create($pageId, (string) $page['content_key'], 'shop_collections', null, $pageId);
     }
 
     public function testAnActiveCollectionPageRenders(): void
@@ -282,6 +328,7 @@ final class CollectionRoutingTest extends TestCase
 
         $hiddenSlug = $this->createCollection('ZZ Shop Verborgen', false);
         $this->collections->setCollectionProducts($this->lastCollectionId(), [$this->createProduct('ZZ shopproduct verborgen')]);
+        $this->ensureCollectionTilesOnTheShopPage();
 
         $response = $this->request('/shop.php');
 
@@ -309,6 +356,7 @@ final class CollectionRoutingTest extends TestCase
         $this->collections->setCollectionProducts($firstId, [$product]);
         $this->collections->setCollectionProducts($secondId, [$product]);
         $this->collections->reorderCollections([$secondId, $firstId]);
+        $this->ensureCollectionTilesOnTheShopPage();
 
         $response = $this->request('/shop.php');
 
@@ -358,11 +406,21 @@ final class CollectionRoutingTest extends TestCase
      */
     public function testExistingRoutesStillWork(): void
     {
-        foreach (['/', '/shop.php', '/product.php', '/contact.php', '/portfolio.php', '/cart.php'] as $path) {
+        // contact.php renders only with its published `pages` row, which a
+        // test database copied from a fresh install does not have.
+        $this->templatePageIds = TemplatePageFixture::ensureAll(['contact']);
+
+        foreach (['/', '/shop.php', '/product.php', '/contact.php', '/portfolio', '/cart.php'] as $path) {
             $response = $this->request($path);
 
             $this->assertNotNull($response, $path);
             $this->assertSame(200, $response['status'], $path . ' must still resolve');
         }
+
+        // The Portfolio's old file name keeps working as a permanent
+        // redirect to its root (Portfolio 2.0).
+        $legacy = $this->request('/portfolio.php');
+        $this->assertNotNull($legacy);
+        $this->assertSame(301, $legacy['status'], '/portfolio.php redirects');
     }
 }

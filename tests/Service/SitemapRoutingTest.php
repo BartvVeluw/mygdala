@@ -6,14 +6,21 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Repository\CollectionRepository;
+use App\Repository\PageRepository;
+use App\Repository\PortfolioGalleryRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AppUrl;
 use App\Service\CollectionContent;
+use App\Service\PageContent;
+use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Service\ProductSeo;
 use App\Service\SiteSettings;
 use App\Service\Sitemap;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\PageFixture;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -47,6 +54,15 @@ final class SitemapRoutingTest extends TestCase
     private array $productIds = [];
     /** @var list<int> */
     private array $collectionIds = [];
+
+    /** @var list<int> template pages TemplatePageFixture created for this test */
+    private array $templatePageIds = [];
+
+    /** @var list<int> ordinary pages this test created */
+    private array $pageIds = [];
+
+    /** @var list<int> Portfolio items this test created */
+    private array $portfolioItemIds = [];
 
     /** @var array<string, string|null> what each identity key held before, null for no row */
     private array $originalIdentity = [];
@@ -96,6 +112,50 @@ final class SitemapRoutingTest extends TestCase
         $this->collectionIds = [];
         ProductSeo::clearCache();
         CollectionContent::clearCache();
+
+        $gallery = new PortfolioGalleryRepository();
+        foreach ($this->portfolioItemIds as $id) {
+            $gallery->deleteItem($id);
+        }
+        $pages = new PageRepository();
+        foreach ($this->pageIds as $id) {
+            $pages->delete($id);
+        }
+        TemplatePageFixture::remove($this->templatePageIds);
+
+        $this->portfolioItemIds = [];
+        $this->pageIds = [];
+        $this->templatePageIds = [];
+        PortfolioGalleryContent::clearCache();
+        PageContent::clearCache();
+    }
+
+    /**
+     * A visible Portfolio item with its project page switched on, the way
+     * Tests\Module\PortfolioProjectRoutingHttpTest makes one.
+     *
+     * @return string its slug
+     */
+    private function createPortfolioProject(): string
+    {
+        $repository = new PortfolioGalleryRepository();
+        $marker = bin2hex(random_bytes(4));
+
+        $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], [
+            'image_path' => 'assets/images/sections/zz-sitemaproute-' . $marker . '.jpg',
+            'thumbnail_path' => null,
+        ]);
+        $this->portfolioItemIds[] = $id;
+
+        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::TITLE => 'ZZ Sitemaproute project',
+        ]);
+
+        $slug = self::SLUG_PREFIX . 'project-' . $marker;
+        $repository->setItemProjectPage($id, true, $slug);
+        PortfolioGalleryContent::clearCache();
+
+        return $slug;
     }
 
     /**
@@ -150,12 +210,10 @@ final class SitemapRoutingTest extends TestCase
 
     private function createProduct(bool $active = true): int
     {
+        // Only the row: a product's words live in product_translations since
+        // Multilingual 2.0, and nothing here reads them.
         $id = $this->products->create([
-            'name' => 'ZZ sitemaproute-product',
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . 'product-' . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 13.00,
             'image_path' => null,
             'active' => $active,
@@ -172,12 +230,9 @@ final class SitemapRoutingTest extends TestCase
     {
         $slug = self::SLUG_PREFIX . 'collectie-' . bin2hex(random_bytes(4));
 
+        // Only the row, for the same reason as createProduct().
         $this->collectionIds[] = $this->collections->create([
-            'name' => 'ZZ sitemaproute-collectie',
-            'name_en' => null,
             'slug' => $slug,
-            'description' => null,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => $isActive,
         ]);
@@ -318,8 +373,28 @@ final class SitemapRoutingTest extends TestCase
 
         // Requested over the test server's own host, yet every URL is the public site.
         $this->assertStringNotContainsString(TestEnvironment::requestHost(), $response['body']);
-        $this->assertStringNotContainsString('http://', str_replace('http://www.sitemaps.org', '', $response['body']));
         $this->assertStringContainsString('<loc>' . AppUrl::canonical('/') . '</loc>', $response['body']);
+
+        // Every address the document hands a crawler — each <loc> and each
+        // hreflang alternate (<xhtml:link href>) — is on the configured base
+        // URL. The two namespace declarations on <urlset> (sitemaps.org and,
+        // for hreflang, the XHTML namespace) are identifiers, not addresses,
+        // so they are the only http:// strings allowed.
+        preg_match_all('#<loc>([^<]*)</loc>|<xhtml:link [^>]*href="([^"]*)"#', $response['body'], $matches, PREG_SET_ORDER);
+        $this->assertNotEmpty($matches);
+        foreach ($matches as $match) {
+            $url = html_entity_decode(($match[2] ?? '') !== '' ? $match[2] : $match[1], ENT_QUOTES | ENT_XML1, 'UTF-8');
+            $this->assertStringStartsWith(AppUrl::base() . '/', $url, 'every sitemap URL must be on the configured base URL');
+        }
+
+        $withoutNamespaces = str_replace(
+            ['xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"', 'xmlns:xhtml="http://www.w3.org/1999/xhtml"'],
+            '',
+            $response['body']
+        );
+        if (!str_starts_with(AppUrl::base(), 'http://')) {
+            $this->assertStringNotContainsString('http://', $withoutNamespaces, 'no stray http:// address next to an https:// site');
+        }
     }
 
     // -------------------------------------------------------------- robots.txt
@@ -340,8 +415,25 @@ final class SitemapRoutingTest extends TestCase
 
     // ---------------------------------------------------- existing routes kept
 
+    /**
+     * Every kind of public route next to the sitemap rewrite: the page
+     * templates, an ordinary page, a module route and a Portfolio project
+     * page. The pages and the project are this test's own — a fresh
+     * installation has no Diensten, Over mij or Contact page, and which pages
+     * and projects a copied test database holds is that site's content.
+     */
     public function testTheExistingPublicRoutesAreUnaffectedByTheRewrite(): void
     {
+        $this->templatePageIds = TemplatePageFixture::ensureAll(['diensten', 'over-mij', 'contact']);
+        $pageSlug = self::SLUG_PREFIX . 'pagina-' . bin2hex(random_bytes(4));
+        $this->pageIds[] = PageFixture::create([
+            'content_key' => $pageSlug,
+            'slug' => $pageSlug,
+            'status' => PageContent::STATUS_PUBLISHED,
+        ], 'ZZ Sitemaproute pagina');
+        $projectSlug = $this->createPortfolioProject();
+        PageContent::clearCache();
+
         $expected = [
             '/' => 200,
             '/shop.php' => 200,
@@ -353,9 +445,9 @@ final class SitemapRoutingTest extends TestCase
             '/cart.php' => 200,
             '/cookiebeleid.php' => 200,
             '/herroeping.php' => 200,
-            '/algemene-voorwaarden' => 200,
+            '/' . $pageSlug => 200,
             '/api/products.php' => 200,
-            '/portfolio/skyline-nijmegen' => 200,
+            '/portfolio/' . $projectSlug => 200,
         ];
 
         foreach ($expected as $path => $status) {
