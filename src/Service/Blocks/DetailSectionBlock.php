@@ -24,7 +24,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-detail-section.php';
  * alt text are stored per website language in block_translations
  * (BlockLocalization), each child row's on its own row.
  */
-final class DetailSectionBlock extends BlockDefinition
+final class DetailSectionBlock extends BlockDefinition implements ContributesAnchor
 {
     public function type(): string
     {
@@ -147,6 +147,28 @@ final class DetailSectionBlock extends BlockDefinition
     public function deleteContent(array $pageSection): void
     {
         (new DetailSectionRepository())->deleteSection($this->sectionId($pageSection));
+    }
+
+    /**
+     * This section's link in its page's anchor navigation
+     * (App\Service\Blocks\AnchorNavigation): the same rule the Snelnavigatie
+     * always used (DetailSectionContent::anchorItem()).
+     */
+    public function anchorFor(array $pageSection): ?array
+    {
+        return DetailSectionContent::anchorItem($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+    }
+
+    /** The gallery's linked items and its one-at-a-time strip on a phone (Detailsectie 2.0). */
+    public function styles(): array
+    {
+        return ['assets/css/blocks/detail-section.css'];
+    }
+
+    /** The phone strip's arrows (assets/js/blocks/detail-section.js); the grid needs nothing. */
+    public function scripts(): array
+    {
+        return ['assets/js/blocks/detail-section.js'];
     }
 
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void

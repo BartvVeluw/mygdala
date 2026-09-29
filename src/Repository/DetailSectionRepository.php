@@ -91,6 +91,28 @@ class DetailSectionRepository extends Repository
     }
 
     /**
+     * The anchor of every Detailsectie on one page, shown or hidden, keyed by
+     * id: what the editor's save checks a new anchor against, so two
+     * sections on one page never share one (Detailsectie 2.0).
+     *
+     * @return array<int, string>
+     */
+    public function anchorsOnPage(string $pageSlug): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id, anchor FROM detail_sections WHERE page_slug = :page_slug AND anchor IS NOT NULL AND anchor <> ''"
+        );
+        $stmt->execute(['page_slug' => $pageSlug]);
+
+        $anchors = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $anchors[(int) $row['id']] = (string) $row['anchor'];
+        }
+
+        return $anchors;
+    }
+
+    /**
      * Inserts or updates the row for one instance: what is the same in every
      * language. Used by the admin editor's "Algemene inhoud" form; the main
      * image, points and gallery images are saved separately by their own
@@ -294,20 +316,27 @@ class DetailSectionRepository extends Repository
      * (App\Service\Blocks\BlockLocalization), in the same transaction as this
      * insert.
      *
-     * @param array{media_id?: int|null, image_path?: string} $values
+     * A gallery item is a Media Library picture (media_id) or an item of the
+     * site shown with its own picture (source_type + source_id, Detailsectie
+     * 2.0, App\Service\Media\LinkedImages); never both, and the item's
+     * picture, name and address are not stored here.
+     *
+     * @param array{media_id?: int|null, image_path?: string, source_type?: string|null, source_id?: int|null} $values
      */
     public function createImage(int $sectionId, array $values): int
     {
         $nextSortOrder = $this->nextSortOrder('detail_section_images', 'section_id', $sectionId);
 
         $stmt = $this->db->prepare(
-            'INSERT INTO detail_section_images (section_id, media_id, image_path, sort_order, created_at, updated_at)
-             VALUES (:section_id, :media_id, :image_path, :sort_order, NOW(), NOW())'
+            'INSERT INTO detail_section_images (section_id, media_id, image_path, source_type, source_id, sort_order, created_at, updated_at)
+             VALUES (:section_id, :media_id, :image_path, :source_type, :source_id, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'section_id' => $sectionId,
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
+            'source_type' => self::sourceType($values),
+            'source_id' => self::sourceType($values) === null ? null : self::positiveOrNull($values['source_id'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -319,19 +348,41 @@ class DetailSectionRepository extends Repository
      * through BlockLocalization; the id never changes, so the alt text of
      * every language stays attached to it.
      *
-     * @param array{media_id?: int|null, image_path?: string} $values
+     * A gallery item is a Media Library picture (media_id) or an item of the
+     * site shown with its own picture (source_type + source_id, Detailsectie
+     * 2.0, App\Service\Media\LinkedImages); never both, and the item's
+     * picture, name and address are not stored here.
+     *
+     * @param array{media_id?: int|null, image_path?: string, source_type?: string|null, source_id?: int|null} $values
      */
     public function updateImage(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE detail_section_images SET media_id = :media_id, image_path = :image_path, updated_at = NOW()
+            'UPDATE detail_section_images SET media_id = :media_id, image_path = :image_path,
+                    source_type = :source_type, source_id = :source_id, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
+            'source_type' => self::sourceType($values),
+            'source_id' => self::sourceType($values) === null ? null : self::positiveOrNull($values['source_id'] ?? null),
             'id' => $id,
         ]);
+    }
+
+    /**
+     * The kind of item a gallery item shows, or null for a Media Library
+     * picture. The caller has checked the kind against
+     * App\Service\Media\LinkedImages (or kept a stored one).
+     *
+     * @param array<string, mixed> $values
+     */
+    private static function sourceType(array $values): ?string
+    {
+        $type = trim((string) ($values['source_type'] ?? ''));
+
+        return $type === '' ? null : $type;
     }
 
     /**

@@ -3,8 +3,10 @@
 namespace App\Service;
 
 use App\Repository\DetailSectionRepository;
+use App\Service\Blocks\AnchorName;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
+use App\Service\Media\LinkedImages;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
 
@@ -99,7 +101,10 @@ class DetailSectionContent
      *                                cta_url both empty when there is no
      *                                CTA), 'points': a list of title and body
      *                                (a string each), and 'images': a
-     *                                list of App\Service\Media\BlockImage::fromOwner().
+     *                                list of App\Service\Media\BlockImage::fromOwner()
+     *                                plus `href` and `title` (both '' for a
+     *                                library picture; a linked item's live
+     *                                address and name, LinkedImages::resolve()).
      *                                Templates must check 'state' !==
      *                                STATE_HIDDEN before rendering the
      *                                section at all.
@@ -165,13 +170,30 @@ class DetailSectionContent
         // App\Service\Media\BlockImage, shared with the other integrated
         // blocks. width/height come along, null when the library does not
         // know them.
-        $content['images'] = array_map(
-            static fn (array $image): array => BlockImage::fromOwner(
-                $image,
-                BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
-            ),
-            $images
-        );
+        //
+        // A gallery item that shows an item of the site (a product, a
+        // project, a blog post; App\Service\Media\LinkedImages) is resolved
+        // LIVE: its picture, name and address as they are now, linked to that
+        // item. Whatever a visitor cannot open (a draft, an inactive product,
+        // a hidden project, an item that is gone, a module that is off) is
+        // left out, never shown as a picture that leads nowhere.
+        $content['images'] = [];
+        foreach ($images as $image) {
+            $sourceType = trim((string) ($image['source_type'] ?? ''));
+
+            if ($sourceType === '') {
+                $content['images'][] = BlockImage::fromOwner(
+                    $image,
+                    BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
+                ) + ['href' => '', 'title' => ''];
+                continue;
+            }
+
+            $linked = LinkedImages::resolve($sourceType, (int) ($image['source_id'] ?? 0));
+            if ($linked !== null) {
+                $content['images'][] = $linked;
+            }
+        }
 
         $content['state'] = self::STATE_ACTIVE;
 
@@ -226,24 +248,58 @@ class DetailSectionContent
 
         $items = [];
         foreach ($rows as $row) {
-            $anchor = trim((string) ($row['anchor'] ?? ''));
-            if ($anchor === '') {
-                continue;
+            $item = self::anchorOfRow($row);
+            if ($item !== null) {
+                $items[] = $item;
             }
-
-            $sectionId = (int) $row['id'];
-            if (!BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'nav_label')
-                && !BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'title')) {
-                continue;
-            }
-
-            $items[] = [
-                'anchor' => $anchor,
-                'label' => BlockLocalization::first(self::TABLE, $sectionId, ['nav_label', 'title']),
-            ];
         }
 
         return $items;
+    }
+
+    /**
+     * One section's link in its page's anchor navigation, by the same rule
+     * as navItemsForPage(): an active section with an anchor and a label in
+     * the default language — or null. What DetailSectionBlock::anchorFor()
+     * answers for App\Service\Blocks\AnchorNavigation.
+     *
+     * @return array{anchor: string, label: string}|null
+     */
+    public static function anchorItem(string $pageSlug, string $sectionKey): ?array
+    {
+        try {
+            $row = (new DetailSectionRepository())->findBySlugAndKey($pageSlug, $sectionKey);
+        } catch (\Throwable $e) {
+            error_log('[DetailSectionContent] anchor lookup failed for "' . $pageSlug . ':' . $sectionKey . '": ' . $e->getMessage());
+
+            return null;
+        }
+
+        return $row === null || !(bool) $row['is_active'] ? null : self::anchorOfRow($row);
+    }
+
+    /**
+     * @param array<string, mixed> $row a detail_sections row
+     *
+     * @return array{anchor: string, label: string}|null
+     */
+    private static function anchorOfRow(array $row): ?array
+    {
+        $anchor = AnchorName::normalise((string) ($row['anchor'] ?? ''));
+        if ($anchor === '') {
+            return null;
+        }
+
+        $sectionId = (int) $row['id'];
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'nav_label')
+            && !BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'title')) {
+            return null;
+        }
+
+        return [
+            'anchor' => $anchor,
+            'label' => BlockLocalization::first(self::TABLE, $sectionId, ['nav_label', 'title']),
+        ];
     }
 
     /**
@@ -307,7 +363,9 @@ class DetailSectionContent
 
         $content = [
             'id' => $sectionId,
-            'anchor' => trim((string) ($row['anchor'] ?? '')),
+            // The one shape of an anchor (AnchorName), also for one stored
+            // before it ("#hout"), so the id and every link agree.
+            'anchor' => AnchorName::normalise((string) ($row['anchor'] ?? '')),
         ] + $words;
 
         $content['main_image_path'] = $mainImage['image_path'];

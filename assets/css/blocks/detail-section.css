@@ -1,0 +1,65 @@
+/* =========================================================================
+   Content block: Detailsectie (partials/section-detail-section.php) — what
+   its gallery needs beyond the grid in core.css. Asked for by
+   App\Service\Blocks\DetailSectionBlock::styles().
+
+   A LINKED ITEM (a product, a project, a blog post; App\Service\Media\LinkedImages)
+   is the same square picture as a library picture, inside a link, with the
+   item's name on it.
+
+   ON A PHONE (640px and narrower, the grid's own breakpoint) the gallery is
+   a horizontal strip, one item wide, snapping item by item — never the
+   two-plus-one grid it used to be — with two arrow buttons below it
+   (assets/js/blocks/detail-section.js). The strip scrolls inside itself, so
+   the page never scrolls sideways.
+   ========================================================================= */
+
+.service-detail__gallery-item{ position: relative; display: block; margin: 0; min-width: 0; }
+.service-detail__gallery-item img{ border-radius: var(--radius-md); aspect-ratio: 1; object-fit: cover; width: 100%; height: 100%; box-shadow: var(--shadow-soft); border: 1px solid var(--color-line); display: block; }
+.service-detail__gallery-link{ display: block; color: inherit; text-decoration: none; border-radius: var(--radius-md); }
+.service-detail__gallery-link:focus-visible{ outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.service-detail__gallery-caption{
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: var(--sp-3) var(--sp-2) var(--sp-2);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
+  color: #fff; font-weight: 700; font-size: var(--fs-small); line-height: 1.3;
+}
+.service-detail__gallery-link:hover img{ border-color: var(--color-line-strong); }
+
+.service-detail__gallery-controls{ display: none; }
+
+@media (max-width: 640px){
+  .service-detail__gallery{
+    display: flex;
+    grid-template-columns: none;
+    gap: var(--sp-2);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .service-detail__gallery::-webkit-scrollbar{ display: none; }
+  .service-detail__gallery > .service-detail__gallery-item{ flex: 0 0 100%; scroll-snap-align: start; }
+  .service-detail__gallery-controls:not([hidden]){ display: flex; justify-content: center; gap: var(--sp-2); margin-top: var(--sp-3); }
+  .service-detail__gallery-nav{
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-line-strong);
+    background: transparent;
+    color: var(--color-text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+  }
+  .service-detail__gallery-nav:hover:not(:disabled){ background: var(--color-primary-wash); color: var(--color-primary-bright); border-color: var(--color-primary); }
+  .service-detail__gallery-nav:focus-visible{ outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .service-detail__gallery-nav:disabled{ opacity: 0.35; cursor: default; }
+  .service-detail__gallery-nav svg{ width: 20px; height: 20px; }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce){
+  .service-detail__gallery{ scroll-behavior: auto; }
+  .service-detail__gallery-nav{ transition: none; }
+}

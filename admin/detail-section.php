@@ -10,6 +10,7 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_gallery_source_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -54,6 +55,15 @@ use App\Repository\PageRepository;
  * comes back as it was typed (both lists, order and marks included), with
  * each message next to its field, and the form then starts out unsaved in
  * the save bar.
+ *
+ * DETAILSECTIE 2.0. The image position sits with the main image and shows
+ * only while one is chosen (admin/assets/detail-section.js; the server
+ * prints the same `hidden`, and the field is always posted, so a stored
+ * position is never lost). A gallery item is a library picture or an item
+ * of the site shown with its own picture and linked to it
+ * (admin/_gallery_source_field.php, App\Service\Media\LinkedImages). The
+ * explanations are the shared help (admin_field_label()'s help and
+ * admin_info_panel(), ADMIN-UI.md), not paragraphs under every field.
  */
 
 AdminAuth::requireLogin();
@@ -129,7 +139,10 @@ $imageRows = editor_rows_on_screen(
     static fn (array $image): array => [
         'media_id' => (string) (int) ($image['media_id'] ?? 0),
         'alt' => BlockLocalization::raw('detail_section_images', (int) $image['id'], 'alt', $editLanguage),
-    ]
+        // Where the picture comes from (Detailsectie 2.0): 'media', or the
+        // kind of item with its id under source_<kind>.
+        'source' => (string) ($image['source_type'] ?? '') !== '' ? (string) $image['source_type'] : 'media',
+    ] + ((string) ($image['source_type'] ?? '') !== '' ? ['source_' . $image['source_type'] => (string) (int) ($image['source_id'] ?? 0)] : [])
 );
 
 $csrfToken = Csrf::token();
@@ -142,10 +155,10 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 $optional = admin_localized_optional_attr($editLanguage);
 
 /** One text field of the section, with its own message. */
-$field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0, ?string $value = null) use ($h, $word, $fieldErrors): void {
+$field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0, ?string $value = null, string $help = '') use ($h, $word, $fieldErrors): void {
     $id = 'detail-' . str_replace('_', '-', $name);
     $value ??= $word($name);
-    echo '<div class="admin-field">' . admin_field_label($id, $label);
+    echo '<div class="admin-field">' . admin_field_label($id, $label, $help);
     if ($lines > 0) {
         echo '<textarea id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" rows="' . $lines . '"' . $attributes
             . editor_field_invalid($fieldErrors, $name) . '>' . $h($value) . '</textarea>';
@@ -167,11 +180,19 @@ $pointRow = static function (string $key, array $fields, int $position, int $cou
     editor_row_close();
 };
 
-/** One gallery image; the template for a new one is the same markup with the key __KEY__. */
+/**
+ * One gallery item; the template for a new one is the same markup with the
+ * key __KEY__. Its source first — a library picture, or a product, project
+ * or blog post shown with its own picture (admin/_gallery_source_field.php)
+ * — and then only the part that source needs.
+ */
 $imageRow = static function (string $key, array $fields, int $position, int $count) use ($placeholder, $fieldErrors): void {
-    editor_row_open('images', $key, admin_t('block_detail.afbeelding'), $position, $count, ($fields['remove'] ?? '') !== '');
-    editor_row_media('images', $key, $fields, $fieldErrors, ctype_digit($key) ? 'Afbeelding' : 'Afbeelding*');
-    editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
+    editor_row_open('images', $key, admin_t('block_detail.galerij_item'), $position, $count, ($fields['remove'] ?? '') !== '');
+    gallery_source_field('images', $key, $fields, static function () use ($key, $fields, $fieldErrors, $placeholder): void {
+        editor_row_media('images', $key, $fields, $fieldErrors, ctype_digit($key) ? 'Afbeelding' : 'Afbeelding*');
+        editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
+    });
+    editor_field_error($fieldErrors, 'images.' . $key . '.source');
     editor_row_close();
 };
 ?>
@@ -185,6 +206,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/detail-section.js') ?>" defer></script>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -224,31 +246,21 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       <?php renderRichTextField('body', 'Tekst', $word('body'), 'full', 'admin-richtext-editor--lg'); ?>
       <?php editor_field_error($fieldErrors, 'body'); ?>
 
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('block_detail.anker_url_id') ?>
-          <input type="text" name="anchor" maxlength="100" value="<?= $h($setting('anchor')) ?>" placeholder="Bijv. hout — leeg = geen anker">
-        </label>
-        <label><?= admin_te('block_detail.beeldpositie') ?>
-          <select name="image_position">
-            <option value="image_right"<?= $imagePosition === 'image_right' ? ' selected' : '' ?>><?= admin_te('block_detail.afbeelding_rechts') ?></option>
-            <option value="image_left"<?= $imagePosition === 'image_left' ? ' selected' : '' ?>><?= admin_te('block_detail.afbeelding_links') ?></option>
-          </select>
-        </label>
-      </div>
-      <p class="admin-text-muted"><?= admin_t('block_detail.sectie_anker_bereikbaar_via') ?></p>
-
-      <?php $field('nav_label', admin_t('block_detail.navigatielabel'), 100, ' placeholder="Leeg = de titel hierboven"'); ?>
-      <p class="admin-text-muted"><?= admin_te('block_detail.korte_tekst_snelnavigatie_meestal') ?></p>
-
-      <?php $field('closing_note', admin_t('block_detail.slotnotitie'), 1000, $optional, 2); ?>
-      <p class="admin-text-muted"><?= admin_te('block_detail.optionele_extra_tekst_onderaan') ?></p>
-
-      <?php $field('cta_label', admin_t('block_detail.cta_knoptekst'), 150, $optional); ?>
       <div class="admin-field">
-        <?= admin_field_label('detail-cta-url', admin_t('block_detail.cta_knop_url')) ?>
+        <?= admin_field_label('detail-anchor', admin_t('block_detail.anker_url_id'), admin_t('help.block_detail.anker')) ?>
+        <input type="text" id="detail-anchor" name="anchor" maxlength="<?= \App\Service\Blocks\AnchorName::MAX_LENGTH ?>" value="<?= $h($setting('anchor')) ?>" placeholder="Bijv. hout — leeg = geen anker" autocomplete="off" spellcheck="false"<?= editor_field_invalid($fieldErrors, 'anchor') ?>>
+        <?php editor_field_error($fieldErrors, 'anchor'); ?>
+      </div>
+
+      <?php $field('nav_label', admin_t('block_detail.navigatielabel'), 100, ' placeholder="Leeg = de titel hierboven"', 0, null, admin_t('help.block_detail.navigatielabel')); ?>
+
+      <?php $field('closing_note', admin_t('block_detail.slotnotitie'), 1000, $optional, 2, null, admin_t('help.block_detail.slotnotitie')); ?>
+
+      <?php $field('cta_label', admin_t('block_detail.cta_knoptekst'), 150, $optional, 0, null, admin_t('help.block_detail.cta')); ?>
+      <div class="admin-field">
+        <?= admin_field_label('detail-cta-url', admin_t('block_detail.cta_knop_url'), admin_t('help.block_detail.cta')) ?>
         <input type="text" id="detail-cta-url" name="cta_url" maxlength="255" value="<?= $h($setting('cta_url')) ?>" placeholder="Bijv. contact.php — leeg = geen knop">
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_detail.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
@@ -258,12 +270,23 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 
     <section class="admin-card">
       <h2><?= admin_te('block_detail.hoofdafbeelding') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('block_detail.optioneel_staat_naast_tekst') ?></p>
+      <?= admin_info_panel(admin_t('help.block_detail.hoofdafbeelding')) ?>
 
-      <div class="admin-field">
+      <div class="admin-field" data-detail-main-image>
         <?php $mainMedia = $mainMediaId > 0 ? MediaService::find($mainMediaId) : null; ?>
         <?php media_picker_field('main_media_id', $mainMedia, 'Hoofdafbeelding', 'Kies er een uit de mediabibliotheek, of upload een nieuwe in het venster dat opent. "Wissen" haalt de afbeelding bij Opslaan weg.', true); ?>
         <?php editor_field_error($fieldErrors, 'main_media_id'); ?>
+      </div>
+
+      <?php /* Only while there is a main image: without one there is nothing to
+               put left or right (the website then ignores the position). The
+               field is posted either way, so a stored position stays. */ ?>
+      <div class="admin-field" data-detail-image-position<?= $mainMediaId > 0 || $hasLegacyMainImageOnly ? '' : ' hidden' ?>>
+        <?= admin_field_label('detail-image-position', admin_t('block_detail.beeldpositie'), admin_t('help.block_detail.beeldpositie')) ?>
+        <select class="admin-select" id="detail-image-position" name="image_position">
+          <option value="image_right"<?= $imagePosition === 'image_right' ? ' selected' : '' ?>><?= admin_te('block_detail.afbeelding_rechts') ?></option>
+          <option value="image_left"<?= $imagePosition === 'image_left' ? ' selected' : '' ?>><?= admin_te('block_detail.afbeelding_links') ?></option>
+        </select>
       </div>
       <?php if ($hasLegacyMainImageOnly): ?>
         <label class="admin-checkbox-label">
@@ -280,7 +303,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 
     <section class="admin-card" aria-labelledby="detail-points-title">
       <h2 id="detail-points-title"><?= admin_te('block_detail.kenmerken') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('block_detail.vinkje_icoon_staat_vast') ?></p>
+      <?= admin_info_panel(admin_t('help.block_detail.kenmerken')) ?>
 
       <?php if ($pointRows === []): ?>
         <p class="admin-text-muted"><?= admin_te('block_detail.kenmerken_sectie') ?></p>
@@ -302,7 +325,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 
     <section class="admin-card" aria-labelledby="detail-images-title">
       <h2 id="detail-images-title"><?= admin_te('block_detail.galerij') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('block_detail.optioneel_rij_afbeeldingen_onder') ?></p>
+      <?= admin_info_panel(admin_t('help.block_detail.galerij')) ?>
 
       <?php if ($imageRows === []): ?>
         <p class="admin-text-muted"><?= admin_te('block_detail.afbeeldingen_galerij') ?></p>
@@ -327,6 +350,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <?php save_bar(); ?>
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
+<?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>

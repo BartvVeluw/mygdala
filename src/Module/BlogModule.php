@@ -408,6 +408,21 @@ final class BlogModule extends ModuleDefinition
     }
 
     /**
+     * A post's picture where a block shows it as a linked picture: its
+     * featured image, as the post's own cards show it (BlogContent).
+     */
+    public function linkedImages(): array
+    {
+        return [
+            'blog_post' => static function (int $id): ?array {
+                $post = (new BlogPostRepository())->find($id);
+
+                return $post === null ? null : \App\Service\Media\BlockImage::fromOwner($post, null, 'featured_media_id', 'featured_image_path');
+            },
+        ];
+    }
+
+    /**
      * One dashboard card, next to the other content sections. The Blog's
      * frontend assets are NOT here and never will be: they belong to the two
      * Blog routes, which ask App\Service\PageAssets for them, so no page

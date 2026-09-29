@@ -660,6 +660,27 @@ final class ShopModule extends ModuleDefinition
         return [new \App\Service\ProductContentOwner()];
     }
 
+    /**
+     * A product's picture where a block shows it as a linked picture: its
+     * primary picture, as the storefront's cards take it
+     * (ProductImageRepository::findPrimary()), else the product's own path.
+     */
+    public function linkedImages(): array
+    {
+        return [
+            'product' => static function (int $id): ?array {
+                $primary = (new \App\Repository\ProductImageRepository())->findPrimary($id);
+                if ($primary !== null) {
+                    return \App\Service\Media\BlockImage::fromOwner($primary, null);
+                }
+
+                $product = (new ProductRepository())->findByIdForAdmin($id);
+
+                return $product === null ? null : \App\Service\Media\BlockImage::fromOwner($product, null);
+            },
+        ];
+    }
+
     public function dashboardCards(): array
     {
         return [

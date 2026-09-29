@@ -45,6 +45,20 @@
  * needs one, and a stored one whose field comes back empty keeps what it
  * shows.
  *
+ * THE ANCHOR (Detailsectie 2.0) is stored in its one shape
+ * (App\Service\Blocks\AnchorName: "#Hout " becomes "hout"); something that
+ * leaves no anchor is refused, and so is an anchor another Detailsectie on
+ * the same page already has — two sections cannot both be "#hout".
+ *
+ * A GALLERY ITEM is a library picture or an item of the site
+ * (App\Service\Media\LinkedImages): `source` is 'media' or a kind, and
+ * `source_<kind>` the chosen id. A kind must be one the picker offers and the
+ * id one of its choices — except the choice the row already has, which is
+ * kept as it is even when it can no longer be offered (gone, not public, a
+ * module that is off), as the Destination Picker keeps one (LinkChoice). Only
+ * the kind and the id are stored; the item's picture, name and address are
+ * read live. A row that switches to a library picture needs one.
+ *
  * THE CTA shows only with a label in the default language and a URL
  * (DetailSectionContent). A half-filled CTA is not refused: the editor says
  * that one of the two alone shows no button, as it always did.
@@ -57,6 +71,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\AnchorName;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\EditorChildList;
 use App\Service\Blocks\EditorRows;
@@ -65,6 +80,8 @@ use App\Service\DetailSectionContent;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
+use App\Service\Media\LinkedImages;
+use App\Service\Routing\LinkTargets;
 use App\Repository\DetailSectionRepository;
 use App\Repository\PageRepository;
 
@@ -123,8 +140,9 @@ if (!in_array($imagePosition, DetailSectionContent::IMAGE_POSITIONS, true)) {
     $imagePosition = 'image_right';
 }
 
+$typedAnchor = (string) ($_POST['anchor'] ?? '');
 $settings = [
-    'anchor' => trim((string) ($_POST['anchor'] ?? '')),
+    'anchor' => AnchorName::normalise($typedAnchor),
     'image_position' => $imagePosition,
     'cta_url' => trim((string) ($_POST['cta_url'] ?? '')),
     'is_active' => isset($_POST['is_active']),
@@ -155,8 +173,55 @@ $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $points = EditorChildList::fromRequest($_POST, 'points', 'detail_section_points', $idsOf($repository->findPointsBySectionId($sectionId)), $action);
 $images = EditorChildList::fromRequest($post, 'images', 'detail_section_images', $idsOf($repository->findImagesBySectionId($sectionId)), $action);
 
+// What each stored gallery row shows now, so a kept choice is recognised.
+$storedSources = [];
+foreach ($repository->findImagesBySectionId($sectionId) as $storedImage) {
+    $storedSources[(int) $storedImage['id']] = [(string) ($storedImage['source_type'] ?? ''), (int) ($storedImage['source_id'] ?? 0)];
+}
+
+/**
+ * A gallery row's source: 'media', or [kind, id] of an item of the site.
+ *
+ * @return array{0: string, 1: int}
+ */
+$sourceOf = static function (array $row): array {
+    $kind = (string) ($row['fields']['source'] ?? 'media');
+    if ($kind === '' || $kind === 'media') {
+        return ['media', 0];
+    }
+
+    return [$kind, (int) ($row['fields']['source_' . $kind] ?? 0)];
+};
+
+/** A gallery row's item: a known kind and one of its choices, or the row's own stored one. */
+$sourceProblems = static function (array $row) use ($sourceOf, $storedSources): array {
+    [$kind, $id] = $sourceOf($row);
+    $stored = $storedSources[$row['id']] ?? ['', 0];
+
+    if ($row['id'] > 0 && $stored[0] === $kind && $stored[1] === $id && $id > 0) {
+        return [];
+    }
+    if (!LinkedImages::isAvailable($kind)) {
+        return ['source' => AdminTranslator::trans('gallery_source.error_kind')];
+    }
+    if ($id < 1 || !LinkTargets::exists($kind, $id)) {
+        return ['source_' . $kind => AdminTranslator::trans('gallery_source.error_item'), 'source' => AdminTranslator::trans('gallery_source.error_item')];
+    }
+
+    return [];
+};
+
 /** A gallery row's media item: a new row needs one, a posted id must be the library's. */
-$imageProblems = static function (array $row): array {
+$imageProblems = static function (array $row) use ($sourceOf, $sourceProblems, $storedSources): array {
+    if ($sourceOf($row)[0] !== 'media') {
+        return $sourceProblems($row);
+    }
+
+    // A row that showed an item and now shows a library picture needs one.
+    if ($row['id'] > 0 && ($storedSources[$row['id']][0] ?? '') !== '' && BlockImage::fromRequest($row['fields']['media_id'] ?? '')['media_id'] === null) {
+        return ['media_id' => AdminTranslator::trans('editor_rows.error_media_required')];
+    }
+
     $posted = $row['fields']['media_id'] ?? '';
     if ($posted !== '' && $posted !== '0' && BlockImage::fromRequest($posted)['media_id'] === null) {
         return ['media_id' => AdminTranslator::trans('editor_rows.error_media_unknown')];
@@ -194,6 +259,19 @@ if (!$languageIsWritable) {
         ...$images->summary($imageErrors, AdminTranslator::trans('block_detail.afbeelding'))
     );
     $fieldErrors += $pointErrors + $imageErrors;
+}
+
+// The anchor: something that leaves nothing is no anchor, and two sections
+// on one page cannot share one.
+if (AnchorName::isUnusable($typedAnchor)) {
+    $errors[] = $fieldErrors['anchor'] = AdminTranslator::trans('block_detail.error_anker');
+} elseif ($settings['anchor'] !== '') {
+    foreach ($repository->anchorsOnPage($pageSlug) as $otherId => $otherAnchor) {
+        if ($otherId !== $sectionId && AnchorName::normalise($otherAnchor) === $settings['anchor']) {
+            $errors[] = $fieldErrors['anchor'] = AdminTranslator::trans('block_detail.error_anker_dubbel', ['anchor' => $settings['anchor']]);
+            break;
+        }
+    }
 }
 
 // The one rule for a typed address (App\Service\Routing\SafeUrl): never a
@@ -273,8 +351,22 @@ try {
 
     $images->save(
         $languageCode,
-        static fn (array $row): int => $repository->createImage($sectionId, BlockImage::fromRequest($row['fields']['media_id'] ?? '')),
-        static function (int $id, array $row) use ($repository): void {
+        static function (array $row) use ($repository, $sectionId, $sourceOf): int {
+            [$kind, $itemId] = $sourceOf($row);
+
+            return $repository->createImage($sectionId, $kind === 'media'
+                ? BlockImage::fromRequest($row['fields']['media_id'] ?? '')
+                : ['source_type' => $kind, 'source_id' => $itemId]);
+        },
+        static function (int $id, array $row) use ($repository, $sourceOf): void {
+            [$kind, $itemId] = $sourceOf($row);
+            if ($kind !== 'media') {
+                // Only the kind and the id; the picture is the item's own.
+                $repository->updateImage($id, ['source_type' => $kind, 'source_id' => $itemId]);
+
+                return;
+            }
+
             // An empty field keeps the stored image (see above).
             $chosen = BlockImage::fromRequest($row['fields']['media_id'] ?? '');
             if ($chosen['media_id'] !== null) {

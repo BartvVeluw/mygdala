@@ -445,6 +445,24 @@ abstract class ModuleDefinition
     }
 
     /**
+     * The picture that stands for an item of this module wherever a block
+     * shows the item AS a picture that links to it — a gallery item of a
+     * Detailsectie (Detailsectie 2.0, App\Service\Media\LinkedImages). Keyed
+     * by the item's App\Service\Routing\LinkTargets type, which already
+     * gives the name, the choices and the public address: this adds only the
+     * picture, the one the module's own cards and storefront show, with the
+     * Media Library's alt text. A kind offers itself as a gallery source only
+     * with both, so a new module (Articles) that contributes a destination
+     * and a picture needs no change to any block.
+     *
+     * @return array<string, callable(int): ?array{image_path: string, alt?: string, width?: int|null, height?: int|null}>
+     */
+    public function linkedImages(): array
+    {
+        return [];
+    }
+
+    /**
      * Whether this module lets the website publish MORE than its default
      * language: every active language of the website language registry, with
      * its prefix, its place in the language switch, the sitemap and hreflang.

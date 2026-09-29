@@ -389,6 +389,21 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
+     * A project's picture where a block shows it as a linked picture: its
+     * main picture, the one its card and its project page show.
+     */
+    public function linkedImages(): array
+    {
+        return [
+            'portfolio_project' => static function (int $id): ?array {
+                $item = (new \App\Repository\PortfolioGalleryRepository())->findItemById($id);
+
+                return $item === null ? null : \App\Service\Media\BlockImage::fromOwner($item, null);
+            },
+        ];
+    }
+
+    /**
      * A project as the destination of a link (App\Service\Routing\LinkTargets,
      * the Destination Picker): stored by id and linked at /portfolio/<slug>
      * in the language being read, only while its project page is public

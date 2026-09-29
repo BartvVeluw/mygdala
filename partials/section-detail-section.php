@@ -25,6 +25,13 @@
  * default and no fallback. The default language decides whether the lead,
  * the CTA and the closing note show.
  *
+ * THE GALLERY (Detailsectie 2.0): a library picture, or an item of the site
+ * (a product, a project, a blog post) as a picture that links to it, with
+ * its name on it — resolved live by the read model, which leaves out what a
+ * visitor cannot open. Above 640px the grid it always was; on a phone a
+ * strip one item wide with two arrow buttons (assets/css/blocks/detail-section.css,
+ * assets/js/blocks/detail-section.js), never a two-plus-one grid.
+ *
  * All of it is plain text except the body, which is sanitized HTML
  * (RichTextSanitizer at save time, and again on read in BlockLocalization) —
  * printed as real markup, never escaped back to plain text. Every other
@@ -86,10 +93,33 @@ function render_section_detail_section(array $content, array $markers, string $r
         </div>
       </div>
       <?php if ($content['images'] !== []): ?>
-      <div class="service-detail__gallery" data-reveal data-reveal-group="<?= $h($revealGroup) ?>-gallery">
-        <?php foreach ($content['images'] as $image): ?>
-        <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
-        <?php endforeach; ?>
+      <?php $galleryCount = count($content['images']); ?>
+      <div class="service-detail__gallery-wrap" data-detail-gallery>
+        <div class="service-detail__gallery" data-reveal data-reveal-group="<?= $h($revealGroup) ?>-gallery" data-detail-gallery-strip<?= $galleryCount > 1 ? ' tabindex="0" role="region" aria-label="' . \App\Service\Language\SiteText::escaped(['nl' => 'Galerij', 'en' => 'Gallery']) . '"' : '' ?>>
+          <?php foreach ($content['images'] as $image): ?>
+          <figure class="service-detail__gallery-item" data-detail-gallery-item>
+            <?php if (($image['href'] ?? '') !== ''): ?>
+            <a class="service-detail__gallery-link" href="<?= $h($image['href']) ?>">
+              <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
+              <?php if (($image['title'] ?? '') !== ''): ?>
+              <span class="service-detail__gallery-caption"><?= $h($image['title']) ?></span>
+              <?php endif; ?>
+            </a>
+            <?php else: ?>
+            <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
+            <?php endif; ?>
+          </figure>
+          <?php endforeach; ?>
+        </div>
+        <?php if ($galleryCount > 1): ?>
+        <?php /* Only on a phone, and only once assets/js/blocks/detail-section.js
+                 runs (it clears `hidden`): there the gallery is a strip, one
+                 item at a time. */ ?>
+        <div class="service-detail__gallery-controls" data-detail-gallery-controls hidden>
+          <button type="button" class="service-detail__gallery-nav" data-detail-gallery-prev aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Vorige afbeelding', 'en' => 'Previous image']) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <button type="button" class="service-detail__gallery-nav" data-detail-gallery-next aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Volgende afbeelding', 'en' => 'Next image']) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+        <?php endif; ?>
       </div>
       <?php endif; ?>
       <?php if ($content['closing_note'] !== ''): ?>
