@@ -219,7 +219,7 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             $label = (string) $row['kind'];
 
             if ($pageSlug !== '') {
-                $label .= ' op "' . $pageSlug . '"';
+                $label .= ' op "' . $this->ownerName($pageSlug) . '"';
             }
 
             $usages[$mediaId][] = new MediaUsage(
@@ -234,6 +234,26 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
         }
 
         return $usages;
+    }
+
+    /**
+     * What the label calls the block list a picture is used on: the page's
+     * storage key, as it always did — except for the content page of a
+     * product or project (App\Service\ContentOwners\ContentPages), whose key
+     * ("product_12") means nothing to an editor, so its owner is named
+     * instead ("Product: Eiken plank"). Asked only for such a key, which an
+     * ordinary page's slug-shaped key never is.
+     */
+    private function ownerName(string $pageSlug): string
+    {
+        if (!str_contains($pageSlug, '_')) {
+            return $pageSlug;
+        }
+
+        $page = \App\Service\PageContent::forContentKey($pageSlug);
+        $name = $page === null ? '' : \App\Service\ContentOwners\ContentPages::name($page);
+
+        return $name !== '' ? $name : $pageSlug;
     }
 
     /**

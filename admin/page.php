@@ -11,6 +11,7 @@ require_once __DIR__ . '/_admin_collapse.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_page_placement.php';
+require_once __DIR__ . '/_content_blocks.php';
 
 use App\Service\AdminAuth;
 use App\Service\AppUrl;
@@ -113,6 +114,28 @@ $page = $pageRepository->findById($idParam);
 if ($page === null) {
     http_response_code(404);
     exit(admin_t('screen.pagina_gevonden'));
+}
+
+/**
+ * The content page of a product or project (App\Service\ContentOwners\ContentPages)
+ * is edited on its owner's own screen, on the Pagina-inhoud tab: every block
+ * editor's "terug naar" link and every block endpoint's redirect lands here
+ * with its id, and goes on to the owner, carrying what this screen would have
+ * said (a block added or deleted). The fragment (#blok-<id>) is kept by the
+ * browser across the redirect.
+ */
+if (\App\Service\ContentOwners\ContentPages::isContentPage($page)) {
+    $contentOwner = \App\Service\ContentOwners\ContentPages::ownerOf($page);
+
+    if ($contentOwner === null) {
+        http_response_code(404);
+        exit(admin_t('screen.pagina_gevonden'));
+    }
+
+    $passOn = array_intersect_key($_GET, ['added' => true, 'deleted' => true]);
+    header('Location: ' . $contentOwner['owner']->editUrl($contentOwner['id'])
+        . ($passOn === [] ? '' : '&' . http_build_query(array_map('strval', $passOn))));
+    exit;
 }
 
 $pageId = (int) $page['id'];
@@ -299,16 +322,6 @@ $seoTitleHelp = admin_t('help.page.seo_title', ['site' => \App\Service\SiteSetti
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-/**
- * The badge a fixed block wears, per SectionRegistry::kind() — the same
- * visual language the page builder already used, now driven by the one
- * registry instead of a second one alongside it.
- */
-$kindMeta = [
-    SectionRegistry::KIND_FUNCTIONAL => ['label' => 'Functioneel (thema)', 'badge' => 'admin-badge--theme'],
-    SectionRegistry::KIND_DYNAMIC => ['label' => 'Beheerd elders', 'badge' => 'admin-badge--info'],
-];
 
 /**
  * Which tab this render insists on. Normally none: the browser reopens the
@@ -693,146 +706,9 @@ $urlFieldOpen = !$hasFixedUrl
   <?php admin_tab_panel('inhoud'); ?>
   <h2><?= admin_te('page.inhoud') ?></h2>
 
-  <section class="admin-card">
-    <?php /* Both roles on one element: the drop zone the reorder script
-             already used, and the collapse group whose open rows and return
-             target are remembered per page (admin/_admin_collapse.php). */ ?>
-    <div class="admin-page-sections" data-page-section-zone data-reorder-url="/api/admin/reorder-page-sections.php" data-csrf-token="<?= $h($csrfToken) ?>" data-page-id="<?= $pageId ?>" data-admin-collapse-group="page-blocks" data-admin-collapse-scope="<?= $pageId ?>">
-      <?php foreach ($allSections as $pageSection): ?>
-        <?php
-          $sectionType = (string) $pageSection['section_type'];
-          $isHidden = !(bool) $pageSection['is_active'];
-          $note = SectionRegistry::note($sectionType);
-          $kind = SectionRegistry::kind($sectionType);
-          // A row naming a block type this CMS does not currently register.
-          // The public page skips it — see SectionRegistry::render() — so
-          // without this the editor would see an ordinary-looking row that
-          // simply never appears on the site.
-          //
-          // Two different reasons, and the editor must not confuse them. A
-          // block belonging to a module that is switched OFF is expected and
-          // fully reversible: turning the module back on restores it exactly
-          // as it was. A type nothing declares at all is data that has
-          // outlived its code and is worth reporting. Neither is ever
-          // deleted, and neither uses the stored type for anything but
-          // printing it.
-          $isUnsupported = !SectionRegistry::exists($sectionType);
-          $disabledModule = $isUnsupported ? SectionRegistry::disabledModuleFor($sectionType) : null;
-          $isJustAdded = $addedSectionId === (int) $pageSection['id'];
-
-          // The one line a collapsed row shows. For an ordinary block that
-          // is the registry's own instance label — "Tekstblok — Over onze
-          // diensten" — so no block type has to invent a summary of its own,
-          // and a type without a title simply shows its name.
-          if ($disabledModule !== null) {
-              $rowLabel = 'Blok van een uitgeschakeld onderdeel';
-          } elseif ($isUnsupported) {
-              $rowLabel = 'Niet-ondersteund contentblok';
-          } else {
-              $rowLabel = SectionRegistry::instanceLabel($pageSection);
-          }
-        ?>
-        <?php /* One id per row, and always the same one: #blok-<id> is what
-                 api/admin/add-page-section.php sends a new block to, what a
-                 link from anywhere else can point at, and what
-                 admin-collapse.js scrolls back to after an edit. */ ?>
-        <div class="admin-section-row admin-page-section-row<?= $isHidden ? ' is-hidden-section' : '' ?><?= $isJustAdded ? ' is-just-added' : '' ?>" id="blok-<?= (int) $pageSection['id'] ?>" data-page-section-id="<?= (int) $pageSection['id'] ?>">
-          <?php /* Outside the <details> on purpose: a collapsed row must
-                   still be draggable, and that is most of the reason to
-                   collapse rows at all. */ ?>
-          <span class="admin-drag-handle" draggable="true" role="button" tabindex="0" aria-label="Sleep om te herordenen">&#8801;</span>
-          <?php /* One generic disclosure per block, whatever its type: the
-                   browser gives us click, Enter/Space, the tab order and the
-                   expanded/collapsed state for free, and no block type has
-                   to know it exists (admin/_admin_collapse.php). A block
-                   that was just added opens itself. */ ?>
-          <details class="admin-collapse" data-admin-collapse-id="<?= (int) $pageSection['id'] ?>"<?= $isJustAdded ? ' open data-admin-collapse-open' : '' ?>>
-            <summary class="admin-collapse__summary">
-              <span class="admin-collapse__caret" aria-hidden="true"></span>
-              <span class="admin-section-row__name admin-collapse__title"><?= $h($rowLabel) ?></span>
-              <span class="admin-collapse__badges">
-                <?php if ($disabledModule !== null): ?>
-                  <span class="admin-badge admin-badge--info">Onderdeel uit</span>
-                <?php elseif ($isUnsupported): ?>
-                  <span class="admin-badge admin-badge--warning"><?= admin_te('page.not_supported') ?></span>
-                <?php endif; ?>
-                <?php if ($isHidden): ?>
-                  <span class="admin-badge admin-badge--muted">Verborgen</span>
-                <?php endif; ?>
-                <?php if ($kind !== null && isset($kindMeta[$kind])): ?>
-                  <span class="admin-badge <?= $h($kindMeta[$kind]['badge']) ?>"><?= $h(SectionRegistry::badgeLabel($sectionType) ?? $kindMeta[$kind]['label']) ?></span>
-                <?php endif; ?>
-              </span>
-            </summary>
-            <div class="admin-collapse__body">
-              <div class="admin-section-row__body">
-                <?php if ($disabledModule !== null): ?>
-                  <p class="admin-section-row__note"><?= admin_t('page.type_onderdeel', ['v1' => $h($sectionType), 'v2' => $h(\App\Module\ModuleRegistry::label($disabledModule))]) ?></p>
-                  <p class="admin-section-row__note"><?= admin_te('page.blok_hoort_onderdeel_moment') ?></p>
-                <?php elseif ($isUnsupported): ?>
-                  <p class="admin-section-row__note"><?= admin_t('page.type', ['v1' => $h($sectionType)]) ?></code></p>
-                  <p class="admin-section-row__note"><?= admin_te('page.blok_kon_geladen_pagina') ?></p>
-                <?php elseif ($note !== null): ?>
-                  <p class="admin-section-row__note"><?= $h($note) ?></p>
-                <?php endif; ?>
-                <?php if ($isHidden): ?>
-                  <p class="admin-section-row__note"><?= admin_t('page.verborgen_getoond_pagina') ?></p>
-                <?php endif; ?>
-              </div>
-              <div class="admin-section-row__actions">
-                <?php foreach (SectionRegistry::editLinks($pageSection) as $editLink): ?>
-                  <a href="<?= $h($editLink['url']) ?>" class="admin-section-row__edit"><?= $h($editLink['label']) ?> &#8594;</a>
-                <?php endforeach; ?>
-                <?php /* Real buttons from the admin family, not text links:
-                         both change what visitors see. The toggle's word says
-                         what pressing it does; the badge in the summary says
-                         the state, so neither rests on colour alone. */ ?>
-                <form method="post" action="/api/admin/toggle-page-section.php" class="admin-inline-form">
-                  <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-                  <input type="hidden" name="id" value="<?= (int) $pageSection['id'] ?>">
-                  <input type="hidden" name="is_active" value="<?= $isHidden ? '1' : '0' ?>">
-                  <button type="submit" class="admin-btn-secondary admin-section-row__button"><?= $isHidden ? admin_te('common.show') : admin_te('common.hide') ?></button>
-                </form>
-                <?php if (SectionRegistry::isDeletable($sectionType)): ?>
-                <?php /* Asks first, in the CMS's shared dialog printed at the end
-                         of this screen, and names the block that would go. The
-                         form, its token and the endpoint's guards are exactly
-                         what they were. */ ?>
-                <form method="post" action="/api/admin/delete-page-section.php" class="admin-inline-form admin-section-row__delete"<?= admin_confirm_attributes(
-                    admin_t('page.block_delete_title'),
-                    admin_t('page.block_delete_message', ['block' => $rowLabel]),
-                    admin_t('common.delete')
-                ) ?>>
-                  <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-                  <input type="hidden" name="id" value="<?= (int) $pageSection['id'] ?>">
-                  <button type="submit" class="admin-btn-danger admin-section-row__button"><?= admin_te('common.delete') ?></button>
-                </form>
-                <?php endif; ?>
-              </div>
-            </div>
-          </details>
-        </div>
-      <?php endforeach; ?>
-    </div>
-
-    <?php /* Always the LAST thing under the block list, so "toevoegen" adds
-             where the editor is looking — api/admin/add-page-section.php
-             appends to the bottom of that same list. One button, and the
-             choice itself happens in the picker it opens
-             (admin/_block_picker.php): the old "kies eerst een type uit een
-             lijst namen, druk dán op toevoegen" is gone.
-
-             While the page has nothing below its heading, that button is an
-             invitation instead: a sentence saying so, and the same opener.
-             A hidden block counts as content — it is the editor's own. */ ?>
-    <?php if (!SectionRegistry::hasContentBlocks($allSections)): ?>
-      <?php block_picker_empty_state($availableBlocks !== []); ?>
-    <?php elseif ($availableBlocks !== []): ?>
-      <?php block_picker_button(); ?>
-    <?php else: ?>
-      <p class="admin-text-muted"><?= admin_te('page.er_pagina_moment_contentblok') ?></p>
-    <?php endif; ?>
-  </section>
+<?php /* The block list itself is shared with the Pagina-inhoud tab of a
+         product and a project (admin/_content_blocks.php). */ ?>
+<?php content_blocks_list($page, $allSections, $availableBlocks, $csrfToken, $addedSectionId); ?>
   <?php admin_tab_panel_end(); ?>
 
   <?php /* The second Pagina panel. It has to be one: it carries a <form> of

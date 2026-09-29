@@ -158,8 +158,9 @@ function block_picker_cards(array $available): array
  *
  * @param array<string, BlockDefinition> $available type => definition, from
  *                                                  App\Service\SectionRegistry::availableDefinitionsForPage()
+ * @param array<string, string>           $hidden    extra fields the add request carries
  */
-function block_picker_modal(array $available, int $pageId, string $csrfToken): void
+function block_picker_modal(array $available, int $pageId, string $csrfToken, array $hidden = []): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $groups = block_picker_cards($available);
@@ -220,6 +221,12 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
           <form method="post" action="/api/admin/add-page-section.php" class="admin-block-picker__body" data-no-dirty-track>
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="page_id" value="<?= $pageId ?>">
+<?php /* A product or project without a content page yet posts its owner
+         instead (admin/_content_blocks.php); the endpoint makes the page with
+         the first block. At the left margin, so a page prints nothing extra. */ ?>
+<?php foreach ($hidden as $hiddenName => $hiddenValue): ?>
+            <input type="hidden" name="<?= $h((string) $hiddenName) ?>" value="<?= $h((string) $hiddenValue) ?>">
+<?php endforeach; ?>
 
             <?php foreach ($groups as $categoryKey => $cards): ?>
               <section class="admin-block-picker__group" data-block-picker-group="<?= $h($categoryKey) ?>">

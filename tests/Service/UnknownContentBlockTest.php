@@ -253,7 +253,8 @@ class UnknownContentBlockTest extends TestCase
         // ...and the screen still describes the row instead of crashing on it.
         $this->assertSame(self::UNKNOWN_TYPE, SectionRegistry::instanceLabel($row));
 
-        $builder = file_get_contents(dirname(__DIR__, 2) . '/admin/page.php');
+        // The block list every page editor shares (admin/_content_blocks.php).
+        $builder = file_get_contents(dirname(__DIR__, 2) . '/admin/_content_blocks.php');
         $this->assertIsString($builder);
 
         $this->assertStringContainsString('SectionRegistry::exists($sectionType)', $builder);

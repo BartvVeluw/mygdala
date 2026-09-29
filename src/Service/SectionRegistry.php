@@ -281,6 +281,16 @@ class SectionRegistry
             return false;
         }
 
+        // Where a block may live at all: an ordinary page, or the content page
+        // of a product or project (App\Service\ContentOwners). A block that
+        // names its owner kinds is offered only there; one that does not is
+        // offered everywhere (CONTENT-BLOCKS.md, "Blokken op een product of
+        // project").
+        $owners = $meta['owners'] ?? null;
+        if ($owners !== null && !in_array(ContentOwners\ContentPages::kindOf($page), $owners, true)) {
+            return false;
+        }
+
         $contentKey = (string) $page['content_key'];
 
         $allowed = $meta['allowed_pages'] ?? null;

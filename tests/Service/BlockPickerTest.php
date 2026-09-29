@@ -158,7 +158,10 @@ final class BlockPickerTest extends TestCase
         $this->assertStringNotContainsString('Sectie toevoegen', $source);
         $this->assertStringNotContainsString('admin-add-section-form', $source);
 
-        $this->assertStringContainsString('block_picker_button()', $source);
+        // The button is part of the block list every page editor shares
+        // (admin/_content_blocks.php); the panel it opens is printed once, here.
+        $this->assertStringContainsString('block_picker_button()', $this->sourceOf('admin/_content_blocks.php'));
+        $this->assertStringContainsString('content_blocks_list(', $source);
         $this->assertStringContainsString('block_picker_modal(', $source);
     }
 

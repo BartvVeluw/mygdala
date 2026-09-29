@@ -23,6 +23,15 @@
  * this page, and one instance too many of a capped type. That is the same
  * list the picker drew its cards from, so a type that was not on screen is
  * refused here even when it is posted by hand.
+ *
+ * A PRODUCT OR PROJECT instead of a page (Product & Portfolio Content Pages
+ * 1.0): the picker on its Pagina-inhoud tab posts `content_owner` (a kind
+ * from App\Service\ContentOwners, never a class) and `content_owner_id`
+ * rather than a page id. The owner must belong to a module that is on and
+ * must exist. Its content page is made here, with the first block and only
+ * after that block passed the same checks — validated against a stand-in for
+ * the page it will be (ContentPages::placeholder()) — so an owner nobody adds
+ * a block to never gets one. From there on it is the same request.
  */
 
 declare(strict_types=1);
@@ -33,6 +42,8 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
+use App\Service\ContentOwners\ContentOwners;
+use App\Service\ContentOwners\ContentPages;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 
@@ -69,7 +80,22 @@ if ($presetChoice !== null) {
     [, $sectionType, $preset] = $choice;
 }
 
-$page = $pageId > 0 ? (new PageRepository())->findById($pageId) : null;
+$ownerKind = (string) ($_POST['content_owner'] ?? '');
+$ownerId = (int) ($_POST['content_owner_id'] ?? 0);
+$owner = null;
+
+if ($ownerKind !== '') {
+    $owner = ContentOwners::getEnabled($ownerKind);
+
+    if ($owner === null || !$owner->exists($ownerId)) {
+        http_response_code(404);
+        exit('Unknown page.');
+    }
+
+    $page = ContentPages::pageFor($ownerKind, $ownerId) ?? ContentPages::placeholder($ownerKind, $ownerId);
+} else {
+    $page = $pageId > 0 ? (new PageRepository())->findById($pageId) : null;
+}
 
 if ($page === null) {
     http_response_code(404);
@@ -86,6 +112,11 @@ if (!array_key_exists($sectionType, $available)
 }
 
 try {
+    // The owner's content page, made now for its first block.
+    if ($owner !== null && (int) $page['id'] === 0) {
+        $page = ContentPages::ensure($ownerKind, $ownerId);
+    }
+
     [$sectionId, $sectionKey] = SectionRegistry::create($sectionType, (string) $page['content_key'], $preset);
     $newId = $repository->create(
         (int) $page['id'],
@@ -98,7 +129,7 @@ try {
     error_log('[api/admin/add-page-section.php] ' . $e->getMessage());
 
     $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_toegevoegd_probeer_opnieuw');
-    header('Location: /admin/page.php?id=' . (int) $page['id']);
+    header('Location: ' . ((int) $page['id'] > 0 ? '/admin/page.php?id=' . (int) $page['id'] : $owner->editUrl($ownerId)));
     exit;
 }
 

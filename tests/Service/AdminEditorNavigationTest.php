@@ -88,6 +88,17 @@ final class AdminEditorNavigationTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * The block list every page editor shows, and a product's and a project's
+     * Pagina-inhoud tab too (Product & Portfolio Content Pages 1.0): one
+     * source, admin/_content_blocks.php, which admin/page.php calls from its
+     * Inhoud tab.
+     */
+    private function blockListSource(): string
+    {
+        return $this->sourceOf('admin/_content_blocks.php');
+    }
+
     private function sourceOf(string $relativePath): string
     {
         $path = dirname(__DIR__, 2) . '/' . $relativePath;
@@ -323,9 +334,11 @@ final class AdminEditorNavigationTest extends TestCase
         $this->assertStringNotContainsString("'og_media_id'", $panels['pagina']);
 
         // Inhoud is the blocks and the picker, and nothing that saves page
-        // settings.
-        $this->assertStringContainsString('data-page-section-zone', $panels['inhoud']);
-        $this->assertStringContainsString('block_picker_button()', $panels['inhoud']);
+        // settings. The list itself is the shared one (admin/_content_blocks.php,
+        // also a product's and a project's Pagina-inhoud tab).
+        $this->assertStringContainsString('content_blocks_list(', $panels['inhoud']);
+        $this->assertStringContainsString('data-page-section-zone', $this->blockListSource());
+        $this->assertStringContainsString('block_picker_button()', $this->blockListSource());
         $this->assertStringNotContainsString('name="title"', $panels['inhoud']);
     }
 
@@ -377,7 +390,7 @@ final class AdminEditorNavigationTest extends TestCase
 
     public function testEveryBlockRowIsTheSameGenericDisclosure(): void
     {
-        $source = $this->sourceOf('admin/page.php');
+        $source = $this->blockListSource();
 
         // One <details> written once, inside the one loop over the page's
         // blocks — so a block type cannot have its own, and a new block type
@@ -416,7 +429,7 @@ final class AdminEditorNavigationTest extends TestCase
 
     public function testACollapsedRowCanStillBeDraggedAndStillCarriesItsActions(): void
     {
-        $source = $this->sourceOf('admin/page.php');
+        $source = $this->blockListSource();
 
         $handle = strpos($source, 'class="admin-drag-handle"');
         $details = strpos($source, '<details class="admin-collapse"');
@@ -439,8 +452,8 @@ final class AdminEditorNavigationTest extends TestCase
      */
     public function testHideShowAndDeleteAreRealButtonsThatSayWhatTheyDo(): void
     {
-        $source = $this->sourceOf('admin/page.php');
-        $inhoud = $this->panelSources('admin/page.php')['inhoud'];
+        $source = $this->blockListSource();
+        $inhoud = $this->blockListSource();
 
         $this->assertStringContainsString(
             '<button type="submit" class="admin-btn-secondary admin-section-row__button"><?= $isHidden ? admin_te(\'common.show\') : admin_te(\'common.hide\') ?></button>',
@@ -463,7 +476,7 @@ final class AdminEditorNavigationTest extends TestCase
     public function testDeletingABlockStillAsksFirstInTheSharedDialog(): void
     {
         $source = $this->sourceOf('admin/page.php');
-        $inhoud = $this->panelSources('admin/page.php')['inhoud'];
+        $inhoud = $this->blockListSource();
 
         // The browser's own confirm() is gone from the block list.
         $this->assertStringNotContainsString('onsubmit', $inhoud);
@@ -494,7 +507,7 @@ final class AdminEditorNavigationTest extends TestCase
      */
     public function testReorderingStillStartsFromTheHandleAlone(): void
     {
-        $source = $this->sourceOf('admin/page.php');
+        $source = $this->blockListSource();
 
         $this->assertStringContainsString('data-page-section-zone data-reorder-url="/api/admin/reorder-page-sections.php"', $source);
         $this->assertSame(1, substr_count($source, 'draggable="true"'), 'only the handle drags');
@@ -508,7 +521,7 @@ final class AdminEditorNavigationTest extends TestCase
 
     public function testThePageBuilderInvitesTheFirstBlockUntilThePageHasContent(): void
     {
-        $inhoud = $this->panelSources('admin/page.php')['inhoud'];
+        $inhoud = $this->blockListSource();
 
         $this->assertMatchesRegularExpression(
             '#<\?php if \(!SectionRegistry::hasContentBlocks\(\$allSections\)\): \?>\s*<\?php block_picker_empty_state\(\$availableBlocks !== \[\]\); \?>\s*<\?php elseif \(\$availableBlocks !== \[\]\): \?>\s*<\?php block_picker_button\(\); \?>#',
@@ -519,7 +532,7 @@ final class AdminEditorNavigationTest extends TestCase
 
     public function testABlockThatWasJustAddedOpensItself(): void
     {
-        $source = $this->sourceOf('admin/page.php');
+        $source = $this->blockListSource();
 
         $this->assertStringContainsString(
             "\$isJustAdded ? ' open data-admin-collapse-open' : ''",
@@ -538,7 +551,7 @@ final class AdminEditorNavigationTest extends TestCase
     {
         $this->assertStringContainsString(
             'id="blok-<?= (int) $pageSection[\'id\'] ?>"',
-            $this->sourceOf('admin/page.php')
+            $this->blockListSource()
         );
 
         $this->assertStringContainsString(

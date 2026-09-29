@@ -58,6 +58,9 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
             'allowed_pages' => null,
             'denied_pages' => ['index'],
             'deletable' => true,
+            // A page's own head, titled with the page's own title: a product
+            // and a project already have theirs above their blocks.
+            'owners' => [\App\Service\ContentOwners\ContentOwners::PAGE],
         ];
     }
 

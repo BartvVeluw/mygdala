@@ -428,6 +428,23 @@ abstract class ModuleDefinition
     }
 
     /**
+     * What this module has that can carry content blocks besides a page — a
+     * product, a project (Product & Portfolio Content Pages 1.0): one
+     * App\Service\ContentOwners\ContentOwner each, answering for its own
+     * tables and its own editor. Core then gives each owner a content page
+     * through the ordinary block engine (App\Service\ContentOwners\ContentPages)
+     * without ever naming it. Asked for every registered module, on or off
+     * (App\Service\ContentOwners\ContentOwners::all()): a switched-off
+     * module's owners keep their blocks and their names.
+     *
+     * @return list<\App\Service\ContentOwners\ContentOwner>
+     */
+    public function contentOwners(): array
+    {
+        return [];
+    }
+
+    /**
      * Whether this module lets the website publish MORE than its default
      * language: every active language of the website language registry, with
      * its prefix, its place in the language switch, the sitemap and hreflang.

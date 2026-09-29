@@ -51,7 +51,9 @@ $page = ($idParam === false || $idParam === null || $idParam < 1)
     ? null
     : (new PageRepository())->findById($idParam);
 
-if ($page === null) {
+// A content page has no page of its own to preview: its blocks show on its
+// owner's own page (App\Service\ContentOwners\ContentPages).
+if ($page === null || \App\Service\ContentOwners\ContentPages::isContentPage($page)) {
     http_response_code(404);
     exit(admin_t('screen.pagina_gevonden'));
 }

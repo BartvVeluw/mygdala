@@ -238,7 +238,19 @@ final class PageLocalization
             }
         }
 
-        return '';
+        // A product's or project's content page has no text of its own; the
+        // block editors that name "their page" name its owner instead
+        // (App\Service\ContentOwners\ContentPages). Only reached without a
+        // title, so an ordinary page never pays for the lookup.
+        try {
+            $page = (new \App\Repository\PageRepository())->findById($pageId);
+        } catch (\Throwable $e) {
+            return '';
+        }
+
+        return $page !== null && ContentOwners\ContentPages::isContentPage($page)
+            ? ContentOwners\ContentPages::name($page)
+            : '';
     }
 
     /**

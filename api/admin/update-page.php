@@ -82,7 +82,9 @@ if ($id === false || $id === null || $id < 1) {
 $repository = new PageRepository();
 $page = $repository->findById($id);
 
-if ($page === null) {
+// A product's or project's content page is not a page: its settings do
+// not exist and it goes with its owner (App\Service\ContentOwners\ContentPages).
+if ($page === null || \App\Service\ContentOwners\ContentPages::isContentPage($page)) {
     http_response_code(404);
     exit('Page not found.');
 }

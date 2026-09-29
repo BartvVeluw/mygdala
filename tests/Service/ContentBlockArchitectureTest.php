@@ -662,7 +662,13 @@ final class ContentBlockArchitectureTest extends TestCase
      */
     public function testTheAddBlockControlSitsBelowTheBlockListAndIsTheOnlyOne(): void
     {
-        $source = $this->sourceOf('admin/page.php');
+        // The list is the one every page editor shares (admin/_content_blocks.php,
+        // also a product's and a project's Pagina-inhoud tab); admin/page.php
+        // calls it.
+        $page = $this->sourceOf('admin/page.php');
+        $this->assertStringContainsString('content_blocks_list(', $page);
+        $this->assertStringNotContainsString('action="/api/admin/add-page-section.php"', $page);
+        $source = $this->sourceOf('admin/_content_blocks.php');
 
         $listPosition = strpos($source, 'class="admin-page-sections"');
         $this->assertIsInt($listPosition);

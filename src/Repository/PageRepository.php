@@ -13,6 +13,14 @@ namespace App\Repository;
  * navigation/footer reference checks) that must not be bypassed by calling
  * this class directly.
  *
+ * CONTENT PAGES. A row with `owner_type` set is not a page but the block
+ * list of a product or project (App\Service\ContentOwners\ContentPages). Every
+ * query here that LISTS pages, or answers a public lookup, leaves those rows
+ * out (`owner_type IS NULL`), so they never reach the page tree, a menu, the
+ * sitemap, search, the destination picker or a public URL. Lookups by id and
+ * by content_key do find them: that is how the block editors, which address
+ * a block by its content_key, work on them unchanged.
+ *
  * Two identifiers, deliberately:
  *   - `content_key` — immutable storage key; what page_sections.page_slug
  *     and every section content table's page_slug contains for this page.
@@ -30,7 +38,7 @@ class PageRepository extends Repository
     public function findAllForAdmin(): array
     {
         $stmt = $this->db->query(
-            'SELECT * FROM pages ORDER BY is_system DESC, sort_order ASC, id ASC'
+            'SELECT * FROM pages WHERE owner_type IS NULL ORDER BY is_system DESC, sort_order ASC, id ASC'
         );
 
         return $stmt->fetchAll();
@@ -48,7 +56,7 @@ class PageRepository extends Repository
     {
         $stmt = $this->db->query(
             'SELECT id, parent_id, admin_group, content_key, slug, route_path, is_system, module_default, status, sort_order
-             FROM pages ORDER BY sort_order ASC, id ASC'
+             FROM pages WHERE owner_type IS NULL ORDER BY sort_order ASC, id ASC'
         );
 
         return $stmt->fetchAll();
@@ -69,7 +77,7 @@ class PageRepository extends Repository
     public function findAllPublished(): array
     {
         $stmt = $this->db->query(
-            "SELECT * FROM pages WHERE status = 'published' ORDER BY is_system DESC, sort_order ASC, id ASC"
+            "SELECT * FROM pages WHERE status = 'published' AND owner_type IS NULL ORDER BY is_system DESC, sort_order ASC, id ASC"
         );
 
         return $stmt->fetchAll();
@@ -98,7 +106,7 @@ class PageRepository extends Repository
      */
     public function findByIdPublished(int $id): ?array
     {
-        $stmt = $this->db->prepare("SELECT * FROM pages WHERE id = :id AND status = 'published' LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM pages WHERE id = :id AND status = 'published' AND owner_type IS NULL LIMIT 1");
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch();
 
@@ -126,7 +134,7 @@ class PageRepository extends Repository
         }
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $this->db->prepare("SELECT * FROM pages WHERE status = 'published' AND id IN ({$placeholders})");
+        $stmt = $this->db->prepare("SELECT * FROM pages WHERE status = 'published' AND owner_type IS NULL AND id IN ({$placeholders})");
         $stmt->execute($ids);
 
         $pages = [];
@@ -146,7 +154,7 @@ class PageRepository extends Repository
      */
     public function findBySlugPublished(string $slug): ?array
     {
-        $stmt = $this->db->prepare("SELECT * FROM pages WHERE slug = :slug AND status = 'published' LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM pages WHERE slug = :slug AND status = 'published' AND owner_type IS NULL LIMIT 1");
         $stmt->execute(['slug' => $slug]);
         $row = $stmt->fetch();
 
@@ -242,6 +250,28 @@ class PageRepository extends Repository
             'status' => $data['status'],
             'sort_order' => $this->nextSortOrder(),
         ]);
+
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Creates the content page of a product or project
+     * (App\Service\ContentOwners\ContentPages::ensure(), the only caller): no
+     * slug, no parent, no text of its own, never in a list. Status 'draft' as
+     * a second lock: a public lookup that ever forgot the owner_type filter
+     * still only finds published rows.
+     */
+    public function createContentPage(string $contentKey, string $ownerType): int
+    {
+        $stmt = $this->db->prepare(
+            "INSERT INTO pages
+                (parent_id, admin_group, content_key, slug, status, is_system, route_path,
+                 owner_type, sort_order, created_at, updated_at)
+             VALUES
+                (NULL, 'website', :content_key, NULL, 'draft', 0, NULL,
+                 :owner_type, 0, NOW(), NOW())"
+        );
+        $stmt->execute(['content_key' => $contentKey, 'owner_type' => $ownerType]);
 
         return (int) $this->db->lastInsertId();
     }

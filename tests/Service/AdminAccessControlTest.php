@@ -150,6 +150,12 @@ final class AdminAccessControlTest extends TestCase
         // and adding still goes through api/admin/add-page-section.php,
         // which guards itself.
         '_block_picker.php',
+        // A page's block list, shared by admin/page.php and the Pagina-inhoud
+        // tab of a product and a project, each behind its own check (and the
+        // tab behind pages.manage as well). Output functions over the rows
+        // the caller's page holds; every button in it posts to an endpoint
+        // that guards itself.
+        '_content_blocks.php',
         // The schematic drawing and icon on a block card, shared by the
         // picker and the Contentblokken catalogue. Two output functions over
         // constant, first-party markup; no URL, no data, nothing to guard.

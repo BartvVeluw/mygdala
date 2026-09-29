@@ -48,10 +48,18 @@ abstract class BlockDefinition
      * The block's CMS capabilities, in the shape SectionRegistry::types()
      * exposes: label, manual_add, allow_multiple, max_instances,
      * allowed_pages, deletable, plus the optional denied_pages,
-     * app_critical, kind, badge_label, note and edit_links. See
+     * app_critical, kind, badge_label, note, edit_links and owners. See
      * SectionRegistry's docblock for what each one means.
      *
-     * @return array{label: string, manual_add: bool, allow_multiple: bool, max_instances: ?int, allowed_pages: ?list<string>, denied_pages?: list<string>, deletable: bool, app_critical?: bool, kind?: string, badge_label?: string, note?: string, edit_links?: list<array{label: string, url: string}>}
+     * `owners` lists the kinds of block list the block may be added to:
+     * App\Service\ContentOwners\ContentOwners::PAGE for an ordinary page, or
+     * an owner kind such as 'product' or 'portfolio_project'. Absent means
+     * every kind — the block is ordinary content and does not care whose page
+     * it is on. Name it only for a block that really needs one kind (the
+     * Paginakop is a page's own head; Projectinformatie reads the project it
+     * is on).
+     *
+     * @return array{label: string, manual_add: bool, allow_multiple: bool, max_instances: ?int, allowed_pages: ?list<string>, denied_pages?: list<string>, deletable: bool, app_critical?: bool, kind?: string, badge_label?: string, note?: string, edit_links?: list<array{label: string, url: string}>, owners?: list<string>}
      */
     abstract public function meta(): array;
 
