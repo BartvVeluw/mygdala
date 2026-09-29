@@ -689,6 +689,21 @@ p{ margin: 0; }
   .main-nav__toggle{ font-size: 1.6rem; font-family: var(--font-display); color: var(--color-text); padding: 0.4rem 0.1rem; min-width: 44px; min-height: 44px; }
   .main-nav__toggle--heading{ min-width: 0; }
   .main-nav__chevron{ width: 20px; height: 20px; }
+  /* THE LABEL IS THE AXIS. In this centred column an item with a submenu is
+     centred on its words, like every item without one: the chevron sits
+     beside the label and takes no part in its width. A row's toggle hangs
+     off the right edge of the link (still the full 44px touch target), and a
+     heading's chevron off the right edge of its words, inside the button
+     that opens the submenu. The row keeps the toggle's room on BOTH sides
+     (equal margins, so the label stays on the axis), and a long label wraps
+     before the toggle could leave the screen. Margins, not a percentage
+     width: the item around the row is only as wide as its content, and a
+     percentage of that would shrink the row onto itself. Nothing here turns or shifts: the
+     chevron's own turn (rotate) stays the only one on it. */
+  .main-nav__row{ position: relative; max-width: none; margin-inline: calc(44px + 0.25rem); }
+  .main-nav__row > .main-nav__link + .main-nav__toggle{ position: absolute; left: 100%; top: 0; bottom: 0; height: 44px; margin: auto 0 auto 0.25rem; }
+  .main-nav__toggle--heading{ position: relative; }
+  .main-nav__toggle--heading > .main-nav__chevron{ position: absolute; left: 100%; top: 0; bottom: 0; margin: auto 0 auto 0.25rem; }
   .main-nav__submenu,
   .main-nav__submenu--level-3{
     position: static;
