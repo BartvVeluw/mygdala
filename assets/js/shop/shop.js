@@ -802,6 +802,9 @@
       if (orderFieldsEl) {
         ["input", "change"].forEach(function (type) {
           orderFieldsEl.addEventListener(type, function (event) {
+            // A picture question says its own errors (setupImageField below):
+            // a refusal on choosing must not be wiped by the same change.
+            if (event.target && event.target.type === "file") return;
             var fieldEl = event.target && event.target.closest ? event.target.closest("[data-order-field]") : null;
             if (!fieldEl || !fieldEl.hasAttribute("data-order-field-invalid")) return;
             var errorEl = fieldEl.querySelector("[data-order-field-error]");

@@ -764,6 +764,10 @@ a{ color: var(--admin-accent); }
 .admin-order-field__label{ flex: 2 1 16rem; min-width: 0; }
 .admin-order-field__type{ flex: 1 1 11rem; min-width: 0; }
 .admin-order-field__options{ margin-top: var(--admin-sp-2); }
+/* A question shows only what its type uses (product-order-fields.js sets
+   [hidden]); .admin-field's own display would otherwise beat the attribute,
+   the same fix as .admin-product-form [hidden]. */
+.admin-product-order-fields [hidden]{ display: none !important; }
 
 /* Specificaties: the library (admin/product-specifications.php) and a
    product's rows (admin/_product_specifications.php) — name or property,
@@ -1824,9 +1828,16 @@ a{ color: var(--admin-accent); }
 }
 [data-product-view="list"] .admin-product-card__edit{ display: inline; font-weight: 600; }
 
+/* The actions keep one width, so the columns line up whether a row says
+   Activeren or Deactiveren. */
+@media (min-width: 1001px){
+  [data-product-view="list"] .admin-product-card__footer{ min-width: 17rem; }
+}
+
+/* Tablet: the details follow the name on one flowing line. */
 @media (max-width: 1000px){
-  [data-product-view="list"] .admin-product-card__body{ grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.3rem; }
-  [data-product-view="list"] .admin-product-card__name{ grid-column: 1 / -1; }
+  [data-product-view="list"] .admin-product-card__body{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+  [data-product-view="list"] .admin-product-card__name{ flex-basis: 100%; }
 }
 
 @media (max-width: 700px){

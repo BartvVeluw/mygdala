@@ -342,15 +342,20 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 }
 .product-order-field .product-order-field__choice input{
   width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0;
-  flex-shrink: 0; accent-color: var(--color-primary); border-radius: 0; box-shadow: none;
+  flex-shrink: 0; accent-color: var(--color-primary); border-radius: 3px; box-shadow: none;
 }
+.product-order-field .product-order-field__choice input[type="radio"]{ border-radius: 50%; }
 .product-order-field .product-order-field__choice input:focus-visible{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
-.product-order-field--choice[data-order-field-invalid] .product-order-field__choice input{ outline: 1.5px solid #E2685C; outline-offset: 2px; }
+/* An unanswered tick box gets the error colour around its box; a radio
+   group, whose native circles cannot take a round outline, a line beside it. */
+.product-order-field--choice[data-order-field-invalid] .product-order-field__choice input[type="checkbox"]{ outline: 1.5px solid #E2685C; outline-offset: 2px; }
+.product-order-field--choice[data-order-field-invalid] .product-order-field__group{ border-left: 2px solid #E2685C; padding-left: 0.75rem; }
 /* An image question: the native file control stays the focused, announced
    one but is drawn as the site's own ghost button (its second label); a
    chosen picture shows as a small thumbnail with its name and two buttons.
    Nothing wider than the column, whatever the filename. */
-.product-order-field__file{ position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; opacity: 0; }
+.product-order-field--image{ position: relative; }
+.product-order-field .product-order-field__file{ position: absolute; width: 1px; height: 1px; min-height: 0; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; opacity: 0; }
 .product-order-field__upload{ display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
 .product-order-field__pick{ align-self: flex-start; min-height: 44px; }
 .product-order-field__pick[hidden]{ display: none; }

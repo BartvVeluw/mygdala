@@ -236,7 +236,9 @@ $orderNumber = OrderRepository::orderNumber($order);
                             <span class="admin-text-muted"><?= admin_te('shop.order_fields.image_details', [
                                 'width' => (string) $upload['width'],
                                 'height' => (string) $upload['height'],
-                                'size' => number_format($upload['byte_size'] / (1024 * 1024), 1, ',', '.') . ' MB',
+                                'size' => $upload['byte_size'] < 1024 * 1024
+                                    ? max(1, (int) round($upload['byte_size'] / 1024)) . ' KB'
+                                    : number_format($upload['byte_size'] / (1024 * 1024), 1, ',', '.') . ' MB',
                             ]) ?></span>
                             <span class="admin-order-field-image__actions">
                               <a href="<?= htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8') ?>" class="admin-btn-text" target="_blank" rel="noopener"><?= admin_te('shop.order_fields.image_view') ?><span class="admin-visually-hidden">: <?= htmlspecialchars($upload['original_filename'], ENT_QUOTES, 'UTF-8') ?></span></a>

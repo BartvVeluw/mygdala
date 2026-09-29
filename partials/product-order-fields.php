@@ -63,7 +63,6 @@ function render_product_order_fields(array $questions, string $scope = ''): void
                  .checkbox-field choices instead. */ ?>
         <div class="product-order-field form-field<?= $isChoice ? ' product-order-field--choice' : '' ?><?= $question['type'] === 'image' ? ' product-order-field--image' : '' ?>" data-order-field="<?= (int) $question['id'] ?>" data-order-field-type="<?= $h($question['type']) ?>"<?= $question['required'] ? ' data-order-field-required' : '' ?> data-order-field-label="<?= $h($question['label']) ?>"<?= $question['type'] === 'image' ? ' data-order-field-max-bytes="' . (int) ($question['max_bytes'] ?? 0) . '"' : '' ?>>
           <?php if ($question['type'] === 'image'): ?>
-            <?php $maxBytes = (int) ($question['max_bytes'] ?? 0); ?>
             <label for="<?= $h($id) ?>"><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></label>
             <?php /* The native control stays the one that is focused and
                      announced; it is only visually replaced by the button
@@ -80,8 +79,6 @@ function render_product_order_fields(array $questions, string $scope = ''): void
                 </span>
               </div>
             </div>
-            <p class="hint product-order-field__rules" id="<?= $h($rulesId) ?>"><?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatsText($language)) ?> · <?= $h(\App\Service\Language\SiteText::pick(['nl' => 'max.', 'en' => 'max.'], $language)) ?> <?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatBytes($maxBytes, $language)) ?></p>
-            <p class="product-order-field__status" role="status" aria-live="polite" data-order-field-status></p>
           <?php elseif ($question['type'] === 'radio'): ?>
             <fieldset class="product-order-field__group" aria-describedby="<?= $h($described) ?>">
               <legend><?= $h($question['label']) ?><?= $question['required'] ? $requiredMark : '' ?></legend>
@@ -114,6 +111,12 @@ function render_product_order_fields(array $questions, string $scope = ''): void
           <?php endif; ?>
           <?php if ($question['help'] !== ''): ?>
             <p class="hint product-order-field__help" id="<?= $h($helpId) ?>"><?= $h($question['help']) ?></p>
+          <?php endif; ?>
+          <?php if ($question['type'] === 'image'): ?>
+            <?php /* After the help, like every field's hint: what the picture
+                     may be, and a live line that says how the upload went. */ ?>
+            <p class="hint product-order-field__rules" id="<?= $h($rulesId) ?>"><?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatsText($language)) ?> · max. <?= $h(\App\Service\OrderFields\OrderFieldUploadPolicy::formatBytes((int) ($question['max_bytes'] ?? 0), $language)) ?></p>
+            <p class="product-order-field__status" role="status" aria-live="polite" data-order-field-status></p>
           <?php endif; ?>
           <p class="product-order-field__error" id="<?= $h($errorId) ?>" data-order-field-error hidden></p>
         </div>

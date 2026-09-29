@@ -80,6 +80,14 @@ final class OrderFieldStylingTest extends TestCase
 
         $script = (string) file_get_contents(self::ROOT . '/assets/js/shop/shop.js');
         self::assertStringContainsString('control.setAttribute("aria-invalid", "true")', $script, 'an unanswered question shows the site\'s error look');
+        self::assertStringContainsString('if (event.target && event.target.type === "file") return;', $script, 'a picture refused on choosing keeps its message');
+        self::assertStringContainsString('var seq = ++image.seq;', $script, 'only the latest chosen picture counts');
+        self::assertStringContainsString('.product-order-field .product-order-field__file{', $css, 'the hidden file control beats .form-field input');
+
+        // The editor shows a question only what its type uses: .admin-field's
+        // own display must not beat [hidden] (it did for the length field).
+        $admin = (string) file_get_contents(self::ROOT . '/admin/assets/admin.css');
+        self::assertStringContainsString('.admin-product-order-fields [hidden]{ display: none !important; }', $admin);
     }
 
     /**
