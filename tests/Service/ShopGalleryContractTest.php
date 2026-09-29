@@ -105,6 +105,39 @@ final class ShopGalleryContractTest extends TestCase
         $this->assertStringContainsString('.product-detail__gallery{ display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }', $css);
     }
 
+    /**
+     * Many photos WRAP onto a next line of thumbnails: no horizontal
+     * scrollbar and no thumbnail carousel (v0.1.12). The row is one shared
+     * rule, so the Featured Product block — the same markup and script — wraps
+     * with it; its own stylesheet does not restyle the row.
+     */
+    public function testTheThumbnailsWrapInsteadOfScrolling(): void
+    {
+        $css = self::source('assets/css/shop/shop.css');
+        $rules = (string) preg_replace('#/\*.*?\*/#s', '', $css);
+
+        $this->assertMatchesRegularExpression('/\.product-detail__thumbs\{\s*display: flex; flex-wrap: wrap; gap: var\(--sp-2\);\s*\}/', $rules);
+        preg_match_all('/\.product-detail__thumbs[^{]*\{([^}]*)\}/', $rules, $bodies);
+        foreach ($bodies[1] as $body) {
+            $this->assertStringNotContainsString('overflow', $body, 'nothing scrolls or clips the row');
+            $this->assertStringNotContainsString('nowrap', $body);
+            $this->assertStringNotContainsString('scroll-snap', $body);
+        }
+        $this->assertMatchesRegularExpression('/\.product-detail__thumb\{\s*width: 64px; height: 64px; padding: 0; flex: 0 0 auto;/', $rules, 'every thumbnail keeps one fixed size');
+
+        $script = self::source('assets/js/shop/product-gallery.js');
+        $this->assertStringNotContainsString('scrollLeft', $script, 'nothing scrolls the row sideways any more');
+        $this->assertStringContainsString('btn.setAttribute("aria-current", "true");', $script, 'the lasting selected state stays');
+
+        $featured = (string) preg_replace('#/\*.*?\*/#s', '', self::source('assets/css/shop/featured-product.css'));
+        $this->assertDoesNotMatchRegularExpression('/\.product-detail__thumbs\s*\{/', $featured, 'no separate fix for the block');
+        $this->assertStringContainsString(
+            '<div class="product-detail__thumbs" data-product-thumbs hidden></div>',
+            self::source('partials/section-featured-product.php'),
+            'the block uses the very same row'
+        );
+    }
+
     public function testTheServerHandsTheGalleryOneResolvedWord(): void
     {
         $template = self::source('product.php');

@@ -199,19 +199,21 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 }
 .product-detail__media svg{ width: 28%; height: 28%; color: var(--color-primary); }
 .product-detail__badge{ position: absolute; top: var(--sp-3); left: var(--sp-3); background: var(--color-primary); color: var(--color-on-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.35rem 0.8rem; border-radius: 999px; }
-/* min-width: 0 lets the grid column shrink below the width of the
-   thumbnail row, so five or more thumbnails scroll sideways inside it
-   instead of widening the whole page on a phone. */
+/* min-width: 0 lets the grid column shrink to its track, so a long row of
+   thumbnails wraps inside it instead of widening the whole page on a
+   phone. */
 .product-detail__gallery{ display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 
-/* Thumbnails always sit below the main image, in a horizontal row — never
-   beside it — and scroll horizontally on narrow screens instead of
-   wrapping, so a product with many photos stays compact. */
+/* Thumbnails always sit below the main image — never beside it — at one
+   fixed size, and WRAP onto the next line when the row is full: no
+   horizontal scrollbar and no thumbnail carousel, at any width or number
+   of photos. Flex auto-placement decides how many fit on a line, so there
+   is no column count to keep in step with the breakpoints. Nothing clips
+   the row, so the hover lift, the active ring and the focus outline show
+   whole. The Featured Product block uses this same row
+   (featured-product.css deliberately does not restyle it). */
 .product-detail__thumbs{
-  display: flex; flex-wrap: nowrap; gap: var(--sp-2);
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  padding-bottom: 2px; /* room for focus outline without clipping */
-  scrollbar-width: thin;
+  display: flex; flex-wrap: wrap; gap: var(--sp-2);
 }
 .product-detail__thumb{
   width: 64px; height: 64px; padding: 0; flex: 0 0 auto;

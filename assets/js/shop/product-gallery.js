@@ -2,9 +2,10 @@
    The product page's gallery: one big picture on a stage and a row of
    thumbnail buttons (product.php, [data-product-gallery]).
 
-   Asked for by product.php only, before assets/js/shop/shop.js, which hands
-   it the pictures once the product has loaded (window.VVLProductGallery).
-   Nothing else on the site uses it, and it knows nothing about variants,
+   Asked for by product.php and by the Featured Product block
+   (partials/section-featured-product.php), each before
+   assets/js/shop/shop.js, which hands it the pictures once the product has
+   loaded (window.VVLProductGallery). It knows nothing about variants,
    prices or the cart: shop.js decides WHICH pictures are shown, this file
    decides HOW.
 
@@ -202,8 +203,9 @@
     }
 
     /* Marks the thumbnail of the picture on show: a lasting selected state
-       (aria-current), separate from hover and focus, and scrolls the row
-       sideways so it is in view — sideways only, never the page. */
+       (aria-current), separate from hover and focus. The row wraps instead
+       of scrolling (shop.css, .product-detail__thumbs), so every thumbnail
+       is always in view and nothing needs scrolling here. */
     function markThumb(active) {
       if (!thumbs) return;
       Array.prototype.forEach.call(thumbs.querySelectorAll("[data-image-index]"), function (btn) {
@@ -211,13 +213,6 @@
         btn.classList.toggle("is-active", on);
         if (on) {
           btn.setAttribute("aria-current", "true");
-          var row = thumbs.getBoundingClientRect();
-          var box = btn.getBoundingClientRect();
-          if (box.left < row.left) {
-            thumbs.scrollLeft -= row.left - box.left;
-          } else if (box.right > row.right) {
-            thumbs.scrollLeft += box.right - row.right;
-          }
         } else {
           btn.removeAttribute("aria-current");
         }
