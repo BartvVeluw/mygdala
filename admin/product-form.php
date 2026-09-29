@@ -13,6 +13,7 @@ require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_product_inventory.php';
 require_once __DIR__ . '/_product_order_fields.php';
 require_once __DIR__ . '/_product_specifications.php';
+require_once __DIR__ . '/_content_blocks.php';
 
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
@@ -310,6 +311,14 @@ if ($isEdit) {
     }
 }
 
+// PAGINA-INHOUD (Product & Portfolio Content Pages 1.0): the blocks under the
+// product detail, the same block list a page has (admin/_content_blocks.php).
+// Only for a product that exists — its first block makes its content page —
+// and only for an editor who may edit blocks at all: every block editor asks
+// pages.manage.
+$hasContentTab = $isEdit && AdminAuth::can(\App\Service\AdminPermissions::PAGES_MANAGE);
+$productKind = \App\Service\ProductContentOwner::KIND;
+
 // The two big sections fold, each on its own. They start open, the editor's
 // browser tab remembers how they were left (admin/assets/admin-collapse.js),
 // and a refused save opens them again, so no message can hide in a closed one.
@@ -362,13 +371,19 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
            and switching tabs is not a change. A refused save opens the tab
            of its first message (admin/assets/admin-editor.js). Without the
            script every tab is on screen, the long page it used to be. */ ?>
+  <?php /* A fourth tab, Pagina-inhoud, holds the product's content blocks.
+           It is not part of the product form: every block is saved in its
+           own editor, and the list's own buttons (hide, delete, reorder) are
+           forms of their own, as on a page. A block editor's way back, and
+           the add endpoint, open it again (?tab=inhoud). */ ?>
   <?php admin_tabs_start('product-editor', [
       'product' => admin_t('shop.editor.tab_product'),
       'seo' => admin_t('shop.editor.tab_seo'),
       'verzending' => admin_t('shop.editor.tab_shipping'),
-  ], [
+  ] + ($hasContentTab ? ['inhoud' => admin_t('content_blocks.tab')] : []), [
       'scope' => $isEdit ? (string) (int) $product['id'] : 'new',
       'label' => admin_t('shop.editor.tabs_label'),
+      'force' => $hasContentTab && ($_GET['tab'] ?? '') === 'inhoud' ? 'inhoud' : null,
   ]); ?>
 
   <?php /* ONE form for the whole product, stored by its one Opslaan in the
@@ -705,12 +720,26 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
              Opslaan is the one button (and Enter still saves). */ ?>
     <button type="submit" data-admin-editor-fallback><?= $isEdit ? admin_te('common.save') : admin_te('shop.create_product') ?></button>
   </form>
+
+  <?php if ($hasContentTab): ?>
+    <?php admin_tab_panel('inhoud'); ?>
+    <section class="admin-card">
+      <h2><?= admin_te('content_blocks.tab') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('content_blocks.product_intro') ?></p>
+    </section>
+    <?php content_blocks_owner_panel($productKind, (int) $product['id'], $csrfToken); ?>
+    <?php admin_tab_panel_end(); ?>
+  <?php endif; ?>
   <?php admin_tabs_end(); ?>
 
 </main>
 <?php admin_editor_bar(); ?>
 <?= admin_editor_leave_dialog() ?>
 <?php media_picker_modal(); ?>
+<?php if ($hasContentTab): ?>
+<?php content_blocks_owner_modals($productKind, (int) $product['id'], $csrfToken); ?>
+<?php content_blocks_scripts(); ?>
+<?php endif; ?>
 <?php admin_editor_script(); ?>
 </body>
 </html>

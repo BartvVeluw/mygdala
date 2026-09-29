@@ -163,6 +163,21 @@ function renderProductAddRow(): void
     render_product_add_row($productOrderQuestions ?? []);
 }
 
+/**
+ * PAGINA-INHOUD (Product & Portfolio Content Pages 1.0): the content blocks
+ * the product's own Pagina-inhoud tab adds, rendered by the one block engine
+ * from the product's content page (App\Service\ContentOwners\ContentPages),
+ * below the product detail and its personalization, above the related
+ * products. Extra editorial content only: the name, price, variants, pictures
+ * and the purchase action stay the product's own, and so do its <head>, its
+ * canonical and its Product structured data (ProductSeo) — a block adds
+ * visible content, never metadata. Only for a product a visitor may see; a
+ * product without blocks renders exactly what it always did.
+ */
+$productContentKey = $seo !== null
+    ? \App\Service\ContentOwners\ContentPages::contentKey(\App\Service\ProductContentOwner::KIND, $productId)
+    : null;
+
 $siteName = \App\Service\SiteSettings::get('site_name');
 ?>
 <!doctype html>
@@ -223,6 +238,9 @@ if ($personalization !== null) {
 // product has loaded.
 \App\Service\PageAssets::requireScript('assets/js/shop/product-gallery.js');
 \App\Service\PageAssets::requireScript('assets/js/shop/shop.js');
+if ($productContentKey !== null) {
+    \App\Service\SectionRegistry::collectPageAssets($productContentKey);
+}
 require __DIR__ . '/partials/page-assets.php';
 ?>
 </head>
@@ -341,6 +359,12 @@ require __DIR__ . '/partials/header.php';
    */
   if ($personalization !== null) {
       render_product_personalization($personalization, 'renderProductAddRow');
+  }
+
+  // The product's own content blocks, in their own order; nothing at all for
+  // a product without any.
+  if ($productContentKey !== null) {
+      \App\Service\SectionRegistry::renderPage($productContentKey);
   }
 
   // After the product's own content, before the footer — the position the

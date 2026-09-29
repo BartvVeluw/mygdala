@@ -49,7 +49,30 @@ final class ProductEditorTabsTest extends TestCase
         }
 
         $fallback = strpos($form, 'data-admin-editor-fallback');
-        self::assertTrue(strrpos($form, 'admin_tab_panel_end();') < $fallback && $fallback < $formEnd, 'the fallback button is outside every panel');
+        $lastPanelEndInForm = strrpos(substr($form, 0, $formEnd), 'admin_tab_panel_end();');
+        self::assertTrue($lastPanelEndInForm < $fallback && $fallback < $formEnd, 'the fallback button is outside every panel');
+    }
+
+    /**
+     * Pagina-inhoud (Product & Portfolio Content Pages 1.0): a fourth tab for
+     * an existing product, with the block list every page has, OUTSIDE the
+     * product form — every block is saved in its own editor, and the list's
+     * own buttons are forms of their own, which cannot sit inside another.
+     * Only for an editor who may edit blocks at all.
+     */
+    public function testPaginaInhoudIsAFourthTabOutsideTheProductForm(): void
+    {
+        $form = self::source();
+
+        self::assertStringContainsString("] + (\$hasContentTab ? ['inhoud' => admin_t('content_blocks.tab')] : [])", $form);
+        self::assertStringContainsString('$hasContentTab = $isEdit && AdminAuth::can(\App\Service\AdminPermissions::PAGES_MANAGE);', $form);
+
+        $formEnd = strpos($form, '</form>');
+        $panel = strpos($form, "admin_tab_panel('inhoud')");
+        self::assertNotFalse($panel);
+        self::assertGreaterThan($formEnd, $panel, 'the block list is not part of the product form');
+        self::assertStringContainsString('content_blocks_owner_panel($productKind', $form);
+        self::assertStringContainsString('content_blocks_owner_modals($productKind', $form);
     }
 
     public function testEachTabHoldsItsSections(): void

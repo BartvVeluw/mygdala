@@ -650,6 +650,16 @@ final class ShopModule extends ModuleDefinition
         return [new ShopMediaUsage()];
     }
 
+    /**
+     * A product carries content blocks under its product detail (Product &
+     * Portfolio Content Pages 1.0), through Core's one block engine
+     * (App\Service\ContentOwners\ContentPages).
+     */
+    public function contentOwners(): array
+    {
+        return [new \App\Service\ProductContentOwner()];
+    }
+
     public function dashboardCards(): array
     {
         return [

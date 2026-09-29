@@ -47,6 +47,14 @@ use PDO;
  * first (which cascades away `product_variant_values` and `variant_images`)
  * frees the option values, so the subsequent product delete cascades cleanly.
  *
+ * ## Content blocks
+ *
+ * A product with blocks on its Pagina-inhoud tab has a content page
+ * (App\Service\ContentOwners\ContentPages). Those blocks are removed first,
+ * through the block engine's own delete, and only then the product: the link
+ * table's RESTRICT key makes the database refuse the other order. A media item
+ * a block used stays in the Media Library, as it does when a page is deleted.
+ *
  * ## Media
  *
  * File cleanup runs only after the transaction commits — an unlinked file
@@ -108,6 +116,12 @@ class ProductDeletionService
         // Collected before the delete: once the rows are gone their file paths
         // are unrecoverable. Nothing is unlinked until the commit succeeds.
         $filePaths = $this->ownedFilePaths($productId, $product);
+
+        // The product's content blocks and their content page go first, each
+        // block through its own delete (words, child rows, files), in
+        // transactions of their own: product_content_pages is RESTRICT, so the
+        // product delete below would be refused while the page still exists.
+        \App\Service\ContentOwners\ContentPages::deleteFor(ProductContentOwner::KIND, $productId);
 
         $this->db->beginTransaction();
 
