@@ -64,10 +64,46 @@ final class AdminTestSession
         $sessionId = session_id();
         session_write_close();
         $_SESSION = [];
+        self::shareWithWebServer($sessionId);
 
         $this->sessionIds[] = $sessionId;
 
         return [$sessionId, $csrf];
+    }
+
+    /**
+     * Lets the web server in the same container open the session file.
+     *
+     * In the php_test container PHPUnit runs as root and Apache as www-data:
+     * the file PHP just wrote is root's with mode 0600, so a request over the
+     * real web server would find it unreadable and arrive signed out. Handing
+     * the file to www-data fixes that; root can still read and destroy it.
+     *
+     * Does nothing when the test process is not root, when there is no
+     * www-data account, or when the file is not where PHP's files handler
+     * keeps it — which covers `php -S` (Tests\Support\BuiltInServer), where
+     * the test and the server are the same user.
+     */
+    private static function shareWithWebServer(string $sessionId): void
+    {
+        if (!function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+            return;
+        }
+
+        $webServer = posix_getpwnam('www-data');
+        if ($webServer === false) {
+            return;
+        }
+
+        // session.save_path may be "N;/path" or "N;MODE;/path".
+        $savePath = (string) session_save_path();
+        $directory = $savePath === '' ? sys_get_temp_dir() : substr($savePath, (int) strrpos(';' . $savePath, ';'));
+        $file = rtrim($directory, '/') . '/sess_' . $sessionId;
+
+        if (is_file($file)) {
+            chown($file, (int) $webServer['uid']);
+            chgrp($file, (int) $webServer['gid']);
+        }
     }
 
     /**

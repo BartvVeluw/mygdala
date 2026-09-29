@@ -79,6 +79,14 @@ services:
       # database. Its entrypoint runs the migrations against this one.
       DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
       TEST_DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
+      # The HTTP tier asserts what a live site does (robots, noindex), and
+      # production is what an unset APP_ENV means. Pinned so a development
+      # APP_ENV=local in .env cannot change what the suite tests.
+      APP_ENV: production
+      # Every module the suite covers is pinned ON, rather than left to the
+      # preference the test database happens to have stored.
+      MODULE_SHOP_ENABLED: "true"
+      MODULE_PERSONALIZATION_ENABLED: "true"
       # The Blog is the one module that defaults to OFF (BLOG.md), so the
       # container the HTTP tier shoots at has to ask for it explicitly —
       # otherwise every /blog test would be testing a 404. This is the same
@@ -144,6 +152,10 @@ services:
       # test database copied from an existing site stores it as on (the pin
       # migration), and this container proves its URLs answer 404 as well.
       MODULE_PORTFOLIO_ENABLED: "false"
+      # The language layer is the same as php_test's, so both render the
+      # same header; and the same production APP_ENV.
+      MODULE_MULTILINGUAL_ENABLED: "true"
+      APP_ENV: production
     volumes:
       - ./:/var/www/html
       - cms_attachments:/var/www/storage
