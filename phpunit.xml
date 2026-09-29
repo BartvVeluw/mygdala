@@ -121,6 +121,7 @@
             <file>tests/Service/ProductGalleryTransitionTest.php</file>
             <file>tests/Service/Secrets/MasterKeyTest.php</file>
             <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
+            <file>tests/Service/ThemeColorTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -199,6 +200,8 @@
             <file>tests/Module/AdminSidebarMenuTest.php</file>
             <file>tests/Service/InventoryContractTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
+            <file>tests/Service/PageThemeCssContractTest.php</file>
+            <file>tests/Module/PageThemesModuleTest.php</file>
         </testsuite>
 
         <!-- unit + contract: everything that needs nothing but PHP. The one
@@ -367,6 +370,9 @@
             <file>tests/Service/InventoryContractTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
             <file>tests/Service/FeaturedProductContractTest.php</file>
+            <file>tests/Service/ThemeColorTest.php</file>
+            <file>tests/Service/PageThemeCssContractTest.php</file>
+            <file>tests/Module/PageThemesModuleTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test
@@ -399,6 +405,7 @@
             <file>tests/Service/ShopSeoRoutingTest.php</file>
             <file>tests/Service/SitemapRoutingTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
+            <file>tests/Module/PageThemesApacheHttpTest.php</file>
         </testsuite>
 
         <!-- Migrations and installation, each proven on data the test puts
@@ -469,6 +476,7 @@
             <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
             <file>tests/Install/ShopProductOrderingMigrationTest.php</file>
             <file>tests/Install/ImageOrderFieldUploadsMigrationTest.php</file>
+            <file>tests/Install/PageThemesMigrationTest.php</file>
         </testsuite>
 
         <!-- ============================================================
@@ -482,6 +490,7 @@
         <testsuite name="modules">
             <directory>tests/Module</directory>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
+            <file>tests/Install/PageThemesMigrationTest.php</file>
         </testsuite>
 
         <!-- The Blog module: posts, taxonomy, its SEO and feed, its media
@@ -797,6 +806,8 @@
             <file>tests/Install/ModuleSystemPagesMigrationTest.php</file>
             <file>tests/Service/ModuleSystemPagesTest.php</file>
             <file>tests/Service/ModuleChildPagesTest.php</file>
+            <file>tests/Service/ThemeColorTest.php</file>
+            <file>tests/Service/PageThemeCssContractTest.php</file>
         </testsuite>
 
         <testsuite name="shop">
