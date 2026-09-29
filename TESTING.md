@@ -907,8 +907,23 @@ specificaties** (Shop Product & Ordering 2.0, `MODULES.md`, "Shop")
                         StockNotificationHttpTest (inschrijven zonder dubbel of
                         verklappen, 0 → meer mailt één keer, 5 → 6 niet, een
                         mislukte mail blijft actief), PurchaseModeHttpTest,
-                        OrderFieldsTest, OrderFieldsHttpTest en
-                        ProductSpecificationsTest
+                        OrderFieldsTest, OrderFieldsHttpTest,
+                        ProductSpecificationsTest,
+                        ProductAdminOverviewTest (voorraadregel per soort,
+                        thumbnail, geen query per product, raster/lijst),
+                        OrderFieldImageUploadTest (de afbeeldingsvraag:
+                        typen en groottes, SVG/tekst/HTML/polyglot/lege en
+                        te grote bestanden en pixelbommen geweigerd, tokens
+                        vervalst/verlopen/geclaimd/van een andere vraag,
+                        vervangen, verwijderen, opruimen, één claim in de
+                        ordertransactie met terugrollen, teruggeven na een
+                        betaling zonder geld, winkelwagenidentiteit,
+                        snapshot en mails; bestanden in een eigen tijdelijke
+                        map) en OrderFieldStylingTest (bestelvelden als
+                        core.css-formuliervelden)
+--testsuite migration   ImageOrderFieldUploadsMigrationTest: upgrade van een
+                        winkel met een beantwoorde vraag, vers = geüpgraded,
+                        SET NULL/RESTRICT, herhalen verandert niets
 --testsuite fast        InventoryContractTest en ProductEditorTabsTest (ook in
                         shop): reserveren binnen de ordertransactie, elke
                         mislukte betaalstart geeft terug, geen voorraadteller

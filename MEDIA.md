@@ -14,7 +14,7 @@ aan.
 |---|---|---|
 | **Herbruikbaar publiek sitebeeld** | logo, favicon, deel-afbeelding, foto in een contentblok, productfoto, portfolio-afbeelding | **Mediabibliotheek** |
 | **Domeineigen beeld** | het voorbeeldcanvas van een personalisatieweergave | bij het domein zelf (zie *Nog op een eigen pad*) |
-| **Privé klantbestand** | personalisatie-uploads, contactbijlagen, ordersnapshots, factuur-PDF's | buiten de webroot, **nooit** hier |
+| **Privé klantbestand** | personalisatie-uploads, afbeeldingen bij een bestelvraag (*Afbeelding uploaden*, `storage/order-field-uploads/`, `MODULES.md` "Bestelvelden"), contactbijlagen, ordersnapshots, factuur-PDF's | buiten de webroot, **nooit** hier |
 
 De derde rij is een grens, geen achterstand. De bibliotheek bestaat om beeld
 te **hergebruiken** en te tónen; een bestand dat een klant heeft geüpload bij

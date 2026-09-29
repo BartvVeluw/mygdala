@@ -440,6 +440,20 @@ Alles wat er ook zou zijn zonder webshop.
   (`ShopMediaUsage`, `MEDIA.md`). De oude `variant_images`, met eigen
   bestanden per variant, is door `20260923120000` omgezet naar dit model en
   wordt niet meer gelezen.
+- **Het productoverzicht** (`admin/products.php`, Shop Admin UX & Order
+  Fields 2.0) is *Raster* of *Lijst*: één kaartmarkup die CSS twee keer
+  tekent (`data-product-view`), met een schakelaar van twee knoppen
+  (`aria-pressed`) die `admin/assets/product-overview.js` in deze browser
+  onthoudt (`localStorage`, geen instelling, geen migratie), zoals de
+  Mediabibliotheek. Zonder JavaScript blijft het raster. Beide tonen
+  thumbnail, naam, status, prijs (of *Op aanvraag*) en de voorraadregel; de
+  lijst is een compacte rij met *Bewerken*, die onder 1000 px de details
+  achter de naam laat doorlopen en onder 700 px een kaartrij wordt, zonder
+  tabel en zonder zijwaarts scrollen. Thumbnail en voorraad komen uit
+  `App\Service\ProductAdminOverview`: een vast aantal queries, hoeveel
+  producten er ook zijn (de thumbnail volgt de winkelkaart: eerste foto van
+  de standaardvariant, anders de hoofdfoto van het product, het kleine
+  bibliotheekformaat waar dat er is).
 - **De producteditor is één dynamische editor** (Shop Admin UX 2.0,
   `ADMIN-UI.md`, "Een editor die opslaat zonder te herladen"). Eén
   formulier en één *Opslaan*, zonder herladen:
@@ -577,6 +591,15 @@ Alles wat er ook zou zijn zonder webshop.
     waarde wordt niet geschreven, een gewijzigde alleen over de waarde die
     het scherm toonde (`stock_seen`); veranderde de voorraad intussen, dan
     weigert de hele opslag met de huidige stand (`StockConflictException`).
+  - **In het productoverzicht** (Shop → Producten, Shop Admin UX & Order
+    Fields 2.0) staat per product één voorraadregel als badge
+    (`App\Service\Inventory\StockSummary`, over dezelfde `ProductStock`):
+    *Onbeperkt*, *12 op voorraad* of *Uitverkocht*; met varianten telt hij
+    alleen de actieve: *4 varianten · 23 op voorraad*, *4 varianten · 1
+    uitverkocht* of *Uitverkocht · 4 varianten* (optellen klopt, want elke
+    variant is een eigen eenheid). Een product op aanvraag toont geen getal
+    maar *Niet direct te bestellen*. De tint is een bestaande badge-tint:
+    uitverkocht is fout, deels uitverkocht een waarschuwing.
   - Geen magazijn, geen inkoop, geen waarschuwing bij weinig voorraad.
     Zonder publiek bereikbare webhook (lokaal) komt voorraad van een
     verlopen betaling pas terug als iemand de bestelstatuspagina opent.
@@ -635,16 +658,28 @@ Alles wat er ook zou zijn zonder webshop.
   Personalisatie: dat plaatst tekst en beeld op een voorbeeldfoto en
   verdwijnt met die module; bestelvelden zijn gewone antwoorden van de
   Shop.
-  - **Vijf soorten** (`OrderFieldType`): kort tekstveld, lang tekstveld,
-    keuzerondjes, dropdown en selectievakje. Per vraag een label en
-    optionele uitleg (per websitetaal, `product_order_field_translations`
-    via `ShopLocalization`), verplicht of niet, een maximale lengte voor
-    tekst (standaard 100 en 1000, hooguit 255 en 2000) en keuzes voor
-    keuzerondjes en dropdown (`product_order_field_options`, met hun label
-    per taal). Geen upload, datum of voorwaarden.
+  - **Zes soorten** (`OrderFieldType`): kort tekstveld, lang tekstveld,
+    keuzerondjes, dropdown, selectievakje en *Afbeelding uploaden* (zie
+    hieronder). Per vraag een label en optionele uitleg (per websitetaal,
+    `product_order_field_translations` via `ShopLocalization`), verplicht of
+    niet, een maximale lengte voor tekst (standaard 100 en 1000, hooguit 255
+    en 2000), keuzes voor keuzerondjes en dropdown
+    (`product_order_field_options`, met hun label per taal) en een maximale
+    bestandsgrootte voor een afbeelding. Geen datum of voorwaarden.
   - **In de producteditor** de sectie *Bestelvelden*: vragen en keuzes zijn
     rijen op sleutel (id of `new<n>`), toevoegen, verplaatsen en verwijderen
-    zonder herladen, in de ene opslag (`ProductOrderFieldEditor`).
+    zonder herladen, in de ene opslag (`ProductOrderFieldEditor`). Een vraag
+    toont alleen wat zijn soort gebruikt. Wat bij een andere soort hoort
+    wordt bij opslaan niet bewaard: een lengte alleen bij tekst, keuzes
+    alleen bij keuzerondjes en dropdown, een bestandsgrootte alleen bij een
+    afbeelding. Een vraag van soort wisselen laat dus niets achter.
+  - **Op de productpagina** is elke vraag een gewoon formulierveld van de
+    site (`core.css` `.form-field`, `.checkbox-field`, `.hint`, `.req`):
+    dezelfde rand, achtergrond, focusring en foutkleur als het
+    contactformulier en het afrekenen. `shop.css` past ze alleen in de
+    koopkolom (keuzes als rij van 44 px, lange labels breken af). Een
+    onbeantwoorde vraag krijgt `aria-invalid` en een melding onder het veld
+    (`aria-describedby`), die verdwijnt zodra de klant antwoordt.
   - **Controle**: de browser zegt wat ontbreekt; de server
     (`OrderFields::validate()`) neemt alleen de eigen vragen van het
     product, eist verplichte antwoorden, knipt stuurtekens weg, bewaakt de
@@ -662,6 +697,112 @@ Alles wat er ook zou zijn zonder webshop.
     verandert of verdwijnt, verandert geen bestelling. Het besteloverzicht en
     beide bevestigingsmails tonen ze onder de regel; de factuur niet (zoals
     personalisatie er ook niet op staat).
+  - **Afbeelding uploaden** (Shop Admin UX & Order Fields 2.0, migratie
+    `20260929100000`, `OrderFieldUploads` en `OrderFieldUpload*`). De klant
+    stuurt **één** afbeelding per vraag mee (huisdier, logo, ontwerp); wie er
+    twee nodig heeft, stelt twee vragen. Per vraag kiest de eigenaar 2, 5 of
+    10 MB (`product_order_fields.max_file_size_mb`, leeg is 10 MB), maar
+    nooit meer dan PHP aanneemt (`upload_max_filesize`, en `post_max_size`
+    met ruimte voor de rest van het verzoek): `OrderFieldUploadPolicy::
+    effectiveMaxBytes()` is wat gecontroleerd en op de pagina genoemd wordt.
+    - **Alleen JPEG, PNG en WebP**: rasterbeelden die GD hier echt kan lezen.
+      Geen SVG (kan script bevatten, en een klantfoto heeft het niet nodig),
+      geen GIF, en geen HEIC/HEIF/AVIF zolang GD ze op deze server niet leest
+      (een telefoon zet HEIC om naar JPEG als de browser de foto kiest).
+    - **De server gelooft niets van de browser**
+      (`OrderFieldUploadValidator`): één bestand, PHP's uploadstatus,
+      `is_uploaded_file()`, niet leeg, niet boven de limiet, het MIME-type van
+      de bytes (`finfo`) op de lijst, `getimagesize()` leest hetzelfde type
+      uit de kop (anders is het een polyglot), hooguit 12000 px per zijde en
+      40 megapixel (een klein bestand dat een reuzenbeeld claimt komt niet
+      tot decoderen), en GD decodeert hem echt (`ImageOptimizer`, dat ook de
+      kleine her-encodeerde thumbnail maakt). Extensie en browser-MIME tellen
+      niet mee. Elke weigering is een zin voor de klant, in de taal van de
+      pagina.
+    - **Privé en buiten de webroot** (`OrderFieldUploadStorage`): standaard
+      `storage/order-field-uploads/` één map boven de projectroot (lokaal het
+      Docker-volume op `/var/www/storage`); `ORDER_FIELD_UPLOADS_PATH` (.env)
+      verplaatst die basis, maar alleen naar een absoluut pad buiten het
+      project. Twee bestanden per afbeelding, genoemd naar een willekeurige
+      opslagnaam die niets met het token of de bestandsnaam van de klant te
+      maken heeft: het origineel (onaangeroerd, met eventuele EXIF, alleen
+      voor het CMS) en een her-encodeerde thumbnail. De database
+      (`order_field_uploads`) bewaart alleen metadata: veilige originele
+      bestandsnaam (weergave, zonder pad, stuur- of onzichtbare
+      opmaaktekens), MIME-type, grootte, afmetingen. Nooit een blob, nooit
+      base64, nooit in de Mediabibliotheek, een blokkiezer, de sitemap of
+      `assets/`.
+    - **Tijdelijk tot de bestelling.** De productpagina uploadt bij het
+      kiezen (`api/order-field-upload.php`) en krijgt een **token** terug:
+      256 willekeurige bits die de browser als antwoord op de vraag bij de
+      winkelwagenregel bewaart, met de bestandsnaam voor de weergave. De
+      database kent alleen de SHA-256 ervan. Geen afbeelding, pad of id in
+      `localStorage`. De upload hoort bij het product en de vraag waarvoor
+      hij gedaan is en verloopt na 72 uur (`TTL_HOURS`, net als een
+      personalisatie-upload). De winkel heeft geen sessie, dus het token ís
+      de sleutel: niet te raden, nooit in de database, nooit in een URL,
+      alleen voor deze vraag van dit product, en maar voor één bestelling.
+    - **Vervangen en verwijderen** gooien de oude tijdelijke upload meteen
+      weg (`action=discard`). Alleen de laatst gekozen afbeelding telt: een
+      eerdere die later binnenkomt wordt ook weggegooid. *Toevoegen aan
+      winkelwagen* wacht tot de upload klaar is, dus een regel krijgt nooit
+      een half verstuurde afbeelding.
+    - **Winkelwagenidentiteit**: het token is het antwoord, dus twee
+      afbeeldingen zijn twee regels, ook bij verder gelijke antwoorden. Een
+      regel met aantal 3 heeft één afbeelding voor alle drie; drie
+      verschillende afbeeldingen zijn drie regels. Na toevoegen is het veld
+      weer leeg; de afbeelding hoort dan bij de regel.
+    - **Winkelwagencheck en afrekenen** controleren het token elke keer
+      opnieuw (`OrderFieldUploads::resolve()`): bestaat, past bij dit product
+      en deze vraag, niet geclaimd, niet verlopen, bestand aanwezig. Een
+      verplichte afbeelding zonder geldig token wordt geweigerd; een
+      optionele mag leeg blijven.
+    - **De claim zit in de ordertransactie** (`OrderFields::record()`): eerst
+      de snapshotrij (label, type `image`, de bestandsnaam als waarde), dan
+      één voorwaardelijke `UPDATE … WHERE claimed_at IS NULL AND expires_at >
+      NOW()` die de upload aan die rij bindt. Een tweede bestelling met
+      hetzelfde token, of hetzelfde token op twee regels, laat de claim
+      mislukken en de hele bestelling terugrollen (409). Het bestand
+      verhuist niet, dus er valt op schijf niets terug te draaien.
+    - **Een betaling zonder geld geeft de afbeelding terug.** De winkelwagen
+      blijft in de browser tot een bestelling betaald is. Start de betaling
+      niet, of wordt ze `failed`, `canceled` of `expired`, dan maakt
+      `OrderFieldUploadRepository::releaseForOrder()` de afbeeldingen weer
+      tijdelijk, met een nieuwe levensduur, naast het teruggeven van de
+      voorraad (`OrderPaymentStartFailure`, `OrderPaymentSync`). Opnieuw
+      afrekenen met dezelfde winkelwagen bestelt ze dan alsnog. De
+      mislukte bestelling houdt de bestandsnaam in haar antwoord.
+    - **Opruimen**: een verlopen tijdelijke upload gaat met zijn bestanden weg
+      bij ongeveer één op de twintig uploads, en via
+      `php scripts/prune-order-field-uploads.php` (dagelijks als cronjob is
+      ruim genoeg; `--dry-run` telt alleen). Dezelfde sweep haalt ook oude
+      bestanden weg die geen rij meer hebben (een crash tussen rij en
+      bestand). Een geclaimde afbeelding wordt nooit geveegd.
+    - **Misbruik**: `ContactRateLimiter` met een eigen zout, 30 uploads per
+      tien minuten per bezoeker (IPv6 per /64), en een plafond van 2 GB voor
+      alle tijdelijke afbeeldingen samen (`MAX_TEMPORARY_BYTES`); daarboven
+      zegt de server "probeer het later", na eerst te vegen. Geen
+      CSRF-token, net als de andere publieke Shop-endpoints: de winkel is
+      anoniem en sessieloos, en een vervalst verzoek kan hooguit namens de
+      bezoeker zelf uploaden.
+    - **In de bestelling** toont `admin/order.php` bij de vraag een
+      thumbnail, de bestandsnaam, afmetingen en grootte, *Bekijken* en
+      *Downloaden*, via `api/admin/order-field-upload.php`: ingelogd,
+      `orders.view` (bij elk verzoek), alleen een geclaimde upload, op
+      upload-id (nooit een bestandsnaam uit het verzoek), met het opgeslagen
+      MIME-type, `nosniff`, `private, no-store`, een sandbox-CSP, en een
+      downloadnaam met de extensie van het **gecontroleerde** type, nooit die
+      van de klant.
+    - **Mails en factuur**: beide mails noemen de afbeelding met haar
+      bestandsnaam ("Foto huisdier: luna.jpg"), zonder bijlage (grootte,
+      privacy, bezorgbaarheid) en zonder link; de klant krijgt nooit een
+      CMS-adres. De factuur verandert niet.
+    - **Bewaren** volgt de bestelling. Mygdala verwijdert geen bestellingen;
+      de sleutel van de upload naar zijn antwoord is `RESTRICT`, dus wie ooit
+      een bestelling verwijdert, moet eerst de uploadrij en de bestanden
+      verwijderen, anders weigert de database (nooit een weesbestand). Een
+      product verwijderen laat geclaimde afbeeldingen staan (`product_id`
+      wordt NULL); tijdelijke verlopen dan gewoon.
 - **Specificaties** (`App\Service\ProductSpecifications`, migratie
   `20260928140000`). Shop → *Specificaties* (`admin/product-specifications.php`,
   `products.manage`) is een bibliotheek van eigenschappen — Dikte, Hoogte,

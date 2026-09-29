@@ -23,13 +23,13 @@ je aan de modulegrens zelf werkt.
 | Module | `src/Module/ShopModule.php` |
 | Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ProductGalleryTransition.php` (de overgang van de productgalerij), `ProductVariantEditor.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php`, `PurchaseMode.php` (direct of op aanvraag), `ProductDetail.php` (de productpayload: `api/product.php` en het blok Uitgelicht product), `ProductPurchasePath.php` (hoe een zichtbaar product te koop is, voor productpagina en blok), `ProductSpecifications.php` + `SpecificationLibraryEditor.php` + `ProductSpecificationEditor.php` |
 | Voorraad | `src/Service/Inventory/` (`Inventory`, `ProductStock`, `StockUnit`, `InventoryEditor`, `StockNotifications`), `src/Repository/{Inventory,StockNotification}Repository.php`, `src/Service/CartAvailability.php`, `OrderPaymentStartFailure.php`, `src/Mail/StockNotificationBuilder.php`, `src/Service/ShopLocalizedSettings.php` (de terug-op-voorraadmail per taal) |
-| Bestelvelden | `src/Service/OrderFields/`, `src/Repository/{OrderField,OrderItemField}Repository.php`, `partials/product-order-fields.php` |
+| Bestelvelden | `src/Service/OrderFields/` (ook de afbeeldingsvraag: `OrderFieldUploads`, `OrderFieldUpload{Policy,Storage,Validator,Exception}`), `src/Repository/{OrderField,OrderItemField,OrderFieldUpload}Repository.php`, `partials/product-order-fields.php`, `api/order-field-upload.php`, `api/admin/order-field-upload.php`, `scripts/prune-order-field-uploads.php` |
 | Collecties | `src/Service/Collection*.php`, `src/Repository/CollectionRepository.php` |
 | Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `DocumentNumberPrefix.php` (bestel- en factuurprefix) |
 | Betalingen | `src/Service/Payment/` (het contract `PaymentProvider`, `MolliePaymentProvider`, `MollieConfiguration`, `ShopPaymentMethods`, …), `MollieClientFactory.php`, `MolliePaymentData.php`, `admin/payments.php` + `admin/assets/payments.js`, `api/admin/{update-payment-settings,test-payment-connection}.php`; de testnaad `tests/Support/FakeMollie.php` |
 | Verzending | `src/Service/Shipping/`, `src/Service/Address/`, `src/Repository/{Shipping,Carrier}*.php` |
 | Dashboard | `src/Service/Dashboard*.php`, `src/Repository/DashboardRepository.php`, `admin/_dashboard_shop.php` |
-| Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php`, `admin/_product_{gallery,variants,inventory,specifications,order_fields}.php` + `admin/assets/product-{gallery,variants,inventory,order-fields}.js` (de producteditor, drie tabbladen), `admin/product-specifications.php` (Shop → Specificaties) |
+| Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php`, `admin/_product_{gallery,variants,inventory,specifications,order_fields}.php` + `admin/assets/product-{gallery,variants,inventory,order-fields}.js` (de producteditor, drie tabbladen), `admin/assets/product-overview.js` (raster of lijst op Shop → Producten), `admin/product-specifications.php` (Shop → Specificaties) |
 | Admin-endpoints | `api/admin/*{product,variant,collection,shipping,carrier,invoice,fulfilment,withdrawal}*.php` (de producteditor heeft er één: `update-product.php`, plus `create-product.php` voor de eerste stap), `api/admin/{order,resend-order,sync-postnl-rates}*.php`, `api/admin/_shop_share_image.php` (de deel-afbeelding uit de Mediabibliotheek), `api/admin/update-product-specifications.php`, `api/admin/{update-stock-notification-mail,send-stock-notifications}.php` |
 | Publieke endpoints | `api/{checkout,cart-check,stock-notification,shipping-quote,shipping-zones,mollie-webhook,order-status,product,products,address-lookup-nl,withdrawal-request}.php` |
 | Publieke routes | `shop.php`, `product.php`, `collectie.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `herroeping.php` |
@@ -76,6 +76,12 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
   alles in één transactie (`ProductVariantEditor`). Voeg geen endpoint per
   rij toe. Een nieuw veld gaat in hetzelfde formulier, met een melding op
   zijn veldnaam.
+- **Een klantafbeelding bij een bestelvraag is privé orderdata**
+  (`MODULES.md`, "Bestelvelden" → *Afbeelding uploaden*): buiten de webroot,
+  nooit in de Mediabibliotheek, `assets/`, een mail of de factuur; de browser
+  kent alleen een token, de database alleen zijn hash; claimen gebeurt één
+  keer, in de ordertransactie. Serveer hem alleen via
+  `api/admin/order-field-upload.php` (`orders.view`, op upload-id).
 - **Een factuur bekijken is alleen-lezen.** *Factuur bekijken* op het
   besteloverzicht streamt via `InvoiceService::issuedPdfForOrder()` het
   bestand dat de klant kreeg. Laat het nooit uitgeven, een nummer
