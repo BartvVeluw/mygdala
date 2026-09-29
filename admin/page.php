@@ -624,6 +624,14 @@ $urlFieldOpen = !$hasFixedUrl
           <?= admin_help(admin_t('page.show_breadcrumb'), admin_t('help.page.show_breadcrumb')) ?>
         </div>
       <?php endif; ?>
+
+      <?php /* Settings an enabled module adds to a page (Paginathema's, say),
+               saved with this form by api/admin/update-page.php
+               (App\Service\PageSettingsSection). A switched-off module adds
+               nothing, and what it stored stays stored. */ ?>
+      <?php foreach (\App\Module\ModuleRegistry::collect('pageSettingsSections') as $pageSettingsSection): ?>
+        <?php $pageSettingsSection->render($page, $old); ?>
+      <?php endforeach; ?>
       </div>
     </section>
 

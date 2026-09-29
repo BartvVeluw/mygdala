@@ -30,6 +30,18 @@ final class AdminUiPrimitivesTest extends TestCase
 {
     private const SCRIPT = 'admin/assets/admin-ui.js';
 
+    /**
+     * Admin partials a module renders on a Core screen through a
+     * ModuleDefinition contribution: partial => [the screen, the hook it
+     * collects]. The Paginathema field on the page editor
+     * (App\Service\PageThemes\PageThemeSettingsSection).
+     *
+     * @var array<string, array{0: string, 1: string}>
+     */
+    private const MODULE_CONTRIBUTED_PARTIALS = [
+        '_page_theme_field.php' => ['page.php', 'pageSettingsSections'],
+    ];
+
     public static function setUpBeforeClass(): void
     {
         require_once self::root() . '/admin/_translate.php';
@@ -299,8 +311,10 @@ final class AdminUiPrimitivesTest extends TestCase
             // (admin/page-preview.php), and the preview of one block shows
             // that block alone inside the library's frame
             // (admin/block-preview.php), as the preview of one form does in
-            // the form editor's frame (admin/form-preview.php).
-            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php'], true)) {
+            // the form editor's frame (admin/form-preview.php), and the
+            // sample page of a page theme in its editor's frame
+            // (admin/page-theme-preview.php).
+            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php'], true)) {
                 continue;
             }
 
@@ -315,6 +329,17 @@ final class AdminUiPrimitivesTest extends TestCase
             // A shared include (admin/_editor_rows.php) is no screen: every
             // screen that includes it must render the shell instead.
             if (str_starts_with($file, '_')) {
+                // A module's field on a Core screen is included by the
+                // module's own code, never named by the screen (MODULES.md):
+                // the screen that renders it must still render the shell.
+                if (isset(self::MODULE_CONTRIBUTED_PARTIALS[$file])) {
+                    [$screen, $hook] = self::MODULE_CONTRIBUTED_PARTIALS[$file];
+                    $this->assertArrayHasKey($screen, $screens, 'admin/' . $file);
+                    $this->assertStringContainsString("collect('{$hook}')", $screens[$screen], 'admin/' . $screen . ' renders the contribution that includes admin/' . $file);
+                    $this->assertStringContainsString("/_header.php'", $screens[$screen], 'admin/' . $screen . ' renders admin/' . $file . ' without the shell that drives its help');
+                    continue;
+                }
+
                 $includers = array_filter($screens, static fn (string $source): bool => str_contains($source, "/{$file}'"));
                 $this->assertNotSame([], $includers, 'admin/' . $file . ' uses a help component but no screen includes it');
                 foreach ($includers as $screen => $source) {

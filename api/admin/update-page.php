@@ -295,6 +295,21 @@ if (!$hasFixedUrl && $languageIsWritable && $parentError === null) {
 }
 
 /**
+ * Settings an enabled module adds to the page form (App\Service\PageSettingsSection,
+ * ModuleDefinition::pageSettingsSections()): checked with everything else
+ * before anything is written, saved inside the same transaction below. Each
+ * section reads only its own fields, and only when they were posted.
+ *
+ * @var list<\App\Service\PageSettingsSection> $moduleSections
+ */
+$moduleSections = \App\Module\ModuleRegistry::collect('pageSettingsSections');
+foreach ($moduleSections as $moduleSection) {
+    foreach ($moduleSection->errors($page, $_POST) as $moduleError) {
+        $errors[] = $moduleError;
+    }
+}
+
+/**
  * What the editor sent, handed back to admin/page.php whenever this save does
  * not go through — refused, or waiting for a confirmation — so the form shows
  * their input rather than the stored page. The social image choice travels
@@ -318,6 +333,14 @@ $submitted = [
 
 if ($socialImageSubmitted) {
     $submitted['og_media_id'] = trim((string) $_POST['og_media_id']);
+}
+
+foreach ($moduleSections as $moduleSection) {
+    foreach ($moduleSection->fields() as $moduleField) {
+        if (array_key_exists($moduleField, $_POST) && is_scalar($_POST[$moduleField])) {
+            $submitted[$moduleField] = trim((string) $_POST[$moduleField]);
+        }
+    }
 }
 
 if ($errors !== []) {
@@ -432,6 +455,10 @@ try {
             // it belongs to the Media Library.
             $repository->updateOgImagePath($id, null, null);
         }
+    }
+
+    foreach ($moduleSections as $moduleSection) {
+        $moduleSection->save($page, $_POST);
     }
 
     // Where it sits. A new parent puts the page after its new siblings; the
