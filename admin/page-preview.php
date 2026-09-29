@@ -95,7 +95,7 @@ require dirname(__DIR__) . '/partials/page-assets.php';
 <body>
 <?php require dirname(__DIR__) . '/partials/header.php'; ?>
 
-<main id="main">
+<main id="main"<?= \App\Service\Theme\PageThemeCss::mainAttribute() ?>>
   <?php /* The preview shows what a visitor gets, the trail included — so the
            switch on the Pagina tab can be checked here rather than only on
            the live page. A draft previews as the page it will be. */ ?>

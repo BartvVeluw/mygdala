@@ -38,7 +38,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
 
-    <main id="main">
+    <main id="main"<?= \App\Service\Theme\PageThemeCss::mainAttribute() ?>>
       <!-- The page renders exactly the blocks the CMS has attached to it,
            in the CMS's own order — one page, one ordered list. See
            App\Service\SectionRegistry's renderPage; the services carousel

@@ -107,7 +107,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
 
-<main id="main">
+<main id="main"<?= \App\Service\Theme\PageThemeCss::mainAttribute() ?>>
 
   <?php if ($builtin): ?>
     <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(\App\Service\PortfolioUrls::OVERVIEW_LABEL)))); ?>

@@ -77,15 +77,7 @@
   --color-surface-veil-rgb: 20, 15, 10;       /* a raised panel, translucent: mini-cart, hero badge */
   --color-media-scrim-rgb: 10, 8, 6;          /* the ground bleeding over photography */
 
-  /* --- Alpha derivations (pure CSS: they follow the triplets) ---------- */
-  --color-primary-wash: rgba(var(--color-primary-rgb), 0.10);
-  --color-text-muted:   rgba(var(--color-text-rgb), 0.70);
-  --color-text-faint:   rgba(var(--color-text-rgb), 0.46);
-  --color-line:         rgba(var(--color-primary-rgb), 0.16);
-  --color-line-strong:  rgba(var(--color-primary-rgb), 0.36);
-  --color-line-soft:    rgba(var(--color-text-rgb), 0.10);
-  --color-glow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.28),
-                0 14px 36px -14px rgba(var(--color-primary-rgb), 0.28);
+  /* The alpha derivations are in their own rule below this one. */
 
   /* Type — the pairing is a theme setting; the scale is not */
   --font-display: 'Trirong', Georgia, serif;
@@ -137,6 +129,27 @@
   --shadow-lift: 0 30px 60px -22px rgba(0,0,0,0.7);
 }
 
+/* --- Alpha derivations (pure CSS: they follow the triplets) -------------
+   A custom property that is built from other ones with var() is computed
+   ONCE, on the element that declares it, and inherited from there as that
+   finished value. Declared on :root alone, these would keep the site
+   theme's colours inside a page theme (App\Service\Theme\PageThemeCss),
+   which redefines the triplets on `main[data-page-theme]` only. So they are
+   declared on both, and recompute inside a themed page's <main>. Every
+   var()-based token of :root belongs in this rule;
+   Tests\Service\PageThemeCssContractTest fails when one is left behind. */
+:root,
+main[data-page-theme]{
+  --color-primary-wash: rgba(var(--color-primary-rgb), 0.10);
+  --color-text-muted:   rgba(var(--color-text-rgb), 0.70);
+  --color-text-faint:   rgba(var(--color-text-rgb), 0.46);
+  --color-line:         rgba(var(--color-primary-rgb), 0.16);
+  --color-line-strong:  rgba(var(--color-primary-rgb), 0.36);
+  --color-line-soft:    rgba(var(--color-text-rgb), 0.10);
+  --color-glow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.28),
+                0 14px 36px -14px rgba(var(--color-primary-rgb), 0.28);
+}
+
 *, *::before, *::after{ box-sizing: border-box; }
 html{
   scroll-behavior: smooth;
@@ -146,9 +159,11 @@ html{
   html{ scroll-behavior: auto; }
 }
 
-body{
-  margin: 0;
-  min-height: 100dvh;
+/* A page theme (THEMING.md, "Paginathema's") paints its own <main> with the
+   same ground, type colour and typeface the body has, from its own tokens.
+   The header, footer and cookie banner stay outside it, on the site theme. */
+body,
+main[data-page-theme]{
   background:
     radial-gradient(ellipse 900px 560px at 12% -8%, rgba(var(--color-primary-rgb), 0.13), transparent 60%),
     radial-gradient(ellipse 760px 520px at 106% 4%, rgba(var(--color-primary-deep-rgb), 0.11), transparent 55%),
@@ -157,13 +172,18 @@ body{
   background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-body);
+}
+body{
+  margin: 0;
+  min-height: 100dvh;
   font-size: var(--fs-body);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 @media (max-width: 900px){
-  body{ background-attachment: scroll; }
+  body,
+  main[data-page-theme]{ background-attachment: scroll; }
 }
 
 img{ max-width: 100%; display: block; }
@@ -312,13 +332,20 @@ p{ margin: 0; }
   transition: padding var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   border-bottom: 1px solid transparent;
 }
-.site-header.is-scrolled{
-  padding-block: var(--sp-1);
+.site-header.is-scrolled,
+body:has(> main[data-page-theme]) .site-header{
   background: rgba(var(--color-bg-veil-rgb), 0.86);
   backdrop-filter: blur(14px) saturate(1.1);
   -webkit-backdrop-filter: blur(14px) saturate(1.1);
   box-shadow: 0 1px 0 rgba(0,0,0,0.3);
   border-color: var(--color-line);
+}
+/* Above a page theme the header keeps the site theme, so it wears its veil
+   from the first pixel instead of floating transparent over a ground and a
+   page header it was never designed for. Only the veil: it still compacts
+   on scroll like on every other page. */
+.site-header.is-scrolled{
+  padding-block: var(--sp-1);
 }
 .site-header__inner{
   display: flex;

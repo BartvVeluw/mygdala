@@ -57,7 +57,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
 
-<main id="main">
+<main id="main"<?= \App\Service\Theme\PageThemeCss::mainAttribute() ?>>
 
   <?php if ($page === null): ?>
     <?php render_page_not_found(); ?>

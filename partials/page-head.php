@@ -53,5 +53,16 @@ if (($page ?? null) !== null) {
     );
 }
 
+/**
+ * THE PAGE'S OWN LOOK, when it has one (a page theme, THEMING.md
+ * "Paginathema's"), declared here for the same reason: this partial is the
+ * head of every template that renders a `pages` row, and it runs before
+ * partials/page-assets.php prints the stylesheets. The template prints the
+ * matching attribute on its <main> (PageThemeCss::mainAttribute()). A
+ * product's or project's content page, a missing row and a site where no
+ * module offers page themes declare nothing, and render as before.
+ */
+\App\Service\Theme\PageThemeCss::declareForPage($page ?? null);
+
 $seoMetadata = PageSeo::forPage($page ?? null);
 require __DIR__ . '/seo-head.php';

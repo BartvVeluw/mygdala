@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Module\ModuleRegistry;
 use App\Service\Search\SearchService;
+use App\Service\Theme\PageThemeCss;
 use App\Service\Theme\ThemeCss;
 
 /**
@@ -139,11 +140,20 @@ final class PageAssets
         // the default theme it prints nothing at all, not even an empty
         // <style> tag. See App\Service\Theme\ThemeCss.
         ThemeCss::renderStyleBlock();
+
+        // A page with a look of its own (a page theme) comes right after
+        // the site theme, scoped to its <main>. Nothing at all for every
+        // other page. See App\Service\Theme\PageThemeCss.
+        PageThemeCss::renderStyleBlock();
     }
 
     /**
-     * The web font for the selected pairing, printed before the
-     * stylesheets so its @font-face rules are known as early as possible.
+     * The web fonts this page needs, printed before the stylesheets so their
+     * @font-face rules are known as early as possible: the site's pairing,
+     * and a page theme's pairing when the page has one that is different
+     * (App\Service\Theme\PageThemeCss). The same stylesheet is never
+     * printed twice, and the two preconnects are printed once, whichever of
+     * the two needs a download.
      *
      * This used to be an @import at the top of core.css, which meant
      * every site downloaded Trirong whatever it had chosen, and that the
@@ -153,15 +163,24 @@ final class PageAssets
      */
     private static function renderFontStylesheet(): void
     {
-        $url = ThemeCss::fontStylesheetUrl();
+        $urls = array_values(array_unique(array_filter(
+            [ThemeCss::fontStylesheetUrl(), PageThemeCss::fontStylesheetUrl()],
+            static fn (?string $url): bool => $url !== null
+        )));
 
-        if ($url === null) {
+        if ($urls === []) {
             return;
         }
 
-        echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . "\n";
-        echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
-        echo '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+        echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . "
+";
+        echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "
+";
+
+        foreach ($urls as $url) {
+            echo '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . "
+";
+        }
     }
 
     /** Prints every collected <script>, for just before </body>. */
@@ -197,13 +216,17 @@ final class PageAssets
         return array_keys(self::VENDOR_SCRIPTS);
     }
 
-    /** Test seam: forget everything, including the shell seed. */
+    /**
+     * Test seam: forget everything, including the shell seed and the page
+     * theme this request declared — both are this request's head.
+     */
     public static function reset(): void
     {
         self::$styles = [];
         self::$scripts = [];
         self::$vendorScripts = [];
         self::$seeded = false;
+        PageThemeCss::reset();
     }
 
     /**
