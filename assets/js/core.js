@@ -134,8 +134,57 @@
       });
     }
 
+    /* Mobile submenus slide open AND closed. A closed list is height 0 in
+       core.css and an open one height auto, which CSS cannot animate
+       between, so the list's real height is measured here and animated as
+       pixels: from the height it has right now (0, or wherever a running
+       slide is) to its content height or 0, after which the inline height
+       goes again and CSS takes over (auto keeps a nested list free to grow).
+       Measuring before the class changes is what makes the OPEN direction
+       work: the old display:none → flex switch had no start value, so it
+       jumped. Desktop flyouts and prefers-reduced-motion get no slide;
+       aria-expanded changes at once either way (setOpen below). */
+    var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var SLIDE_FALLBACK = 700;
+
+    function slideFrom(item) {
+      var panel = panelOf(item);
+      return panel ? panel.getBoundingClientRect().height : 0;
+    }
+
+    function slide(item, open, from) {
+      var panel = panelOf(item);
+      if (!panel) return;
+      if (panel.navSlideStop) panel.navSlideStop();
+      if (desktop.matches || reducedMotion.matches) {
+        panel.style.height = "";
+        return;
+      }
+      panel.style.height = from + "px";
+      var to = open ? panel.scrollHeight : 0;
+      void panel.offsetHeight; // commit the start height before the change
+      panel.style.height = to + "px";
+
+      var timer = null;
+      function stop() {
+        panel.removeEventListener("transitionend", onEnd);
+        window.clearTimeout(timer);
+        panel.navSlideStop = null;
+      }
+      function onEnd(e) {
+        if (e && (e.target !== panel || e.propertyName !== "height")) return;
+        stop();
+        panel.style.height = "";
+      }
+      panel.navSlideStop = stop;
+      panel.addEventListener("transitionend", onEnd);
+      timer = window.setTimeout(onEnd, SLIDE_FALLBACK);
+    }
+
     function setOpen(item, open, how) {
       window.clearTimeout(item.navCloseTimer);
+      var changes = isOpen(item) !== open;
+      var from = changes ? slideFrom(item) : 0;
       if (open) {
         siblingsOf(item).forEach(function (sibling) {
           if (isOpen(sibling)) setOpen(sibling, false);
@@ -151,6 +200,7 @@
           if (inner !== item && item.contains(inner) && isOpen(inner)) setOpen(inner, false);
         });
       }
+      if (changes) slide(item, open, from);
       var toggle = toggleOf(item);
       if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
     }

@@ -247,6 +247,49 @@ final class MainNavMarkupTest extends TestCase
         $this->assertStringContainsString('nav.classList.add("is-enhanced")', $script, 'the script switches the CSS-only hover off');
     }
 
+    /**
+     * A phone's submenu slides open as well as closed (v0.1.12). The list is
+     * height 0 / visibility hidden when closed and height auto when open, and
+     * core.js animates the MEASURED height between the two — never a guessed
+     * max-height. The start height is read before the class changes, which
+     * is what the old display:none → flex switch could not give the open
+     * direction. aria-expanded still changes at once, and reduced motion
+     * gets no slide.
+     */
+    public function testAMobileSubmenuSlidesBothWaysFromItsMeasuredHeight(): void
+    {
+        $script = (string) file_get_contents(self::ROOT . '/assets/js/core.js');
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', (string) file_get_contents(self::ROOT . '/assets/css/core.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/var changes = isOpen\(item\) !== open;\s*var from = changes \? slideFrom\(item\) : 0;\s*if \(open\) \{/',
+            $script,
+            'the start height is measured before the class changes'
+        );
+        $this->assertStringContainsString('if (changes) slide(item, open, from);', $script);
+        $this->assertStringContainsString('var to = open ? panel.scrollHeight : 0;', $script, 'measured, both directions');
+        $this->assertStringContainsString('void panel.offsetHeight;', $script, 'the start height is committed before the change');
+        $this->assertMatchesRegularExpression('/if \(desktop\.matches \|\| reducedMotion\.matches\) \{\s*panel\.style\.height = "";\s*return;\s*\}/', $script);
+        $this->assertStringContainsString('if (panel.navSlideStop) panel.navSlideStop();', $script, 'a quick second tap takes over from where the running slide is');
+        $this->assertDoesNotMatchRegularExpression('/max-height:\s*\d{3,}px/', $css, 'no guessed max-height');
+
+        $this->assertMatchesRegularExpression(
+            '/\.main-nav__submenu,\s*\.main-nav__submenu--level-3\{\s*position: static;\s*display: flex;\s*height: 0;\s*overflow: hidden;[^}]*visibility: hidden;[^}]*transition: height var\(--dur-base\) var\(--ease-out\), margin-top var\(--dur-base\) var\(--ease-out\), visibility 0s linear var\(--dur-base\);/',
+            $css,
+            'closed: no room, no focus stop, hidden only once the slide is over'
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.main-nav__item--has-children\.is-open > \.main-nav__submenu\{\s*height: auto;\s*margin-top: var\(--sp-1\);\s*visibility: visible;/',
+            $css,
+            'open: auto height, so a nested list can still grow; works without the script too'
+        );
+        $this->assertStringNotContainsString('.main-nav__item--has-children.is-open > .main-nav__submenu{ display: flex; }', $css);
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 900px\) and \(prefers-reduced-motion: reduce\)\{[^@]*\.main-nav__submenu,\s*\.main-nav__item--has-children\.is-open > \.main-nav__submenu\{ transition: none; \}/',
+            $css
+        );
+    }
+
     public function testHoverOpensOnlyForAMouseSoATapNeverNeedsASecondTap(): void
     {
         $script = (string) file_get_contents(self::ROOT . '/assets/js/core.js');

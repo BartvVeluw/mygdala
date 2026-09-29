@@ -674,8 +674,15 @@ p{ margin: 0; }
      Each toggle expands its own list in place, below its row, driven by the
      same .is-open / aria-expanded as desktop. Level 3 opens vertically under
      its level-2 row too, a step smaller and on a faint band of its own, so
-     the levels stay apart in a centred column. A closed list is
-     display:none, so its links are not a focus stop either. */
+     the levels stay apart in a centred column.
+     A closed list is height 0 and visibility hidden, so its links are not a
+     focus stop; an open one is height auto. core.js (slide()) animates the
+     measured height between the two in BOTH directions; without the script
+     the list simply shows and hides. visibility waits for the slide on the
+     way closed and switches at once on the way open. The gap above an open
+     list slides with it (margin-top), and level 3's inner spacing sits on
+     its first and last item, inside the clipped box, so a closed list takes
+     no room at all. */
   .main-nav__item--has-children{ display: flex; flex-direction: column; align-items: center; }
   .main-nav__row{ justify-content: center; gap: 0.25rem; max-width: 100%; }
   .main-nav__row > .main-nav__link{ min-width: 0; overflow-wrap: anywhere; }
@@ -685,8 +692,10 @@ p{ margin: 0; }
   .main-nav__submenu,
   .main-nav__submenu--level-3{
     position: static;
-    display: none;
-    margin-top: var(--sp-1);
+    display: flex;
+    height: 0;
+    overflow: hidden;
+    margin-top: 0;
     padding: 0;
     background: none;
     border: none;
@@ -695,12 +704,17 @@ p{ margin: 0; }
     min-width: 0;
     max-width: 100%;
     opacity: 1;
-    visibility: visible;
+    visibility: hidden;
     transform: none;
-    transition: none;
+    transition: height var(--dur-base) var(--ease-out), margin-top var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
   }
   .main-nav__submenu::before{ display: none; }
-  .main-nav__item--has-children.is-open > .main-nav__submenu{ display: flex; }
+  .main-nav__item--has-children.is-open > .main-nav__submenu{
+    height: auto;
+    margin-top: var(--sp-1);
+    visibility: visible;
+    transition: height var(--dur-base) var(--ease-out), margin-top var(--dur-base) var(--ease-out), visibility 0s;
+  }
   .main-nav__submenu a{ font-size: 1.15rem; padding: 0.5rem; color: var(--color-text-muted); }
   .main-nav__submenu .main-nav__toggle{ align-self: center; padding: 0.3rem; }
   .main-nav__submenu .main-nav__toggle:hover{ background: none; }
@@ -709,15 +723,19 @@ p{ margin: 0; }
   .main-nav__submenu .main-nav__item--has-children > .main-nav__row .main-nav__chevron,
   .main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ width: 18px; height: 18px; transform: none; }
   .main-nav__submenu--level-3{
-    padding: 0.25rem 1rem;
+    padding: 0 1rem;
     border-radius: 10px;
     background: rgba(255,255,255,0.04);
   }
+  .main-nav__submenu--level-3 > li:first-child{ margin-top: 0.25rem; }
+  .main-nav__submenu--level-3 > li:last-child{ margin-bottom: 0.25rem; }
   .main-nav__submenu--level-3 a{ font-size: 1rem; padding: 0.4rem; }
 }
 @media (max-width: 900px) and (prefers-reduced-motion: reduce){
   .main-nav__list li,
   .main-nav .header-actions{ transition: none; transform: none; }
+  .main-nav__submenu,
+  .main-nav__item--has-children.is-open > .main-nav__submenu{ transition: none; }
 }
 
 .hero__media-frame{
