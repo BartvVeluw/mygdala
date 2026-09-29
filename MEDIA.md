@@ -508,7 +508,7 @@ De zeven plekken, en welke keuzes ze hebben:
 
 | Plek | Tabel, prefix | Weergave | Telefoonhoogte |
 |---|---|---|---|
-| Kaart van de Kaarten-carrousel | `carousel_cards`, `image_` | ja | nee: de carrousel kiest één *Beeldverhouding op een rij* voor al zijn kaarten (`card_carousels.flat_image_ratio`: zoals de hoogte, 1:1, 4:3, 3:4, 16:9), op een telefoon en bij *Kaarten naast elkaar* |
+| Kaart van de Kaarten-carrousel | `carousel_cards`, `image_` | ja | nee: de carrousel kiest één *Beeldverhouding op een rij* voor al zijn kaarten (`card_carousels.flat_image_ratio`: zoals de hoogte, 1:1, 4:3, 3:4, 16:9), op een telefoon en bij *Kaarten naast elkaar*. De afbeelding voor een telefoon is de compacte afbeelding van de kaart: bij *Kaarten naast elkaar* op elke breedte |
 | Item van Tekst met afbeelding | `text_image_split_items`, `image_` | ja | ja |
 | Paginakop | `page_heroes`, `image_` | ja, alleen naast de tekst | ja, alleen achter de tekst |
 | Oproep met knop, achtergrond | `cta_bands`, `background_` | nee: achter tekst altijd vullen | nee |
@@ -535,8 +535,17 @@ standaard: zoals het was.
 (`page-hero.css`, `media-banner.css`, `text-image-split.css`).
 `Tests\Service\ResponsiveMediaContractTest` faalt zodra ze uit elkaar lopen.
 De eigen breekpunten van een blok voor zijn layout blijven wat ze waren: de
-Kaarten-carrousel wordt plat onder 700px, en tussen 641 en 699px staat daar
-dus de desktopafbeelding in de platte rij.
+draaiende Kaarten-carrousel wordt plat onder 700px, en tussen 641 en 699px
+staat daar de desktopafbeelding in de platte rij.
+
+**Een plek die altijd compact is.** Bij *Kaarten naast elkaar* staan de kaarten
+op elk scherm in dezelfde platte rij. Daar is de afbeelding voor een telefoon
+de *compacte* afbeelding van de kaart, en die geldt op elke breedte, met haar
+eigen punt en weergave en in de *Beeldverhouding op een rij*
+(`ResponsiveImage::compact()`, één `<img>`, geen `<source>`). Zonder eigen
+afbeelding toont elk scherm de desktopafbeelding. Er is geen derde afbeelding:
+de draaiende carrousel toont dezelfde compacte afbeelding alleen onder het
+breekpunt.
 
 **Eén markup.** `partials/responsive-image.php` print elk beeld van zo'n plek:
 

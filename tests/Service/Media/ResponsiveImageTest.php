@@ -272,6 +272,29 @@ final class ResponsiveImageTest extends TestCase
         }
     }
 
+    public function testACompactPlaceShowsThePhonePictureWithItsPointAndFitEverywhere(): void
+    {
+        $picture = [
+            'src' => '/desktop.jpg', 'alt' => 'Werkplaats', 'width' => 1600, 'height' => 900,
+            'mobile' => ['src' => '/phone.jpg', 'width' => 900, 'height' => 1600],
+            'position' => '30% 40%', 'mobile_position' => '50% 0%', 'fit' => 'cover', 'mobile_fit' => 'contain',
+        ];
+
+        self::assertSame([
+            'src' => '/phone.jpg', 'alt' => 'Werkplaats', 'width' => 900, 'height' => 1600,
+            'mobile' => null, 'position' => '50% 0%', 'mobile_position' => null, 'fit' => 'contain', 'mobile_fit' => null,
+        ], ResponsiveImage::compact($picture), 'the same alt text, the phone picture\'s own size, point and fit, nothing left to switch');
+
+        // A phone point or fit equal to the large screen's is not repeated: the large screen's applies.
+        $same = ResponsiveImage::compact(['mobile_position' => null, 'mobile_fit' => null] + $picture);
+        self::assertSame(['30% 40%', 'cover'], [$same['position'], $same['fit']]);
+
+        // Without a phone picture of its own nothing changes: the desktop
+        // picture everywhere, a phone point still only below the breakpoint.
+        $desktop = ['mobile' => null] + $picture;
+        self::assertSame($desktop, ResponsiveImage::compact($desktop));
+    }
+
     public function testASlotNamesOnlyLowercaseColumns(): void
     {
         self::assertSame('image_focus_x', self::full()->column('focus_x'));

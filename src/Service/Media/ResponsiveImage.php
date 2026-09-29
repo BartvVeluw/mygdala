@@ -398,6 +398,39 @@ final class ResponsiveImage
         return $this->mobileFit ?? $this->fit;
     }
 
+    /**
+     * A rendered picture (forRender()) as its compact presentation on every
+     * screen: the phone's own picture with the phone's point and fit, and no
+     * <source> left to switch. For a place that is compact at any width — the
+     * Kaarten-carrousel's "Kaarten naast elkaar", whose cards stand in the same
+     * flat row on a phone and on a large screen. Without a phone picture of
+     * its own the picture comes back unchanged: the desktop picture
+     * everywhere, its phone point and fit still only below the breakpoint.
+     *
+     * @param array<string, mixed> $picture what forRender() returned
+     *
+     * @return array<string, mixed> the same shape
+     */
+    public static function compact(array $picture): array
+    {
+        $mobile = $picture['mobile'] ?? null;
+        if (!is_array($mobile)) {
+            return $picture;
+        }
+
+        return [
+            'src' => (string) $mobile['src'],
+            'alt' => (string) ($picture['alt'] ?? ''),
+            'width' => $mobile['width'] ?? null,
+            'height' => $mobile['height'] ?? null,
+            'mobile' => null,
+            'position' => (string) ($picture['mobile_position'] ?? $picture['position']),
+            'mobile_position' => null,
+            'fit' => (string) ($picture['mobile_fit'] ?? $picture['fit']),
+            'mobile_fit' => null,
+        ];
+    }
+
     /** The CSS object-position of a point: "37% 64%". */
     public static function objectPosition(int $x, int $y): string
     {

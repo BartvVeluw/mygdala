@@ -45,7 +45,11 @@ require_once __DIR__ . '/responsive-image.php';
  * in a row — on a phone always, on larger screens with "Kaarten naast
  * elkaar" — instead of that height; 'auto' adds no class either. Each card's
  * picture is its own <picture> (partials/responsive-image.php): focus point,
- * fit and a phone picture of its own.
+ * fit and a phone picture of its own. That phone picture is the card's
+ * compact picture: the ring shows it below the breakpoint only, "Kaarten naast
+ * elkaar" — flat on every screen — shows it at every width, with its own
+ * point and fit (ResponsiveImage::compact()). Without one, the desktop
+ * picture shows everywhere.
  *
  * A card title is an h3 under the carousel's own title and an h2 in a
  * carousel without one (App\Service\Blocks\CardHeading); `.orbit-card__title`
@@ -117,12 +121,13 @@ function render_section_card_carousel(array $content): void
                         // A card read without a presentation (the block
                         // library's sample) prints its picture plainly: the
                         // middle, cover, nothing for a phone.
-                        render_responsive_image($card['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender([
+                        $picture = $card['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender([
                             'image_path' => $card['image_path'],
                             'alt' => $card['image_alt'] ?? '',
                             'width' => $card['image_width'] ?? null,
                             'height' => $card['image_height'] ?? null,
-                        ]), ['loading' => 'lazy']);
+                        ]);
+                        render_responsive_image($isRow ? \App\Service\Media\ResponsiveImage::compact($picture) : $picture, ['loading' => 'lazy']);
                       ?>
                     </div>
                     <?php else: ?>

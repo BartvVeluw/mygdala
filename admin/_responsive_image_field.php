@@ -61,6 +61,7 @@ use App\Service\Media\ResponsiveImageSlot;
  *     legend?: string,
  *     help?: string,
  *     note?: string,
+ *     mobile_picker_help?: string,
  *     part_attributes?: array<string, string>,
  * } $field
  *        id: a DOM id prefix, unique on the screen; preview: the desktop
@@ -164,7 +165,7 @@ function responsive_image_field(array $field): void
           ); ?>
 
           <div class="admin-rm__mobile-picker" data-rm-when="own"<?= $ownSource ? '' : ' hidden' ?>>
-            <?php media_picker_field($name($slot->column('mobile_media_id')), $mobileMedia, admin_t('media.responsive.mobile_picker'), admin_t('media.responsive.mobile_picker_help'), false); ?>
+            <?php media_picker_field($name($slot->column('mobile_media_id')), $mobileMedia, admin_t('media.responsive.mobile_picker'), (string) ($field['mobile_picker_help'] ?? admin_t('media.responsive.mobile_picker_help')), false); ?>
           </div>
           <?php $error('mobile_media'); ?>
 

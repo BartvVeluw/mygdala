@@ -318,6 +318,8 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
           'mobile_media' => MediaService::find($presentation->mobileMediaId),
           'frame' => $cardFrame,
           'errors' => $presentationErrors,
+          // The card's compact picture: a phone, and "Kaarten naast elkaar" on every screen.
+          'mobile_picker_help' => admin_t('block_carousel.mobile_picker_help'),
       ]); ?>
 
       <div class="admin-field">

@@ -1433,6 +1433,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'block_carousel.afbeeldingshoogte_large' => 'Large',
     'block_carousel.error_kop_uitlijning' => 'Choose left, centre or right for the title and lead.',
     'block_carousel.error_afbeeldingshoogte' => 'Choose small, medium or large for the pictures.',
+    'block_carousel.mobile_picker_help' => 'On a phone, and with "Cards side by side" on every screen. Without a picture of its own every screen shows the usual picture.',
     'block_carousel.beeldverhouding_rij' => 'Picture shape in a row',
     'block_carousel.beeldverhouding_auto' => 'As the height',
     'block_carousel.beeldverhouding_1_1' => 'Square',

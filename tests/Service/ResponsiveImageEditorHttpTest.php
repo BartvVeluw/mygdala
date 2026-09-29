@@ -340,6 +340,55 @@ final class ResponsiveImageEditorHttpTest extends TestCase
         self::assertSame('4-3', $this->carousels->findById($this->carouselId)['flat_image_ratio']);
     }
 
+    /**
+     * The phone picture is a card's compact picture: the ring shows it below
+     * the breakpoint only, "Kaarten naast elkaar" at every width, with its own
+     * point and fit; a card without one shows its desktop picture everywhere.
+     */
+    public function testCardsSideBySideShowTheCompactPictureOnEveryScreen(): void
+    {
+        $picture = $this->libraryItem('image/jpeg');
+        $phone = $this->libraryItem('image/jpeg');
+        $plain = $this->card('Acryl', $picture);
+        $card = $this->card('Hout', $picture);
+        $session = $this->signIn();
+        $this->assertSaved($this->saveCard($session, $card, $picture, [
+            'image_focus_x' => '30', 'image_focus_y' => '40',
+            'image_mobile_source' => 'own', 'image_mobile_media_id' => (string) $phone,
+            'image_mobile_focus_x' => '50', 'image_mobile_focus_y' => '0', 'image_mobile_fit' => 'contain',
+        ]));
+        $desktopPath = (string) MediaService::find($picture)?->publicPath();
+        $phonePath = (string) MediaService::find($phone)?->publicPath();
+        $plainImg = '<img src="' . $desktopPath . '" alt="Foto" width="1600" height="900" loading="lazy">';
+
+        // The ring: the phone picture only below the breakpoint.
+        foreach (['auto', '4-3'] as $ratio) {
+            $this->assertSaved($this->saveCarousel($session, ['desktop_layout' => 'orbit', 'flat_image_ratio' => $ratio]));
+            $html = $this->rendered();
+            self::assertSame(1, substr_count($html, '<source media="(max-width: 640px)" srcset="' . $phonePath . '"'), 'ring, ' . $ratio);
+            self::assertStringContainsString('<img src="' . $desktopPath . '" alt="Foto" width="1600" height="900" loading="lazy" style="object-position: 30% 40%; --rm-mobile-position: 50% 0%; --rm-mobile-fit: contain;" data-rm-mobile-position data-rm-mobile-fit>', $html);
+            self::assertStringContainsString($plainImg, $html, 'a card without an override keeps its desktop picture');
+        }
+
+        // Side by side: the phone picture at every width, as the one picture.
+        foreach (['auto', '4-3', '3-4', '16-9'] as $ratio) {
+            $this->assertSaved($this->saveCarousel($session, ['desktop_layout' => 'row', 'flat_image_ratio' => $ratio]));
+            $html = $this->rendered();
+            self::assertStringNotContainsString('<source', $html, 'side by side, ' . $ratio);
+            self::assertStringNotContainsString('rm-picture', $html);
+            self::assertStringContainsString('<img src="' . $phonePath . '" alt="Foto" width="1600" height="900" loading="lazy" style="object-position: 50% 0%; object-fit: contain;">', $html, 'the phone picture\'s point and fit, ' . $ratio);
+            self::assertStringContainsString($plainImg, $html, 'a card without an override keeps its desktop picture, ' . $ratio);
+            self::assertStringContainsString($ratio === 'auto' ? 'class="orbit-carousel orbit-carousel--row"' : 'orbit-carousel--flat-' . $ratio, $html, 'the row shape stays');
+        }
+        self::assertNotSame($plain, $card);
+
+        // The card editor says where the picture shows.
+        self::assertStringContainsString(
+            htmlspecialchars(AdminTranslator::trans('block_carousel.mobile_picker_help', [], 'nl'), ENT_QUOTES, 'UTF-8'),
+            self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body']
+        );
+    }
+
     // ------------------------------------------------------ the other places
 
     public function testAHoverCardsMainPictureTakesItsPresentationInItsOwnRow(): void
