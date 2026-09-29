@@ -65,6 +65,37 @@ class ProductVariantRepository extends Repository
     }
 
     /**
+     * The default variant of each of these products in one query: the first
+     * active variant by sort_order, as findDefaultForProduct() picks it. A
+     * product without an active variant is absent.
+     *
+     * @param array<int, int> $productIds
+     * @return array<int, int> product id => variant id
+     */
+    public function defaultVariantIds(array $productIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $productIds), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT id, product_id FROM product_variants
+             WHERE product_id IN ({$placeholders}) AND active = 1
+             ORDER BY product_id ASC, sort_order ASC, id ASC"
+        );
+        $stmt->execute($ids);
+
+        $defaults = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $defaults[(int) $row['product_id']] ??= (int) $row['id'];
+        }
+
+        return $defaults;
+    }
+
+    /**
      * Adds `values` (selected option values) and `images` (the product
      * pictures this variant shows, in its own order — the first one is its
      * default picture; ProductVariantImageRepository) to each variant row. An

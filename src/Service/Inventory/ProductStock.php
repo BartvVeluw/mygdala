@@ -63,6 +63,12 @@ final class ProductStock
         return new StockUnit($this->productId, null, $this->tracked, $this->productStock);
     }
 
+    /** Whether this variant of the product is for sale (an inactive one never is). */
+    public function isActiveVariant(int $variantId): bool
+    {
+        return ($this->variants[$variantId]['active'] ?? false) === true;
+    }
+
     /** @return array<int, StockUnit> variant id => unit, for every variant */
     public function variantUnits(): array
     {

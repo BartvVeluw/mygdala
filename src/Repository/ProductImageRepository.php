@@ -50,6 +50,39 @@ class ProductImageRepository extends Repository
     }
 
     /**
+     * The primary picture of each of these products in one query (the first
+     * row in sort_order, as findPrimary() picks it). A product without
+     * pictures is absent.
+     *
+     * @param array<int, int> $productIds
+     * @return array<int, array<string, mixed>> product id => picture
+     */
+    public function primaryForProducts(array $productIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $productIds), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            'SELECT ' . self::COLUMNS . "
+             FROM product_images pi
+             LEFT JOIN media m ON m.id = pi.media_id
+             WHERE pi.product_id IN ({$placeholders})
+             ORDER BY pi.product_id ASC, pi.sort_order ASC, pi.id ASC"
+        );
+        $stmt->execute($ids);
+
+        $primary = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $primary[(int) $row['product_id']] ??= $row;
+        }
+
+        return $primary;
+    }
+
+    /**
      * Appends a picture uploaded outside the library (the seeded catalogue,
      * tests). It becomes primary when it is the product's first.
      */

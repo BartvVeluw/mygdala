@@ -1677,6 +1677,7 @@ a{ color: var(--admin-accent); }
 }
 
 .admin-product-card{
+  position: relative;
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);
@@ -1725,8 +1726,10 @@ a{ color: var(--admin-accent); }
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  background: var(--admin-surface);
+  margin: 0;
 }
+
+.admin-product-card__status .admin-badge{ background: var(--admin-surface); }
 
 .admin-product-card__body{ padding: 0.7rem 0.85rem; }
 
@@ -1746,6 +1749,89 @@ a{ color: var(--admin-accent); }
   margin: 0;
   color: var(--admin-text-muted);
   font-size: 0.85rem;
+}
+
+/* The stock line (App\Service\Inventory\StockSummary): a badge in one of
+   the CMS's own tones, so sold out reads as an error and partly sold out as
+   a warning without a colour of its own. It may wrap on a narrow card. */
+.admin-product-card__stock{ margin: 0.4rem 0 0; }
+.admin-product-card__stock .admin-badge{ white-space: normal; text-align: left; }
+
+/* Bewerken is the whole card in the grid; the list names it in the row. */
+.admin-product-card__edit{ display: none; }
+
+/* The view switch sits above the products, on the right. */
+[data-product-view-toggle]{ margin: 0 0 var(--admin-sp-3); }
+.admin-view-toggle[hidden]{ display: none; }
+
+/* LIST: the same card as one compact row — thumbnail, name, status, price,
+   stock, actions. No table: below 700px the row folds into a card-like row
+   with the details under the name, and nothing scrolls sideways. */
+.admin-product-grid[data-product-view="list"]{
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--admin-sp-2);
+}
+[data-product-view="list"] .admin-product-card{
+  flex-direction: row;
+  align-items: center;
+}
+[data-product-view="list"] .admin-product-card__link{
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.75rem;
+}
+[data-product-view="list"] .admin-product-card__media{
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+}
+[data-product-view="list"] .admin-product-card__media-empty{ font-size: 0.62rem; text-align: center; line-height: 1.2; padding: 2px; }
+[data-product-view="list"] .admin-product-card__body{
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) 6.5rem 7rem minmax(0, 1.6fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+[data-product-view="list"] .admin-product-card__name{ margin: 0; }
+[data-product-view="list"] .admin-product-card__status{ position: static; }
+[data-product-view="list"] .admin-product-card__status .admin-badge{ background: transparent; }
+[data-product-view="list"] .admin-product-card__stock{ margin: 0; }
+[data-product-view="list"] .admin-product-card__footer{
+  flex: 0 0 auto;
+  margin: 0;
+  border-top: 0;
+  border-left: 1px solid var(--admin-border);
+  align-self: stretch;
+  justify-content: flex-end;
+}
+[data-product-view="list"] .admin-product-card__edit{ display: inline; font-weight: 600; }
+
+@media (max-width: 1000px){
+  [data-product-view="list"] .admin-product-card__body{ grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.3rem; }
+  [data-product-view="list"] .admin-product-card__name{ grid-column: 1 / -1; }
+}
+
+@media (max-width: 700px){
+  [data-product-view="list"] .admin-product-card{ flex-wrap: wrap; align-items: stretch; }
+  [data-product-view="list"] .admin-product-card__link{ flex-basis: 100%; align-items: flex-start; }
+  [data-product-view="list"] .admin-product-card__body{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+  [data-product-view="list"] .admin-product-card__name{ flex-basis: 100%; }
+  [data-product-view="list"] .admin-product-card__footer{
+    flex-basis: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--admin-border);
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 .admin-product-card__footer{
@@ -3685,10 +3771,11 @@ body.admin-media-modal-open{ overflow: hidden; }
    the row, with the words that say what it does. */
 .admin-media-modal__upload{ margin-left: auto; }
 
-/* Grid or list, on the library screen and in the picker's modal: two
-   buttons that say which one is on (aria-pressed), in the shape of the block
-   picker's view switch. */
-.admin-media-view{
+/* Grid or list, on the library screen, in the picker's modal and on Shop →
+   Producten (.admin-view-toggle): two buttons that say which one is on
+   (aria-pressed), in the shape of the block picker's view switch. */
+.admin-media-view,
+.admin-view-toggle{
   display: inline-flex;
   padding: 2px;
   background: var(--admin-surface-sunken);
@@ -3696,7 +3783,8 @@ body.admin-media-modal-open{ overflow: hidden; }
   border-radius: var(--admin-radius-sm);
 }
 
-.admin-media-view__option{
+.admin-media-view__option,
+.admin-view-toggle__option{
   padding: 0.3rem 0.8rem;
   font: inherit;
   font-size: 0.82rem;
@@ -3707,14 +3795,16 @@ body.admin-media-modal-open{ overflow: hidden; }
   cursor: pointer;
 }
 
-.admin-media-view__option[aria-pressed="true"]{
+.admin-media-view__option[aria-pressed="true"],
+.admin-view-toggle__option[aria-pressed="true"]{
   color: var(--admin-text);
   font-weight: 600;
   background: var(--admin-surface);
   box-shadow: var(--admin-shadow-sm);
 }
 
-.admin-media-view__option:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
+.admin-media-view__option:focus-visible,
+.admin-view-toggle__option:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
 
 .admin-media-modal__status{
   margin: var(--admin-sp-3) 0 0;

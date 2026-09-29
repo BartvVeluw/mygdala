@@ -7,9 +7,9 @@ require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\ProductAdminOverview;
 use App\Service\ShopLocalization;
 use App\Repository\ProductRepository;
-use App\Repository\ProductVariantRepository;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('products.view');
@@ -17,33 +17,20 @@ AdminAuth::requirePermission('products.view');
 $productRepository = new ProductRepository();
 
 try {
-    $products = $productRepository->findAllForAdmin();
+    // Every row with its thumbnail and its stock in a fixed number of
+    // queries (App\Service\ProductAdminOverview), however many products.
+    $products = (new ProductAdminOverview())->rows();
     $referencedIds = $productRepository->referencedProductIds();
 
-    // The overview thumbnail mirrors the public shop card: the default
-    // variant's (first active by sort_order) first chosen picture, else the
-    // product's own primary picture — a variant that chose none shows the
-    // product's pictures (MODULES.md, "Shop").
-    if ($products !== null) {
-        $variantRepository = new ProductVariantRepository();
-        foreach ($products as &$product) {
-            $defaultVariant = $variantRepository->findDefaultForProduct((int) $product['id']);
-            if ($defaultVariant !== null) {
-                $product['image_path'] = $defaultVariant['images'][0]['image_path'] ?? $product['image_path'];
-            }
-        }
-        unset($product);
-
-        // Every card's name in one query rather than one per card. The
-        // overview is language-neutral: a product is listed under the name
-        // the CMS calls it by (its default language's, see
-        // App\Service\Language\LanguageFallback::name()), in the
-        // language-neutral order the repository returned.
-        ShopLocalization::preloadProducts(array_map(
-            static fn (array $product): int => (int) $product['id'],
-            $products
-        ));
-    }
+    // Every card's name in one query rather than one per card. The
+    // overview is language-neutral: a product is listed under the name
+    // the CMS calls it by (its default language's, see
+    // App\Service\Language\LanguageFallback::name()), in the
+    // language-neutral order the repository returned.
+    ShopLocalization::preloadProducts(array_map(
+        static fn (array $product): int => (int) $product['id'],
+        $products
+    ));
 } catch (\Throwable $e) {
     error_log('[admin/products.php] ' . $e->getMessage());
     $products = null;
@@ -98,7 +85,18 @@ $canManageProducts = AdminAuth::can('products.manage');
       <p><?= admin_te('shop.producten_2') ?></p>
     <?php endif; ?>
   <?php else: ?>
-    <div class="admin-product-grid">
+    <?php
+      /* GRID OR LIST is a view preference, not data: one card markup, drawn
+         two ways by CSS (data-product-view), remembered in this browser's
+         localStorage by admin/assets/product-overview.js — the way the Media
+         Library remembers its view. Without JavaScript the grid stays and
+         the switch stays hidden. */
+    ?>
+    <div class="admin-view-toggle" role="group" aria-label="<?= admin_te('shop.products_view.label') ?>" data-product-view-toggle hidden>
+      <button type="button" class="admin-view-toggle__option" data-product-view-option="grid" aria-pressed="true"><?= admin_te('shop.products_view.grid') ?></button>
+      <button type="button" class="admin-view-toggle__option" data-product-view-option="list" aria-pressed="false"><?= admin_te('shop.products_view.list') ?></button>
+    </div>
+    <div class="admin-product-grid" data-product-overview data-product-view="grid">
       <?php foreach ($products as $product): ?>
         <?php
           $productId = (int) $product['id'];
@@ -106,33 +104,47 @@ $canManageProducts = AdminAuth::can('products.manage');
           $inUse = in_array($productId, $referencedIds, true);
           $name = ShopLocalization::productName($productId);
           $editUrl = '/admin/product-form.php?id=' . $productId;
+          $isInquiry = \App\Service\PurchaseMode::isInquiry($product['purchase_mode'] ?? null);
+          /** @var \App\Service\Inventory\StockSummary $stock */
+          $stock = $product['stock'];
         ?>
         <article class="admin-product-card">
           <?php // Read-only accounts get the same card, without the edit link. ?>
           <?php if ($canManageProducts): ?>
-          <a href="<?= $editUrl ?>" class="admin-product-card__link" aria-label="Bewerken: <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>">
+          <a href="<?= $editUrl ?>" class="admin-product-card__link" aria-label="<?= admin_te('common.edit') ?>: <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>">
           <?php else: ?>
           <div class="admin-product-card__link">
           <?php endif; ?>
             <div class="admin-product-card__media">
-              <?php if (!empty($product['image_path'])): ?>
-                <img src="/<?= htmlspecialchars(ltrim((string) $product['image_path'], '/'), ENT_QUOTES, 'UTF-8') ?>" alt="" loading="lazy">
+              <?php if ($product['thumbnail'] !== null): ?>
+                <img src="/<?= htmlspecialchars(ltrim((string) $product['thumbnail'], '/'), ENT_QUOTES, 'UTF-8') ?>" alt="" loading="lazy">
               <?php else: ?>
                 <span class="admin-product-card__media-empty"><?= admin_te('shop.no_photo') ?></span>
               <?php endif; ?>
-              <span class="admin-badge admin-product-card__status admin-badge--<?= $isActive ? 'paid' : 'canceled' ?>">
-                <?= $isActive ? admin_t('common.active') : 'Inactief' ?>
-              </span>
             </div>
             <div class="admin-product-card__body">
               <p class="admin-product-card__name"><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></p>
-              <p class="admin-product-card__price"><?= admin_t('shop.amount_with', ['v1' => htmlspecialchars(number_format((float) $product['price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8')]) ?><?php if (\App\Service\PurchaseMode::isInquiry($product['purchase_mode'] ?? null)): ?> <span class="admin-badge admin-badge--info"><?= admin_te('shop.purchase_mode.inquiry_badge') ?></span><?php endif; ?></p>
+              <p class="admin-product-card__status">
+                <span class="admin-badge admin-badge--<?= $isActive ? 'paid' : 'canceled' ?>"><?= $isActive ? admin_t('common.active') : admin_te('common.inactive') ?></span>
+              </p>
+              <p class="admin-product-card__price">
+                <?php if ($isInquiry): ?>
+                  <span class="admin-badge admin-badge--info"><?= admin_te('shop.purchase_mode.inquiry_badge') ?></span>
+                <?php else: ?>
+                  <?= admin_t('shop.amount_with', ['v1' => htmlspecialchars(number_format((float) $product['price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8')]) ?>
+                <?php endif; ?>
+              </p>
+              <p class="admin-product-card__stock">
+                <span class="admin-visually-hidden"><?= admin_te('shop.stock_summary.label') ?>:</span>
+                <span class="admin-badge admin-badge--<?= htmlspecialchars($stock->tone, ENT_QUOTES, 'UTF-8') ?>" data-stock-kind="<?= htmlspecialchars($stock->kind, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($stock->text(), ENT_QUOTES, 'UTF-8') ?></span>
+              </p>
             </div>
           <?php if (!$canManageProducts): ?>
           </div>
           <?php else: ?>
           </a>
           <div class="admin-product-card__footer">
+            <a href="<?= $editUrl ?>" class="admin-btn-text admin-product-card__edit" aria-label="<?= admin_te('common.edit') ?>: <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>"><?= admin_te('common.edit') ?></a>
             <form method="post" action="/api/admin/update-product-status.php" class="admin-inline-form">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
               <input type="hidden" name="id" value="<?= $productId ?>">
@@ -160,5 +172,6 @@ $canManageProducts = AdminAuth::can('products.manage');
     </div>
   <?php endif; ?>
 </main>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-overview.js') ?>" defer></script>
 </body>
 </html>
