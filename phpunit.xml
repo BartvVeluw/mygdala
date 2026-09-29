@@ -127,6 +127,7 @@
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
+            <file>tests/Service/RichContentTypographyTest.php</file>
             <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Service/ShopGalleryContractTest.php</file>
             <file>tests/Service/FeaturedProductContractTest.php</file>
@@ -203,6 +204,7 @@
             <file>tests/Service/Blocks/EditorChildListTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
+            <file>tests/Service/RichContentTypographyTest.php</file>
             <file>tests/Service/Routing/AcceptLanguageTest.php</file>
             <file>tests/Service/Routing/RequestPathTest.php</file>
             <file>tests/Service/Routing/LocalizedUrlTest.php</file>
@@ -521,6 +523,7 @@
             <file>tests/Service/Media/ResponsiveImageTest.php</file>
             <file>tests/Service/ResponsiveImageRenderTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
+            <file>tests/Service/RichContentTypographyTest.php</file>
             <file>tests/Service/ResponsiveImageEditorHttpTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/Blocks/EditorChildListTest.php</file>

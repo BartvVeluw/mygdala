@@ -1910,6 +1910,8 @@ a{ color: var(--admin-accent); }
 .admin-product-form input[type="text"],
 .admin-product-form input[type="email"],
 .admin-product-form input[type="number"],
+.admin-product-form input[type="tel"],
+.admin-product-form input[type="url"],
 .admin-product-form textarea,
 .admin-product-form input[type="file"]{
   width: 100%;
@@ -1926,6 +1928,8 @@ a{ color: var(--admin-accent); }
 .admin-product-form input[type="text"]:focus,
 .admin-product-form input[type="email"]:focus,
 .admin-product-form input[type="number"]:focus,
+.admin-product-form input[type="tel"]:focus,
+.admin-product-form input[type="url"]:focus,
 .admin-product-form textarea:focus{
   border-color: var(--admin-accent);
   outline: none;
@@ -2227,13 +2231,16 @@ a{ color: var(--admin-accent); }
    search box in the admin (media, portfolio, blog) was the browser's own
    white bar. The magnifier is .admin-search, in ADMIN UI PRIMITIVES below.
    A number field is the same text field with a spin button, so it belongs
-   here too ("Maximum aantal items" was the browser's own box). */
-select, button, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"]{
+   here too ("Maximum aantal items" was the browser's own box). A telephone
+   and a web address field are text fields as well: without them the
+   phone number in Instellingen → Bedrijfsgegevens was the browser's own
+   box next to a styled e-mail field. */
+select, button, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"], input[type="tel"], input[type="url"]{
   font-family: inherit;
   font-size: 0.92rem;
 }
 
-select, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"]{
+select, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"], input[type="tel"], input[type="url"]{
   background: var(--admin-surface-sunken);
   border: 1px solid var(--admin-border);
   color: var(--admin-text);
@@ -2242,9 +2249,23 @@ select, input[type="text"], input[type="password"], input[type="email"], input[t
   transition: border-color var(--admin-transition);
 }
 
-select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="number"]:focus{
+select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="url"]:focus{
   outline: none;
   border-color: var(--admin-accent);
+}
+
+/* The error and disabled states of the same text fields, as .admin-select
+   has them (ADMIN UI PRIMITIVES): a field the server or a script marks
+   aria-invalid gets the error border, a disabled one fades. */
+:is(input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"], input[type="tel"], input[type="url"], textarea)[aria-invalid="true"]{
+  border-color: var(--admin-error);
+}
+:is(input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"], input[type="tel"], input[type="url"], textarea)[aria-invalid="true"]:focus{
+  box-shadow: 0 0 0 3px var(--admin-error-soft);
+}
+:is(input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="tel"], input[type="url"], textarea):disabled{
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 button{

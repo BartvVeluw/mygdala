@@ -632,12 +632,47 @@ final class AdminUiPrimitivesTest extends TestCase
         );
     }
 
+    /**
+     * The phone number in Instellingen → Bedrijfsgegevens was the browser's
+     * own box beside a styled e-mail field: `tel` (and `url`) were missing
+     * from the shared text-field selectors. They are in every one of them
+     * now — look, focus, the error and disabled states, and the settings
+     * form's own full-width list — so no one-off phone class is needed.
+     */
+    public function testATelephoneFieldIsTheSharedTextField(): void
+    {
+        $css = self::source('admin/assets/admin.css');
+
+        foreach (['tel', 'url'] as $type) {
+            $this->assertStringContainsString('.admin-product-form input[type="' . $type . '"],', $css);
+            $this->assertStringContainsString('.admin-product-form input[type="' . $type . '"]:focus,', $css);
+            $this->assertStringContainsString('input[type="number"], input[type="' . 'tel"], input[type="url"]{', $css);
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/:is\([^)]*input\[type="tel"\][^)]*\)\[aria-invalid="true"\]\{\s*border-color: var\(--admin-error\);/',
+            $css,
+            'an invalid phone number shows the error border like the select does'
+        );
+        $this->assertMatchesRegularExpression(
+            '/:is\([^)]*input\[type="tel"\][^)]*\):disabled\{\s*opacity: 0\.55;/',
+            $css
+        );
+        $this->assertDoesNotMatchRegularExpression('/\.phone-input|\.admin-tel/', $css, 'no one-off class for one field');
+
+        $this->assertMatchesRegularExpression(
+            '/<input type="tel" id="settings-phone" name="company_phone"/',
+            self::source('admin/settings.php'),
+            'the field stays a real telephone input (the right keyboard on a phone)'
+        );
+    }
+
     public function testANumberFieldIsTheSharedTextField(): void
     {
         $css = self::source('admin/assets/admin.css');
 
         $this->assertStringContainsString('.admin-product-form input[type="number"],', $css);
-        $this->assertStringContainsString('input[type="search"]:focus, input[type="number"]:focus{', $css);
+        $this->assertStringContainsString('input[type="search"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="url"]:focus{', $css);
         $this->assertStringContainsString(
             '<input type="number" name="max_items" min="1" max="200"',
             self::source('admin/item-gallery.php'),
@@ -671,9 +706,9 @@ final class AdminUiPrimitivesTest extends TestCase
         $this->assertStringContainsString('forced-colors', $rules);
 
         $this->assertStringContainsString(
-            'select, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"]{',
+            'select, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"], input[type="tel"], input[type="url"]{',
             $css,
-            'no search box in the admin is the browser\'s own white bar'
+            'no search box, telephone or web address field in the admin is the browser\'s own white bar'
         );
     }
 

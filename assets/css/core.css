@@ -1183,8 +1183,14 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .rich-content{ color: var(--color-text-muted); line-height: 1.75; }
 .rich-content p{ margin: 0 0 1em; }
 .rich-content p:last-child{ margin-bottom: 0; }
-.rich-content h2{ font-size: 1.4rem; font-weight: 400; color: var(--color-text); margin: 1.4em 0 0.5em; }
-.rich-content h3{ font-size: 1.15rem; font-weight: 400; color: var(--color-text); margin: 1.2em 0 0.4em; }
+/* Headings in rich content are the site's own H2 and H3: the same size
+   tokens (--fs-h2, --fs-h3, which shrink with the viewport), and the
+   weight, line-height and font of the h1–h4 base rule above. A Tekstblok's
+   H2 therefore looks like every other H2 on the page, and a theme that
+   changes the heading font changes it here too. Only the spacing is rich
+   content's own, in rem so it does not grow with the heading. */
+.rich-content h2{ font-size: var(--fs-h2); color: var(--color-text); margin: var(--sp-4) 0 var(--sp-2); }
+.rich-content h3{ font-size: var(--fs-h3); color: var(--color-text); margin: var(--sp-3) 0 var(--sp-1); }
 .rich-content h2:first-child, .rich-content h3:first-child{ margin-top: 0; }
 /* The site-wide reset (ul{list-style:none}, for nav menus etc.) would
    otherwise make Portfolio bullet lists render with no visible marker at
