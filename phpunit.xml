@@ -379,8 +379,10 @@
             <file>tests/Service/Analytics/AnalyticsTrackingHttpTest.php</file>
             <file>tests/Service/CollectionRoutingTest.php</file>
             <file>tests/Service/ContentBlockArchitectureTest.php</file>
+            <file>tests/Service/ContentOwnerPagesRoutingTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>
             <file>tests/Service/HeaderFooterRenderingTest.php</file>
+            <file>tests/Service/OrderFieldUploadHttpTest.php</file>
             <file>tests/Service/PageRoutingTest.php</file>
             <file>tests/Service/PersonalizationAdminSecurityTest.php</file>
             <file>tests/Service/PersonalizationPreviewSnapshotTest.php</file>
@@ -392,6 +394,7 @@
             <file>tests/Service/RedirectSlugChangeTest.php</file>
             <file>tests/Service/RelatedProductsEmptyStateTest.php</file>
             <file>tests/Service/RelatedProductsProductPageTest.php</file>
+            <file>tests/Service/Search/SearchHttpTest.php</file>
             <file>tests/Service/SeoRoutingTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>
             <file>tests/Service/SitemapRoutingTest.php</file>
@@ -563,6 +566,7 @@
             <file>tests/Service/DetailSectionTwoTest.php</file>
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
             <file>tests/Service/DetailSectionTwoHttpTest.php</file>
+            <file>tests/Service/ContentOwnerPagesRoutingTest.php</file>
             <file>tests/Service/DetailSectionLabelModeHttpTest.php</file>
             <file>tests/Service/DetailSectionGalleryFocusHttpTest.php</file>
             <file>tests/Service/LinkedImagePreviewHttpTest.php</file>
@@ -716,6 +720,7 @@
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/Search/SearchNavigationTest.php</file>
+            <file>tests/Service/Search/SearchHttpTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
             <file>tests/Service/NavigationTreeContractTest.php</file>
@@ -797,6 +802,7 @@
         <testsuite name="shop">
             <file>tests/Service/ContentOwnerPagesTest.php</file>
             <file>tests/Service/ProductPortfolioContentPagesHttpTest.php</file>
+            <file>tests/Service/ContentOwnerPagesRoutingTest.php</file>
             <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
             <file>tests/Service/ContentBlockMediaUsageOwnerHttpTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
@@ -880,6 +886,7 @@
             <file>tests/Service/OrderFieldsTest.php</file>
             <file>tests/Service/OrderFieldsHttpTest.php</file>
             <file>tests/Service/OrderFieldImageUploadTest.php</file>
+            <file>tests/Service/OrderFieldUploadHttpTest.php</file>
             <file>tests/Service/OrderFieldStylingTest.php</file>
             <file>tests/Service/ProductAdminOverviewTest.php</file>
             <file>tests/Install/ImageOrderFieldUploadsMigrationTest.php</file>
