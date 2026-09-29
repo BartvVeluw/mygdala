@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/responsive-image.php';
+
 /**
  * Renders ONE "Detailsectie" block instance
  * (App\Service\DetailSectionContent) — the full-width, optionally anchored
@@ -95,20 +97,26 @@ function render_section_detail_section(array $content, array $markers, string $r
         </div>
       </div>
       <?php if ($content['images'] !== []): ?>
-      <?php $galleryCount = count($content['images']); ?>
+      <?php
+        $galleryCount = count($content['images']);
+        // Each item's own focus point in its square (Responsive Media 2.0,
+        // partials/responsive-image.php); an item read without one (the
+        // block library's sample) sits in the middle, as it always did.
+        $galleryPicture = static fn (array $image): array => $image['picture'] ?? (new \App\Service\Media\ResponsiveImage())->forRender($image);
+      ?>
       <div class="service-detail__gallery-wrap" data-detail-gallery>
         <div class="service-detail__gallery" data-reveal data-reveal-group="<?= $h($revealGroup) ?>-gallery" data-detail-gallery-strip<?= $galleryCount > 1 ? ' tabindex="0" role="region" aria-label="' . \App\Service\Language\SiteText::escaped(['nl' => 'Galerij', 'en' => 'Gallery']) . '"' : '' ?>>
           <?php foreach ($content['images'] as $image): ?>
           <figure class="service-detail__gallery-item" data-detail-gallery-item>
             <?php if (($image['href'] ?? '') !== ''): ?>
             <a class="service-detail__gallery-link" href="<?= $h($image['href']) ?>">
-              <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
+              <?php render_responsive_image($galleryPicture($image)); ?>
               <?php if (($image['title'] ?? '') !== ''): ?>
               <span class="service-detail__gallery-caption"><?= $h($image['title']) ?></span>
               <?php endif; ?>
             </a>
             <?php else: ?>
-            <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
+            <?php render_responsive_image($galleryPicture($image)); ?>
             <?php endif; ?>
           </figure>
           <?php endforeach; ?>

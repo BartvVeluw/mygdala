@@ -164,7 +164,9 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
     /** The gallery's linked items and its one-at-a-time strip on a phone (Detailsectie 2.0). */
     public function styles(): array
     {
-        return ['assets/css/blocks/detail-section.css'];
+        // The gallery's pictures print through partials/responsive-image.php
+        // (their focus points), whose stylesheet comes first (MEDIA.md).
+        return ['assets/css/responsive-media.css', 'assets/css/blocks/detail-section.css'];
     }
 
     /** The phone strip's arrows (assets/js/blocks/detail-section.js); the grid needs nothing. */

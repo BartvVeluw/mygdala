@@ -12,6 +12,7 @@ require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_gallery_source_field.php';
 require_once __DIR__ . '/_label_mode_field.php';
+require_once __DIR__ . '/_responsive_image_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -141,6 +142,9 @@ $imageRows = editor_rows_on_screen(
         // Where the picture comes from (Detailsectie 2.0): 'media', or the
         // kind of item with its id under source_<kind>.
         'source' => (string) ($image['source_type'] ?? '') !== '' ? (string) $image['source_type'] : 'media',
+        // Where the picture sits in its square (Responsive Media 2.0).
+        'image_focus_x' => (string) (int) ($image['image_focus_x'] ?? 50),
+        'image_focus_y' => (string) (int) ($image['image_focus_y'] ?? 50),
     ] + ((string) ($image['source_type'] ?? '') !== '' ? ['source_' . $image['source_type'] => (string) (int) ($image['source_id'] ?? 0)] : [])
 );
 
@@ -192,6 +196,35 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
         editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
     });
     editor_field_error($fieldErrors, 'images.' . $key . '.source');
+
+    // The FOCUS POINT of this item: which part of its picture its square
+    // shows, for a library picture and for an item's own one alike. The
+    // shared Responsive Media editor, without its phone part (a phone's
+    // strip shows the same square). Not the main image's "Beeldpositie",
+    // which puts that image left or right of the text.
+    $source = (string) ($fields['source'] ?? 'media');
+    $preview = $source === '' || $source === 'media'
+        ? (string) MediaService::find((int) ($fields['media_id'] ?? 0))?->displayPath()
+        : (string) (\App\Service\Media\LinkedImages::resolve($source, (int) ($fields['source_' . $source] ?? 0))['image_path'] ?? '');
+    $presentationErrors = [];
+    foreach ($fieldErrors as $errorKey => $message) {
+        if (str_starts_with((string) $errorKey, 'images.' . $key . '.presentation.')) {
+            $presentationErrors[substr((string) $errorKey, strlen('images.' . $key . '.presentation.'))] = (string) $message;
+        }
+    }
+    responsive_image_field([
+        'slot' => \App\Service\DetailSectionContent::imageSlot(),
+        'value' => \App\Service\Media\ResponsiveImage::fromRow($fields, \App\Service\DetailSectionContent::imageSlot()),
+        'id' => editor_row_id('images', $key, 'picture'),
+        'name' => static fn (string $column): string => editor_row_name('images', $key, $column),
+        'preview' => $preview,
+        'picker' => editor_row_name('images', $key, 'media_id'),
+        'mobile' => false,
+        'frame' => ['desktop' => '1 / 1'],
+        'errors' => $presentationErrors,
+        'legend' => admin_t('block_detail.focuspunt'),
+        'help' => admin_t('help.block_detail.focuspunt'),
+    ]);
     editor_row_close();
 };
 ?>
@@ -366,6 +399,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php label_mode_field_script(); ?>
+<?php responsive_image_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

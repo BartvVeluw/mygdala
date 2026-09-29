@@ -25,7 +25,11 @@
  * block's own picker (the field's data-rm-picker names it) or another phone
  * picture puts it in the frame at once, and a choice elsewhere in the same
  * row or form that changes the place's shape (data-rm-desktop-ratio,
- * data-rm-mobile-ratio on its input) changes the frame's shape.
+ * data-rm-mobile-ratio on its input) changes the frame's shape. A picture
+ * chosen some other way than a Media picker (a Detailsectie gallery item that
+ * shows a product's own picture) reaches the frame through an "rm:picture"
+ * event the block's own script sends from inside the row, with the picture's
+ * URL in detail.src ('' for none).
  *
  * DELEGATED, so a row admin/assets/row-list.js adds after the page loaded
  * works like one the server printed. This file holds no text of its own
@@ -324,6 +328,23 @@
       if (rm.getAttribute("data-rm-picker") !== name) return;
 
       var src = chosenPicture(target.closest("[data-media-picker]"));
+      var frame = rm.querySelector('[data-rm-focus="desktop"] [data-rm-frame]');
+      var image = frame ? frame.querySelector("[data-rm-preview]") : null;
+      if (frame && image) {
+        if (src !== "") image.setAttribute("src", src);
+        frame.hidden = src === "";
+      }
+      drawMobilePicture(rm);
+    });
+  });
+
+  // A picture chosen some other way than a Media picker (see above).
+  document.addEventListener("rm:picture", function (event) {
+    var target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    var src = event.detail && typeof event.detail.src === "string" ? event.detail.src : "";
+    scopeOf(target).querySelectorAll("[data-rm]").forEach(function (rm) {
       var frame = rm.querySelector('[data-rm-focus="desktop"] [data-rm-frame]');
       var image = frame ? frame.querySelector("[data-rm-preview]") : null;
       if (frame && image) {

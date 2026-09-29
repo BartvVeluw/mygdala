@@ -81,6 +81,8 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
 use App\Service\Media\LinkedImages;
+use App\Service\Media\ResponsiveImage;
+use App\Repository\ResponsiveImageRepository;
 use App\Service\Routing\LinkTargets;
 use App\Repository\DetailSectionRepository;
 
@@ -181,13 +183,38 @@ $clearMainImage = $mainChosen['media_id'] === null
 $idsOf = static fn (array $rows): array => array_map(static fn (array $row): int => (int) $row['id'], $rows);
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $points = EditorChildList::fromRequest($_POST, 'points', 'detail_section_points', $idsOf($repository->findPointsBySectionId($sectionId)), $action);
-$images = EditorChildList::fromRequest($post, 'images', 'detail_section_images', $idsOf($repository->findImagesBySectionId($sectionId)), $action);
+// A gallery item's focus point arrives already set (the middle) on a new
+// row: it does not make an empty new row a row.
+$imageSlot = DetailSectionContent::imageSlot();
+$imagePreset = array_map(static fn (string $part): string => $imageSlot->column($part), ['presentation', 'focus_x', 'focus_y']);
+$images = EditorChildList::fromRequest($post, 'images', 'detail_section_images', $idsOf($repository->findImagesBySectionId($sectionId)), $action, $imagePreset);
 
 // What each stored gallery row shows now, so a kept choice is recognised.
 $storedSources = [];
+$storedImages = [];
 foreach ($repository->findImagesBySectionId($sectionId) as $storedImage) {
     $storedSources[(int) $storedImage['id']] = [(string) ($storedImage['source_type'] ?? ''), (int) ($storedImage['source_id'] ?? 0)];
+    $storedImages[(int) $storedImage['id']] = $storedImage;
 }
+
+/**
+ * Where a gallery item's picture sits in its square (Responsive Media 2.0,
+ * DetailSectionContent::imageSlot()): the focus point, clamped to 0–100,
+ * refused when it is no number; a row without the field keeps what it has.
+ * Worked out once per row: validation, the refused form and the save ask.
+ *
+ * @return array{0: ResponsiveImage, 1: array<string, string>}
+ */
+$presentations = [];
+$presentationOf = static function (array $row) use (&$presentations, $storedImages, $imageSlot): array {
+    $stored = $storedImages[$row['id']] ?? null;
+
+    return $presentations[$row['key']] ??= ResponsiveImage::fromRequest(
+        $row['fields'],
+        $imageSlot,
+        $stored !== null ? ResponsiveImage::fromRow($stored, $imageSlot) : new ResponsiveImage()
+    );
+};
 
 /**
  * A gallery row's source: 'media', or [kind, id] of an item of the site.
@@ -255,7 +282,14 @@ if (!$languageIsWritable) {
         $fieldErrors['main_media_id'] = AdminTranslator::trans('editor_rows.error_media_unknown');
     }
     $pointErrors = $points->problems($languageCode);
-    $imageErrors = $images->problems($languageCode, $imageProblems);
+    $imageErrors = $images->problems($languageCode, static function (array $row) use ($imageProblems, $presentationOf): array {
+        $problems = $imageProblems($row);
+        foreach ($presentationOf($row)[1] as $part => $message) {
+            $problems['presentation.' . $part] = $message;
+        }
+
+        return $problems;
+    });
 
     // One line per problem at the top, the same line next to its field.
     foreach ($fieldErrors as $message) {
@@ -365,17 +399,24 @@ try {
         static fn (array $order) => $repository->reorderPoints($sectionId, $order)
     );
 
+    // The focus point of each item is stored on the gallery row, beside its
+    // source, never on the library item or the product, project or post.
+    $presentationRepository = new ResponsiveImageRepository();
     $images->save(
         $languageCode,
-        static function (array $row) use ($repository, $sectionId, $sourceOf): int {
+        static function (array $row) use ($repository, $sectionId, $sourceOf, $presentationRepository, $imageSlot, $presentationOf): int {
             [$kind, $itemId] = $sourceOf($row);
 
-            return $repository->createImage($sectionId, $kind === 'media'
+            $id = $repository->createImage($sectionId, $kind === 'media'
                 ? BlockImage::fromRequest($row['fields']['media_id'] ?? '')
                 : ['source_type' => $kind, 'source_id' => $itemId]);
+            $presentationRepository->save('detail_section_images', $id, $imageSlot, $presentationOf($row)[0]);
+
+            return $id;
         },
-        static function (int $id, array $row) use ($repository, $sourceOf): void {
+        static function (int $id, array $row) use ($repository, $sourceOf, $presentationRepository, $imageSlot, $presentationOf): void {
             [$kind, $itemId] = $sourceOf($row);
+            $presentationRepository->save('detail_section_images', $id, $imageSlot, $presentationOf($row)[0]);
             if ($kind !== 'media') {
                 // Only the kind and the id; the picture is the item's own.
                 $repository->updateImage($id, ['source_type' => $kind, 'source_id' => $itemId]);

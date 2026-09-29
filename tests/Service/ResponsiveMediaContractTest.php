@@ -7,6 +7,7 @@ namespace Tests\Service;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\CardCarouselContent;
 use App\Service\CtaBandContent;
+use App\Service\DetailSectionContent;
 use App\Service\HomepageHeroContent;
 use App\Service\HoverCardGridContent;
 use App\Service\Media\ResponsiveImage;
@@ -26,7 +27,7 @@ use PHPUnit\Framework\TestCase;
  *   - ONE MARKUP: only partials/responsive-image.php prints a <source> or an
  *     object-position; every block that prints a picture through it asks for
  *     the shared stylesheet, first;
- *   - ONE LIST: the seven places, their slots, the repository's tables and
+ *   - ONE LIST: the eight places, their slots, the repository's tables and
  *     the media usage all name the same columns, so a phone picture in use
  *     can never be deleted;
  *   - NO SECOND TRUTH: nothing reads the nine-key focus columns the
@@ -47,6 +48,8 @@ final class ResponsiveMediaContractTest extends TestCase
             'media_banners' => [MediaBannerContent::imageSlot(), 'media_banner', 'partials/section-media-banner.php'],
             'hover_card_grid_items' => [HoverCardGridContent::imageSlot(), 'hover_card_grid', 'partials/section-hover-card-grid.php'],
             'homepage_hero' => [HomepageHeroContent::imageSlot(), 'homepage_hero', 'partials/section-homepage-hero.php'],
+            // v0.1.13: a Detailsectie gallery item's focus point in its square.
+            'detail_section_images' => [DetailSectionContent::imageSlot(), 'detail_section', 'partials/section-detail-section.php'],
         ];
     }
 
@@ -141,7 +144,7 @@ final class ResponsiveMediaContractTest extends TestCase
         $repository = self::read('src/Repository/ResponsiveImageRepository.php');
         preg_match('/private const TABLES = \[(.*?)\];/s', $repository, $list);
         preg_match_all("/'([a-z_]+)'/", $list[1] ?? '', $tables);
-        self::assertSame(array_keys(self::places()), $tables[1], 'the repository writes exactly the seven places');
+        self::assertSame(array_keys(self::places()), $tables[1], 'the repository writes exactly the eight places');
 
         $usage = self::read('src/Service/Media/Usage/ContentBlockMediaUsage.php');
         foreach (self::places() as $table => [$slot]) {
@@ -155,12 +158,17 @@ final class ResponsiveMediaContractTest extends TestCase
             );
         }
 
-        // Both migrations list the same seven places.
+        // Both Responsive Media migrations list the seven places of 2.0; the
+        // Detailsectie gallery got its columns from its own migration.
         foreach (['db/migrations/20260928220000_give_block_images_a_free_focus_point.php', 'db/migrations/20260928230000_give_block_images_a_mobile_presentation.php'] as $migration) {
             $source = self::read($migration);
-            foreach (array_keys(self::places()) as $table) {
+            foreach (array_slice(array_keys(self::places()), 0, 7) as $table) {
                 self::assertStringContainsString("'" . $table . "' => [", $source, $migration);
             }
+        }
+        $gallery = self::read('db/migrations/20260930140000_give_labels_a_mode_and_gallery_items_a_focus_point.php');
+        foreach (DetailSectionContent::imageSlot()->columns() as $column) {
+            self::assertStringContainsString("'" . $column . "' => [", $gallery, $column);
         }
     }
 

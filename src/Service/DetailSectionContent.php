@@ -8,6 +8,8 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\LabelMode;
 use App\Service\Media\BlockImage;
 use App\Service\Media\LinkedImages;
+use App\Service\Media\ResponsiveImage;
+use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
 
@@ -181,22 +183,30 @@ class DetailSectionContent
         // item. Whatever a visitor cannot open (a draft, an inactive product,
         // a hidden project, an item that is gone, a module that is off) is
         // left out, never shown as a picture that leads nowhere.
+        //
+        // Every item keeps its own focus point (`picture`, Responsive Media
+        // 2.0, imageSlot()): which part of the picture its square frame
+        // shows. It belongs to this gallery row, never to the library item,
+        // the product, the project or the post, so a linked item that gets a
+        // new picture shows it at once with the point that was chosen here.
         $content['images'] = [];
         foreach ($images as $image) {
             $sourceType = trim((string) ($image['source_type'] ?? ''));
 
             if ($sourceType === '') {
-                $content['images'][] = BlockImage::fromOwner(
+                $item = BlockImage::fromOwner(
                     $image,
                     BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
                 ) + ['href' => '', 'title' => ''];
-                continue;
+            } else {
+                $item = LinkedImages::resolve($sourceType, (int) ($image['source_id'] ?? 0));
+                if ($item === null) {
+                    continue;
+                }
             }
 
-            $linked = LinkedImages::resolve($sourceType, (int) ($image['source_id'] ?? 0));
-            if ($linked !== null) {
-                $content['images'][] = $linked;
-            }
+            $item['picture'] = ResponsiveImage::fromRow($image, self::imageSlot())->forRender($item);
+            $content['images'][] = $item;
         }
 
         $content['state'] = self::STATE_ACTIVE;
@@ -222,6 +232,20 @@ class DetailSectionContent
             'index_label' => LabelMode::text($labelMode, $index + 1, $label),
             'bg_soft' => ($index % 2) === 1,
         ];
+    }
+
+    /**
+     * Where a gallery item keeps its picture's presentation (Responsive Media
+     * 2.0): the image_ columns of detail_section_images, a focus point and
+     * nothing more. The square frame is the gallery's, on every screen (the
+     * phone's strip too), so there is no fit to choose, no phone height and
+     * no phone picture; a phone follows the same point. The main image is not
+     * a slot: it is never cropped (full width, its own shape), so a focus
+     * point would do nothing there.
+     */
+    public static function imageSlot(): ResponsiveImageSlot
+    {
+        return new ResponsiveImageSlot('image_', 'media_id');
     }
 
     /** A stored label mode, or the numbering every section had before (LabelMode::SECTION_MODES). */

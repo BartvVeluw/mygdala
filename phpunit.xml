@@ -564,6 +564,7 @@
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
             <file>tests/Service/DetailSectionTwoHttpTest.php</file>
             <file>tests/Service/DetailSectionLabelModeHttpTest.php</file>
+            <file>tests/Service/DetailSectionGalleryFocusHttpTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
             <file>tests/Repository/BlockTranslationTreeTest.php</file>
@@ -715,6 +716,7 @@
             <file>tests/Service/Search/SearchNavigationTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
+            <file>tests/Service/NavigationTreeContractTest.php</file>
             <file>tests/Service/FooterAdminHttpTest.php</file>
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
