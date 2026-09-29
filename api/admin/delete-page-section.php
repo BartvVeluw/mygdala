@@ -23,10 +23,12 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
+use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\ContentOwners\ContentBlockAccess;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -50,6 +52,15 @@ if ($pageSection === null) {
 }
 
 $pageId = (int) $pageSection['page_id'];
+$page = (new PageRepository())->findById($pageId);
+
+if ($page === null) {
+    http_response_code(404);
+    exit('Unknown section.');
+}
+
+// The block's own list decides the permission (a product's, a project's or a page's).
+ContentBlockAccess::requirePageForApi($page);
 
 if (!SectionRegistry::isDeletable((string) $pageSection['section_type'])) {
     http_response_code(400);
@@ -62,9 +73,9 @@ try {
     error_log('[api/admin/delete-page-section.php] ' . $e->getMessage());
 
     $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_verwijderd_probeer_opnieuw');
-    header('Location: /admin/page.php?id=' . $pageId);
+    header('Location: ' . ContentBlockAccess::listUrl($page));
     exit;
 }
 
-header('Location: /admin/page.php?id=' . $pageId . '&deleted=1');
+header('Location: ' . ContentBlockAccess::listUrl($page) . '&deleted=1');
 exit;

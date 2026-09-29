@@ -24,9 +24,10 @@ use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\ContentOwners\ContentBlockAccess;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+ContentBlockAccess::requireAnyForApi();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -52,6 +53,9 @@ if ($page === null) {
     echo json_encode(['ok' => false, 'error' => 'Unknown page.']);
     exit;
 }
+
+// Whose list this is decides the permission, not the holder page.
+ContentBlockAccess::requirePageForApi($page);
 
 $idsRaw = (string) ($_POST['section_ids'] ?? '');
 $ids = array_values(array_filter(array_map(

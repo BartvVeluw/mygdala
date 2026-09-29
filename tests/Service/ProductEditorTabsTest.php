@@ -58,14 +58,15 @@ final class ProductEditorTabsTest extends TestCase
      * an existing product, with the block list every page has, OUTSIDE the
      * product form — every block is saved in its own editor, and the list's
      * own buttons are forms of their own, which cannot sit inside another.
-     * Only for an editor who may edit blocks at all.
+     * For whoever may manage the product: its blocks ask the product's own
+     * permission, never pages.manage (ContentBlockAccess).
      */
     public function testPaginaInhoudIsAFourthTabOutsideTheProductForm(): void
     {
         $form = self::source();
 
         self::assertStringContainsString("] + (\$hasContentTab ? ['inhoud' => admin_t('content_blocks.tab')] : [])", $form);
-        self::assertStringContainsString('$hasContentTab = $isEdit && AdminAuth::can(\App\Service\AdminPermissions::PAGES_MANAGE);', $form);
+        self::assertStringContainsString('$hasContentTab = $isEdit && \App\Service\ContentOwners\ContentBlockAccess::canManageKind(\App\Service\ProductContentOwner::KIND);', $form);
 
         $formEnd = strpos($form, '</form>');
         $panel = strpos($form, "admin_tab_panel('inhoud')");

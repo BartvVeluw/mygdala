@@ -58,6 +58,36 @@ final class AdminAccessControlTest extends TestCase
         'update-content-language.php',
     ];
 
+    /**
+     * The shared block screens and endpoints, whose permission is the one of
+     * the block list they change (App\Service\ContentOwners\ContentBlockAccess,
+     * CONTENT-BLOCKS.md "Wie mag welke blokken beheren"): pages.manage for a
+     * page, products.manage for a product, portfolio.manage for a project.
+     * They cannot name one literal permission, so in its place they ask
+     * ContentBlockAccess::requireAny() (a screen) or requireAnyForApi() (an
+     * endpoint) — at least one block permission, at the same spot — and then
+     * the list's own permission, read from its `pages` row, before the
+     * editor reads or the endpoint writes anything. A closed list: any other
+     * file that uses the owner-aware guard fails below.
+     */
+    private const OWNER_AWARE_BLOCK_SCREENS = [
+        'block-preview.php', 'card-carousel.php', 'carousel-card.php', 'contact-card.php', 'contact-form.php',
+        'cta-band.php', 'detail-section.php', 'faq.php', 'feature-grid.php', 'featured-product.php',
+        'form-block.php', 'hover-card-grid.php', 'item-gallery.php', 'marquee.php', 'media-banner.php',
+        'project-cards.php', 'project-info.php', 'rich-text.php', 'spacer.php', 'stat-strip.php',
+        'step-list.php', 'text-image-split.php',
+    ];
+
+    private const OWNER_AWARE_BLOCK_ENDPOINTS = [
+        'add-page-section.php', 'delete-page-section.php', 'toggle-page-section.php', 'reorder-page-sections.php',
+        'update-card-carousel.php', 'update-carousel-card.php', 'update-contact-card.php', 'update-contact-form.php',
+        'update-cta-band.php', 'update-detail-section.php', 'update-faq-section.php', 'update-feature-grid.php',
+        'update-featured-product.php', 'update-form-block.php', 'update-hover-card-grid.php', 'update-item-gallery.php',
+        'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php', 'update-project-info.php',
+        'update-rich-text-section.php', 'update-spacer.php', 'update-stat-strip.php', 'update-step-list-section.php',
+        'update-text-image-split-section.php',
+    ];
+
     /** Shared includes rendered by other pages, never requested directly. */
     private const ADMIN_PARTIALS = [
         '_header.php',
@@ -269,6 +299,18 @@ final class AdminAccessControlTest extends TestCase
                 continue;
             }
 
+            if (in_array($page, self::OWNER_AWARE_BLOCK_SCREENS, true)) {
+                $this->assertSame([], $this->requiredPermissions($source), "{$page}: the block list decides, not a literal");
+                $this->assertLessThan(
+                    (int) strpos($source, 'ContentBlockAccess::requireAny()'),
+                    strpos($source, 'AdminAuth::requireLogin()'),
+                    "{$page}: login is checked first"
+                );
+                continue;
+            }
+
+            $this->assertStringNotContainsString('ContentBlockAccess::requireAny', $source, "{$page} is not an owner-aware block screen");
+
             $permissions = $this->requiredPermissions($source);
             $this->assertNotEmpty($permissions, "{$page} must require a permission, not only a login");
 
@@ -302,7 +344,9 @@ final class AdminAccessControlTest extends TestCase
     {
         foreach (self::adminPages() as $page) {
             $source = $this->source('admin/' . $page);
-            $permissionPos = (int) strpos($source, 'AdminAuth::requirePermission(');
+            $permissionPos = in_array($page, self::OWNER_AWARE_BLOCK_SCREENS, true)
+                ? (int) strpos($source, 'ContentBlockAccess::requireAny()')
+                : (int) strpos($source, 'AdminAuth::requirePermission(');
 
             foreach (['Repository(', '<!doctype html>'] as $marker) {
                 $markerPos = strpos($source, $marker);
@@ -333,6 +377,24 @@ final class AdminAccessControlTest extends TestCase
                 continue;
             }
 
+            if (in_array($endpoint, self::OWNER_AWARE_BLOCK_ENDPOINTS, true)) {
+                $this->assertSame([], $this->requiredPermissions($source), "{$endpoint}: the block list decides, not a literal");
+
+                $loginPos = strpos($source, 'AdminAuth::requireLoginForApi()');
+                $anyPos = strpos($source, 'ContentBlockAccess::requireAnyForApi()');
+                $postPos = strpos($source, "\$_SERVER['REQUEST_METHOD'] !== 'POST'");
+                $csrfPos = strpos($source, 'Csrf::validate(');
+
+                $this->assertNotFalse($loginPos, $endpoint);
+                $this->assertNotFalse($anyPos, $endpoint);
+                $this->assertLessThan($anyPos, $loginPos, "{$endpoint}: login before permission");
+                $this->assertLessThan($postPos, $anyPos, "{$endpoint}: permission before the method check");
+                $this->assertLessThan($csrfPos, $anyPos, "{$endpoint}: permission before the CSRF token");
+                continue;
+            }
+
+            $this->assertStringNotContainsString('ContentBlockAccess::requireAny', $source, "{$endpoint} is not an owner-aware block endpoint");
+
             $permissions = $this->requiredPermissions($source);
             $this->assertNotEmpty($permissions, "{$endpoint} must require a permission, not only a login");
             $this->assertCount(1, $permissions, "{$endpoint} should ask for exactly one permission");
@@ -357,6 +419,38 @@ final class AdminAccessControlTest extends TestCase
                     "{$endpoint}: the permission must be checked before the CSRF token"
                 );
             }
+        }
+    }
+
+    /**
+     * Step 2 of an owner-aware block file: the list's own permission, from
+     * its `pages` row, before the editor renders or the endpoint writes. The
+     * behaviour itself — a Shop manager on a product, forged keys and ids —
+     * is Tests\Service\ContentBlockOwnerAccessHttpTest.
+     */
+    public function testEveryOwnerAwareBlockFileChecksTheListItChanges(): void
+    {
+        $step2 = '/ContentBlockAccess::(pageForKey|pageForKeyForApi|requirePage|requirePageForApi)\(/';
+
+        foreach (self::OWNER_AWARE_BLOCK_SCREENS as $page) {
+            $source = $this->source('admin/' . $page);
+
+            if ($page === 'block-preview.php') {
+                // Reads no list: a sample block in memory, for the picker.
+                $this->assertDoesNotMatchRegularExpression('/Repository\(/', $source);
+                continue;
+            }
+
+            $this->assertMatchesRegularExpression($step2, $source, $page);
+            $this->assertStringNotContainsString('findByContentKey(', $source, "{$page}: a list is only found through ContentBlockAccess");
+            $this->assertLessThan(strpos($source, '<!doctype html>'), (int) strpos($source, 'ContentBlockAccess::pageForKey('), $page);
+        }
+
+        foreach (self::OWNER_AWARE_BLOCK_ENDPOINTS as $endpoint) {
+            $source = $this->source('api/admin/' . $endpoint);
+
+            $this->assertMatchesRegularExpression($step2, $source, $endpoint);
+            $this->assertStringNotContainsString('findByContentKey(', $source, "{$endpoint}: a list is only found through ContentBlockAccess");
         }
     }
 

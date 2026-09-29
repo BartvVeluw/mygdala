@@ -16,7 +16,6 @@ use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
-use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 
 /**
@@ -45,7 +44,7 @@ use App\Repository\PageSectionRepository;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 if (!SectionRegistry::exists('project_cards')) {
     http_response_code(404);
@@ -56,7 +55,7 @@ $sectionParam = (string) ($_GET['section'] ?? '');
 
 [$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
-$page = ($pageSlug === null || $pageSlug === '') ? null : (new PageRepository())->findByContentKey($pageSlug);
+$page = ($pageSlug === null || $pageSlug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 $section = ($page === null || $sectionKey === null || $sectionKey === '')
     ? null
     : (new ItemGalleryRepository())->findBySlugAndKey($pageSlug, $sectionKey);
@@ -133,7 +132,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_projects.back', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_projects.back', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('project_cards')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_projects.intro', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 

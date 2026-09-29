@@ -34,9 +34,18 @@ final class FormBoundaryTest extends TestCase
         'move-form-field.php' => 'forms.manage',
         'delete-form-field.php' => 'forms.manage',
         'delete-form-submission.php' => 'forms.submissions',
-        // Placing a form on a page is content work, not form management.
-        'update-form-block.php' => 'pages.manage',
-        'update-contact-form.php' => 'pages.manage',
+    ];
+
+    /**
+     * Placing a form on a page is content work, not form management: the
+     * permission of the block's list (App\Service\ContentOwners\ContentBlockAccess,
+     * pages.manage on a page), never forms.manage or forms.submissions.
+     */
+    private const BLOCK_FILES = [
+        'api/admin/update-form-block.php',
+        'api/admin/update-contact-form.php',
+        'admin/form-block.php',
+        'admin/contact-form.php',
     ];
 
     /** Admin screens and the permission each one is behind. */
@@ -46,8 +55,6 @@ final class FormBoundaryTest extends TestCase
         'form-field.php' => 'forms.manage',
         'form-submissions.php' => 'forms.submissions',
         'form-submission.php' => 'forms.submissions',
-        'form-block.php' => 'pages.manage',
-        'contact-form.php' => 'pages.manage',
     ];
 
     /** Every public page template that can carry a form block. */
@@ -142,6 +149,18 @@ final class FormBoundaryTest extends TestCase
             $this->assertStringContainsString($this->permissionReference($permission), $source, $file . ' must demand ' . $permission);
             $this->assertStringContainsString("REQUEST_METHOD'] !== 'POST'", $source, $file . ' must refuse anything but POST');
             $this->assertStringContainsString('Csrf::validate(', $source, $file . ' must validate a CSRF token');
+        }
+    }
+
+    public function testPlacingAFormAsksTheBlockListsPermissionAndNoFormsRight(): void
+    {
+        foreach (self::BLOCK_FILES as $file) {
+            $source = $this->read($file);
+
+            $this->assertMatchesRegularExpression('/ContentBlockAccess::requireAny(ForApi)?\(\)/', $source, $file);
+            $this->assertMatchesRegularExpression('/ContentBlockAccess::pageForKey(ForApi)?\(/', $source, $file);
+            $this->assertStringNotContainsString("'forms.manage'", $source, $file);
+            $this->assertStringNotContainsString("'forms.submissions'", $source, $file);
         }
     }
 

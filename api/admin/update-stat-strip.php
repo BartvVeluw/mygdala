@@ -43,7 +43,7 @@ use App\Service\StatStripContent;
 use App\Repository\StatStripRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -67,13 +67,16 @@ if ($section === null) {
     // request.
     [$dynPageSlug, $dynSectionKey] = array_pad(explode(':', $sectionKey, 2), 2, null);
     if ($dynPageSlug === null || $dynSectionKey === null
-        || (new \App\Repository\PageRepository())->findByContentKey($dynPageSlug) === null
+        || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($dynPageSlug) === null
         || (new StatStripRepository())->findBySlugAndKey($dynPageSlug, $dynSectionKey) === null
     ) {
         http_response_code(404);
         exit('Unknown section.');
     }
     $section = ['page_slug' => $dynPageSlug, 'section_key' => $dynSectionKey];
+} else {
+    // A fixed block of one of the site's own pages.
+    \App\Service\ContentOwners\ContentBlockAccess::requirePagesForApi();
 }
 
 $repository = new StatStripRepository();

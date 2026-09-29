@@ -7,7 +7,6 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_ui.php';
 
-use App\Repository\PageRepository;
 use App\Repository\SpacerRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -26,13 +25,13 @@ use App\Service\SpacerContent;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 [$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
 $repository = new SpacerRepository();
-$page = ($pageSlug === null || $pageSlug === '') ? null : (new PageRepository())->findByContentKey($pageSlug);
+$page = ($pageSlug === null || $pageSlug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 
 if ($page === null || $sectionKey === null || $sectionKey === ''
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
@@ -61,7 +60,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_spacer.terug', ['v1' => $h($pageLabel)]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_spacer.terug', ['v1' => $h($pageLabel)]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('spacer')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_spacer.uitleg', ['v1' => $h($pageLabel)]) ?></p>
 

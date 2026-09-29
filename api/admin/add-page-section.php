@@ -42,13 +42,14 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
+use App\Service\ContentOwners\ContentBlockAccess;
 use App\Service\ContentOwners\ContentOwners;
 use App\Service\ContentOwners\ContentPages;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -102,6 +103,9 @@ if ($page === null) {
     exit('Unknown page.');
 }
 
+// Whose list this is decides the permission, not the holder page.
+ContentBlockAccess::requirePageForApi($page);
+
 $repository = new PageSectionRepository();
 $available = SectionRegistry::availableForPage($page, $repository);
 
@@ -129,7 +133,7 @@ try {
     error_log('[api/admin/add-page-section.php] ' . $e->getMessage());
 
     $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_toegevoegd_probeer_opnieuw');
-    header('Location: ' . ((int) $page['id'] > 0 ? '/admin/page.php?id=' . (int) $page['id'] : $owner->editUrl($ownerId)));
+    header('Location: ' . ((int) $page['id'] > 0 ? ContentBlockAccess::listUrl($page) : $owner->editUrl($ownerId)));
     exit;
 }
 
@@ -140,5 +144,5 @@ $editUrl = $newPageSection !== null ? SectionRegistry::editUrl($newPageSection) 
 // to be after choosing a block. A block with no editor of its own goes back
 // to the page builder naming the row that appeared, so the new block is never
 // something they have to go and find.
-header('Location: ' . ($editUrl ?? '/admin/page.php?id=' . (int) $page['id'] . '&added=' . $newId . '#blok-' . $newId));
+header('Location: ' . ($editUrl ?? ContentBlockAccess::listUrl($page) . '&added=' . $newId . '#blok-' . $newId));
 exit;

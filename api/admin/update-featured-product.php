@@ -11,7 +11,8 @@
  * trusted beyond that.
  *
  * THE SHOP FIRST. The block belongs to the Shop, but its editor is guarded by
- * pages.manage, a Core permission that is still held while the Shop is off;
+ * the permission of its list (ContentBlockAccess; pages.manage on a page, a
+ * Core permission that is still held while the Shop is off);
  * so App\Module\ModuleGuard refuses before anything else when the Shop is
  * off, and nothing is read or written.
  *
@@ -43,7 +44,6 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Database;
 use App\Repository\FeaturedProductRepository;
-use App\Repository\PageRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -54,7 +54,7 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -73,7 +73,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new FeaturedProductRepository();
 
 if ($slug === null || $slug === '' || $sectionKey === null || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($slug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($slug) === null
     || ($section = $repository->findBySlugAndKey($slug, $sectionKey)) === null
 ) {
     http_response_code(404);

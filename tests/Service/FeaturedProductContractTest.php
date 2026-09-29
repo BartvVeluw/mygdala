@@ -148,12 +148,12 @@ final class FeaturedProductContractTest extends TestCase
         $endpoint = self::source('api/admin/update-featured-product.php');
 
         self::assertLessThan(strpos($editor, 'AdminAuth::requireLogin();'), strpos($editor, "ModuleGuard::requireAdmin('shop');"));
-        self::assertLessThan(strpos($editor, "AdminAuth::requirePermission('pages.manage');"), strpos($editor, 'AdminAuth::requireLogin();'));
+        self::assertLessThan(strpos($editor, 'ContentBlockAccess::requireAny();'), strpos($editor, 'AdminAuth::requireLogin();'));
 
         $order = [
             "ModuleGuard::requireApi('shop');",
             'AdminAuth::requireLoginForApi();',
-            "AdminAuth::requirePermissionForApi('pages.manage');",
+            'ContentBlockAccess::requireAnyForApi();',
             "\$_SERVER['REQUEST_METHOD'] !== 'POST'",
             'Csrf::validate(',
             '$repository->findBySlugAndKey(',

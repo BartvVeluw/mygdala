@@ -338,9 +338,11 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
         $this->assertStringContainsString('name="content_owner_id" value="' . $id . '"', $body);
         $this->assertStringContainsString('data-page-section-zone', $body);
 
+        // A product's blocks ask the product's own permission, not pages.manage
+        // (ContentBlockOwnerAccessHttpTest has the rest).
         [$productsOnly] = $this->accounts->signIn(['products.manage']);
         $body = self::$on->request('GET', '/admin/product-form.php?id=' . $id, $productsOnly)['body'];
-        $this->assertStringNotContainsString('name="content_owner"', $body, 'no block list without pages.manage');
+        $this->assertStringContainsString('name="content_owner" value="product"', $body, 'the block list without pages.manage');
     }
 
     public function testTheProjectsLayoutIsSavedAndAWrongOneRefused(): void

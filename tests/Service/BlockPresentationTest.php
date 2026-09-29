@@ -309,9 +309,10 @@ final class BlockPresentationTest extends TestCase
             $this->assertStringNotContainsString('api/admin/', $source, $screen);
         }
 
-        foreach (['admin/content-blocks.php', 'admin/block-preview.php'] as $screen) {
-            $this->assertStringContainsString("AdminAuth::requirePermission('pages.manage')", $this->sourceOf($screen), $screen);
-        }
+        $this->assertStringContainsString("AdminAuth::requirePermission('pages.manage')", $this->sourceOf('admin/content-blocks.php'));
+        // The preview also serves the picker on a product's or a project's
+        // Pagina-inhoud tab: whoever manages some block list (ContentBlockAccess).
+        $this->assertStringContainsString('ContentBlockAccess::requireAny()', $this->sourceOf('admin/block-preview.php'));
 
         // What is listed is what is registered: the blocks of enabled modules alone.
         $catalogue = $this->sourceOf('admin/content-blocks.php');

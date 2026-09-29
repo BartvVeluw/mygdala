@@ -19,7 +19,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use App\Repository\PageRepository;
 use App\Repository\SpacerRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -27,7 +26,7 @@ use App\Service\Language\AdminTranslator;
 use App\Service\SpacerContent;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -46,7 +45,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new SpacerRepository();
 
 if ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
 ) {
     http_response_code(404);

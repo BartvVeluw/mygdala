@@ -560,7 +560,7 @@ final class PortfolioModuleTest extends TestCase
         $editor = self::withoutComments(self::sourceOf('admin/project-cards.php'));
         $positions = [
             strpos($editor, 'AdminAuth::requireLogin()'),
-            strpos($editor, "AdminAuth::requirePermission('pages.manage')"),
+            strpos($editor, 'ContentBlockAccess::requireAny()'),
             strpos($editor, "SectionRegistry::exists('project_cards')"),
             strpos($editor, 'Repository('),
             strpos($editor, "findBySectionTypeAndId('project_cards'"),
@@ -574,7 +574,7 @@ final class PortfolioModuleTest extends TestCase
         $endpoint = self::withoutComments(self::sourceOf('api/admin/update-project-cards.php'));
         $positions = [
             strpos($endpoint, 'AdminAuth::requireLoginForApi()'),
-            strpos($endpoint, "requirePermissionForApi('pages.manage')"),
+            strpos($endpoint, 'ContentBlockAccess::requireAnyForApi()'),
             strpos($endpoint, "REQUEST_METHOD'] !== 'POST'"),
             strpos($endpoint, 'Csrf::validate('),
             strpos($endpoint, "SectionRegistry::exists('project_cards')"),

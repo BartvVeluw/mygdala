@@ -10,7 +10,8 @@
  * exist" gate — an arbitrary page_slug:section_key pair from the request is
  * never trusted beyond that.
  *
- * `pages.manage`, not `forms.manage`: choosing which form goes on a page is
+ * The block's list's permission (ContentBlockAccess: `pages.manage` on a
+ * page), not `forms.manage`: choosing which form goes on a page is
  * placing content. It changes nothing about the form itself and gives no
  * access to what people sent.
  *
@@ -33,7 +34,6 @@ use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\FormBlockRepository;
 use App\Repository\FormRepository;
-use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
@@ -42,7 +42,7 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -61,7 +61,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new FormBlockRepository();
 
 if ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
 ) {
     http_response_code(404);

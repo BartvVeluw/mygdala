@@ -3859,7 +3859,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'validation.portfolio_layout_unknown' => 'Choose a project layout from the list.',
 
     'content_blocks.project_page_off' => 'This project has no project page right now (Show project page is off). What you set here is kept and appears once the project page is on.',
-    'content_blocks.no_permission' => 'Editing content blocks needs the right to manage pages.',
+    'content_blocks.no_permission' => 'You may not edit the content blocks of this item.',
     'portfolio.tab_project' => 'Project',
     'portfolio.tabs_label' => 'Parts of the project',
     'block_project_info.back' => '&larr; Back to :page',

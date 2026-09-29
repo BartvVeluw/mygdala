@@ -55,7 +55,6 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Database;
 use App\Repository\HoverCardGridRepository;
-use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\EditorChildList;
@@ -70,7 +69,7 @@ use App\Service\Routing\LinkChoice;
 use App\Repository\ResponsiveImageRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -89,7 +88,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new HoverCardGridRepository();
 
 if ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || ($grid = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
 ) {
     http_response_code(404);

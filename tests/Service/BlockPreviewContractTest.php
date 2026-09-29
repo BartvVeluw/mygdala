@@ -47,7 +47,9 @@ final class BlockPreviewContractTest extends TestCase
         $source = self::code('admin/block-preview.php');
 
         $login = strpos($source, 'AdminAuth::requireLogin();');
-        $permission = strpos($source, "AdminAuth::requirePermission('pages.manage');");
+        // The guard of every block screen (ContentBlockAccess): whoever manages
+        // some block list, a page's, a product's or a project's.
+        $permission = strpos($source, 'ContentBlockAccess::requireAny();');
         $lookup = strpos($source, 'BlockDefinitions::get(');
         $document = stripos($source, '<!doctype html>');
 
@@ -56,7 +58,7 @@ final class BlockPreviewContractTest extends TestCase
         $this->assertIsInt($lookup);
         $this->assertIsInt($document);
         $this->assertLessThan($permission, $login, 'signed in first');
-        $this->assertLessThan($lookup, $permission, 'allowed to manage pages before a block is even looked up');
+        $this->assertLessThan($lookup, $permission, 'allowed to manage blocks before a block is even looked up');
         $this->assertLessThan($document, $lookup);
     }
 

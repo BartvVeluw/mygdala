@@ -3869,7 +3869,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'validation.portfolio_layout_unknown' => 'Kies een projectlayout uit de lijst.',
 
     'content_blocks.project_page_off' => 'Dit project heeft nu geen projectpagina (Projectpagina tonen staat uit). Wat je hier instelt blijft bewaard en verschijnt zodra de projectpagina aan staat.',
-    'content_blocks.no_permission' => 'Contentblokken bewerken vraagt het recht om pagina\'s te beheren.',
+    'content_blocks.no_permission' => 'Je hebt geen recht om de contentblokken hiervan te bewerken.',
     'portfolio.tab_project' => 'Project',
     'portfolio.tabs_label' => 'Onderdelen van het project',
     'block_project_info.back' => '&larr; Terug naar :page',

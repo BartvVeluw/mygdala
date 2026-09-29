@@ -18,7 +18,6 @@ use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\LinkTargets;
 use App\Repository\CardCarouselRepository;
-use App\Repository\PageRepository;
 
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_responsive_image_field.php';
@@ -63,7 +62,7 @@ require_once __DIR__ . '/_link_target_field.php';
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $cardId = filter_input(INPUT_GET, 'card_id', FILTER_VALIDATE_INT);
 
@@ -84,7 +83,12 @@ if ($carousel === null) {
 }
 
 $sectionParam = (string) $carousel['page_slug'] . ':' . (string) $carousel['section_key'];
-$page = (new PageRepository())->findByContentKey((string) $carousel['page_slug']);
+$page = \App\Service\ContentOwners\ContentBlockAccess::pageForKey((string) $carousel['page_slug']);
+
+if ($page === null) {
+    http_response_code(404);
+    exit(admin_t('screen.onbekende_carrousel'));
+}
 $storedTags = $repository->findTagsByCardId($cardId);
 
 $errors = $_SESSION['admin_carousel_card_errors'] ?? [];

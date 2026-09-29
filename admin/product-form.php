@@ -314,9 +314,9 @@ if ($isEdit) {
 // PAGINA-INHOUD (Product & Portfolio Content Pages 1.0): the blocks under the
 // product detail, the same block list a page has (admin/_content_blocks.php).
 // Only for a product that exists — its first block makes its content page —
-// and only for an editor who may edit blocks at all: every block editor asks
-// pages.manage.
-$hasContentTab = $isEdit && AdminAuth::can(\App\Service\AdminPermissions::PAGES_MANAGE);
+// and for whoever may manage the product: a product's blocks ask the product's
+// own permission, never pages.manage (ContentBlockAccess).
+$hasContentTab = $isEdit && \App\Service\ContentOwners\ContentBlockAccess::canManageKind(\App\Service\ProductContentOwner::KIND);
 $productKind = \App\Service\ProductContentOwner::KIND;
 
 // The two big sections fold, each on its own. They start open, the editor's

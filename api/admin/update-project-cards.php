@@ -55,11 +55,10 @@ use App\Service\ItemGallerySelection;
 use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
-use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -87,7 +86,7 @@ $section = ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $s
     : $repository->findBySlugAndKey($pageSlug, $sectionKey);
 
 if ($section === null
-    || (new PageRepository())->findByContentKey((string) $pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi((string) $pageSlug) === null
     || (new PageSectionRepository())->findBySectionTypeAndId('project_cards', (int) $section['id']) === null
 ) {
     http_response_code(404);

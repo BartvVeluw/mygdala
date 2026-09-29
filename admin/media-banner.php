@@ -12,7 +12,6 @@ require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_media_sequence_field.php';
 
 use App\Repository\MediaBannerRepository;
-use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
@@ -48,13 +47,13 @@ use App\Service\SectionRegistry;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 [$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
 $repository = new MediaBannerRepository();
-$page = ($pageSlug === null || $pageSlug === '') ? null : (new PageRepository())->findByContentKey($pageSlug);
+$page = ($pageSlug === null || $pageSlug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 
 if ($page === null || $sectionKey === null || $sectionKey === ''
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
@@ -174,7 +173,7 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_media_banner.terug', ['v1' => $h($pageLabel)]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_media_banner.terug', ['v1' => $h($pageLabel)]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('media_banner')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_media_banner.uitleg', ['v1' => $h($pageLabel)]) ?></p>
 

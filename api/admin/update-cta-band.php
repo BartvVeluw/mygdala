@@ -54,11 +54,10 @@ use App\Service\Media\ResponsiveImage;
 use App\Repository\ResponsiveImageRepository;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
-use App\Repository\PageRepository;
 use App\Repository\CtaBandRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -77,7 +76,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new CtaBandRepository();
 
 if ($slug === null || $slug === '' || $sectionKey === null || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($slug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($slug) === null
     || ($section = $repository->findBySlugAndKey($slug, $sectionKey)) === null
 ) {
     http_response_code(404);

@@ -500,7 +500,7 @@ class PageContent
 
         return $page === null
             ? '/admin/pages.php'
-            : '/admin/page.php?id=' . (int) $page['id'];
+            : \App\Service\ContentOwners\ContentBlockAccess::listUrl($page);
     }
 
     /**

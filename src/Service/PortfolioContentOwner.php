@@ -58,4 +58,9 @@ final class PortfolioContentOwner implements ContentOwner
     {
         return '/admin/portfolio-item.php?id=' . $ownerId . '&tab=inhoud';
     }
+
+    public function permission(): string
+    {
+        return \App\Module\PortfolioModule::PORTFOLIO_MANAGE;
+    }
 }

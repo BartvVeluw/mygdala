@@ -10,7 +10,6 @@ require_once __DIR__ . '/_admin_ui.php';
 
 use App\Repository\FormBlockRepository;
 use App\Repository\FormRepository;
-use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
@@ -35,8 +34,9 @@ use App\Service\SectionRegistry;
  *
  * A page editor may choose a form here — that is placing content — but does
  * not thereby get to change it, or to read what people sent: those are
- * `forms.manage` and `forms.submissions`, and this screen only needs
- * `pages.manage`.
+ * `forms.manage` and `forms.submissions`, and this screen only needs the
+ * permission of the block's list (ContentBlockAccess: `pages.manage` on a
+ * page).
  *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * the heading and introduction show the language chosen in the CMS shell, as
@@ -47,14 +47,14 @@ use App\Service\SectionRegistry;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 
 [$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
 $repository = new FormBlockRepository();
-$page = ($pageSlug === null || $pageSlug === '') ? null : (new PageRepository())->findByContentKey($pageSlug);
+$page = ($pageSlug === null || $pageSlug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 
 if ($page === null || $sectionKey === null || $sectionKey === ''
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
@@ -115,7 +115,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('forms.text', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('forms.text', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('form')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('forms.sectie_kiest_hier_welk', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 

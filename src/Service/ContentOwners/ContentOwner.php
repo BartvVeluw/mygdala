@@ -46,4 +46,11 @@ interface ContentOwner
 
     /** The owner's editor, opened on its Pagina-inhoud tab. */
     public function editUrl(int $ownerId): string;
+
+    /**
+     * The permission that manages this owner, and with it its content blocks
+     * (App\Service\ContentOwners\ContentBlockAccess): the module's own
+     * existing right, never pages.manage. A code constant.
+     */
+    public function permission(): string;
 }

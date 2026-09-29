@@ -13,7 +13,6 @@ use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
-use App\Repository\PageRepository;
 use App\Repository\MarqueeRepository;
 
 /**
@@ -46,14 +45,14 @@ use App\Repository\MarqueeRepository;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionKey = (string) ($_GET['section'] ?? '');
 
 [$pageSlug, $sectionKeyPart] = array_pad(explode(':', $sectionKey, 2), 2, null);
 
 $repository = new MarqueeRepository();
-$page = ($pageSlug === null || $pageSlug === '') ? null : (new PageRepository())->findByContentKey($pageSlug);
+$page = ($pageSlug === null || $pageSlug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 
 if ($page === null || $sectionKeyPart === null || $sectionKeyPart === ''
     || $repository->findBySlugAndKey($pageSlug, $sectionKeyPart) === null
@@ -124,7 +123,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_marquee.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_marquee.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
   <h1><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_marquee.sectie_wijzigingen_direct_zichtbaar', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></p>
 

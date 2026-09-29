@@ -40,11 +40,10 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\MarqueeContent;
-use App\Repository\PageRepository;
 use App\Repository\MarqueeRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -66,7 +65,7 @@ $sectionKey = (string) ($_POST['section'] ?? '');
 [$pageSlug, $sectionKeyPart] = array_pad(explode(':', $sectionKey, 2), 2, null);
 
 if ($pageSlug === null || $pageSlug === '' || $sectionKeyPart === null || $sectionKeyPart === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || (new MarqueeRepository())->findBySlugAndKey($pageSlug, $sectionKeyPart) === null
 ) {
     http_response_code(404);

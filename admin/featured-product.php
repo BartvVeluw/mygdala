@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
-// This screen belongs to the Shop. It is guarded by pages.manage like every
-// block editor — a Core permission, held while the Shop is off — so the Shop
+// This screen belongs to the Shop. It is guarded like every block editor, by
+// the permission of the list the block is on (ContentBlockAccess: pages.manage
+// for a page, a Core permission held while the Shop is off), so the Shop
 // itself is checked first: with the Shop off there is no product to choose
 // and no block to edit (App\Module\ModuleGuard).
 \App\Module\ModuleGuard::requireAdmin('shop');
@@ -17,7 +18,6 @@ require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\FeaturedProductRepository;
-use App\Repository\PageRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -52,13 +52,13 @@ use App\Service\ShopLocalization;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 [$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
 $repository = new FeaturedProductRepository();
-$page = ($pageSlug === null || $pageSlug === '') ? null : (new PageRepository())->findByContentKey($pageSlug);
+$page = ($pageSlug === null || $pageSlug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 
 if ($page === null || $sectionKey === null || $sectionKey === ''
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
@@ -227,7 +227,7 @@ $cardEnd = static function (): void {
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_featured_product.terug', ['v1' => $h($pageLabel)]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_featured_product.terug', ['v1' => $h($pageLabel)]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('featured_product')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_featured_product.uitleg', ['v1' => $h($pageLabel)]) ?></p>
 

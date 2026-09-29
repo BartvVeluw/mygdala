@@ -38,12 +38,16 @@ use App\Service\SectionRegistry;
  * library's iframe has no allow-forms, assets/js/block-preview.js stops a
  * submit before a block's own script sees it, and the sample form has a key
  * no stored form can have (BlockSamples::FORM_KEY). A link goes nowhere
- * either. Same guard as the page builder, and no public address: nothing
+ * either. Guarded like the block picker it serves, and no public address: nothing
  * outside /admin/ reads a preview parameter.
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+// Whoever manages some block list sees the picker, and with it these
+// previews: a Shop manager on a product's Pagina-inhoud tab as much as a page
+// editor (App\Service\ContentOwners\ContentBlockAccess). Nothing here is
+// read from the site.
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 // The type only ever hits or misses a key of the registry, which holds the
 // blocks of enabled modules alone. A switched-off module's block, a block

@@ -57,4 +57,9 @@ final class ProductContentOwner implements ContentOwner
     {
         return '/admin/product-form.php?id=' . $ownerId . '&tab=inhoud';
     }
+
+    public function permission(): string
+    {
+        return \App\Module\ShopModule::PRODUCTS_MANAGE;
+    }
 }

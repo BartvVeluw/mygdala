@@ -13,7 +13,8 @@
  * FULL-FORM HANDLER: every column it writes is on the screen it posts from,
  * so nothing it omits can quietly overwrite a value it never saw.
  *
- * `pages.manage`, not `forms.manage`: choosing which form goes on a page is
+ * The block's list's permission (ContentBlockAccess: `pages.manage` on a
+ * page), not `forms.manage`: choosing which form goes on a page is
  * placing content, and it changes nothing about the form itself.
  *
  * ONE WEBSITE LANGUAGE (Multilingual 2.0): the heading is the words of the
@@ -33,7 +34,6 @@ use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\ContactFormRepository;
 use App\Repository\FormRepository;
-use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\ContactFormContent;
@@ -42,7 +42,7 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -61,7 +61,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new ContactFormRepository();
 
 if ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
 ) {
     http_response_code(404);

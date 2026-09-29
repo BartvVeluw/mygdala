@@ -19,7 +19,6 @@ use App\Service\CtaBandContent;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
-use App\Repository\PageRepository;
 use App\Repository\CtaBandRepository;
 
 /**
@@ -57,14 +56,14 @@ use App\Repository\CtaBandRepository;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 
 [$slug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
 $repository = new CtaBandRepository();
-$page = ($slug === null || $slug === '') ? null : (new PageRepository())->findByContentKey($slug);
+$page = ($slug === null || $slug === '') ? null : \App\Service\ContentOwners\ContentBlockAccess::pageForKey($slug);
 
 if ($page === null || $sectionKey === null || $sectionKey === ''
     || $repository->findBySlugAndKey($slug, $sectionKey) === null
@@ -224,7 +223,7 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= $pageId ?>"><?= admin_t('block_cta.text', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_cta.text', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></a></p>
   <h1><?= admin_t('block_cta.cta_band', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_cta.oproep_tot_actie_sectie', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></p>
 

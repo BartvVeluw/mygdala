@@ -33,11 +33,10 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\RichTextContent;
 use App\Service\Routing\LinkChoice;
-use App\Repository\PageRepository;
 use App\Repository\RichTextRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -56,7 +55,7 @@ $sectionParam = (string) ($_POST['section'] ?? '');
 $repository = new RichTextRepository();
 
 if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
 ) {
     http_response_code(404);

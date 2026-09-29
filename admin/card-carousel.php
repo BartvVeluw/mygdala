@@ -16,7 +16,6 @@ use App\Service\Media\BlockImage;
 use App\Service\Media\ResponsiveImage;
 use App\Service\SectionRegistry;
 use App\Repository\CardCarouselRepository;
-use App\Repository\PageRepository;
 
 /**
  * Editor for one "Kaarten-carrousel" block instance
@@ -48,24 +47,23 @@ use App\Repository\PageRepository;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 
 [$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
 
 $repository = new CardCarouselRepository();
-$pages = new PageRepository();
 
 if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKey === ''
-    || $pages->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug) === null
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
     exit(admin_t('screen.onbekende_sectie'));
 }
 
-$page = $pages->findByContentKey($pageSlug);
+$page = \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 $carousel = $repository->findBySlugAndKey($pageSlug, $sectionKey);
 $carouselId = (int) $carousel['id'];
 $storedCards = [];
@@ -133,7 +131,7 @@ $activeCount = count(array_filter($cards, static fn (array $state): bool => $sta
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_carousel.terug', ['v1' => $h($pageName)]) ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_carousel.terug', ['v1' => $h($pageName)]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('card_carousel')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_carousel.sectie_pagina_bepaalt_zelf', ['v1' => $h($pageName)]) ?></p>
 

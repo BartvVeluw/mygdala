@@ -17,7 +17,6 @@ use App\Service\Csrf;
 use App\Service\RichTextContent;
 use App\Service\Routing\LinkChoice;
 use App\Service\SectionRegistry;
-use App\Repository\PageRepository;
 use App\Repository\RichTextRepository;
 
 /**
@@ -53,7 +52,7 @@ use App\Repository\RichTextRepository;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionParam = (string) ($_GET['section'] ?? '');
 
@@ -62,14 +61,14 @@ $sectionParam = (string) ($_GET['section'] ?? '');
 $repository = new RichTextRepository();
 
 if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug) === null
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
     exit(admin_t('screen.onbekende_sectie'));
 }
 
-$page = (new PageRepository())->findByContentKey($pageSlug);
+$page = \App\Service\ContentOwners\ContentBlockAccess::pageForKey($pageSlug);
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
 $sectionId = (int) $section['id'];
 $editLanguage = admin_localized_language();
@@ -119,7 +118,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_richtext.terug', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <p><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_richtext.terug', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('rich_text')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_richtext.sectie_pagina', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 

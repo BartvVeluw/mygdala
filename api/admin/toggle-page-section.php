@@ -19,10 +19,12 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\ContentOwners\ContentBlockAccess;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -47,6 +49,15 @@ if ($pageSection === null) {
 }
 
 $pageId = (int) $pageSection['page_id'];
+$page = (new PageRepository())->findById($pageId);
+
+if ($page === null) {
+    http_response_code(404);
+    exit('Unknown section.');
+}
+
+// The block's own list decides the permission (a product's, a project's or a page's).
+ContentBlockAccess::requirePageForApi($page);
 
 try {
     $repository->setActive($id, $isActive);
@@ -54,12 +65,12 @@ try {
     error_log('[api/admin/toggle-page-section.php] ' . $e->getMessage());
 
     $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen_probeer_opnieuw');
-    header('Location: /admin/page.php?id=' . $pageId);
+    header('Location: ' . ContentBlockAccess::listUrl($page));
     exit;
 }
 
 // Back to the block that was just hidden or shown rather than to the top of
 // a long page: the anchor every block row on that screen carries. The same
 // small courtesy as the "#blok-<id>" a freshly added block gets.
-header('Location: /admin/page.php?id=' . $pageId . '#blok-' . $id);
+header('Location: ' . ContentBlockAccess::listUrl($page) . '#blok-' . $id);
 exit;

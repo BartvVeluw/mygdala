@@ -54,7 +54,7 @@ use App\Repository\FeatureGridRepository;
  */
 
 AdminAuth::requireLogin();
-AdminAuth::requirePermission('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAny();
 
 $sectionKey = (string) ($_GET['section'] ?? '');
 $section = FeatureGridContent::SECTIONS[$sectionKey] ?? null;
@@ -67,7 +67,7 @@ if ($section === null) {
     // query string beyond that.
     [$dynPageSlug, $dynSectionKey] = array_pad(explode(':', $sectionKey, 2), 2, null);
     if ($dynPageSlug === null || $dynSectionKey === null
-        || (new \App\Repository\PageRepository())->findByContentKey($dynPageSlug) === null
+        || \App\Service\ContentOwners\ContentBlockAccess::pageForKey($dynPageSlug) === null
         || (new FeatureGridRepository())->findBySlugAndKey($dynPageSlug, $dynSectionKey) === null
     ) {
         http_response_code(404);
@@ -76,10 +76,13 @@ if ($section === null) {
     $section = [
         'page_slug' => $dynPageSlug,
         'section_key' => $dynSectionKey,
-        'page_label' => \App\Service\PageLocalization::name((int) (new \App\Repository\PageRepository())->findByContentKey($dynPageSlug)['id']),
+        'page_label' => \App\Service\PageLocalization::name((int) \App\Service\ContentOwners\ContentBlockAccess::pageForKey($dynPageSlug)['id']),
         'section_label' => \App\Service\SectionRegistry::label('feature_grid'),
         'has_heading' => true,
     ];
+} else {
+    // A fixed block of one of the site's own pages.
+    \App\Service\ContentOwners\ContentBlockAccess::requirePages();
 }
 
 $pageSlug = $section['page_slug'];

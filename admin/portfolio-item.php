@@ -169,6 +169,8 @@ $hasDetailPageChecked = $old !== null && array_key_exists('has_detail_page', $ol
 $storedSlug = (string) ($item['slug'] ?? '');
 $slugValue = $old !== null && array_key_exists('slug', $old) ? (string) $old['slug'] : $storedSlug;
 $canManagePages = AdminAuth::can(AdminPermissions::PAGES_MANAGE);
+// A project's blocks ask the project's own permission, never pages.manage (ContentBlockAccess).
+$canManageBlocks = \App\Service\ContentOwners\ContentBlockAccess::canManageKind(\App\Service\PortfolioContentOwner::KIND);
 
 // The project's own layout as the form should show it: a refused save's own
 // choice, else what is stored ('' = follow the Portfolio default).
@@ -714,7 +716,7 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
     </form>
 
     <?php admin_tab_panel('inhoud'); ?>
-    <?php if ($canManagePages): ?>
+    <?php if ($canManageBlocks): ?>
       <?php content_blocks_owner_panel($projectKind, (int) $item['id'], $csrfToken); ?>
     <?php else: ?>
       <p class="admin-text-muted"><?= admin_te('content_blocks.no_permission') ?></p>
@@ -739,7 +741,7 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
     <?php admin_tab_panel_end(); ?>
     <?php admin_tabs_end(); ?>
 
-    <?php if ($canManagePages): ?>
+    <?php if ($canManageBlocks): ?>
       <?php content_blocks_owner_modals($projectKind, (int) $item['id'], $csrfToken); ?>
     <?php else: ?>
       <?= admin_confirm_dialog() ?>

@@ -83,10 +83,9 @@ use App\Service\Media\BlockImage;
 use App\Service\Media\LinkedImages;
 use App\Service\Routing\LinkTargets;
 use App\Repository\DetailSectionRepository;
-use App\Repository\PageRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -109,7 +108,7 @@ $repository = new DetailSectionRepository();
 // page must exist (by its immutable pages.content_key) and so must the
 // content row App\Service\SectionRegistry::create() made for it.
 if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKey === ''
-    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi($pageSlug) === null
     || ($section = $repository->findBySlugAndKey($pageSlug, $sectionKey)) === null
 ) {
     http_response_code(404);

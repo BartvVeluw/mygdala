@@ -554,6 +554,7 @@
             <file>tests/Service/OptionalEyebrowTest.php</file>
             <file>tests/Service/ContentOwnerPagesTest.php</file>
             <file>tests/Service/ProductPortfolioContentPagesHttpTest.php</file>
+            <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
             <file>tests/Service/DetailSectionTwoTest.php</file>
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
             <file>tests/Service/DetailSectionTwoHttpTest.php</file>
@@ -786,6 +787,7 @@
         <testsuite name="shop">
             <file>tests/Service/ContentOwnerPagesTest.php</file>
             <file>tests/Service/ProductPortfolioContentPagesHttpTest.php</file>
+            <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>

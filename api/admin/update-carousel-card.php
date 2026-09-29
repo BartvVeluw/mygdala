@@ -75,7 +75,7 @@ use App\Service\Routing\LinkChoice;
 use App\Repository\CardCarouselRepository;
 
 AdminAuth::requireLoginForApi();
-AdminAuth::requirePermissionForApi('pages.manage');
+\App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -97,7 +97,11 @@ if ($cardId === false || $cardId === null || $cardId < 1) {
 $repository = new CardCarouselRepository();
 $card = $repository->findCardById($cardId);
 
-if ($card === null) {
+$carousel = $card === null ? null : $repository->findById((int) $card['carousel_id']);
+
+if ($card === null || $carousel === null
+    || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi((string) $carousel['page_slug']) === null
+) {
     http_response_code(404);
     exit('Card not found.');
 }
