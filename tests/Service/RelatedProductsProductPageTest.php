@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
+use App\Service\LocalizedSiteSettings;
 use App\Service\RelatedProductsContent;
 use App\Service\ShopLocalization;
 use App\Service\SectionRegistry;
@@ -48,6 +49,15 @@ final class RelatedProductsProductPageTest extends TestCase
     private array $productIds = [];
     /** @var array<string, string> */
     private array $originalSettings = [];
+    /** @var array<string, string> the shop-wide heading per language before this test, restored in tearDown() */
+    private array $originalHeadings = [];
+
+    /**
+     * The shop-wide heading this test names, written by the test itself: the
+     * words in the test database are whatever the last test that saved the
+     * related-products screen left there.
+     */
+    private const HEADING = 'Gerelateerde producten';
 
     protected function setUp(): void
     {
@@ -58,6 +68,10 @@ final class RelatedProductsProductPageTest extends TestCase
         foreach (self::SETTING_KEYS as $key) {
             $this->originalSettings[$key] = $stored[$key] ?? SiteSettings::defaults()[$key];
         }
+        $this->originalHeadings = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
+
+        (new SiteSettingRepository())->upsertMany(['related_products_enabled' => '1']);
+        $this->setHeadings(['nl' => self::HEADING]);
 
         SiteSettings::clearCache();
         RelatedProductsContent::clearCache();
@@ -66,6 +80,8 @@ final class RelatedProductsProductPageTest extends TestCase
     protected function tearDown(): void
     {
         (new SiteSettingRepository())->upsertMany($this->originalSettings);
+        $this->setHeadings($this->originalHeadings);
+        $this->originalHeadings = [];
 
         $db = Database::connection();
         foreach ($this->collectionIds as $id) {
@@ -81,11 +97,30 @@ final class RelatedProductsProductPageTest extends TestCase
 
         SiteSettings::clearCache();
         RelatedProductsContent::clearCache();
+        ShopLocalization::clearCache();
     }
 
     /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * The shop-wide heading per website language, the way
+     * tests/Service/RelatedProductsContentTest.php writes it. '' removes that
+     * language's row, which is what "not translated" means in this storage.
+     *
+     * @param array<string, string> $byLanguage
+     */
+    private function setHeadings(array $byLanguage): void
+    {
+        foreach (['nl', 'en'] as $code) {
+            LocalizedSiteSettings::save($code, [
+                LocalizedSiteSettings::RELATED_PRODUCTS_HEADING => $byLanguage[$code] ?? '',
+            ]);
+        }
+
+        LocalizedSiteSettings::clearCache();
+    }
 
     private function skipUnlessServerReachable(): void
     {
@@ -186,7 +221,7 @@ final class RelatedProductsProductPageTest extends TestCase
         $this->assertNotNull($response);
         $this->assertSame(200, $response['status']);
         $this->assertStringContainsString('data-related-products', $response['body']);
-        $this->assertStringContainsString('Gerelateerde producten', $response['body']);
+        $this->assertStringContainsString('<h2>' . self::HEADING . '</h2>', $response['body']);
         $this->assertStringContainsString('data-product-ids="' . $a . ',' . $b . '"', $response['body']);
     }
 
@@ -223,14 +258,14 @@ final class RelatedProductsProductPageTest extends TestCase
         $this->assertNotNull($withSection);
         $this->assertStringContainsString('data-related-products', $withSection['body']);
 
-        $this->collections->updateRelatedProductsSettings($collection, false, null, null);
+        $this->collections->updateRelatedProductsSettings($collection, false);
 
         $withoutSection = $this->request('/product.php?id=' . $current);
 
         $this->assertNotNull($withoutSection);
         $this->assertSame(200, $withoutSection['status'], 'the product page itself keeps working');
         $this->assertStringNotContainsString('data-related-products', $withoutSection['body']);
-        $this->assertStringNotContainsString('Gerelateerde producten', $withoutSection['body']);
+        $this->assertStringNotContainsString(self::HEADING, $withoutSection['body']);
         // No empty heading and no empty grid left behind.
         $this->assertStringNotContainsString('data-product-ids', $withoutSection['body']);
     }
@@ -302,12 +337,29 @@ final class RelatedProductsProductPageTest extends TestCase
         $current = $this->createProduct('ZZ Kop huidig');
         $other = $this->createProduct('ZZ Kop ander');
         $this->collections->setCollectionProducts($collection, [$current, $other]);
-        $this->collections->updateRelatedProductsSettings($collection, true, 'Meer onderzetters bekijken', null);
+        $this->collections->updateRelatedProductsSettings($collection, true);
+        // The override is words, per website language, since Multilingual 2.0
+        // phase 5 wave C (App\Service\RelatedProductsContent::heading()).
+        ShopLocalization::saveCollection($collection, 'nl', [ShopLocalization::RELATED_HEADING => 'Meer onderzetters bekijken']);
+        ShopLocalization::saveCollection($collection, 'en', [ShopLocalization::RELATED_HEADING => 'See more coasters']);
+        $this->setHeadings(['nl' => self::HEADING, 'en' => 'ZZ Shop-wide related heading']);
+        ShopLocalization::clearCache();
 
         $response = $this->request('/product.php?id=' . $current);
 
         $this->assertNotNull($response);
-        $this->assertStringContainsString('Meer onderzetters bekijken', $response['body']);
+        $this->assertStringContainsString('<h2>Meer onderzetters bekijken</h2>', $response['body']);
+        $this->assertStringNotContainsString(self::HEADING, $response['body'], 'the override replaces the shop-wide heading');
+
+        // One language per request: the English route gets the collection's
+        // English override, not the Dutch one and not the shop-wide heading.
+        $english = $this->request('/en/product.php?id=' . $current);
+
+        $this->assertNotNull($english);
+        $this->assertSame(200, $english['status']);
+        $this->assertStringContainsString('<h2>See more coasters</h2>', $english['body']);
+        $this->assertStringNotContainsString('Meer onderzetters bekijken', $english['body']);
+        $this->assertStringNotContainsString('ZZ Shop-wide related heading', $english['body']);
     }
 
     /* ------------------------------------------------------------------ */

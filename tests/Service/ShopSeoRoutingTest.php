@@ -11,6 +11,7 @@ use App\Repository\SiteSettingRepository;
 use App\Service\AppUrl;
 use App\Service\CollectionContent;
 use App\Service\ProductSeo;
+use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
@@ -36,6 +37,10 @@ final class ShopSeoRoutingTest extends TestCase
     private const SITE_IDENTITY = [
         'site_name' => 'ZZ Routingtest',
         'canonical_base_url' => 'https://routing-test.example',
+        // The global description a CMS page without one of its own falls back
+        // to (App\Service\PageSeo). Empty on a fresh install, so the
+        // homepage assertion below brings its own.
+        'seo_default_description' => 'ZZ standaardbeschrijving van de routingtest.',
     ];
 
     /** Slug charset .htaccess actually rewrites; `zz-` keeps it obviously fake. */
@@ -97,6 +102,7 @@ final class ShopSeoRoutingTest extends TestCase
         $this->collectionIds = [];
         ProductSeo::clearCache();
         CollectionContent::clearCache();
+        ShopLocalization::clearCache();
     }
 
     /**
@@ -133,15 +139,40 @@ final class ShopSeoRoutingTest extends TestCase
         return ['status' => $status, 'body' => (string) $body];
     }
 
+    /**
+     * Takes the product's words (name, description, meta_title,
+     * meta_description) out of $values: since Multilingual 2.0 phase 5 they
+     * are not columns of the row but per-language words, stored through
+     * App\Service\ShopLocalization in the website's default language — the
+     * language /product.php and /collecties/… are read in here.
+     *
+     * @param array<string, mixed>       $values row values and words mixed, as a test names them
+     * @param array<string, string|null> $words  the words to store unless $values names them
+     * @param list<string>               $fields the word fields to take out
+     * @return array<string, string|null> the words
+     */
+    private static function takeWords(array &$values, array $words, array $fields): array
+    {
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $values)) {
+                $words[$field] = $values[$field];
+                unset($values[$field]);
+            }
+        }
+
+        return $words;
+    }
+
     /** @param array<string, mixed> $overrides */
     private function createProduct(array $overrides = []): int
     {
+        $words = self::takeWords($overrides, [
+            ShopLocalization::NAME => 'ZZ SEO-product',
+            ShopLocalization::DESCRIPTION => '<p>Een <strong>korte</strong> beschrijving.</p>',
+        ], array_keys(ShopLocalization::PRODUCT_FIELDS));
+
         $id = $this->products->create($overrides + [
-            'name' => 'ZZ SEO-product',
-            'name_en' => null,
             'slug' => 'zz-seo-product-' . bin2hex(random_bytes(6)),
-            'description' => '<p>Een <strong>korte</strong> beschrijving.</p>',
-            'description_en' => null,
             'price' => 24.50,
             'image_path' => 'assets/images/products/zz-seo.png',
             'active' => true,
@@ -152,6 +183,9 @@ final class ShopSeoRoutingTest extends TestCase
 
         $this->productIds[] = $id;
 
+        ShopLocalization::saveProduct($id, ShopLocalization::defaultLanguage(), $words);
+        ShopLocalization::clearCache();
+
         return $id;
     }
 
@@ -159,17 +193,20 @@ final class ShopSeoRoutingTest extends TestCase
     {
         $slug = self::SLUG_PREFIX . bin2hex(random_bytes(4));
 
-        $this->collectionIds[] = $this->collections->create([
-            'name' => 'ZZ SEO-collectie',
-            'name_en' => null,
+        $id = $this->collections->create([
             'slug' => $slug,
-            'description' => '<p>Beschrijving van de collectie.</p>',
-            'description_en' => null,
             'image_path' => null,
             'is_active' => $isActive,
-            'meta_title' => 'ZZ eigen collectietitel',
-            'meta_description' => 'ZZ eigen collectiebeschrijving.',
         ]);
+        $this->collectionIds[] = $id;
+
+        ShopLocalization::saveCollection($id, ShopLocalization::defaultLanguage(), [
+            ShopLocalization::NAME => 'ZZ SEO-collectie',
+            ShopLocalization::DESCRIPTION => '<p>Beschrijving van de collectie.</p>',
+            ShopLocalization::META_TITLE => 'ZZ eigen collectietitel',
+            ShopLocalization::META_DESCRIPTION => 'ZZ eigen collectiebeschrijving.',
+        ]);
+        ShopLocalization::clearCache();
 
         return $slug;
     }
@@ -200,7 +237,9 @@ final class ShopSeoRoutingTest extends TestCase
 
         $this->assertNotNull($response);
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('<title data-nl="ZZ eigen producttitel"', $response['body']);
+        // One language per request: the Dutch route carries the Dutch words
+        // only, and a custom meta_title is the whole title, verbatim.
+        $this->assertStringContainsString('<title>ZZ eigen producttitel</title>', $response['body']);
         $this->assertStringContainsString('content="ZZ eigen productbeschrijving voor Google."', $response['body']);
     }
 
@@ -390,7 +429,7 @@ final class ShopSeoRoutingTest extends TestCase
 
         $this->assertNotNull($response);
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('<title data-nl="ZZ eigen collectietitel"', $response['body']);
+        $this->assertStringContainsString('<title>ZZ eigen collectietitel</title>', $response['body']);
         $this->assertStringContainsString('content="ZZ eigen collectiebeschrijving."', $response['body']);
         $this->assertStringContainsString(
             '<link rel="canonical" href="' . $this->canonicalBase() . '/collecties/' . $slug . '">',
@@ -425,7 +464,7 @@ final class ShopSeoRoutingTest extends TestCase
         $this->assertNotNull($home);
         $this->assertSame(200, $home['status']);
         $this->assertStringContainsString('<link rel="canonical" href="' . $this->canonicalBase() . '/">', $home['body']);
-        $this->assertStringContainsString('<meta name="description"', $home['body']);
+        $this->assertStringContainsString('<meta name="description" content="' . self::SITE_IDENTITY['seo_default_description'] . '">', $home['body']);
         $this->assertStringContainsString('property="og:title"', $home['body']);
 
         // A CMS page is not a product: it must never publish Product

@@ -8,7 +8,9 @@ use App\Database;
 use App\Module\ShopModule;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Repository\SiteSettingRepository;
 use App\Service\CollectionContent;
+use App\Service\LocalizedSiteSettings;
 use App\Service\ProductSeo;
 use App\Service\RelatedProductsContent;
 use App\Service\ShopLocalization;
@@ -412,12 +414,34 @@ final class ShopEditingHttpTest extends TestCase
             ]
         );
 
-        $this->assertSame(302, $save('nl', 'ZZ Ook interessant', 'ZZ Meer hiervan')['status']);
-        $this->assertSame(302, $save('en', 'ZZ Also interesting', 'ZZ More of this')['status']);
+        // The screen also saves the shop-wide settings; put them back
+        // afterwards, so no later test meets this test's heading.
+        LocalizedSiteSettings::clearCache();
+        $headingBefore = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
+        $neutralBefore = array_intersect_key(
+            (new SiteSettingRepository())->findAll(),
+            array_flip(['related_products_enabled', 'related_products_max_items'])
+        );
 
-        ShopLocalization::clearCache();
-        $this->assertSame('ZZ Meer hiervan', ShopLocalization::rawCollection($collectionId, ShopLocalization::RELATED_HEADING, 'nl'));
-        $this->assertSame('ZZ More of this', ShopLocalization::rawCollection($collectionId, ShopLocalization::RELATED_HEADING, 'en'));
+        try {
+            $this->assertSame(302, $save('nl', 'ZZ Ook interessant', 'ZZ Meer hiervan')['status']);
+            $this->assertSame(302, $save('en', 'ZZ Also interesting', 'ZZ More of this')['status']);
+
+            ShopLocalization::clearCache();
+            $this->assertSame('ZZ Meer hiervan', ShopLocalization::rawCollection($collectionId, ShopLocalization::RELATED_HEADING, 'nl'));
+            $this->assertSame('ZZ More of this', ShopLocalization::rawCollection($collectionId, ShopLocalization::RELATED_HEADING, 'en'));
+        } finally {
+            LocalizedSiteSettings::clearCache();
+            foreach (['nl', 'en'] as $language) {
+                LocalizedSiteSettings::save($language, [
+                    LocalizedSiteSettings::RELATED_PRODUCTS_HEADING => $headingBefore[$language] ?? '',
+                ]);
+            }
+            if ($neutralBefore !== []) {
+                (new SiteSettingRepository())->upsertMany($neutralBefore);
+            }
+            LocalizedSiteSettings::clearCache();
+        }
     }
 
     /* ------------------------------------------------------------------ */

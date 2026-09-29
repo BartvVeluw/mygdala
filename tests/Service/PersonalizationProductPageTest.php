@@ -9,6 +9,7 @@ use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\PersonalizationFontFixture;
 use Tests\Support\PersonalizationTestConfig;
@@ -59,6 +60,7 @@ final class PersonalizationProductPageTest extends TestCase
         $this->productIds = [];
         $this->previewFiles = [];
         ProductPersonalizationContent::clearCache();
+        ShopLocalization::clearCache();
     }
 
     /* ------------------------------------------------------------------ */
@@ -99,11 +101,7 @@ final class PersonalizationProductPageTest extends TestCase
     private function createProduct(bool $active = true): int
     {
         $id = $this->products->create([
-            'name' => 'ZZ Personalisatie testproduct',
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 9.95,
             'image_path' => null,
             'active' => $active,
@@ -112,6 +110,11 @@ final class PersonalizationProductPageTest extends TestCase
             'requires_parcel' => false,
         ]);
         $this->productIds[] = $id;
+
+        // The name is words in the default language since Multilingual 2.0
+        // phase 5, not a column of the row.
+        ShopLocalization::saveProduct($id, ShopLocalization::defaultLanguage(), [ShopLocalization::NAME => 'ZZ Personalisatie testproduct']);
+        ShopLocalization::clearCache();
 
         return $id;
     }
@@ -253,9 +256,9 @@ final class PersonalizationProductPageTest extends TestCase
 
         // The way the CMS switches it off: the product-level flag, leaving the
         // views and zones exactly where they are.
-        $this->personalization->saveSettings($productId, [
-            'is_enabled' => false, 'instructions' => null, 'instructions_en' => null,
-        ]);
+        // The instructions are per-language words of their own
+        // (PersonalizationLocalization), so the switch is the whole save.
+        $this->personalization->saveSettings($productId, ['is_enabled' => false]);
         ProductPersonalizationContent::clearCache();
 
         $this->assertStringNotContainsString('data-personalizer', $this->request('/product.php?id=' . $productId)['body']);
@@ -450,11 +453,22 @@ final class PersonalizationProductPageTest extends TestCase
         $this->assertStringContainsString('data-personalizer-panel="front"', $body);
         $this->assertStringContainsString('data-personalizer-panel="back"', $body);
 
-        // Customer-facing labels, in both languages, never the internal keys.
-        $this->assertStringContainsString('Voorkant', $body);
-        $this->assertStringContainsString('Achterkant', $body);
-        $this->assertStringContainsString('data-en="Front"', $body);
-        $this->assertStringContainsString('data-en="Back"', $body);
+        // Customer-facing labels, never the internal keys — and one language
+        // per request: the Dutch route carries the Dutch labels only...
+        $this->assertStringContainsString('data-personalizer-tab="front">Voorkant</button>', $body);
+        $this->assertStringContainsString('data-personalizer-tab="back">Achterkant</button>', $body);
+        $this->assertStringNotContainsString('>Front</button>', $body);
+        $this->assertStringNotContainsString('>Back</button>', $body);
+
+        // ...and the English route the English ones.
+        $english = $this->request('/en/product.php?id=' . $productId);
+
+        $this->assertNotNull($english);
+        $this->assertSame(200, $english['status']);
+        $this->assertStringContainsString('data-personalizer-tab="front">Front</button>', $english['body']);
+        $this->assertStringContainsString('data-personalizer-tab="back">Back</button>', $english['body']);
+        $this->assertStringNotContainsString('Voorkant', $english['body']);
+        $this->assertStringNotContainsString('Achterkant', $english['body']);
     }
 
     /**

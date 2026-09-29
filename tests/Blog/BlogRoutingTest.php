@@ -9,12 +9,14 @@ use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
 use App\Repository\RedirectRepository;
 use App\Service\Blog\BlogClock;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostService;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogSlug;
 use App\Service\Blog\BlogUrls;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TemplatePageFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -49,6 +51,8 @@ final class BlogRoutingTest extends TestCase
     private array $createdTags = [];
     /** @var list<string> */
     private array $createdRedirectPaths = [];
+    /** @var list<int> template pages this test created, see TemplatePageFixture */
+    private array $createdTemplatePages = [];
 
     protected function setUp(): void
     {
@@ -81,8 +85,12 @@ final class BlogRoutingTest extends TestCase
             }
         }
 
+        TemplatePageFixture::remove($this->createdTemplatePages);
+        BlogLocalization::clearCache();
+
         $this->createdPosts = $this->createdCategories = $this->createdTags = [];
         $this->createdRedirectPaths = [];
+        $this->createdTemplatePages = [];
     }
 
     /* ------------------------------------------------------------------ */
@@ -120,12 +128,14 @@ final class BlogRoutingTest extends TestCase
         $draft = $this->post('Testbericht route concept', BlogPostStatus::DRAFT, null);
         $future = $this->post('Testbericht route toekomst', BlogPostStatus::SCHEDULED, '+1 month');
 
-        foreach ([$draft, $future] as $post) {
+        // The title is a word in blog_post_translations, not a column of the
+        // post row, so it is named here rather than read back from $post.
+        foreach (['Testbericht route concept' => $draft, 'Testbericht route toekomst' => $future] as $title => $post) {
             $response = $this->get(BlogUrls::postPath((string) $post['slug']));
 
             $this->assertSame(404, $response['status']);
             $this->assertStringContainsString('Pagina niet gevonden', $response['body']);
-            $this->assertStringNotContainsString((string) $post['title'], $response['body']);
+            $this->assertStringNotContainsString($title, $response['body']);
         }
     }
 
@@ -273,7 +283,12 @@ final class BlogRoutingTest extends TestCase
 
     public function testNoPageOutsideTheBlogDownloadsBlogCss(): void
     {
-        foreach (['/index.php', '/contact.php', '/portfolio.php'] as $path) {
+        // contact.php renders only with its page row, which the test database
+        // need not have; /portfolio.php is a 301 to /portfolio since
+        // Portfolio 2.0, so the page itself is asked for.
+        $this->createdTemplatePages = TemplatePageFixture::ensureAll(['contact']);
+
+        foreach (['/index.php', '/contact.php', '/portfolio'] as $path) {
             $response = $this->get($path);
 
             $this->assertSame(200, $response['status'], $path);
@@ -373,8 +388,12 @@ final class BlogRoutingTest extends TestCase
      */
     private function post(string $title, string $status, ?string $when, array $values = []): array
     {
-        $id = $this->posts->create($values + [
-            'title' => $title,
+        // The words live per website language in blog_post_translations
+        // (Multilingual 2.0 phase 5 wave B); this fixture writes them in the
+        // default language, the one the unprefixed /blog URLs render.
+        $words = array_intersect_key(['title' => $title] + $values, BlogLocalization::POST_FIELDS);
+
+        $id = $this->posts->create(array_diff_key($values, BlogLocalization::POST_FIELDS) + [
             'slug' => BlogSlug::unique(
                 self::PREFIX . BlogSlug::sanitize($title),
                 $title,
@@ -386,13 +405,15 @@ final class BlogRoutingTest extends TestCase
 
         $this->createdPosts[] = $id;
 
+        BlogLocalization::savePost($id, BlogLocalization::defaultLanguage(), array_map('strval', $words));
+        BlogLocalization::clearCache();
+
         return (array) $this->posts->find($id);
     }
 
     private function category(string $name): int
     {
         $id = $this->categories->create([
-            'name' => $name,
             'slug' => BlogSlug::unique(
                 self::PREFIX . BlogSlug::sanitize($name),
                 $name,
@@ -403,6 +424,9 @@ final class BlogRoutingTest extends TestCase
         ]);
 
         $this->createdCategories[] = $id;
+
+        BlogLocalization::saveCategory($id, BlogLocalization::defaultLanguage(), [BlogLocalization::NAME => $name]);
+        BlogLocalization::clearCache();
 
         return $id;
     }

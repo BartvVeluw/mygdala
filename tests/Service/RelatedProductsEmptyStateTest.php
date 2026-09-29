@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
+use App\Service\LocalizedSiteSettings;
 use App\Service\RelatedProductsContent;
 use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
@@ -55,6 +56,15 @@ final class RelatedProductsEmptyStateTest extends TestCase
     private array $productIds = [];
     /** @var array<string, string> */
     private array $originalSettings = [];
+    /** @var array<string, string> the shop-wide heading per language before this test, restored in tearDown() */
+    private array $originalHeadings = [];
+
+    /**
+     * The shop-wide heading this test names, written by the test itself: the
+     * words in the test database are whatever the last test that saved the
+     * related-products screen left there.
+     */
+    private const HEADING = 'Gerelateerde producten';
 
     protected function setUp(): void
     {
@@ -65,6 +75,10 @@ final class RelatedProductsEmptyStateTest extends TestCase
         foreach (self::SETTING_KEYS as $key) {
             $this->originalSettings[$key] = $stored[$key] ?? SiteSettings::defaults()[$key];
         }
+        $this->originalHeadings = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
+
+        (new SiteSettingRepository())->upsertMany(['related_products_enabled' => '1']);
+        $this->setHeadings(['nl' => self::HEADING]);
 
         SiteSettings::clearCache();
         RelatedProductsContent::clearCache();
@@ -73,6 +87,8 @@ final class RelatedProductsEmptyStateTest extends TestCase
     protected function tearDown(): void
     {
         (new SiteSettingRepository())->upsertMany($this->originalSettings);
+        $this->setHeadings($this->originalHeadings);
+        $this->originalHeadings = [];
 
         $db = Database::connection();
         foreach ($this->productIds as $id) {
@@ -87,11 +103,30 @@ final class RelatedProductsEmptyStateTest extends TestCase
 
         SiteSettings::clearCache();
         RelatedProductsContent::clearCache();
+        ShopLocalization::clearCache();
     }
 
     /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * The shop-wide heading per website language, the way
+     * tests/Service/RelatedProductsContentTest.php writes it. '' removes that
+     * language's row, which is what "not translated" means in this storage.
+     *
+     * @param array<string, string> $byLanguage
+     */
+    private function setHeadings(array $byLanguage): void
+    {
+        foreach (['nl', 'en'] as $code) {
+            LocalizedSiteSettings::save($code, [
+                LocalizedSiteSettings::RELATED_PRODUCTS_HEADING => $byLanguage[$code] ?? '',
+            ]);
+        }
+
+        LocalizedSiteSettings::clearCache();
+    }
 
     private function skipUnlessServerReachable(): void
     {
@@ -169,8 +204,18 @@ final class RelatedProductsEmptyStateTest extends TestCase
      */
     private function assertNothingRelatedIsRendered(string $body, string $because): void
     {
+        // Every page with the header cart carries the Shop's script
+        // catalogue (App\Service\ShopScriptText, partials/header-cart.php): a
+        // JSON data block the scripts read their sentences from, "no
+        // products" among them. It is not rendered text and sits nowhere
+        // near the block, so it is taken out before looking for a message —
+        // and only that one element, so a message anywhere else still fails.
+        $catalogue = '#<script type="application/json" id="shop-text">.*?</script>#s';
+        $this->assertLessThanOrEqual(1, preg_match_all($catalogue, $body), 'the Shop script catalogue is one element, never repeated');
+        $body = (string) preg_replace($catalogue, '', $body);
+
         $this->assertStringNotContainsString('data-related-products', $body, $because);
-        $this->assertStringNotContainsString('Gerelateerde producten', $body, $because);
+        $this->assertStringNotContainsString(self::HEADING, $body, $because);
         $this->assertStringNotContainsString('data-product-ids', $body, $because);
         $this->assertStringNotContainsString('data-products-grid', $body, $because);
 
@@ -271,7 +316,7 @@ final class RelatedProductsEmptyStateTest extends TestCase
 
         $this->assertStringContainsString('data-related-products', $body);
         $this->assertStringContainsString('data-product-ids="' . $sibling . '"', $body);
-        $this->assertStringContainsString('Gerelateerde producten', $body);
+        $this->assertStringContainsString('<h2>' . self::HEADING . '</h2>', $body);
     }
 
     /* ------------------------------------------------------------------ */

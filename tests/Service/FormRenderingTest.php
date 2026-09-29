@@ -13,6 +13,10 @@ use App\Repository\PageSectionRepository;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormRenderState;
+use App\Service\Language\SiteLanguages;
+use App\Service\PageContent;
+use App\Service\PageLocalization;
+use App\Service\PageTranslation;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
@@ -34,6 +38,8 @@ class FormRenderingTest extends TestCase
 {
     private const TEST_PAGE = 'zz-formulier-testpagina';
     private const SECOND_PAGE = 'zz-formulier-testpagina-twee';
+    /** TEST_PAGE's own address in English, see giveEnglishAddress(). */
+    private const TEST_PAGE_EN = 'zz-form-test-page';
 
     private FormRepository $forms;
 
@@ -164,17 +170,36 @@ class FormRenderingTest extends TestCase
         );
     }
 
-    public function testBothLanguagesTravelWithTheMarkupAndEmptyEnglishFallsBackToDutch(): void
+    /**
+     * One language per request (Multilingual 2.0): the Dutch address renders
+     * the Dutch words, the page's English address the English ones, and a
+     * word that has no English version falls back to the default language
+     * (App\Service\Language\LanguageFallback, through FormLocalization)
+     * rather than rendering an empty label.
+     */
+    public function testEachLanguageRendersItsOwnWordsAndEmptyEnglishFallsBackToDutch(): void
     {
         $formId = $this->createFullForm();
         $page = $this->createPage(self::TEST_PAGE, 'Formulier testpagina');
-        $this->placeForm($page, self::TEST_PAGE, $formId);
+        $token = $this->placeForm($page, self::TEST_PAGE, $formId);
+        $this->giveEnglishAddress($page);
 
-        $body = $this->get('/' . self::TEST_PAGE)['body'];
+        $dutch = $this->get('/' . self::TEST_PAGE);
+        $this->assertSame(200, $dutch['status']);
+        $this->assertStringContainsString('for="' . $token . '-naam"><span>Naam</span>', $dutch['body']);
+        $this->assertStringContainsString('Verstuur dit', $dutch['body']);
+        $this->assertStringNotContainsString('<span>Name</span>', $dutch['body'], 'one language per request');
 
-        $this->assertStringContainsString('data-nl="Naam" data-en="Name"', $body);
-        // "Telefoon" was given no English label at all.
-        $this->assertStringContainsString('data-nl="Telefoon" data-en="Telefoon"', $body);
+        $english = $this->get('/en/' . self::TEST_PAGE_EN);
+        $this->assertSame(200, $english['status']);
+        $this->assertStringContainsString('<html lang="en"', $english['body']);
+        $this->assertMatchesRegularExpression('/for="form-[a-f0-9]{10}-naam"><span>Name<\/span>/', $english['body']);
+        $this->assertStringNotContainsString('<span>Naam</span>', $english['body'], 'one language per request');
+        $this->assertStringContainsString('Send this', $english['body']);
+        $this->assertStringNotContainsString('Verstuur dit', $english['body']);
+
+        // "Telefoon" was given no English label at all: the Dutch one stands in.
+        $this->assertMatchesRegularExpression('/for="form-[a-f0-9]{10}-telefoon"><span>Telefoon<\/span>/', $english['body']);
     }
 
     /**
@@ -446,11 +471,37 @@ class FormRenderingTest extends TestCase
         $this->assertArrayHasKey('voor-wie', $body['errors'], 'a choice outside the list is refused');
         $this->assertArrayHasKey('akkoord', $body['errors'], 'a consent box must be ticked');
 
-        // Both languages travel with every message.
+        // One message per field, in the language of the page the form sat on
+        // (api/form-submit.php): no form-source here, so the default language.
         foreach ($body['errors'] as $key => $message) {
-            $this->assertNotSame('', $message['nl'], $key);
-            $this->assertNotSame('', $message['en'], $key);
+            $this->assertIsString($message, $key);
+            $this->assertNotSame('', trim($message), $key);
         }
+        $this->assertSame('Naam is verplicht.', $body['errors']['naam']);
+
+        // The same mistakes sent from an English address are answered in
+        // English, with the field's English label: the language is the
+        // prefix of form-source, nothing else.
+        $this->clearRateLimit();
+        $english = $this->post([
+            'form-key' => $this->internalKey($formId),
+            'form-instance' => $token,
+            'form-source' => '/en/' . self::TEST_PAGE_EN,
+            'form-ts' => (string) (time() - 30),
+            'naam' => '',
+            'e-mail' => 'geen-adres',
+            'voor-wie' => 'Iets anders',
+            'bericht' => 'wel ingevuld',
+        ]);
+
+        $this->assertSame(422, $english['status']);
+        $englishBody = json_decode($english['body'], true);
+        $this->assertSame(
+            array_keys($body['errors']),
+            array_keys($englishBody['errors']),
+            'the same fields are refused in either language'
+        );
+        $this->assertSame('Name is required.', $englishBody['errors']['naam']);
 
         $this->assertSame([], (new FormSubmissionRepository())->findAllForAdmin($formId));
     }
@@ -700,6 +751,25 @@ class FormRenderingTest extends TestCase
         $this->assertNotNull($page);
 
         return $page;
+    }
+
+    /**
+     * Gives a test page an English title and its own English address,
+     * /en/TEST_PAGE_EN, the way the page editor stores them. The row goes
+     * with the page (page_translations cascades).
+     *
+     * @param array<string, mixed> $page
+     */
+    private function giveEnglishAddress(array $page): void
+    {
+        SiteLanguages::clearCache();
+        if (!SiteLanguages::isActive('en') || SiteLanguages::defaultCode() !== 'nl') {
+            $this->markTestSkipped('this test expects the test database to publish nl (default) and en');
+        }
+
+        PageLocalization::save((int) $page['id'], 'en', [PageTranslation::TITLE => 'Form test page'], self::TEST_PAGE_EN);
+        PageLocalization::clearCache();
+        PageContent::clearCache();
     }
 
     /**
