@@ -627,7 +627,11 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $own = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $pageEditor);
         $this->assertSame(200, $own['status']);
         $this->assertStringNotContainsString('page-new.php', $own['body']);
-        $this->assertStringNotContainsString('name="page_id"', $own['body']);
+        // The old flow was a page select. The Pagina-inhoud tab's block
+        // picker carries its own hidden page_id (0: the content page is made
+        // on the first block), which is not a link to a page.
+        $this->assertDoesNotMatchRegularExpression('/<select[^>]*name="page_id"/', $own['body']);
+        $this->assertDoesNotMatchRegularExpression('/<input(?![^>]*type="hidden")[^>]*name="page_id"/', $own['body']);
         $this->assertStringNotContainsString('name="unlink_page"', $own['body']);
         foreach (['name="has_detail_page"', 'name="slug"', 'name="intro"', 'name="description"', 'data-picture-gallery', 'class="admin-card-pair"'] as $needle) {
             $this->assertStringContainsString($needle, $own['body']);
