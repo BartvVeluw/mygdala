@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\DetailSectionRepository;
 use App\Service\Blocks\AnchorName;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\LabelMode;
 use App\Service\Media\BlockImage;
 use App\Service\Media\LinkedImages;
 use App\Service\Routing\RequestLanguage;
@@ -36,11 +37,14 @@ use App\Service\Routing\TypedLink;
  *   section's heading ("Hout graveren") is usually longer than the label
  *   that reads well in a nav ("Hout"). Empty = fall back to the title.
  *
- * `index_label` ("01", "02", ...) and the alternating `bg_soft` background
- * are derived from the section's POSITION among the active detail sections
- * on its page, never stored — the same "derived, not stored" treatment they
- * had before, now counted over a variable number of sections instead of a
- * fixed four.
+ * `index_label` and the alternating `bg_soft` background are derived from the
+ * section's POSITION among the active detail sections on its page — only
+ * Detailsecties count, in the page's block order — never stored.
+ * What the label shows is the section's `label_mode`
+ * (App\Service\Blocks\LabelMode): nothing, that place as "01" (every section
+ * made before v0.1.13, and a new one) or as "1", or the section's own
+ * translated words (`label`). It is NOT the quicknav's label: that stays
+ * `nav_label`, else the title (navItemsForPage()).
  *
  * There are no hardcoded DEFAULTS: like every block phase 2 converted, this
  * type's content lives in the database only, so a missing row (or an
@@ -201,21 +205,29 @@ class DetailSectionContent
     }
 
     /**
-     * The section's "01"/"02"/... label and alternating soft background,
-     * derived purely from its position among the ACTIVE detail sections on
-     * its page (0-based). A section that is hidden, or on a page with no
-     * block list at all, gets position 0.
+     * The section's label and alternating soft background, derived purely
+     * from its position among the ACTIVE detail sections on its page
+     * (0-based; only Detailsecties count). A section that is hidden, or on a
+     * page with no block list at all, gets position 0. The label follows
+     * the section's mode (LabelMode): '' for none, "01" or "1" from the
+     * position, or its own words.
      *
      * @return array{index_label: string, bg_soft: bool}
      */
-    public static function positionMarkers(string $pageSlug, int $sectionId): array
+    public static function positionMarkers(string $pageSlug, int $sectionId, string $labelMode = LabelMode::PADDED, string $label = ''): array
     {
         $index = self::positionsForPage($pageSlug)[$sectionId] ?? 0;
 
         return [
-            'index_label' => sprintf('%02d', $index + 1),
+            'index_label' => LabelMode::text($labelMode, $index + 1, $label),
             'bg_soft' => ($index % 2) === 1,
         ];
+    }
+
+    /** A stored label mode, or the numbering every section had before (LabelMode::SECTION_MODES). */
+    public static function labelMode(mixed $stored): string
+    {
+        return LabelMode::fromStored($stored, LabelMode::SECTION_MODES, LabelMode::PADDED);
     }
 
     /**
@@ -307,13 +319,14 @@ class DetailSectionContent
      * what is the same in every language. The words are startingWords().
      * Section-level fields only: a new section has no points and no images.
      *
-     * @return array{anchor: string, image_position: string, cta_url: string}
+     * @return array{anchor: string, image_position: string, label_mode: string, cta_url: string}
      */
     public static function startingValues(): array
     {
         return [
             'anchor' => '',
             'image_position' => 'image_right',
+            'label_mode' => LabelMode::PADDED,
             'cta_url' => '',
         ];
     }
@@ -375,6 +388,7 @@ class DetailSectionContent
         $content['image_position'] = in_array($row['image_position'] ?? null, self::IMAGE_POSITIONS, true)
             ? (string) $row['image_position']
             : 'image_right';
+        $content['label_mode'] = self::labelMode($row['label_mode'] ?? null);
         $content['cta_url'] = TypedLink::href((string) ($row['cta_url'] ?? ''));
 
         // A CTA only renders when it has both a label in the default language
@@ -405,6 +419,7 @@ class DetailSectionContent
             'main_image_width' => null,
             'main_image_height' => null,
             'image_position' => 'image_right',
+            'label_mode' => LabelMode::PADDED,
             'cta_url' => '',
             'points' => [],
             'images' => [],

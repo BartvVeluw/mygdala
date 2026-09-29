@@ -563,6 +563,7 @@
             <file>tests/Service/DetailSectionTwoTest.php</file>
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
             <file>tests/Service/DetailSectionTwoHttpTest.php</file>
+            <file>tests/Service/DetailSectionLabelModeHttpTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
             <file>tests/Repository/BlockTranslationTreeTest.php</file>

@@ -139,10 +139,21 @@ if (!in_array($imagePosition, DetailSectionContent::IMAGE_POSITIONS, true)) {
     $imagePosition = 'image_right';
 }
 
+// What stands above the title (App\Service\Blocks\LabelMode): refused when
+// it is not one of the section's modes; a form without it keeps the stored
+// one. The own words are the translated field `label`, among $words.
+$labelMode = DetailSectionContent::labelMode($section['label_mode'] ?? null);
+$labelModeRefused = false;
+if (array_key_exists('label_mode', $_POST)) {
+    $labelModeRefused = !\App\Service\Blocks\LabelMode::isValid($_POST['label_mode'], \App\Service\Blocks\LabelMode::SECTION_MODES);
+    $labelMode = $labelModeRefused ? $labelMode : (string) $_POST['label_mode'];
+}
+
 $typedAnchor = (string) ($_POST['anchor'] ?? '');
 $settings = [
     'anchor' => AnchorName::normalise($typedAnchor),
     'image_position' => $imagePosition,
+    'label_mode' => $labelMode,
     'cta_url' => trim((string) ($_POST['cta_url'] ?? '')),
     'is_active' => isset($_POST['is_active']),
 ];
@@ -260,6 +271,10 @@ if (!$languageIsWritable) {
     $fieldErrors += $pointErrors + $imageErrors;
 }
 
+if ($labelModeRefused) {
+    $errors[] = $fieldErrors['label_mode'] = AdminTranslator::trans('label_mode.error_mode');
+}
+
 // The anchor: something that leaves nothing is no anchor, and two sections
 // on one page cannot share one.
 if (AnchorName::isUnusable($typedAnchor)) {
@@ -281,7 +296,9 @@ if ($urlProblem !== null) {
     $fieldErrors['cta_url'] = $urlProblem;
 }
 
-$old = ['language_code' => $languageCode] + $words + $settings + [
+$old = ['language_code' => $languageCode] + $words + [
+    'label_mode' => is_string($_POST['label_mode'] ?? null) ? $_POST['label_mode'] : $labelMode,
+] + $settings + [
     'main_media_id' => $mainPosted,
     'remove_legacy_main_image' => isset($_POST['remove_legacy_main_image']),
     'points' => $points->old(),

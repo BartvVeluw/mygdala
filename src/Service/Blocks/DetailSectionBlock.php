@@ -86,6 +86,8 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
         return [
             'detail_sections' => [
                 TranslatableField::plain('nav_label', 100),
+                // The own words of the label mode "Eigen tekst" (LabelMode).
+                TranslatableField::plain('label', 40),
                 TranslatableField::plain('title', 255)->required(),
                 TranslatableField::plain('lead', 500),
                 TranslatableField::rich('body', 50000),
@@ -182,7 +184,7 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
 
         render_section_detail_section(
             $content,
-            DetailSectionContent::positionMarkers($pageSlug, (int) $content['id']),
+            DetailSectionContent::positionMarkers($pageSlug, (int) $content['id'], $content['label_mode'], $content['label']),
             $revealGroup
         );
     }
@@ -202,6 +204,8 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
         return [
             'id' => 0,
             'anchor' => '',
+            'label_mode' => LabelMode::PADDED,
+            'label' => '',
             'nav_label' => $samples->localized('short_title'),
             'title' => $samples->localized('title'),
             'lead' => $samples->localized('lead'),
@@ -226,7 +230,7 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
      */
     public function renderSample(array $content, string $revealGroup): void
     {
-        render_section_detail_section($content, ['index_label' => '01', 'bg_soft' => false], $revealGroup);
+        render_section_detail_section($content, ['index_label' => LabelMode::text($content['label_mode'] ?? LabelMode::PADDED, 1, (string) ($content['label'] ?? '')), 'bg_soft' => false], $revealGroup);
     }
 
     public function instanceTitle(array $pageSection): string

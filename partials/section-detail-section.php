@@ -58,7 +58,9 @@ function render_section_detail_section(array $content, array $markers, string $r
     <div class="container">
       <div class="service-detail__head<?= $flip ? ' service-detail__head--image-left' : '' ?>">
         <div data-reveal>
+          <?php if ($markers['index_label'] !== ''): ?>
           <span class="service-row__index"><?= $h($markers['index_label']) ?></span>
+          <?php endif; ?>
           <?php if ($content['title'] !== ''): ?>
           <h2><?= $h($content['title']) ?></h2>
           <?php endif; ?>

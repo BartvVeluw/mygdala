@@ -118,24 +118,31 @@ class DetailSectionRepository extends Repository
      * image, points and gallery images are saved separately by their own
      * endpoints, so this method never touches them.
      *
-     * @param array{anchor?: string|null, image_position?: string|null, cta_url?: string|null, is_active?: bool} $values
+     * The label mode (App\Service\Blocks\LabelMode) is written when $values
+     * names it; a new row without one starts numbered, an existing row
+     * keeps its own.
+     *
+     * @param array{anchor?: string|null, image_position?: string|null, label_mode?: string, cta_url?: string|null, is_active?: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
+        $label = array_key_exists('label_mode', $values);
         $stmt = $this->db->prepare(
             'INSERT INTO detail_sections
-                (page_slug, section_key, anchor, image_position, cta_url, is_active, created_at, updated_at)
+                (page_slug, section_key, anchor, image_position, label_mode, cta_url, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :anchor, :image_position, :cta_url, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :anchor, :image_position, :label_mode, :cta_url, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 anchor = VALUES(anchor),
-                image_position = VALUES(image_position),
+                image_position = VALUES(image_position),'
+                . ($label ? ' label_mode = VALUES(label_mode),' : '') . '
                 cta_url = VALUES(cta_url),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
 
         $stmt->execute([
+            'label_mode' => $label ? (string) $values['label_mode'] : 'padded',
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'anchor' => self::nullIfEmpty($values['anchor'] ?? null),

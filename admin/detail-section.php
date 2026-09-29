@@ -11,6 +11,7 @@ require_once __DIR__ . '/_editor_rows.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_gallery_source_field.php';
+require_once __DIR__ . '/_label_mode_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -238,6 +239,20 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 
     <section class="admin-card">
       <h2><?= admin_te('block_detail.algemene_inhoud') ?></h2>
+      <?php
+        // What stands above the title: nothing, the number from the
+        // section's place, or own words per language. Not the quicknav's
+        // label, which is Navigatielabel below.
+        label_mode_field([
+            'id' => 'detail-label-mode',
+            'label' => admin_t('block_detail.nummer_label'),
+            'help' => admin_t('help.block_detail.nummer_label'),
+            'modes' => \App\Service\Blocks\LabelMode::SECTION_MODES,
+            'mode' => \App\Service\DetailSectionContent::labelMode(is_array($old) ? ($old['label_mode'] ?? null) : ($section['label_mode'] ?? null)),
+            'custom' => static fn () => $field('label', admin_t('block_detail.eigen_tekst'), 40, $optional),
+            'errors' => array_filter(['mode' => $fieldErrors['label_mode'] ?? null]),
+        ]);
+      ?>
       <?php $field('title', admin_t('block_detail.titel_h2') . $marker, 255, $required . $placeholder); ?>
       <?php $field('lead', admin_t('block_detail.lead'), 500, $optional, 2); ?>
 
@@ -350,6 +365,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <?php media_picker_script(); ?>
 <?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
+<?php label_mode_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>
