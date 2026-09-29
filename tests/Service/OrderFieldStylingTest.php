@@ -38,6 +38,24 @@ final class OrderFieldStylingTest extends TestCase
         self::assertStringContainsString('<legend>Houtsoort', $html);
     }
 
+    public function testAnImageQuestionIsALabelledFileControlWithItsRulesAndALiveStatus(): void
+    {
+        $html = $this->render([
+            array_merge($this->question(6, 'image', true, 'Foto huisdier', 'Een scherpe foto'), ['max_bytes' => 5 * 1024 * 1024]),
+        ]);
+
+        self::assertStringContainsString('class="product-order-field form-field product-order-field--image"', $html);
+        self::assertStringContainsString('data-order-field-max-bytes="5242880"', $html);
+        self::assertMatchesRegularExpression('/<input type="file" class="product-order-field__file" id="order-field-6"[^>]*accept="image\/jpeg,image\/png,image\/webp"[^>]*aria-describedby="order-field-6-help order-field-6-rules order-field-6-error"[^>]*required aria-required="true">/', $html);
+        self::assertStringContainsString('<label for="order-field-6">Foto huisdier', $html, 'the question is the control\'s label');
+        self::assertStringContainsString('<label for="order-field-6" class="btn btn--ghost btn--sm product-order-field__pick"', $html, 'the button is the site\'s own');
+        self::assertStringContainsString('JPG, PNG of WebP · max. 5 MB', $html);
+        self::assertStringContainsString('role="status" aria-live="polite" data-order-field-status', $html);
+        self::assertStringContainsString('data-order-field-replace', $html);
+        self::assertStringContainsString('data-order-field-remove', $html);
+        self::assertStringNotContainsString('image/svg', $html);
+    }
+
     public function testShopCssFitsTheFieldsWithoutASecondFormStyle(): void
     {
         $css = (string) file_get_contents(self::ROOT . '/assets/css/shop/shop.css');
@@ -49,7 +67,7 @@ final class OrderFieldStylingTest extends TestCase
 
         // The border, surface and focus ring of a field are core.css's.
         self::assertStringNotContainsString('background:', $block);
-        self::assertStringNotContainsString('border:', $block);
+        self::assertDoesNotMatchRegularExpression('/[{;\s]border:(?!\s*0;)/', $block, 'no border of its own (only the hidden file control\'s border: 0)');
         self::assertMatchesRegularExpression('/product-order-field__choice\{[^}]*min-height: 44px/', $block, 'a choice is a row big enough to tap');
         self::assertStringContainsString('overflow-wrap: anywhere', $block, 'a long label wraps on a phone');
         self::assertStringContainsString('select[aria-invalid="true"]', $block);

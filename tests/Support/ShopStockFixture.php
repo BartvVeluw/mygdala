@@ -198,7 +198,18 @@ final class ShopStockFixture
         }
 
         foreach ($this->orderIds as $orderId) {
+            // A claimed picture keeps its order line (RESTRICT): its row goes
+            // first. The files are the test's own, in its own folder.
+            $db->prepare(
+                'DELETE u FROM order_field_uploads u
+                 INNER JOIN order_item_fields f ON f.id = u.order_item_field_id
+                 INNER JOIN order_items oi ON oi.id = f.order_item_id
+                 WHERE oi.order_id = :id'
+            )->execute(['id' => $orderId]);
             $db->prepare('DELETE FROM orders WHERE id = :id')->execute(['id' => $orderId]);
+        }
+        foreach ($this->productIds as $productId) {
+            $db->prepare('DELETE FROM order_field_uploads WHERE product_id = :id AND claimed_at IS NULL')->execute(['id' => $productId]);
         }
         if ($this->customerId !== null) {
             $db->prepare('DELETE FROM customers WHERE id = :id')->execute(['id' => $this->customerId]);

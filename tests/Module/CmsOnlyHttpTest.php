@@ -207,6 +207,7 @@ final class CmsOnlyHttpTest extends TestCase
                 '/api/withdrawal-request.php' => ['order' => '1', 'email' => 'nobody@example.com'],
                 '/api/mollie-webhook.php' => ['id' => 'tr_fake'],
                 '/api/personalization-upload.php' => ['product_id' => '1'],
+                '/api/order-field-upload.php' => ['product_id' => '1', 'field_id' => '1'],
             ] as $path => $fields
         ) {
             $this->assertSame(404, $this->post($path, $fields), $path . ' must reject the write');

@@ -182,11 +182,11 @@ final class OrderFieldsTest extends TestCase
         (new OrderItemFieldRepository())->create($itemId, $service->snapshot($product, $answers));
 
         $expected = [[
-            'label' => 'Naam op het bord', 'value' => 'Luna', 'field_type' => 'text',
+            'label' => 'Naam op het bord', 'value' => 'Luna', 'field_type' => 'text', 'upload' => null,
         ], [
-            'label' => 'Houtsoort', 'value' => 'Noten', 'field_type' => 'radio',
+            'label' => 'Houtsoort', 'value' => 'Noten', 'field_type' => 'radio', 'upload' => null,
         ], [
-            'label' => 'Cadeauverpakking', 'value' => 'Ja', 'field_type' => 'checkbox',
+            'label' => 'Cadeauverpakking', 'value' => 'Ja', 'field_type' => 'checkbox', 'upload' => null,
         ]];
         self::assertSame([$itemId => $expected], (new OrderItemFieldRepository())->findByOrderIdGrouped($order), 'in the default language, whatever language the customer used');
 
