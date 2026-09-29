@@ -94,12 +94,17 @@ final class FreshInstallTest extends TestCase
         $this->assertSame(['NO', 'normal'], $columns['title_size'] ?? null);
         $this->assertSame(['NO', 'normal'], $columns['text_size'] ?? null);
 
+        // Two keys into the library: the picture itself and, since
+        // Responsive Media 2.0, a phone's own picture. Both RESTRICT.
         $this->assertSame(
-            [['delete_rule' => 'RESTRICT']],
+            [['column_name' => 'image_mobile_media_id', 'delete_rule' => 'RESTRICT'], ['column_name' => 'media_id', 'delete_rule' => 'RESTRICT']],
             $this->install()->rows(
-                'SELECT delete_rule AS delete_rule
-                   FROM information_schema.referential_constraints
-                  WHERE constraint_schema = DATABASE() AND table_name = ? AND referenced_table_name = ?',
+                'SELECT k.column_name AS column_name, r.delete_rule AS delete_rule
+                   FROM information_schema.referential_constraints r
+                   JOIN information_schema.key_column_usage k
+                     ON k.constraint_schema = r.constraint_schema AND k.constraint_name = r.constraint_name
+                  WHERE r.constraint_schema = DATABASE() AND r.table_name = ? AND r.referenced_table_name = ?
+                  ORDER BY k.column_name',
                 ['page_heroes', 'media']
             ),
             'a library item a header still shows cannot be deleted from under it'
