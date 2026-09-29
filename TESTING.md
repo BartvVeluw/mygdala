@@ -175,12 +175,14 @@ aan:
 
 ```bash
 docker compose exec -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
-  -e MODULE_BLOG_ENABLED=true -e MODULE_PORTFOLIO_ENABLED=true php php vendor/bin/phpunit --testsuite fast
+  -e MODULE_BLOG_ENABLED=true -e MODULE_PORTFOLIO_ENABLED=true \
+  -e MODULE_PAGE_THEMES_ENABLED=true php php vendor/bin/phpunit --testsuite fast
 ```
 
 Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
 `NavigationServiceTest`, `RouteRegistryTest`, `FrontendAssetOwnershipTest`
-(Shop uit) en `AdminPermissionsTest`, `AdminAccessControlTest` (Blog uit).
+(Shop uit) en `AdminPermissionsTest`, `AdminAccessControlTest` (Blog of
+Paginathema's uit).
 
 ## De suites
 
@@ -1149,6 +1151,25 @@ in `unit`, `fast` en `cms`. `SearchProvidersTest` schrijft pagina's, producten,
 projecten en berichten in één transactie die na elke test wordt teruggedraaid,
 en zit in `modules`, `shop` en `blog`. De module-aan/uit-gevallen gebruiken
 `ModuleRegistry::overrideForTests()`, niet de omgevingsvariabelen.
+
+### Paginathema's
+
+De module `page_themes` (`THEMING.md`, "Paginathema's") heeft zeven
+testklassen:
+
+| Klasse | Suites | Wat |
+|---|---|---|
+| `ThemeColorTest` | `unit`, `fast`, `cms` | de gedeelde kleurregel, het WCAG-contrast, de waarschuwing, de waarden van het voorbeeld, een nieuw thema begint als de site |
+| `PageThemeCssContractTest` | `contract`, `fast`, `cms` | `core.css` (elke `var()`-token ook op `main[data-page-theme]`, de ondergrond, de headersluier), het attribuut in elk paginatemplate en nergens anders, de volledige tokenset, gemanipuleerde waarden, ontdubbelde lettertypes, een ongewijzigde `<head>` zonder thema |
+| `PageThemesModuleTest` | `contract`, `fast`, `modules` | registratie, bijdragen aan en uit, de guards, Core noemt de module niet, geen keuze in de product- en projecteditor |
+| `PageThemesAdminHttpTest` | `modules` | eigen `php -S` met de module aan, uit en niet vastgezet: maken, hernoemen, dupliceren, verwijderen, weigeren (ook RESTRICT in de database), de keuze op de pagina, module uit, de schakelaar op Vormgeving |
+| `PageThemesRenderingHttpTest` | `modules` | eigen `php -S` met de dispatcher: tokens en lettertypes in `main`, geen overerving, `/en`, SEO gelijk, een pagina zonder thema byte voor byte gelijk, module uit en weer aan, gemanipuleerde rijen, veel bloktypes, het voorbeeld in de editor, product en project zonder thema |
+| `PageThemesApacheHttpTest` | `http`, `modules` | echte Apache: `php_test` toont het thema (NL en EN), `php_cms` (module uit) niet |
+| `PageThemesMigrationTest` | `migration`, `modules` | vers, bijgewerkt en opnieuw: bestaande pagina's `NULL`, de RESTRICT-sleutel, dezelfde kolommen |
+
+`docker-compose.yml` en `tests/Support/http-tier.sh` zetten
+`MODULE_PAGE_THEMES_ENABLED` vast: aan in `php_test`, uit in `php_cms`. Na
+een wijziging daarin eerst `tests/Support/http-tier.sh down`.
 
 ## Hoe de database gescheiden blijft
 

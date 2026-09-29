@@ -26,7 +26,7 @@ packages, geen microservices.
 | Configuratie | `src/Module/ModuleConfig.php` — dé volgorde: `MODULE_<KEY>_ENABLED` in `.env`, dan de opgeslagen voorkeur, dan aan |
 | Opgeslagen voorkeur | `src/Module/ModuleSettings.php` + tabel `module_settings` — wat de installatiewizard schrijft (`SETUP.md`) |
 | Guard | `src/Module/ModuleGuard.php` — het regeltje bovenaan een route of endpoint van een module |
-| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/PortfolioModule.php`, `src/Module/MultilingualModule.php` |
+| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/PortfolioModule.php`, `src/Module/MultilingualModule.php`, `src/Module/PageThemesModule.php` |
 
 Het register:
 
@@ -37,6 +37,7 @@ private const MAP = [
     'blog' => BlogModule::class,
     'portfolio' => PortfolioModule::class,
     'multilingual' => MultilingualModule::class,
+    'page_themes' => PageThemesModule::class,
 ];
 ```
 
@@ -56,6 +57,7 @@ MODULE_PERSONALIZATION_ENABLED=false
 MODULE_BLOG_ENABLED=true
 MODULE_PORTFOLIO_ENABLED=true
 MODULE_MULTILINGUAL_ENABLED=true
+MODULE_PAGE_THEMES_ENABLED=false
 ```
 
 **De standaard is die van de module zelf, en voor de Shop en Personalisatie is
@@ -91,6 +93,11 @@ voorkeur *aan* op voor elke installatie van vóór de installatiemarker en voor
 een verse installatie waarvan de wizard al klaar was. Anders dan bij de andere
 modules is er een scherm dat hem na de installatie aan- en uitzet:
 *Instellingen → Talen* (`MULTILINGUAL.md`).
+
+**Paginathema's** start ook uit: de meeste sites hebben één vormgeving. Het
+is een nieuwe module, dus er is geen bestaande installatie om vast te zetten.
+Ook deze module heeft na de installatie een schakelaar: *Vormgeving*, kaart
+*Onderdelen van de vormgeving* (`THEMING.md`, "Paginathema's").
 
 Waarom de omgeving vóóraan staat: dit is deploy-configuratie, net als `DB_*`.
 Het is één regel in het bestand dat de hosting toch al heeft, het werkt op
@@ -162,6 +169,9 @@ hij gebruikt.
 | Eén zin over zichzelf | `description()` | `admin/setup.php` (de installatiewizard) |
 | Standaard aan of uit | `enabledByDefault()` | `App\Module\ModuleConfig` (stap 3 van de ketting) |
 | Andere talen dan de standaardtaal publiceren | `publishesTranslations()` | `App\Service\Language\SiteLanguages::active()`, via `ModuleRegistry::publishesTranslations()` |
+| Hoe een gewone CMS-pagina eruitziet als die niet de vormgeving van de site volgt (een paginathema) | `pageAppearance()` | `App\Service\Theme\PageThemeCss`, via `ModuleRegistry::pageAppearance()` (`THEMING.md`, "Paginathema's") |
+| Een eigen instelling op het tabblad Pagina van de pagina-editor, opgeslagen met de pagina | `pageSettingsSections()` (`App\Service\PageSettingsSection`) | `admin/page.php` en `api/admin/update-page.php` |
+| Een aan/uit-schakelaar op het scherm Vormgeving | `switchableFromAppearance()` | `admin/theme.php`, `api/admin/update-appearance-module.php` |
 
 Drie van die lijsten komen ergens in het midden van een bestaande, bewust
 geordende lijst terecht (de zijbalk, het permissieformulier, de routekiezer).
@@ -1699,6 +1709,21 @@ talenregister zelf (welke talen er zijn, welke de standaard is) is Core en
 blijft beheerd met de module aan of uit. Uitzetten raakt geen taal en geen
 vertaling (`MULTILINGUAL.md`, `docs/multilingual/WEBSITE-LANGUAGES.md`).
 
+### Paginathema's (module `page_themes`)
+
+Eigen tabel (`page_themes`) en één kolom op `pages` (`page_theme_id`, FK
+RESTRICT), eigen repository (`PageThemeRepository`), eigen service
+(`App\Service\PageThemes\*`), eigen schermen (`admin/page-themes.php`,
+`admin/page-theme.php`, `admin/page-theme-preview.php`) en endpoints
+(`api/admin/*-page-theme.php`) achter `page_themes.manage`. Drie bijdragen:
+`pageAppearance()` (het uiterlijk van een pagina met een thema),
+`pageSettingsSections()` (de keuze op het tabblad Pagina) en
+`switchableFromAppearance()` (de schakelaar op Vormgeving). De vormgeving
+zelf — de kleurregel, de afgeleide tinten, de lettertypes en het afdrukken
+van het blok — blijft Core (`App\Service\Theme\*`); Core noemt de module
+nergens (`Tests\Module\PageThemesModuleTest`). Uitzetten verwijdert geen
+thema en geen keuze van een pagina. Zie `THEMING.md`, "Paginathema's".
+
 ### Formulieren
 
 `Service\Forms\*` plus `FormRepository`, `FormSubmissionRepository`, de twee
@@ -1762,9 +1787,11 @@ Bewust, en niet gepland tenzij er een concrete aanleiding komt:
 - **Geen install/uninstall-UI.** Er is geen permanent "Modules
   beheren"-scherm. De installatiewizard vraagt het één keer bij het inrichten
   van een nieuwe site (`SETUP.md`); daarna is aan en uit een regel in `.env`,
-  of een rij in `module_settings` die iemand met de hand zet. De enige
-  uitzondering is Meertaligheid, die *Instellingen → Talen* aan- en
-  uitzet, omdat dat scherm toch al over de talen van de site gaat.
+  of een rij in `module_settings` die iemand met de hand zet. De twee
+  uitzonderingen zijn Meertaligheid, die *Instellingen → Talen* aan- en
+  uitzet, omdat dat scherm toch al over de talen van de site gaat, en
+  Paginathema's, die *Vormgeving* aan- en uitzet
+  (`switchableFromAppearance()`), omdat het een deel van de vormgeving is.
 - **Geen plug-ins van derden**, geen marktplaats, geen runtime downloaden of
   laden van code.
 - **Geen packages per module**, geen aparte repositories, geen Composer-

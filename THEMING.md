@@ -235,6 +235,171 @@ Een combinatie toevoegen is één regel in `PAIRINGS`. Houd de lijst klein.
 icoonknoppen, labels, stappentellers, filterchips en kleurstalen houden hun
 eigen vorm, want die vorm betekent iets — vervang die niet mee.
 
+## Paginathema's
+
+Een **paginathema** is een benoemde set van de vijf kleuren plus een
+lettertypecombinatie die één gewone CMS-pagina mag gebruiken in plaats van
+de vormgeving van de website: een actiepagina, een seizoenspagina. Het is
+data, gemaakt op een eigen scherm, nooit een `if` op een paginanaam in code.
+
+Het is een **module**: `page_themes` (*Paginathema's*,
+`App\Module\PageThemesModule`), standaard uit (`MODULES.md`). De vormgeving
+zelf blijft Core; de module bezit alleen de opslag, de schermen en de keuze
+per pagina. Core drukt het resultaat af zonder de module te noemen.
+
+### Het model
+
+```text
+page_themes            id, name (uniek), slug (uniek, [a-z0-9-]),
+                       primary_color, on_primary_color, background_color,
+                       surface_color, text_color (CHAR(7), #RRGGBB),
+                       font_pairing (een ThemeFonts-sleutel)
+pages.page_theme_id    NULL = de vormgeving van de website
+                       FK naar page_themes, ON DELETE RESTRICT
+```
+
+Migratie `20261001100000_create_page_themes`. Elke bestaande pagina houdt
+`NULL`. Nederlands en Engels delen één `pages`-rij, dus elke taal van een
+pagina heeft hetzelfde thema. **Er is geen overerving**: een pagina onder
+een pagina met thema krijgt de vormgeving van de website, tenzij ze zelf een
+thema kiest. Alleen de eigen `page_theme_id` telt.
+
+De knopvorm hoort er niet bij: dat blijft een keuze voor de hele site.
+
+### Eén set regels, niet twee
+
+Een paginathema kan niets uitdrukken wat de vormgeving van de website niet
+kan, omdat het dezelfde code gebruikt:
+
+| Wat | Waar |
+|---|---|
+| Een kleur valideren | `App\Service\Theme\ThemeColor::normalise()` — ook wat `ThemeSettings` gebruikt |
+| De afgeleide tinten | `ThemePalette::derive()` |
+| De lettertypes | `ThemeFonts::isValidKey()` / `::pairing()` |
+| De laatste controle op elke waarde | `ThemeCss::isSafeValue()` |
+| Een thema als geheel | `App\Service\Theme\PageAppearance::fromTheme()`: alles of niets |
+
+Een opgeslagen rij wordt bij elke weergave opnieuw gevalideerd. Een rij met
+één kapotte waarde (met de hand bewerkt: `r;}a{b:`) wordt **niet** half
+toegepast: de pagina krijgt dan gewoon de vormgeving van de website.
+
+### Van keuze naar pixel
+
+```text
+partials/page-head.php          PageThemeCss::declareForPage($page)
+  → ModuleRegistry::pageAppearance($page)   alleen ingeschakelde modules
+  → PageThemesModule::pageAppearance()      PageThemeService::appearanceFor()
+PageAssets::renderStyles()
+  1. lettertypes: die van de site + die van het thema, ontdubbeld
+  2. core.css + blok- en modulestylesheets
+  3. <style id="site-theme">   :root{…}, alleen wat afwijkt
+  4. <style id="page-theme">   main[data-page-theme="<slug>"]{…}, de volledige set
+template                        <main id="main" data-page-theme="<slug>">
+```
+
+Het blok van een paginathema bevat **de volledige set**: de vijf kleuren,
+elke tint van `ThemePalette::derive()` en `--font-display`/`--font-body`.
+Niet alleen het verschil, zoals het site-thema: binnen de `<main>` vervangt
+het thema het palet, dus elke token moet daar opnieuw staan.
+
+Alleen de templates die `partials/page-head.php` gebruiken (de zeven
+paginatemplates en `admin/page-preview.php`) kunnen een thema krijgen.
+`product.php` en `portfolio-detail.php` gebruiken die partial niet, en
+`PageThemeCss::declareForPage()` weigert bovendien een rij met `owner_type`:
+de inhoudspagina van een product of project krijgt nooit een thema. De
+product- en projecteditors hebben ook geen keuze.
+
+### Wat het thema kleurt, en wat niet
+
+Het thema geldt voor de **inhoud van de pagina**: de paginakop en alle
+blokken (achtergrond, tekst, koppen, links, knoppen, kaarten, formulieren).
+De header, het menu, de footer en de cookiebanner blijven in de vormgeving
+van de website: die zijn van de site, niet van één pagina, en een bezoeker
+herkent de site eraan.
+
+Drie regels in `core.css` maken dat mogelijk:
+
+- **De alfa-afleidingen** (`--color-line`, `--color-text-muted`, …) staan in
+  een eigen regel `:root, main[data-page-theme]{…}`. Een eigenschap die met
+  `var()` uit andere tokens is opgebouwd, wordt één keer berekend op het
+  element dat haar declareert; op `:root` alleen zou ze binnen een thema de
+  kleuren van de site houden. `Tests\Service\PageThemeCssContractTest` faalt
+  zodra een `var()`-token alleen op `:root` staat.
+- **De ondergrond**: `body, main[data-page-theme]` delen de verlopen, de
+  vaste achtergrond, de tekstkleur en het lettertype, net als de regel voor
+  schermen tot 900 px.
+- **De header krijgt zijn sluier vanaf de eerste pixel**:
+  `body:has(> main[data-page-theme]) .site-header` deelt de achtergrond van
+  `.is-scrolled`. De header houdt de kleuren van de site en zou anders
+  transparant boven een ondergrond en een paginakop zweven waarvoor hij niet
+  ontworpen is. Alleen de sluier: hij wordt bij scrollen nog steeds compact.
+
+Een pagina zonder thema rendert **byte voor byte** zoals zonder de module:
+geen attribuut, geen extra `<style>`, geen extra lettertype
+(`PageThemesRenderingHttpTest` vergelijkt de hele pagina met de module aan en
+uit). SEO verandert niet: titel, beschrijving, canonical, hreflang, sitemap
+en robots weten niets van een thema. De `theme-color`-meta blijft die van de
+site.
+
+### Lettertypes
+
+`PageAssets::renderFontStylesheet()` drukt één ontdubbelde set af: de
+stylesheet van de combinatie van de site, en die van het thema als die anders
+is en niet `system`. De twee preconnects komen één keer, ook als alleen het
+thema een webfont heeft.
+
+### Beheren
+
+*Paginathema's* in de zijbalk, direct onder Vormgeving, met een eigen
+permissie `page_themes.manage`. Het overzicht toont naam, kleurstalen,
+lettertype, hoeveel pagina's het thema gebruiken, en Bewerken, Dupliceren en
+Verwijderen.
+
+- **Een nieuw thema begint als de vormgeving van de website**
+  (`PageThemeService::defaults()`), nooit met een palet uit de code.
+- **De slug** wordt van de naam gemaakt en uniek gemaakt (`-2`, `-3`); een
+  beheerder typt hem nooit.
+- **Het kleurveld** is het kleurveld van Vormgeving (`admin/_theme_color_field.php`,
+  ook gebruikt door de installatiewizard).
+- **Het voorbeeld** is een echte pagina: `admin/page-theme-preview.php` in een
+  frame met `sandbox=""`, met `core.css`, de vormgeving van de site en het
+  thema via dezelfde `PageThemeCss`. De editor herlaadt het met de waarden die
+  nog niet zijn opgeslagen; elke waarde wordt gevalideerd zoals bij opslaan, en
+  een waarde die zou worden geweigerd toont die van de site. De
+  Content-Security-Policy van dat document staat geen script en geen formulier
+  toe.
+- **Contrast**: onder de kleuren staat een waarschuwing voor elk paar onder
+  WCAG 4,5:1 (tekst op achtergrond, tekst op kaartvlak, tekst op primair,
+  primair op achtergrond). Berekend in PHP (`ThemeColor::contrastRatio()`) en
+  live bijgewerkt door `admin/assets/page-theme-admin.js`. Het is een
+  waarschuwing: opslaan kan altijd.
+- **Dupliceren** maakt "*naam* (kopie)", of "(kopie 2)", met een eigen slug.
+- **Verwijderen van een thema in gebruik wordt geweigerd**, met de lijst van
+  pagina's die het gebruiken en een link naar elke pagina. De database
+  weigert het ook (RESTRICT). Er is geen "terug naar de site-vormgeving"
+  als bijwerking van opruimen.
+
+Een pagina kiest haar thema op het tabblad **Pagina** van de pagina-editor,
+in de kaart Algemeen: *Standaard website-thema* of een thema, met een
+kleurstaal. Dat veld is de bijdrage van de module
+(`ModuleDefinition::pageSettingsSections()`, `App\Service\PageSettingsSection`)
+en wordt alleen opgeslagen als de module aan staat én het veld is
+meegestuurd. Een thema kiezen valt onder `pages.manage`.
+
+### Module uit
+
+Uitzetten kan in `.env` (`MODULE_PAGE_THEMES_ENABLED`) of op het scherm
+Vormgeving, kaart *Onderdelen van de vormgeving* (voor elke module met
+`switchableFromAppearance()`; een door de omgeving vastgezette module staat
+daar vast en het endpoint weigert). Met de module uit:
+
+- tonen alle pagina's de vormgeving van de website — geen attribuut, geen
+  `page-theme`-blok, geen extra lettertype;
+- verdwijnen de zijbalkregel, de schermen (niemand houdt
+  `page_themes.manage`, ook geen Super Admin) en het veld in de pagina-editor;
+- blijft alles bewaard: de thema's en de keuze van elke pagina. Weer aanzetten
+  brengt ze terug.
+
 ## Branding-afbeeldingen
 
 Logo, tweede logo, favicon en deel-afbeelding blijven `site_settings`, en
@@ -273,6 +438,13 @@ database noch webserver nodig. `cms` voegt `ThemePersistenceTest` toe
 niet aanraakt) plus `AdminThemePersistenceTest` (opslaan, terugvallen op
 `default`, de eigen kleuren, en dat de twee vormgevingen elkaar niet raken). Zie verder
 `TESTING.md`.
+
+De paginathema's hebben hun eigen testklassen: `ThemeColorTest` (`unit`,
+`fast`, `cms`), `PageThemeCssContractTest` (`contract`, `fast`, `cms`),
+`PageThemesModuleTest` (`contract`, `fast`, `modules`),
+`PageThemesAdminHttpTest` en `PageThemesRenderingHttpTest` (`modules`, eigen
+`php -S`), `PageThemesApacheHttpTest` (`http`, `modules`) en
+`PageThemesMigrationTest` (`migration`, `modules`). Zie `TESTING.md`.
 
 Raak je de stylesheets aan, controleer dan of de standaardvormgeving
 onveranderd rendert: vergelijk `getComputedStyle` van élk element vóór en ná,

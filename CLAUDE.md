@@ -47,6 +47,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Domeingrenzen, "waar hoort dit thuis", een module toevoegen of uitzetten | — | `MODULES.md` |
 | Talen van de site, CMS-taal, bewerktaal, automatisch vertalen | — | `MULTILINGUAL.md` |
 | Kleuren, lettertypes, knopvorm, logo's, dashboard-uiterlijk | — | `THEMING.md` |
+| Paginathema's: een eigen kleur- en lettertypeset per pagina, de module `page_themes` | — | `THEMING.md` |
 | Afbeeldingen uploaden, hergebruiken, alt-teksten, verwijderen | — | `MEDIA.md` |
 | Een nieuw paginasjabloon | — | `PAGE-TEMPLATES.md` |
 | Wat een verse installatie aanmaakt | — | `INSTALL-BOOTSTRAP.md` |
