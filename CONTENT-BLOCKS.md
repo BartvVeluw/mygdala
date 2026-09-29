@@ -663,6 +663,17 @@ van de keuzes hangt aan een taal.
 | Kaarten-carrousel | `card_carousels.flat_image_ratio` | `auto`, `1-1`, `4-3`, `3-4`, `16-9` (`ResponsiveImage::FLAT_RATIOS`) | *Beeldverhouding op een rij*: waar de kaarten naast elkaar staan (altijd op een telefoon, op grotere schermen bij *Kaarten naast elkaar*) krijgt elk beeld die vorm in plaats van de vaste hoogte; *Zoals de hoogte* (`auto`) is de standaard en geeft geen class. De draaiende carrousel houdt altijd de hoogte, want zijn podium wordt uit een vaste kaarthoogte berekend. Een kaart zonder beeld (het icoon) krijgt dezelfde vorm, zodat de kaarten van een rij even hoog blijven. Elke kaart houdt haar eigen afbeeldingsweergave (`MEDIA.md`, *Responsive Media*), en de kaders in de kaarteditor volgen de vorm die de kaart echt krijgt. De afbeelding voor een telefoon is de compacte afbeelding van een kaart: de draaiende carrousel toont haar zodra hij plat wordt (onder 700px, `CardCarouselContent::COMPACT_MAX_WIDTH`), *Kaarten naast elkaar* op elke breedte, telkens met haar eigen punt en weergave; zonder eigen afbeelding toont elk scherm de desktopafbeelding |
 | Witruimte | `spacers.size` | `medium`, `small`, `large`, `xlarge` (`SpacerContent::SIZES`) | Zie hieronder |
 
+**Koppen in een Tekstblok** (v0.1.12). Een H2 in de tekst is een gewone H2
+van de site. `.rich-content h2` en `h3` in `core.css` lezen de tokens van de
+typeschaal (`--fs-h2`, `--fs-h3`, die met het scherm meeschalen) en nemen
+gewicht, regelhoogte en lettertype van de basisregel voor `h1`–`h4`. Vroeger
+was het een vaste 1.4rem in gewicht 400, zichtbaar kleiner dan elke andere
+H2. Alleen de ruimte eromheen is van rich content zelf, in rem, zodat die
+niet met de kop meegroeit. Dit geldt voor alles wat `.rich-content` deelt:
+het Tekstblok, de blogtekst, de Portfolio-teksten en de collectiebeschrijving.
+Alleen het uiterlijk veranderde: het blok print nog steeds de koppen die de
+redacteur koos, en voegt zelf geen kopniveau toe (`RichContentTypographyTest`).
+
 **Ruimte boven en onder een Tekstblok.** Het Tekstblok heeft nu de ruimte van
 elke sectie (`section`, `--sp-7` boven en onder, `core.css`). Vroeger gooide
 het zijn bovenruimte altijd weg: een overblijfsel van de informatiepagina,

@@ -10,7 +10,7 @@ webroot of wordt door `.htaccess` geblokt.
 
 ## Contextregels (de belangrijkste regels van dit bestand)
 
-Deze repository heeft 21 documenten en bijna 100.000 regels PHP. Alles lezen
+Deze repository heeft 22 documenten en bijna 100.000 regels PHP. Alles lezen
 is nooit nodig en meestal schadelijk.
 
 1. **Lees precies één domeindocument per taak**, dat uit de tabel hieronder.
@@ -53,6 +53,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | De installatiewizard, de basis-URL, een nieuwe site (clone) beginnen | — | `SETUP.md` |
 | Geheimen in het CMS: `APP_KEY`, het sleutelbestand, versleutelde instellingen, back-up | — | `SETUP.md` |
 | Header-knop, footer-slotregel, social profielen, het kruimelpad | — | `HEADER-FOOTER.md` |
+| Zoeken op de website: de zoekknop, de providers per module, de resultatenpagina | — | `SEARCH.md` |
 | Titels, meta description, canonical, sitemap, robots | — | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
 | Pagina's onder elkaar zetten (geneste URL's), de paginaboom in het CMS, de beheergroep Service & juridisch | — | `docs/pages/NESTING.md` |

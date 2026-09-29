@@ -21,6 +21,7 @@ alleen nodig als je aan de modulegrens zelf werkt.
 |---|---|
 | Module | `src/Module/BlogModule.php` |
 | Leesmodel en logica | `src/Service/Blog/` |
+| Zoeken | `src/Service/Blog/BlogSearchProvider.php` via `BlogModule::searchProviders()`: gepubliceerde, indexeerbare berichten op titel en samenvatting (`SEARCH.md`); test `tests/Service/Search/SearchProvidersTest.php` (ook in `blog`) |
 | Opslag | `src/Repository/Blog{Post,Category,Tag,Setting}Repository.php` |
 | Adminschermen | `admin/blog.php`, `blog-post.php`, `blog-categories.php`, `blog-tags.php`, `blog-settings.php` |
 | Admin-endpoints | `api/admin/*blog*.php` |

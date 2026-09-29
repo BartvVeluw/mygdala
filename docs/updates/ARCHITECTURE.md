@@ -190,6 +190,7 @@ Op distributieniveau, in de omgeving, nooit als veld in het CMS:
 | `MYGDALA_UPDATE_PUBLIC_KEY` | de Ed25519-publieke sleutel, base64; **vervangt** de ingebouwde sleutel | leeg; ingebouwd: `ReleaseKeys::BUILT_IN`, de projectsleutel `da6306e43b2bc085` |
 | `MYGDALA_UPDATE_STORAGE_PATH` | de werkmap van de updater | `<map boven de site>/storage/updates` |
 | `MYGDALA_UPDATE_STEP_SECONDS` | het tijdsbudget van één updaterequest (1 tot 15 seconden) | een derde van `max_execution_time`, hoogstens 15 seconden |
+| `MYGDALA_UPDATE_HISTORY_URL` | de lijst met eerdere releases (alleen om te tonen, "Eerdere updates") | de GitHub Releases API van de repository waar de feed-URL in wijst; leeg bij een feed elders |
 
 Zonder variabelen gebruikt een installatie de projectfeed en de
 projectsleutel. Een distributie die feed en sleutel zelf leegmaakt, of een
@@ -561,12 +562,59 @@ dat is precies `recovery_required`, en dan blijft de vlag staan.
 - **Na een update**: hoe hij afliep, met de reden, en bij `recovery_required`
   het update-nummer, de back-upmap, het logboek en de knop om na handmatig
   herstel de onderhoudsmodus uit te zetten.
-- **Eerdere updates** en het logboek van de laatste, in de CMS-taal van de
-  beheerder (het log slaat catalogussleutels op, geen zinnen).
+- **Eerdere updates**: elke gepubliceerde Mygdala-release als inklapbare
+  kaart met versie, datum en release notes, om terug te lezen wat er
+  veranderde (hieronder).
+- **Updates op deze website** en het logboek van de laatste, in de CMS-taal
+  van de beheerder (het log slaat catalogussleutels op, geen zinnen).
 
 Tijdens het onderhoudsvenster rendert het scherm een kale kop in plaats van de
 normale schil: die leest instellingen, modules en talen uit een database die
 misschien halverwege een migratie is.
+
+### Eerdere updates (releasehistorie)
+
+Sinds v0.1.12 kun je altijd terugzien wat er in eerdere versies veranderde.
+Het is **alleen om te lezen**: een oude versie installeren, een downgrade of
+een rollback naar een eerdere release kan niet, en de lijst heeft geen
+enkele knop of formulier. Het scherm zegt dat ook.
+
+- **De bron.** De ondertekende feed noemt alleen de nieuwste release. De
+  releasehost heeft de rest: de publieke GitHub Releases API geeft alle
+  releases met hun beschrijving in **één** request
+  (`GET /repos/{owner}/{repo}/releases?per_page=50`). Het adres wordt
+  afgeleid van de manifest-URL (`UpdateConfig::releaseHistoryUrl()`), of komt
+  uit `MYGDALA_UPDATE_HISTORY_URL`. Een feed die niet op GitHub staat, heeft
+  zonder die variabele geen historie, en dat staat er dan. Er zit geen
+  requestparameter in het adres, en `isAcceptableUrl()` geldt ook hier. De
+  release notes worden dus niet dubbel in de database bewaard.
+- **Niet ondertekend, dus alleen getoond.** `App\Update\ReleaseHistory`
+  houdt van elke release alleen een versie `MAJOR.MINOR.PATCH`, een datum,
+  een afgekapte titel en afgekapte notes over (`ReleaseNote`, hoogstens 20.000
+  tekens). Drafts, pre-releases en tags die geen versie zijn vallen weg.
+  Geen pakket-URL, checksum of asset komt de updater in.
+- **Veilige notes.** GitHub-beschrijvingen zijn Markdown.
+  `ReleaseNotesMarkdown` escapet elke regel eerst en schrijft alleen zijn
+  eigen gesloten lijst van tags: `h3`–`h5` voor `#`–`###`, lijsten, alinea's,
+  `strong`, `em`, `code` en een link, die laatste alleen naar een `https://`-adres, met
+  `rel="noopener noreferrer"`. Ruwe HTML in de notes blijft zichtbare tekst,
+  en nadruk kan nooit over een ander element heen lopen.
+- **Opgehaald met de controle, niet bij het tonen.** *Controleren op
+  updates* (`api/admin/updates-check.php`) ververst na `Updater::check()`
+  ook de lijst en schrijft `release-history.json` in de werkmap. Het scherm
+  leest alleen dat bestand. Er komt dus geen request per kaart en geen
+  request bij het openen van het scherm.
+- **Offline of kapot antwoord.** Mislukt het verversen, dan blijft de lijst
+  van de vorige keer staan, met de melding dat hij niet opgehaald kon worden
+  en van wanneer de getoonde lijst is. De updatecontrole zelf merkt er niets
+  van: `refresh()` gooit nooit. Een beschadigd cachebestand is een lege lijst.
+- **De kaarten.** Nieuwste eerst, en de nieuwste staat open. *Nieuwste* en
+  *Geïnstalleerd* zijn badges. Elke kaart is de gedeelde `<details>`
+  (`.admin-collapse--card`), dus klikken, Enter en Spatie werken en een
+  schermlezer hoort open of dicht. De datum staat in de CMS-taal.
+
+Test: `tests/Update/ReleaseHistoryTest.php` (suite `updater`, en ook `unit`
+en `fast`).
 
 ## Bewijs
 

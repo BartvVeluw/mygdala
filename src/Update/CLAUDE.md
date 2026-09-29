@@ -12,6 +12,9 @@ geen handmatige upload.
   git. Releaseversie en migratieversie zijn onafhankelijk.
 - **Alles wat de updater doet, komt uit het ondertekende manifest.** Een
   request levert nooit een URL, een pad of een versie aan.
+- **De lijst "Eerdere updates" (`ReleaseHistory`) is niet ondertekend en
+  wordt daarom alleen getoond.** Er komt niets uit dat de updater gebruikt;
+  de notes gaan door `ReleaseNotesMarkdown`, die eerst escapet.
 - **`release.json` is het commitpunt.** Het wordt als laatste vervangen; welk
   `release.json` in de root staat, is de release die geïnstalleerd is.
 - **Elk request is begrensd.** Download en apply lopen over meerdere requests

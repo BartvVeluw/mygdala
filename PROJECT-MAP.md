@@ -56,6 +56,7 @@ adminpaneel is.
 | `pagina.php` | Generiek template voor élke andere CMS-pagina (`/<slug>`) |
 | `product.php`, `collectie.php`, `portfolio-detail.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `personaliseren.php` | Functionele routes (geen CMS-pagina's) |
 | `blog.php`, `blog-post.php`, `blog-feed.php` | De publieke Blog: het overzicht met zijn twee archieven, één bericht, en de RSS-feed (`BLOG.md`) |
+| `zoeken.php` | De resultatenpagina van de zoekfunctie, `/zoeken` en `/en/search`; 404 zolang zoeken uit staat (`SEARCH.md`) |
 | `partials/section-*.php` | Eén frontend-partial per bloktype |
 | `partials/` (overig) | Header (met de menulijst in `main-nav-list.php`), footer, seo-head (dé SEO-`<head>`), page-head en shop-seo-head (adapters ernaartoe), branding-head (theme-color + favicon), 404, cookiebanner |
 | `src/Install/` | `InstallState` kent het verschil tussen een database die vanaf nul wordt opgebouwd en een die al inhoud draagt (`INSTALL-BOOTSTRAP.md`); `SetupState` en `SetupWizard` zijn de installatiewizard die daarop bouwt; `FreshSiteCopyPolicy` is de grens tussen applicatie en site waar `scripts/create_fresh_site_copy.php` op loopt (`SETUP.md`) |
@@ -70,6 +71,7 @@ adminpaneel is.
 | `src/Service/Media/` | De Mediabibliotheek: het media-item, de uploadpijplijn, de kiezerlogica en wie welk item gebruikt, plus de regels van de mediareeks (`MediaSequence`) en de weergave van een beeld op zijn plek (`ResponsiveImage`, `ResponsiveImageSlot`; `MEDIA.md`, "Responsive Media") |
 | `src/Service/Forms/` | Core Forms: de veldtypes, het leesmodel, validatie, spam-afweer, verwerking en veilig verwijderen |
 | `src/Service/Blog/` | De Blog-module: het leesmodel, de statussen en hun klok, slugs en URL's, de metadata, de RSS-feed en het mediagebruik (`BLOG.md`) |
+| `src/Service/Search/` | Zoeken op de website: de zoekvraag, de scoreregels, het providercontract, Core's paginazoeker en `SearchService`, die de providers van de ingeschakelde modules vraagt (`SEARCH.md`). De providers van de modules staan bij hun domein (`ProductSearchProvider`, `PortfolioSearchProvider`, `Blog\BlogSearchProvider`) |
 | `src/Service/Breadcrumbs/` | Het kruimelpad: één niveau als waarde-object, het hele pad, en de keuze per pagina. De markup staat in `partials/breadcrumb.php` (`HEADER-FOOTER.md`) |
 | `src/Service/PageTemplates/` | Paginasjablonen: het contract, dé registratielijst, één klasse per sjabloon en de installer die er een pagina mee opbouwt |
 | `src/Repository/` | Alle SQL, één klasse per tabelgroep, basisklasse `Repository.php` |
@@ -78,7 +80,7 @@ adminpaneel is.
 | `admin/*.php` | Adminschermen (login, dashboard, page builder, blok-editors, catalogus). `content-blocks.php` is de Contentblokken-bibliotheek: uitleg per blok en een voorbeeld van het echte blok (`block-preview.php`), geen bewerkscherm |
 | `admin/_*.php` | Gedeelde admin-includes (`_header.php` = de shell, `_media_picker.php` = de mediakiezer, `_block_picker.php` + `_block_visual.php` = de blokkenkiezer en zijn schetsen, `_save_bar.php` = de opslagbalk, `_admin_editor.php` = de dynamische editor (één formulier, opslaan zonder herladen, vertrekdialoog), `_admin_tabs.php` = tabbladen over een lang scherm, `_admin_collapse.php` = inklapbare rijen, `_dashboard_shop.php` = het dashboardpaneel van de Shop, `_product_gallery.php` + `_product_variants.php` = de afbeeldingen en varianten van de producteditor, `_product_inventory.php` + `_product_specifications.php` + `_product_order_fields.php` = de voorraad, specificaties en bestelvelden ervan) |
 | `admin/assets/` | `admin.css`, `admin.js` en per-domein admin-JS |
-| `api/*.php` | Publieke endpoints (checkout, contact, Mollie-webhook, personalisatie) |
+| `api/*.php` | Publieke endpoints (checkout, contact, Mollie-webhook, personalisatie, de live zoekresultaten in `search.php`) |
 | `api/admin/*.php` | Admin-schrijfendpoints, ±174 stuks, één per handeling |
 | `assets/css/core.css`, `assets/js/core.js` | De frontend die élke pagina nodig heeft: tokens, basis, header/footer, taalwissel, reveal |
 | `assets/css/blocks/`, `assets/js/blocks/` | Per bloktype, alleen geladen op een pagina waar dat blok staat |
@@ -87,6 +89,7 @@ adminpaneel is.
 | `assets/js/lightbox.js` | De ene lightbox van de site, gevraagd door het galerijblok, het blok Projecten en een Portfolio-projectpagina |
 | `assets/js/media-sequence.js`, `assets/css/media-sequence.css` | De mediareeks: meer afbeeldingen en video's na elkaar in één kader, met pauzeknop, pijlen, bolletjes en vegen; gevraagd door de Paginakop en de Mediabanner. Markup in `partials/media-sequence.php`, regels in `App\Service\Media\MediaSequence`, het editorveld in `admin/_media_sequence_field.php` (`CONTENT-BLOCKS.md`, "Mediareeks") |
 | `assets/js/personalization.js`, `assets/js/cookie-consent.js` | Frontend van één route/onderdeel |
+| `assets/css/search.css`, `assets/js/search.js` | De zoekknop in de header, het zoekpaneel en de resultatenpagina; alleen geladen als zoeken aan staat (`SEARCH.md`) |
 | `assets/images/`, `assets/fonts/`, `assets/videos/` | Publieke media (uploads incl.) |
 | `assets/media/` | Wat de Mediabibliotheek zelf uploadt, plus de thumbnails die zij genereert. Oudere beelden zijn *op hun plek* overgenomen en staan dus nog in `assets/images/` (`MEDIA.md`) |
 | `../storage/` | Niet-publieke uploads (bestanden van formulierinzendingen en oude contactbijlagen, personalisatiebestanden, afbeeldingen bij een bestelvraag in `order-field-uploads/`) — standaard één map **boven** de projectroot, want de projectroot is de siteroot |
@@ -261,6 +264,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Een nieuwe site beginnen (een clone met eigen `.env`, database, uploads en poorten), of een kopie zonder site-inhoud | `SETUP.md` |
 | De installatiewizard, de basis-URL, of modules vanuit het CMS aan kunnen | `SETUP.md` |
 | Headerknoppen, het Footer-scherm, footer-slotregel, social profielen | `HEADER-FOOTER.md` |
+| Zoeken op de website: aan/uit, de zoekknop, een module die meedoet, de resultatenpagina | `SEARCH.md` |
 | Titels, meta description, canonical, sitemap, robots | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | `REDIRECTS.md` |
 | De ingebouwde updater, een release maken, een mislukte update herstellen | `docs/updates/ARCHITECTURE.md`, `RELEASES.md`, `RECOVERY.md` |

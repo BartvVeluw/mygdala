@@ -1092,6 +1092,15 @@ Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,
 docker compose exec php_test php vendor/bin/phpunit
 ```
 
+### Zoeken
+
+De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):
+`SearchCoreTest` en `SearchNavigationTest` hebben geen database nodig en zitten
+in `unit`, `fast` en `cms`. `SearchProvidersTest` schrijft pagina's, producten,
+projecten en berichten in één transactie die na elke test wordt teruggedraaid,
+en zit in `modules`, `shop` en `blog`. De module-aan/uit-gevallen gebruiken
+`ModuleRegistry::overrideForTests()`, niet de omgevingsvariabelen.
+
 ## Hoe de database gescheiden blijft
 
 `tests/bootstrap.php` draait vóór elke test en zet `DB_DATABASE` om naar de

@@ -172,10 +172,16 @@ in de schil en heeft geen eigen knop. Dezelfde tekstregels als de uitleg.
 | Select | `<select class="admin-select">` | Voor één keuze. Niet voor `multiple` of `size`. Foutstaat met `aria-invalid="true"` |
 | Checkbox | `<input type="checkbox" class="admin-checkbox">` | In een `.admin-checkbox-label`. Élke zichtbare checkbox van het CMS heeft deze klasse of `.admin-switch` |
 | Getal | `<input type="number">` | Heeft de invoerstijl van het CMS, net als tekst en zoeken; geen eigen klasse |
+| Telefoon, webadres | `<input type="tel">`, `<input type="url">` | Idem: dezelfde gedeelde selectors als tekst en e-mail (hoogte, binnenruimte, rand, afronding, achtergrond, letter, focus). Geen `.phone-input` of andere eigen klasse; het blijft een echt `tel`-veld, zodat een telefoon het juiste toetsenbord toont |
 | Switch | `<input type="checkbox" class="admin-switch" role="switch">` | Voor één aan/uit-instelling |
 | Bestand | `admin_file_input(['name' => 'image', 'accept' => '…', 'required' => true])` | Binnen het `<label>` van het veld, of met een `id` naast `admin_field_label()` |
 | Voorbeeld van een afbeelding | `admin_file_preview('id-van-het-veld', $huidigeAfbeelding)` | Hoort bij één `admin_file_input()` met dat `id`; zie hieronder |
 | Knoppen | `.admin-btn-primary`, `.admin-btn-secondary`, `.admin-btn-danger`, `.admin-btn-ghost`, `.admin-btn-text` | Uitgeschakeld met `disabled`, of `aria-disabled="true"` op een link |
+
+Een tekstveld (tekst, wachtwoord, e-mail, zoeken, getal, telefoon, webadres,
+tekstvak) met `aria-invalid="true"` krijgt de foutrand van het CMS
+(`--admin-error`, en bij focus een zachte foutring), net als `.admin-select`.
+Uitgeschakeld is het half doorzichtig met `cursor: not-allowed`.
 
 Elk element heeft een hover-, focus- en disabled-toestand. In Windows' hoog
 contrast (`forced-colors`) krijgen checkbox en switch het eigen element van de

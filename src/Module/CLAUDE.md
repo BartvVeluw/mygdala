@@ -5,7 +5,7 @@ deploybare applicatie: een **modulair monoliet**.
 
 - Een module uitzetten betekent dat hij **niets bijdraagt**: geen
   adminonderdelen, geen permissies, geen routes, geen blokken, geen
-  sitemapregels, geen frontendbestanden. Het verwijdert niets en raakt de
+  sitemapregels, geen zoekresultaten, geen frontendbestanden. Het verwijdert niets en raakt de
   database nooit aan.
 - `ModuleRegistry::MAP` is een expliciete, gesloten lijst.
 - De volgorde van `ModuleConfig`: de omgevingsvariabele, dan de opgeslagen

@@ -148,6 +148,7 @@ hij gebruikt.
 | Vaste publieke paden | `publicPaths()` | `App\Module\ModuleRegistry::disabledModuleForRoutePath()` |
 | Een eigen pagina in Pagina's (de winkelpagina, het Portfolio-overzicht), en of er gewone pagina's onder mogen | `systemPages()` | `App\Service\ModuleSystemPages` (hieronder, "Systeempagina's van modules") |
 | Sitemap | `sitemapCollectors()` | `App\Service\Sitemap` |
+| Zoeken op de website (producten, projecten, berichten) | `searchProviders()` | `App\Service\Search\SearchService` (`SEARCH.md`) |
 | Content-blokken | `blockDefinitions()` | `App\Service\Blocks\BlockDefinitions` |
 | Galerijbronnen | `itemGallerySources()` | `App\Service\ItemGallerySources` |
 | Bestemmingen voor een knop (blogbericht, product, collectie, portfolioproject) | `linkTargets()` | `App\Service\Routing\LinkTargets` (hieronder, "Bestemmingen van een module") |
@@ -507,6 +508,15 @@ Alles wat er ook zou zijn zonder webshop.
     Het vak heeft `touch-action: pan-y pinch-zoom` en er is geen
     `preventDefault()`, dus verticaal scrollen blijft gewoon werken. Vegen is
     nooit de enige manier: de thumbnails blijven knoppen.
+  - **De thumbnails lopen door naar een volgende regel** (v0.1.12). Ze
+    hebben één vaste maat (64 px) en de bestaande tussenruimte, en
+    flex-wrap bepaalt hoeveel er op een regel passen. Er is geen horizontale
+    scrollbalk, geen thumbnailcarrousel en geen vast aantal kolommen per
+    breakpoint. Omdat niets de rij afsnijdt, zijn de hover-lift, de actieve
+    ring en de focusrand altijd helemaal te zien. Het script hoeft de rij niet
+    meer opzij te scrollen. Het blok Uitgelicht product gebruikt dezelfde rij
+    en hetzelfde script, dus daar werkt het ook zo, zonder eigen regel
+    (`ShopGalleryContractTest`).
   - **Drie overgangen, een gesloten lijst**
     (`App\Service\ProductGalleryTransition`): `none` (direct), `fade`
     (overvloeien) en `slide` (de nieuwe foto schuift in vanaf de kant waar

@@ -201,6 +201,7 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 | `SEO.md` | 387 | Titels, meta description, canonical, sitemap, robots |
 | `REDIRECTS.md` | 327 | Een oude URL die moet blijven werken |
 | `HEADER-FOOTER.md` | 302 | Header-knop, footer-slotregel, social profielen, het kruimelpad |
+| `SEARCH.md` | 236 | Zoeken op de website: de zoekknop, de providers per module, de resultatenpagina |
 
 ### Meertaligheid in detail
 

@@ -181,6 +181,11 @@ knop schuift nooit tussen twee menulinks door.
 - **Mobiel**: de knoppen staan in `#main-nav`, het paneel dat de menuknop
   opent, onder de links. De rij met taalwissel, winkelwagen en knoppen loopt
   gecentreerd door naar een volgende regel als hij niet past.
+- **Zoeken** (optioneel, Navigatie → *Zoeken tonen*, standaard uit): een
+  rond vergrootglas vooraan in de actierij, in dezelfde vorm als de
+  winkelwagen. Het opent een compact zoekpaneel onder de header. In het
+  telefoonmenu staat het zoekveld zelf bovenaan de actierij. Staat zoeken
+  uit, dan staat er niets van in de header. Zie `SEARCH.md`.
 
 Geen tekst in de standaardtaal en geen paginatitel om te volgen = geen knop
 (en geen menulink: een lege `<a>` helpt niemand). Geen werkende bestemming =
@@ -275,7 +280,7 @@ buiten die terugval een submenu of pijltje raakt.
 | Muis over het item | Opent; de hele tak (item, rij, paneel, flyout) houdt hem open; na verlaten dicht na 180 ms | — |
 | Klik op het pijltje | Opent of sluit. Was hij al open door hover, dan zet de klik hem vast; de volgende klik sluit | Opent of sluit, in de lijst eronder |
 | Aanraken of pen | Nooit hover: een eerste tik op een link navigeert meteen | Idem |
-| Tab | Link, dan pijltje; een dicht submenu is geen focusstop | Idem (een dicht submenu is `display: none`) |
+| Tab | Link, dan pijltje; een dicht submenu is geen focusstop | Idem (een dicht submenu is 0 hoog en `visibility: hidden`) |
 | Focus in de tak | Houdt hem open, ook als de muis weggaat | Idem |
 | Focus verlaat de tak, of klik ernaast | Dicht | Dicht |
 | Escape | Sluit het binnenste open submenu met de focus erin, focus terug op zijn pijltje; zonder focus erin gaan alle submenu's dicht | Idem; pas de volgende Escape sluit het mobiele menu |
@@ -318,6 +323,30 @@ stap kleiner op een lichte eigen band, zodat de niveaus in de gecentreerde
 kolom uit elkaar te houden zijn. Een lang label breekt af; er is geen
 horizontale overflow op 320 of 375 px. Het hoofdmenu sluiten zet alle
 submenu's dicht, zoals voorheen.
+
+**Mobiel schuift een submenu open én dicht** (v0.1.12). Vroeger sprong het
+open, omdat een lijst die van `display: none` naar `flex` gaat geen
+beginwaarde heeft om vanaf te animeren. Nu is een dichte lijst 0 hoog en
+`visibility: hidden` (dus geen focusstop), en een open lijst `height: auto`.
+`slide()` in `assets/js/core.js` animeert de **gemeten** hoogte tussen die
+twee, in beide richtingen, ook voor niveau 3. Een geraden `max-height` komt er
+niet aan te pas. Na afloop verdwijnt de inline hoogte weer, zodat een open
+lijst kan groeien als er een genest submenu in openklapt. Drie regels maken het
+stabiel:
+
+- De hoogte wordt gemeten en **vastgezet vóór** de klasse wisselt
+  (`slideFrom()`). Een lijst sluiten sluit eerst zijn open geneste lijsten, en
+  hun animatie forceert een stijlberekening. Zonder vaste hoogte sprong de
+  ouder daarbij van `auto` naar 0 (gevonden in de browseracceptatie).
+- Snel twee keer tikken neemt het over vanaf de hoogte waar de lopende
+  animatie op dat moment is. Daar is geen dubbelklikbeveiliging voor nodig.
+- `aria-expanded` wisselt meteen, en de animatie volgt. De ruimte boven een
+  open lijst schuift mee, en visibility wacht bij het sluiten tot de animatie
+  klaar is.
+
+`prefers-reduced-motion: reduce` klapt direct open en dicht, zonder animatie.
+Zonder JavaScript toont en verbergt de lijst zich gewoon. De desktopflyouts
+zijn ongewijzigd.
 
 ### De actieve link
 
@@ -826,8 +855,10 @@ schrijft.
 actieve link, zonder database), `MainNavMarkupTest` (de menulijst uit een
 verzonnen boom: link en pijltje apart, de ARIA, geen vierde niveau, de
 regels in `core.js` en `core.css` die de ene open-toestand bewaken, alleen
-het pijltje van niveau 1 dat draait, en de flyout die op zijn paneel
-aansluit),
+het pijltje van niveau 1 dat draait, de flyout die op zijn paneel
+aansluit, en een mobiel submenu dat in beide richtingen vanaf zijn gemeten
+hoogte schuift), `SearchNavigationTest` (de zoekknop in de header: standaard
+uit, `SEARCH.md`),
 `NavigationPresentationTest` (de twee gesloten lijsten en wat een
 knop niet mag), `HeaderFooterSettingsTest` (slotregel, het register van
 netwerken, de adrescontrole met de regressies van fase B, en wat

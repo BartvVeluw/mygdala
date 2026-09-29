@@ -170,6 +170,11 @@ ingebouwd. Een installatie hoeft voor updates dus niets in te stellen.
 - **De host is GitHub Releases** van deze (publieke) repository. Elke release
   is een GitHub-release op zijn eigen tag `v<versie>`, met drie assets:
   `mygdala-<versie>.zip`, `manifest.json.sig` en `manifest.json`.
+- **De beschrijving van de GitHub-release is wat een installatie onder
+  "Eerdere updates" toont** (`ARCHITECTURE.md`, "Eerdere updates"). Schrijf
+  hem in gewone Markdown: `#`/`##`/`###`, lijsten met `-`, `**vet**` en
+  `` `code` ``. Tabellen, afbeeldingen en HTML worden niet opgemaakt. Een
+  release als draft of pre-release publiceren houdt hem uit die lijst.
 - **`/releases/latest/download/` wijst altijd naar de nieuwste gepubliceerde
   release** (geen draft, geen pre-release). Daarom staat er in de feed-URL
   nooit een versie, en blijft hij voor elke volgende release gelijk.
