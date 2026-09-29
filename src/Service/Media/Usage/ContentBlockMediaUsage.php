@@ -240,10 +240,12 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             $usages[$mediaId][] = new MediaUsage(
                 source: $this->key(),
                 label: $label,
-                // Every editor this links to — the block screens, the
-                // carousel card and the Paginakop — demands pages.manage, and
-                // the label names the page.
-                permission: AdminPermissions::PAGES_MANAGE,
+                // Who may open the editor this links to: the permission of the
+                // block list, by its owner (App\Service\ContentOwners\ContentBlockAccess)
+                // — pages.manage on a page, products.manage on a product,
+                // portfolio.manage on a project. Whoever lacks it is told the
+                // item is used, never where (VisibleMediaUsages).
+                permission: $this->permission($row, $pageSlug),
                 editUrl: $this->editUrl($row, $pageSlug, $sectionKey),
             );
         }
@@ -269,6 +271,30 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
         $name = $page === null ? '' : \App\Service\ContentOwners\ContentPages::name($page);
 
         return $name !== '' ? $name : $pageSlug;
+    }
+
+    /**
+     * The permission of the block list a usage is on, from its `pages` row
+     * (ContentBlockAccess::permissionFor()), never from the block type or the
+     * key: the holder page of a product's blocks asks products.manage, a
+     * page's pages.manage. The Homepage Hero and a Paginakop are only ever on
+     * an ordinary page; a list without a page row (a fixed block's own page)
+     * is one; a content page whose kind no registered module knows falls back
+     * to pages.manage, whose editor refuses it anyway.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function permission(array $row, string $pageSlug): string
+    {
+        if (in_array((string) $row['editor'], ['homepage-hero', 'page-hero'], true) || $pageSlug === '') {
+            return AdminPermissions::PAGES_MANAGE;
+        }
+
+        // PageContent caches the row per request, as ownerName() asks it too.
+        $page = \App\Service\PageContent::forContentKey($pageSlug);
+        $permission = $page === null ? null : \App\Service\ContentOwners\ContentBlockAccess::permissionFor($page);
+
+        return $permission ?? AdminPermissions::PAGES_MANAGE;
     }
 
     /**

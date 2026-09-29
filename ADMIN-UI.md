@@ -565,9 +565,11 @@ false`, legend *Focuspunt*).
 - **Een rij die later komt** (*Item toevoegen*, *Kaart toevoegen*): het script
   is gedelegeerd en tekent een nieuw veld bij `row-list:added`.
 - **Een beeld dat niet uit een mediakiezer komt** (de foto van een product,
-  project of blogbericht in een Detailsectie-galerij): het script van het blok
-  stuurt vanuit de rij een `rm:picture`-event met de URL in `detail.src`;
-  het kader toont hem, of verbergt zich bij `''`.
+  project of blogbericht in een Detailsectie-galerij): een ander script
+  (`admin/assets/gallery-source.js`, dat de foto live opvraagt bij
+  `api/admin/linked-image-preview.php`) stuurt vanuit de rij een
+  `rm:picture`-event met de URL in `detail.src`; het kader toont hem, of
+  verbergt zich bij `''`.
 - **Teksten** komen uit `media.responsive.*` (Nederlands en Engels); het
   script heeft geen eigen woorden (`data-rm-value-template`).
 - **Een melding** staat per onderdeel bij het veld (`presentation.<onderdeel>`

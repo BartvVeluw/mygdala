@@ -1111,7 +1111,10 @@ pagina-, blok- en kaart-id's, de weg terug naar de eigenaar; `blocks` en
 (geen automatische kop, de overstap die één Projectinformatie-blok zet, de
 waarschuwing, terug naar vast en weer vrij, de standaard die vrij wordt).
 `AdminAccessControlTest` houdt de eigenaarsbewuste blokbestanden als gesloten
-lijst bij.
+lijst bij. `ContentBlockMediaUsageOwnerHttpTest` (de links in het mediagebruik
+voor een Pagina-, Shop-, Portfolio- en super-admin; `blocks` en `shop`) en
+`LinkedImagePreviewHttpTest` (de live foto van een galerijbron voor het
+focuskader, wat niet openbaar is, wie mag vragen; `blocks`).
 
 ### Labels, focuspunten en de menuboom (v0.1.13)
 

@@ -565,6 +565,8 @@
             <file>tests/Service/DetailSectionTwoHttpTest.php</file>
             <file>tests/Service/DetailSectionLabelModeHttpTest.php</file>
             <file>tests/Service/DetailSectionGalleryFocusHttpTest.php</file>
+            <file>tests/Service/LinkedImagePreviewHttpTest.php</file>
+            <file>tests/Service/ContentBlockMediaUsageOwnerHttpTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
             <file>tests/Repository/BlockTranslationTreeTest.php</file>
@@ -796,6 +798,7 @@
             <file>tests/Service/ContentOwnerPagesTest.php</file>
             <file>tests/Service/ProductPortfolioContentPagesHttpTest.php</file>
             <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
+            <file>tests/Service/ContentBlockMediaUsageOwnerHttpTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>

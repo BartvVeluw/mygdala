@@ -695,7 +695,7 @@ wordt, dezelfde die dat scherm zelf al vraagt:
 |---|---|
 | `BrandingMediaUsage` | `settings.manage` |
 | `PageSocialImageMediaUsage` | `pages.manage` |
-| `ContentBlockMediaUsage` | `pages.manage` |
+| `ContentBlockMediaUsage` | het recht van de bloklijst, naar haar eigenaar (`ContentBlockAccess`): `pages.manage` op een pagina (ook de Paginakop en de Homepage Hero), `products.manage` op een product, `portfolio.manage` op een project |
 | `BlogPostMediaUsage` (Blog) | `blog.manage`: het berichtenoverzicht (`blog.view`) opent geen bericht |
 | `ShopMediaUsage` (Shop) | `products.manage` voor een product, `collections.manage` voor een collectie |
 

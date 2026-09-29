@@ -315,9 +315,14 @@ zelf, de Contentblokken-bibliotheek en `translate-fields.php`.
 `owners` in de blokmeta zegt welke blokken erin mogen. Een Shop-beheerder kan
 nog steeds geen Paginakop of Projectinformatie op een product zetten.
 
-**Open:** de links in het mediagebruik (`ContentBlockMediaUsage`) naar een
-blok-editor vragen nog `pages.manage` om getoond te worden, ook voor een blok
-op een product.
+**Het mediagebruik volgt hetzelfde recht.** Elke plek die
+`ContentBlockMediaUsage` in de Mediabibliotheek meldt, vraagt het recht van
+haar bloklijst (`ContentBlockAccess::permissionFor()` op haar `pages`-rij):
+een Shop-beheerder krijgt de link naar het blok op een product, een
+Pagina-beheerder die niet, en wie een recht mist hoort alleen dát het item
+ergens gebruikt wordt (`VisibleMediaUsages`). De link zelf gaat naar de
+blok-editor, die het recht opnieuw controleert en terugwijst naar de
+eigenaar (`ContentBlockMediaUsageOwnerHttpTest`).
 
 **Wat een blok niet doet** op een product of project: de titel, canonical,
 structured data of deelafbeelding veranderen. Die blijven van `ProductSeo` en
@@ -368,10 +373,15 @@ product is een eigen instantie en kan dus niet van betekenis veranderen.
   met hetzelfde punt. Opgeslagen op de galerijrij (`image_focus_x/y`),
   nooit op het bibliotheekitem of op het product, project of bericht: krijgt
   dat item later een andere foto, dan staat die meteen in beeld met het punt
-  van hier. Het kader in de editor volgt de bron van de rij (een
-  `rm:picture`-event uit `admin/assets/detail-section.js`); een product of
-  bericht zonder miniatuur in de keuzelijst toont zijn foto pas na
-  *Opslaan*.
+  van hier. Het kader in de editor volgt de bron van de rij meteen, zonder
+  opslaan: `admin/assets/gallery-source.js` vraagt de foto van een gekozen
+  item aan `api/admin/linked-image-preview.php`, dat dezelfde live
+  `LinkedImages::resolve()` gebruikt als de website (en het recht van de
+  bloklijst controleert), en stuurt hem als `rm:picture`-event naar het
+  kader. Het script noemt geen module. Een item dat een bezoeker niet ziet
+  (inactief, concept, verwijderd, module uit) geeft geen foto en de regel
+  *Dit item is nu niet openbaar of heeft geen afbeelding …*; nooit een foto
+  die alleen de beheerder zou zien. Er wordt geen pad opgeslagen.
 - **Galerijbronnen.** Een galerij-item is een afbeelding uit de
   Mediabibliotheek, of een product, portfolioproject of blogbericht dat zijn
   eigen afbeelding en naam toont en naar zijn pagina linkt
