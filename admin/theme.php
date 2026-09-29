@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_theme_color_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -21,6 +22,21 @@ unset($_SESSION['admin_theme_errors'], $_SESSION['admin_theme_old']);
 
 $saved = isset($_GET['saved']);
 $wasReset = isset($_GET['reset']);
+// ?updated=1 is the switch below; ?saved=1 the rest of this screen.
+$moduleSaved = isset($_GET['updated']);
+
+/**
+ * The modules that are part of how the site looks and may be switched on and
+ * off here after installation (ModuleDefinition::switchableFromAppearance(),
+ * today Paginathema's). Asked of every registered module, on or off: the
+ * switch has to be here to turn one back on. Core names none of them.
+ *
+ * @var array<string, \App\Module\ModuleDefinition> $appearanceModules
+ */
+$appearanceModules = array_filter(
+    \App\Module\ModuleRegistry::all(),
+    static fn (\App\Module\ModuleDefinition $module): bool => $module->switchableFromAppearance()
+);
 
 $values = is_array($old) ? array_merge(ThemeSettings::all(), $old) : ThemeSettings::all();
 $defaults = ThemeSettings::defaults();
@@ -77,6 +93,10 @@ $colorFields = [
     <p class="admin-alert admin-alert--success"><?= admin_te('design.vormgeving_opgeslagen') ?></p>
   <?php endif; ?>
 
+  <?php if ($moduleSaved): ?>
+    <p class="admin-alert admin-alert--success"><?= admin_te('design.module_saved') ?></p>
+  <?php endif; ?>
+
   <?php if ($wasReset): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('design.standaardvormgeving_hersteld_bedrijfsgegeven') ?></p>
   <?php endif; ?>
@@ -101,29 +121,7 @@ $colorFields = [
       <div class="admin-theme-colors">
         <?php foreach ($colorFields as $key => $field): ?>
           <?php $value = (string) ($values[$key] ?? $defaults[$key]); ?>
-          <div class="admin-theme-color">
-            <label for="theme-<?= $h($key) ?>"><?= $h($field['label']) ?></label>
-            <div class="admin-theme-color__inputs">
-              <input
-                type="color"
-                class="admin-theme-color__swatch"
-                value="<?= $h($value) ?>"
-                data-theme-color-for="theme-<?= $h($key) ?>"
-                aria-label="Kleurkiezer voor <?= $h($field['label']) ?>"
-                tabindex="-1">
-              <input
-                type="text"
-                id="theme-<?= $h($key) ?>"
-                name="<?= $h($key) ?>"
-                value="<?= $h($value) ?>"
-                maxlength="7"
-                pattern="#?[0-9A-Fa-f]{6}"
-                spellcheck="false"
-                class="admin-theme-color__hex">
-            </div>
-            <p class="admin-text-muted"><?= $h($field['help']) ?></p>
-            <p class="admin-text-muted"><?= admin_t('design.standaard', ['v1' => $h($defaults[$key])]) ?></p>
-          </div>
+          <?= admin_theme_color_field($key, $field['label'], $field['help'], $value, [admin_t('design.standaard', ['v1' => $h($defaults[$key])])]) ?>
         <?php endforeach; ?>
       </div>
     </section>
@@ -176,6 +174,37 @@ $colorFields = [
       <button type="submit"><?= admin_te('common.save') ?></button>
     </div>
   </form>
+
+  <?php if ($appearanceModules !== []): ?>
+  <section class="admin-card" id="onderdelen">
+    <h2><?= admin_te('design.modules_title') ?></h2>
+    <?= admin_info_panel(admin_t('help.design.modules')) ?>
+    <?php foreach ($appearanceModules as $moduleKey => $appearanceModule): ?>
+      <?php
+      $modulePinned = \App\Module\ModuleConfig::isPinnedByEnvironment($moduleKey);
+      $moduleOn = \App\Module\ModuleRegistry::isEnabled($moduleKey);
+      ?>
+      <form method="post" action="/api/admin/update-appearance-module.php" class="admin-product-form" data-appearance-module="<?= $h($moduleKey) ?>">
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <input type="hidden" name="module" value="<?= $h($moduleKey) ?>">
+        <input type="hidden" name="enabled" value="0">
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" class="admin-switch" role="switch" name="enabled" value="1"<?= $moduleOn ? ' checked' : '' ?><?= $modulePinned ? ' disabled' : '' ?>>
+            <?= $h($appearanceModule->label()) ?>
+          </label>
+          <?= admin_help($appearanceModule->label(), $appearanceModule->description()) ?>
+        </div>
+        <?php if ($modulePinned): ?>
+          <p class="admin-text-muted"><?= admin_te('design.module_pinned', ['variable' => \App\Module\ModuleConfig::variableName($moduleKey)]) ?></p>
+        <?php else: ?>
+          <p class="admin-text-muted"><?= admin_te($moduleOn ? 'design.module_on' : 'design.module_off') ?></p>
+          <button type="submit" class="admin-btn-secondary"><?= admin_te('common.save') ?></button>
+        <?php endif; ?>
+      </form>
+    <?php endforeach; ?>
+  </section>
+  <?php endif; ?>
 
   <section class="admin-card">
     <h2><?= admin_te('design.standaardvormgeving_herstellen') ?></h2>
