@@ -308,6 +308,54 @@ class PageRepository extends Repository
     }
 
     /**
+     * The page's own page theme (`pages.page_theme_id`), or null for the
+     * site theme. Separate from update() because only the module that offers
+     * page themes writes it, through its App\Service\PageSettingsSection,
+     * and only when its field was posted (THEMING.md, "Paginathema's").
+     * The foreign key refuses an id that names no theme.
+     */
+    public function updatePageTheme(int $id, ?int $themeId): void
+    {
+        $stmt = $this->db->prepare('UPDATE pages SET page_theme_id = :theme, updated_at = NOW() WHERE id = :id');
+        $stmt->bindValue('theme', $themeId, $themeId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+        $stmt->bindValue('id', $id, \PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    /**
+     * Every page that uses one page theme, whatever its status — what the
+     * theme screens list, and why a theme in use cannot be deleted.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findByPageTheme(int $themeId): array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM pages WHERE page_theme_id = :theme ORDER BY sort_order ASC, id ASC');
+        $stmt->execute(['theme' => $themeId]);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * How many pages use each page theme, in one query.
+     *
+     * @return array<int, int> theme id => number of pages
+     */
+    public function countByPageTheme(): array
+    {
+        $stmt = $this->db->query(
+            'SELECT page_theme_id, COUNT(*) AS c FROM pages WHERE page_theme_id IS NOT NULL GROUP BY page_theme_id'
+        );
+
+        $counts = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $counts[(int) $row['page_theme_id']] = (int) $row['c'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * Where a page sits: under which page, and in which admin group.
      *
      * Separate from update() because only App\Service\PageService decides

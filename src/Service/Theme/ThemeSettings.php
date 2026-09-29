@@ -263,7 +263,8 @@ final class ThemeSettings
     private static function normalise(string $key, string $value): ?string
     {
         if (in_array($key, self::COLOR_KEYS, true)) {
-            return self::normaliseColor($value);
+            // One rule for every theme colour (the site's and a page theme's).
+            return ThemeColor::normalise($value);
         }
 
         if ($key === 'font_pairing') {
@@ -275,31 +276,6 @@ final class ThemeSettings
         }
 
         return null;
-    }
-
-    /**
-     * Accepts #RGB and #RRGGBB, with or without the hash, in either case,
-     * and returns the single canonical form #RRGGBB in uppercase.
-     *
-     * Rejects everything else outright. This is a security boundary, not a
-     * convenience: the return value is interpolated into a stylesheet, so
-     * "colour" has to mean six hex digits and nothing else — not a keyword,
-     * not url(), not var(), not calc(), and not a value with a semicolon
-     * behind it carrying a second declaration.
-     */
-    private static function normaliseColor(string $value): ?string
-    {
-        $value = ltrim(trim($value), '#');
-
-        if (preg_match('/^[0-9A-Fa-f]{3}$/', $value) === 1) {
-            $value = $value[0] . $value[0] . $value[1] . $value[1] . $value[2] . $value[2];
-        }
-
-        if (preg_match('/^[0-9A-Fa-f]{6}$/', $value) !== 1) {
-            return null;
-        }
-
-        return '#' . strtoupper($value);
     }
 
     private static function errorFor(string $key): string

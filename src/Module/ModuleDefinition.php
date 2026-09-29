@@ -476,4 +476,53 @@ abstract class ModuleDefinition
     {
         return false;
     }
+
+    /**
+     * How this CMS page should look when it is not to look like the rest of
+     * the site: an App\Service\Theme\PageAppearance, or null for "the site
+     * theme" (Page Themes 1.0, THEMING.md "Paginathema's").
+     *
+     * Asked only of ENABLED modules, and only for an ordinary page — never
+     * for the content page of a product or project — through
+     * ModuleRegistry::pageAppearance(), which App\Service\Theme\PageThemeCss
+     * calls once per request from partials/page-head.php. The first module
+     * with an answer decides. Null for every module but
+     * App\Module\PageThemesModule. Core prints the result and never names
+     * the module that gave it.
+     *
+     * @param array<string, mixed> $page a `pages` row
+     */
+    public function pageAppearance(array $page): ?\App\Service\Theme\PageAppearance
+    {
+        return null;
+    }
+
+    /**
+     * Extra settings on the Pagina tab of the page editor (admin/page.php),
+     * saved with the rest of the page by api/admin/update-page.php: one
+     * App\Service\PageSettingsSection each. Read from ENABLED modules only,
+     * so a switched-off module's field is not on the screen and its posted
+     * value is not read — and what it stored stays untouched. Pages only:
+     * the product and project editors never render these.
+     *
+     * @return list<\App\Service\PageSettingsSection>
+     */
+    public function pageSettingsSections(): array
+    {
+        return [];
+    }
+
+    /**
+     * Whether the Vormgeving screen (admin/theme.php) offers this module an
+     * on/off switch after installation — for a module that is part of how
+     * the site looks (Paginathema's). The switch writes the same stored
+     * preference the Setup Wizard writes (App\Module\ModuleSettings), and an
+     * environment variable still has the last word (MODULES.md). Asked of
+     * every registered module, on or off: a switch must be there to switch
+     * a module back on.
+     */
+    public function switchableFromAppearance(): bool
+    {
+        return false;
+    }
 }

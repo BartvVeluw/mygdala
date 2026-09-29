@@ -39,6 +39,7 @@ final class ModuleRegistry
         'blog' => BlogModule::class,
         'portfolio' => PortfolioModule::class,
         'multilingual' => MultilingualModule::class,
+        'page_themes' => PageThemesModule::class,
     ];
 
     /** @var array<string, ModuleDefinition> */
@@ -163,6 +164,27 @@ final class ModuleRegistry
         }
 
         return false;
+    }
+
+    /**
+     * How an ordinary CMS page looks when an ENABLED module gives it a look
+     * of its own (ModuleDefinition::pageAppearance()), or null for the site
+     * theme. By capability, never by key — the same shape as
+     * publishesTranslations(). Read by App\Service\Theme\PageThemeCss.
+     *
+     * @param array<string, mixed> $page a `pages` row
+     */
+    public static function pageAppearance(array $page): ?\App\Service\Theme\PageAppearance
+    {
+        foreach (self::enabled() as $module) {
+            $appearance = $module->pageAppearance($page);
+
+            if ($appearance !== null) {
+                return $appearance;
+            }
+        }
+
+        return null;
     }
 
     /**

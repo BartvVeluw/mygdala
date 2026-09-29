@@ -31,8 +31,11 @@ namespace App\Service\Theme;
  */
 final class ThemeCss
 {
-    /** Which chosen setting redefines which token, one to one. */
-    private const DIRECT = [
+    /**
+     * Which chosen setting redefines which token, one to one. Public because
+     * a page theme sets the same five tokens (App\Service\Theme\PageAppearance).
+     */
+    public const DIRECT = [
         'primary_color' => '--color-primary',
         'on_primary_color' => '--color-on-primary',
         'background_color' => '--color-bg',
@@ -40,8 +43,8 @@ final class ThemeCss
         'text_color' => '--color-text',
     ];
 
-    /** The ThemePalette role each colour setting plays. */
-    private const ROLES = [
+    /** The ThemePalette role each colour setting plays. Shared like DIRECT. */
+    public const ROLES = [
         'primary_color' => 'primary',
         'background_color' => 'background',
         'surface_color' => 'surface',
@@ -153,8 +156,12 @@ final class ThemeCss
      * A value may not be able to close the declaration, the rule or the
      * element it is printed inside. Nothing that reaches here should ever
      * fail this; a value that does is dropped rather than printed.
+     *
+     * Public because a page theme's block (App\Service\Theme\PageThemeCss)
+     * is printed inside the same kind of <style> element and takes the same
+     * second lock.
      */
-    private static function isSafeValue(string $value): bool
+    public static function isSafeValue(string $value): bool
     {
         return $value !== '' && preg_match('/[<>{};]/', $value) !== 1;
     }

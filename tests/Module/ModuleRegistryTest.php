@@ -47,10 +47,11 @@ final class ModuleRegistryTest extends TestCase
         }
     }
 
-    public function testTheRegisteredModulesAreShopPersonalizationBlogPortfolioAndMultilingual(): void
+    public function testTheRegisteredModulesAreShopPersonalizationBlogPortfolioMultilingualAndPageThemes(): void
     {
-        $this->assertSame(['shop', 'personalization', 'blog', 'portfolio', 'multilingual'], ModuleRegistry::keys());
+        $this->assertSame(['shop', 'personalization', 'blog', 'portfolio', 'multilingual', 'page_themes'], ModuleRegistry::keys());
         $this->assertInstanceOf(\App\Module\MultilingualModule::class, ModuleRegistry::definition('multilingual'));
+        $this->assertInstanceOf(\App\Module\PageThemesModule::class, ModuleRegistry::definition('page_themes'));
         $this->assertInstanceOf(ShopModule::class, ModuleRegistry::definition('shop'));
         $this->assertInstanceOf(PersonalizationModule::class, ModuleRegistry::definition('personalization'));
         $this->assertInstanceOf(BlogModule::class, ModuleRegistry::definition('blog'));
@@ -188,6 +189,7 @@ final class ModuleRegistryTest extends TestCase
             [
                 'adminNavigationItems', 'permissionGroups', 'dashboardCards',
                 'shellStyles', 'shellScripts', 'headerPartials', 'dashboardPanels',
+                'pageSettingsSections',
             ] as $hook
         ) {
             $this->assertSame([], ModuleRegistry::collect($hook), $hook . ' must be empty with every module off');

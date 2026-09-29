@@ -100,6 +100,9 @@ services:
       # Multilingual starts OFF on a new installation too, and the test
       # database is multilingual: every language test runs against it on.
       MODULE_MULTILINGUAL_ENABLED: "true"
+      # Paginathema's starts OFF on a new installation too (THEMING.md):
+      # every page-theme test runs against it on.
+      MODULE_PAGE_THEMES_ENABLED: "true"
     volumes:
       - ./:/var/www/html
       - test_attachments:/var/www/storage
@@ -155,6 +158,9 @@ services:
       # The language layer is the same as php_test's, so both render the
       # same header; and the same production APP_ENV.
       MODULE_MULTILINGUAL_ENABLED: "true"
+      # Paginathema's is pinned off here: this container proves that a page
+      # which chose a theme renders in the site theme with the module off.
+      MODULE_PAGE_THEMES_ENABLED: "false"
       APP_ENV: production
     volumes:
       - ./:/var/www/html

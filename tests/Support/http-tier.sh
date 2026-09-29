@@ -157,15 +157,16 @@ up() {
     docker run "${common[@]}" --name "$test_name" --network-alias php_test \
         -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
         -e MODULE_BLOG_ENABLED=true -e MODULE_PORTFOLIO_ENABLED=true \
-        -e MODULE_MULTILINGUAL_ENABLED=true \
+        -e MODULE_MULTILINGUAL_ENABLED=true -e MODULE_PAGE_THEMES_ENABLED=true \
         "$image" >/dev/null
 
-    # The CMS-only deployment: every optional content module OFF, the
-    # language layer the same as php_test so both render the same header.
+    # The CMS-only deployment: every optional content module OFF (Page
+    # Themes too, so a themed page is proven to fall back to the site theme),
+    # the language layer the same as php_test so both render the same header.
     docker run "${common[@]}" --name "$cms_name" --network-alias php_cms \
         -e MODULE_SHOP_ENABLED=false -e MODULE_PERSONALIZATION_ENABLED=false \
         -e MODULE_BLOG_ENABLED=false -e MODULE_PORTFOLIO_ENABLED=false \
-        -e MODULE_MULTILINGUAL_ENABLED=true \
+        -e MODULE_MULTILINGUAL_ENABLED=true -e MODULE_PAGE_THEMES_ENABLED=false \
         "$image" >/dev/null
 
     # The entrypoint migrates the test database, then starts Apache.
