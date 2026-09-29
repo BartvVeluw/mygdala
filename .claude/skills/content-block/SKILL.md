@@ -62,6 +62,12 @@ en `GenericBlockDefaultsTest` bewaken beide.
 
 ## Waar je op moet letten
 
+- **Een blok staat niet alleen op pagina's.** Een product en een project
+  hebben een inhoudspagina met dezelfde blokken (`CONTENT-BLOCKS.md`, "Blokken
+  op een product of project"). Een gewoon blok hoeft daar niets voor te doen.
+  Hangt je blok echt aan een gewone pagina (haar titel, haar adres), of alleen
+  aan één soort eigenaar, zet dan `owners` in `meta()`; nooit een eigen
+  `page_id`-aanname in `render()`.
 - **Alle methodes van `BlockDefinition` zijn `abstract`.** Vergeet je er een,
   dan laadt de klasse niet. Dat is de bedoeling.
 - **`create()` heeft twee aanroepers**: de blokkenkiezer en de

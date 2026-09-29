@@ -639,7 +639,7 @@ biedt aan hem te verwijderen.
 App\Service\Media\MediaUsageRegistry
   ├── BrandingMediaUsage          logo, tweede logo, favicon, deel-afbeelding
   ├── PageSocialImageMediaUsage   pages.og_media_id
-  ├── ContentBlockMediaUsage      de geïntegreerde blokken (één UNION-query)
+  ├── ContentBlockMediaUsage      de geïntegreerde blokken (één UNION-query), ook op een product of project
   └── + wat elke INGESCHAKELDE module bijdraagt
 ```
 
@@ -648,6 +648,13 @@ tegelijk en beantwoordt die in een begrensd aantal queries — één, in alle
 huidige implementaties. Het overzicht toont een pagina met tegels en heeft
 per tegel een teller nodig; per item vragen zou precies de N+1 zijn die niet
 mag.
+
+Een blok op de pagina-inhoud van een product of project
+(`CONTENT-BLOCKS.md`, "Blokken op een product of project") staat in dezelfde
+bloktabellen en telt dus vanzelf mee. Het label noemt dan de eigenaar in plaats
+van de sleutel van zijn inhoudspagina: *Tekst + afbeelding op "Product: Eiken
+plank"* (`ContentBlockMediaUsage::ownerName()`), en zo'n afbeelding is niet uit
+de bibliotheek te verwijderen.
 
 Een module beantwoordt zijn eigen tabellen via
 `ModuleDefinition::mediaUsageProviders()`. Zo hoeft Core Media nooit te weten

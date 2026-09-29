@@ -1092,6 +1092,18 @@ Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,
 docker compose exec php_test php vendor/bin/phpunit
 ```
 
+### Blokken op een product of project
+
+Product & Portfolio Content Pages 1.0 en de projectlayout hebben drie
+testklassen. `ContentOwnerPagesTest` (database: eigenaarschap, isolatie van
+pagina's, welke blokken waar mogen, volgorde, taal, bestemmingskiezer,
+verwijderen, `RESTRICT`, mediagebruik) en `ProductPortfolioContentPagesHttpTest`
+(eigen `php -S` via `Tests\Support\BuiltInServer`: `product.php` en
+`portfolio-detail.php` met en zonder blokken, de vier layouts, standaard en
+eigen keuze, Projectinformatie, module uit, de admin-endpoints) zitten in
+`blocks` en `shop`. `ContentOwnerPagesMigrationTest` (vers en bijgewerkt,
+opnieuw draaien) zit in `migration` en `blocks`.
+
 ### Zoeken
 
 De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):

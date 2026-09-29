@@ -156,6 +156,7 @@ hij gebruikt.
 | Header | `headerPartials()` | `partials/header.php` |
 | Dashboard | `dashboardPanels()`, `dashboardCards()` | `admin/index.php` |
 | Mediagebruik | `mediaUsageProviders()` | `App\Service\Media\MediaUsageRegistry` |
+| Iets anders dan een pagina dat contentblokken draagt (een product, een project) | `contentOwners()` | `App\Service\ContentOwners\ContentOwners` (`CONTENT-BLOCKS.md`, "Blokken op een product of project") |
 | Afhankelijkheden | `dependencies()` | `App\Module\ModuleRegistry` |
 | Eén zin over zichzelf | `description()` | `admin/setup.php` (de installatiewizard) |
 | Standaard aan of uit | `enabledByDefault()` | `App\Module\ModuleConfig` (stap 3 van de ketting) |
@@ -1181,6 +1182,23 @@ Facturen, retourverzoeken en verzending zijn deelgebieden *binnen* de Shop.
 Ze zijn niet zelfstandig bruikbaar (een factuur hoort bij een order, een
 herroeping ook, een tarief bij een winkelmandje), dus geen aparte modules.
 
+**Pagina-inhoud van een product** (Product & Portfolio Content Pages 1.0).
+Een product kan dezelfde contentblokken krijgen als een pagina, op het
+tabblad *Pagina-inhoud* van de producteditor (alleen voor een bestaand
+product, en alleen voor wie `pages.manage` heeft: elke blok-editor vraagt
+dat). `product.php` rendert ze onder de productdetail (galerij, naam, prijs,
+voorraad, varianten, bestelvelden, specificaties, bestellen) en de
+personalisatie, en boven *Gerelateerde producten*. De productdetail blijft de
+kop van de pagina: blokken zijn aanvullende redactionele inhoud, en de
+`<head>` (titel, canonical, Product-JSON-LD) blijft van `ProductSeo`. Een
+product zonder blokken rendert byte voor byte wat het deed. De Shop draagt de
+eigenaar bij (`ShopModule::contentOwners()`, `App\Service\ProductContentOwner`,
+koppeltabel `product_content_pages`); het product verwijderen neemt de blokken
+en de inhoudspagina mee (`ProductDeletionService`). Met de Shop uit is de
+productpagina een 404 en blijven de blokken bewaard. Zoeken (Search 1.0)
+doorzoekt ze nog niet. Het model: `CONTENT-BLOCKS.md`, "Blokken op een product
+of project".
+
 **De woorden van de Shop staan per websitetaal.** Sinds Multilingual 2.0
 fase 5 (`docs/multilingual/ARCHITECTURE.md`) is `App\Service\ShopLocalization`
 dé ingang naar de naam, de beschrijving en de SEO-velden van een product en
@@ -1476,6 +1494,43 @@ canonical in de gelezen taal, hreflang voor elke actieve taal, en de
 hoofdafbeelding als deelafbeelding. De sitemap noemt elke projectpagina die
 antwoordt, in elke taal (`projectPagesForSitemap()`), en nooit een adres dat
 doorstuurt.
+
+**Projectlayout en pagina-inhoud** (Portfolio layout 2.0, Product & Portfolio
+Content Pages 1.0; `App\Service\PortfolioProjectLayout`). De kop van een
+project (`partials/project-hero.php`: hoofdafbeelding, categorieën, titel,
+korte tekst, inleiding, beschrijving, *Terug naar portfolio* en de extra
+foto's) staat niet meer vast met de foto links:
+
+| Layout | Wat de projectpagina toont |
+|---|---|
+| Afbeelding links (`image_left`) | de kop zoals altijd, geen modifier-klasse, dan de contentblokken |
+| Afbeelding rechts (`image_right`) | de kop met de foto rechts (`project-hero--image-right`), dan de blokken |
+| Afbeelding boven (`image_top`) | de foto breed boven de tekst (`project-hero--image-top`), dan de blokken |
+| Vrije indeling (`free`) | alleen de contentblokken; het blok **Projectinformatie** zet de kop waar de redacteur het plaatst |
+
+- **De standaard** staat bij *Portfolio → Instellingen* (site-instelling
+  `portfolio_project_layout`, standaard `image_left`: een bestaande site ziet
+  niets veranderen; `api/admin/update-portfolio-settings.php`).
+- **Per project** kiest het tabblad *Pagina-inhoud* van de projecteditor
+  *Gebruik standaardinstelling* (`portfolio_gallery_items.project_layout`
+  NULL) of een eigen layout. Een project op de standaard verandert mee als de
+  standaard verandert; een eigen keuze blijft staan.
+- **Projectinformatie** (`project_info`, `App\Service\Blocks\ProjectInfoBlock`)
+  is een Portfolio-blok dat alleen op de pagina van een project kan staan
+  (`owners`). Het bewaart alleen hoe (foto links, rechts of boven; de extra
+  foto's wel of niet) en toont de projectgegevens **live** uit het project:
+  een nieuwe titel of foto staat er meteen, er is niets gekopieerd. Het
+  rendert alleen bij de vrije indeling; bij een vaste layout staat de kop al
+  bovenaan en blijft het blok stil (de editor zegt dat). Een project met de
+  vrije indeling **zonder** dit blok houdt zijn kop bovenaan
+  (`ProjectInfoContent::isPlacedOn()`), zodat een standaard op *Vrije
+  indeling* nooit projectpagina's zonder titel en foto oplevert.
+- **Gerelateerde projecten en de oproep** van de Portfolio-pagina blijven de
+  vaste slotzone onder de blokken, in elke layout. Ze als blok verplaatsbaar
+  maken was geen V1-werk.
+- Het project verwijderen neemt de blokken en de inhoudspagina mee
+  (`api/admin/delete-portfolio-item.php`); met de Portfolio uit is de
+  projectpagina een 404 en blijft alles bewaard.
 
 **De legacy-koppeling naar een gewone pagina blijft werken.** Tussen fase 4B
 en Portfolio 2.0 kon een item naar een gewone CMS-pagina linken

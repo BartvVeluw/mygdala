@@ -779,6 +779,23 @@ zijn alt-tekst in elke taal; een oude afbeelding zonder item heeft daarvoor
 een eigen vinkje. Alleen een formulier dat de kiezer of het alt-veld
 meestuurt, kan ze veranderen.
 
+## Dezelfde bloklijst op een product en een project
+
+De bloklijst van het tabblad *Inhoud* (rijen, verbergen, verwijderen,
+slepen, de knop *Contentblok toevoegen* en de lege toestand) staat in
+`admin/_content_blocks.php` (`content_blocks_list()`), en `admin/page.php`
+roept die aan; de uitvoer van de paginabouwer is daardoor byte voor byte
+dezelfde gebleven. Het tabblad *Pagina-inhoud* van de producteditor en van de
+projecteditor toont dezelfde lijst voor de inhoudspagina van dat product of
+project (`content_blocks_owner_panel()` en `content_blocks_owner_modals()`),
+buiten het formulier van het product of project: elk blok wordt in zijn eigen
+editor opgeslagen, en de knoppen van de lijst zijn eigen formulieren.
+Heeft het product of project nog geen blokken, dan post de kiezer de eigenaar
+in plaats van een pagina-id en maakt het eerste blok de inhoudspagina
+(`CONTENT-BLOCKS.md`, "Blokken op een product of project"). Een blok-editor
+stuurt terug via `admin/page.php?id=`, en dat stuurt voor een inhoudspagina
+door naar het tabblad van de eigenaar.
+
 ## Dezelfde tabbladen op een ander scherm
 
 `admin/_admin_tabs.php` weet niets van pagina's of blokken. Een scherm zegt

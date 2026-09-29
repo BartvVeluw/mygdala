@@ -209,6 +209,72 @@ Gevolgen waar je bij het bouwen rekening mee houdt:
 - Afgeleide nummering en afwisselende achtergronden tellen over de **actieve
   instanties op de pagina**, nooit over een vaste lijst.
 
+## Blokken op een product of project
+
+Product & Portfolio Content Pages 1.0. Een Shop-product en een
+Portfolio-project dragen dezelfde contentblokken als een pagina, via **dezelfde
+blok-engine**: dezelfde blokkenkiezer, dezelfde blok-editors en endpoints,
+dezelfde volgorde, dezelfde woorden per taal, dezelfde bestemmingskiezer,
+Responsive Media en mediagebruik. Er is geen tweede engine en geen gekopieerde
+editor.
+
+**Het model: een inhoudspagina.** De engine adresseert een bloklijst al met één
+ondoorzichtige sleutel (`page_slug` = `pages.content_key`) en bewaart de lijst
+in `page_sections`, die bij `pages` hoort. Een eigenaar die geen pagina is,
+krijgt daarom een eigen `pages`-rij om zijn blokken te houden
+(`App\Service\ContentOwners\ContentPages`):
+
+| Onderdeel | Wat |
+|---|---|
+| `pages.owner_type` | NULL voor elke gewone pagina; `product` of `portfolio_project` voor een inhoudspagina |
+| `product_content_pages`, `portfolio_content_pages` | eigenaar ↔ inhoudspagina, één op één, echte foreign keys aan beide kanten, `RESTRICT` |
+| sleutel | `<kind>_<id>` (`product_12`, `portfolio_project_3`); een paginasleutel is een slug (a-z, 0-9, `-`), dus de underscore houdt ze voor altijd uit elkaar |
+| eigenaars | een gesloten lijst uit `ModuleDefinition::contentOwners()` (`App\Service\ContentOwners\ContentOwners`); Core noemt geen product of project |
+
+- **Pas bij het eerste blok.** Een product zonder blokken heeft geen
+  inhoudspagina. De kiezer op het tabblad *Pagina-inhoud* post `content_owner`
+  (een soort, nooit een klasse) en `content_owner_id`;
+  `api/admin/add-page-section.php` controleert het blok tegen een stand-in
+  (`ContentPages::placeholder()`) en maakt de pagina pas daarna.
+- **Nooit een pagina.** Elke lijst van pagina's en elke publieke lookup laat
+  een inhoudspagina weg (`PageRepository`: paginaboom, menu, sitemap, zoeken,
+  bestemmingskiezer, adres); ze heeft geen slug, geen eigen tekst en staat op
+  concept. `update-page.php`, `delete-page.php` en `page-preview.php`
+  behandelen haar als geen pagina. Opzoeken op id en op content_key vindt haar
+  wel: zo werken de blok-editors ongewijzigd.
+- **Terug naar de eigenaar.** Elke blok-editor linkt terug naar
+  `admin/page.php?id=<id>`; voor een inhoudspagina stuurt dat door naar de
+  editor van de eigenaar, tabblad *Pagina-inhoud* (`?tab=inhoud`, met `added`
+  en `deleted`). `PageLocalization::name()` noemt haar naar de eigenaar
+  ("Product: Eiken plank"), en zo ook het mediagebruik.
+- **Eén bloklijst.** `admin/_content_blocks.php` is de lijst die
+  `admin/page.php` toont en die het tabblad *Pagina-inhoud* van een product en
+  een project toont (`content_blocks_list()`, `content_blocks_owner_panel()`).
+  De uitvoer van `admin/page.php` is daardoor niet veranderd.
+- **Verwijderen.** De eigenaar verwijderen verwijdert eerst zijn blokken via
+  `SectionRegistry::delete()` (woorden, kindrijen, bestanden) en dan de
+  koppeling en de pagina (`ContentPages::deleteFor()`, aangeroepen door
+  `ProductDeletionService` en `delete-portfolio-item.php`). De `RESTRICT`
+  weigert de andere volgorde. Een bibliotheekafbeelding blijft staan.
+- **Waar het blok mag staan: `owners`.** Een optionele sleutel in `meta()`:
+  de soorten bloklijst (`ContentOwners::PAGE`, `product`, `portfolio_project`)
+  waar het blok aan toegevoegd mag worden. Zonder die sleutel overal. Vandaag:
+
+| Blok | Op een product | Op een project | Waarom |
+|---|---|---|---|
+| alle gewone blokken (tekst, tekst met afbeelding, detailsectie, kaarten, galerij, mediabanner, FAQ, CTA, formulieren, witruimte, Uitgelicht product, Projecten, ...) | ja | ja | gewone inhoud, niets hangt aan de pagina |
+| Paginakop (`page_hero`) | nee | nee | de kop van een gewone pagina met haar titel; een product en een project hebben hun eigen kop |
+| Homepage Hero, Diensten-snelmenu | nee | nee | al beperkt tot hun eigen pagina (`allowed_pages`) |
+| Projectinformatie (`project_info`) | nee | ja | toont het project waarop het staat |
+
+**Wat een blok niet doet** op een product of project: de titel, canonical,
+structured data of deelafbeelding veranderen. Die blijven van `ProductSeo` en
+`PortfolioSeo`. Zoeken (Search 1.0) doorzoekt de blokken nog niet.
+
+**Herbruikbare blokken** zijn in deze codebase bloktypes die op elke pagina
+terug kunnen komen, geen gedeelde bibliotheek met verwijzingen; een blok op een
+product is een eigen instantie en kan dus niet van betekenis veranderen.
+
 ## Een blok toevoegen
 
 ```text
