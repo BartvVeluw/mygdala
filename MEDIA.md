@@ -534,18 +534,25 @@ standaard: zoals het was.
 `assets/css/responsive-media.css` en in de regels voor een telefoonhoogte
 (`page-hero.css`, `media-banner.css`, `text-image-split.css`).
 `Tests\Service\ResponsiveMediaContractTest` faalt zodra ze uit elkaar lopen.
-De eigen breekpunten van een blok voor zijn layout blijven wat ze waren: de
-draaiende Kaarten-carrousel wordt plat onder 700px, en tussen 641 en 699px
-staat daar de desktopafbeelding in de platte rij.
+De eigen breekpunten van een blok voor zijn layout blijven wat ze waren.
 
-**Een plek die altijd compact is.** Bij *Kaarten naast elkaar* staan de kaarten
-op elk scherm in dezelfde platte rij. Daar is de afbeelding voor een telefoon
-de *compacte* afbeelding van de kaart, en die geldt op elke breedte, met haar
-eigen punt en weergave en in de *Beeldverhouding op een rij*
-(`ResponsiveImage::compact()`, één `<img>`, geen `<source>`). Zonder eigen
-afbeelding toont elk scherm de desktopafbeelding. Er is geen derde afbeelding:
-de draaiende carrousel toont dezelfde compacte afbeelding alleen onder het
-breekpunt.
+**De Kaarten-carrousel volgt zijn eigen presentatie.** De afbeelding voor een
+telefoon is daar de *compacte* afbeelding van de kaart, en die verschijnt
+zodra de kaart echt compact staat, niet bij de algemene 640px:
+
+- de draaiende carrousel wordt onder 700px een platte rij
+  (`CardCarouselContent::COMPACT_MAX_WIDTH` = 699, dezelfde grens als
+  `card-carousel.css` en `card-carousel.js`); vanaf 699px toont hij de
+  compacte afbeelding, via een `<source media="(max-width: 699px)">` en het
+  punt en de weergave in `card-carousel.css`. Er zit dus geen gat meer tussen
+  641 en 699px;
+- bij *Kaarten naast elkaar* staan de kaarten op elk scherm in dezelfde platte
+  rij, dus geldt de compacte afbeelding op elke breedte
+  (`ResponsiveImage::compact()`, één `<img>`, geen `<source>`);
+- zonder eigen afbeelding toont elk scherm de desktopafbeelding.
+
+Punt, weergave en *Beeldverhouding op een rij* volgen hetzelfde contract. Er is
+geen derde afbeelding, en elk ander blok houdt 640px.
 
 **Eén markup.** `partials/responsive-image.php` print elk beeld van zo'n plek:
 

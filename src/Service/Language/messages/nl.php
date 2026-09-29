@@ -1441,7 +1441,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'block_carousel.afbeeldingshoogte_large' => 'Groot',
     'block_carousel.error_kop_uitlijning' => 'Kies links, midden of rechts voor de titel en lead.',
     'block_carousel.error_afbeeldingshoogte' => 'Kies klein, middel of groot voor de afbeeldingen.',
-    'block_carousel.mobile_picker_help' => 'Op een telefoon, en bij "Kaarten naast elkaar" op elk scherm. Zonder eigen afbeelding toont elk scherm de gewone afbeelding.',
+    'block_carousel.mobile_picker_help' => 'Zodra de kaarten plat naast elkaar staan: onder 700 pixels breed, en bij "Kaarten naast elkaar" op elk scherm. Zonder eigen afbeelding toont elk scherm de gewone afbeelding.',
     'block_carousel.beeldverhouding_rij' => 'Beeldverhouding op een rij',
     'block_carousel.beeldverhouding_auto' => 'Zoals de hoogte',
     'block_carousel.beeldverhouding_1_1' => 'Vierkant',

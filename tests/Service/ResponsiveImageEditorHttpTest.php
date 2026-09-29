@@ -223,7 +223,8 @@ final class ResponsiveImageEditorHttpTest extends TestCase
         $this->carousels->updateSettings($this->carouselId, true, 'orbit');
         $html = $this->rendered();
         self::assertSame(1, substr_count($html, '<picture class="rm-picture">'));
-        self::assertMatchesRegularExpression('#<source media="\(max-width: 640px\)" srcset="/assets/media/zz-rm-editor-\d+\.jpg"#', $html);
+        // The ring turns compact at its own flat breakpoint, not at 640px.
+        self::assertMatchesRegularExpression('#<source media="\(max-width: 699px\)" srcset="/assets/media/zz-rm-editor-\d+\.jpg"#', $html);
         self::assertStringContainsString('style="object-position: 30% 40%; object-fit: contain; --rm-mobile-position: 10% 90%; --rm-mobile-fit: cover;" data-rm-mobile-position data-rm-mobile-fit>', $html);
         $plainPath = MediaService::find($picture)?->publicPath();
         self::assertStringContainsString('<img src="' . $plainPath . '" alt="Foto" width="1600" height="900" loading="lazy">', $html, 'a card without settings prints its old <img>');
@@ -361,11 +362,11 @@ final class ResponsiveImageEditorHttpTest extends TestCase
         $phonePath = (string) MediaService::find($phone)?->publicPath();
         $plainImg = '<img src="' . $desktopPath . '" alt="Foto" width="1600" height="900" loading="lazy">';
 
-        // The ring: the phone picture only below the breakpoint.
+        // The ring: the compact picture from where it turns into its flat strip.
         foreach (['auto', '4-3'] as $ratio) {
             $this->assertSaved($this->saveCarousel($session, ['desktop_layout' => 'orbit', 'flat_image_ratio' => $ratio]));
             $html = $this->rendered();
-            self::assertSame(1, substr_count($html, '<source media="(max-width: 640px)" srcset="' . $phonePath . '"'), 'ring, ' . $ratio);
+            self::assertSame(1, substr_count($html, '<source media="(max-width: 699px)" srcset="' . $phonePath . '"'), 'ring, ' . $ratio);
             self::assertStringContainsString('<img src="' . $desktopPath . '" alt="Foto" width="1600" height="900" loading="lazy" style="object-position: 30% 40%; --rm-mobile-position: 50% 0%; --rm-mobile-fit: contain;" data-rm-mobile-position data-rm-mobile-fit>', $html);
             self::assertStringContainsString($plainImg, $html, 'a card without an override keeps its desktop picture');
         }

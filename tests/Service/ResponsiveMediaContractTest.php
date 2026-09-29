@@ -164,6 +164,40 @@ final class ResponsiveMediaContractTest extends TestCase
         }
     }
 
+    /**
+     * The rotating Kaarten-carrousel turns into its flat strip below 700px,
+     * so its compact picture, point and fit start at 699px — one number in
+     * the content class, the carousel's CSS and JS, and the <source> — while
+     * every other block keeps the general 640px. No gap between 641 and 699.
+     */
+    public function testTheCarouselsCompactPictureFollowsItsOwnFlatBreakpoint(): void
+    {
+        $max = CardCarouselContent::COMPACT_MAX_WIDTH;
+        self::assertSame(699, $max);
+        self::assertGreaterThan(ResponsiveImage::MOBILE_MAX_WIDTH, $max);
+
+        $css = self::read('assets/css/blocks/card-carousel.css');
+        preg_match_all('/@media \(max-width: (\d+)px\)\s*\{((?:[^{}]*\{[^{}]*\})*)\s*\}/', $css, $blocks, PREG_SET_ORDER);
+        $flat = array_values(array_filter($blocks, static fn (array $b): bool => str_contains($b[2], '.orbit-carousel__stage')));
+        $point = array_values(array_filter($blocks, static fn (array $b): bool => str_contains($b[2], '--rm-mobile-position') && str_contains($b[2], '--rm-mobile-fit')));
+        self::assertCount(1, $flat, 'one flat-strip query');
+        self::assertCount(1, $point, 'one query for the compact point and fit');
+        self::assertSame([(string) $max, (string) $max], [$flat[0][1], $point[0][1]], 'the compact picture starts where the strip does');
+        self::assertStringContainsString('@media (min-width: ' . ($max + 1) . 'px)', $css, '"Kaarten naast elkaar" on the wide side of the same line');
+        self::assertStringContainsString('matchMedia("(max-width: ' . $max . 'px)")', self::read('assets/js/blocks/card-carousel.js'));
+
+        // The <source>: the carousel's limit when the place names it, 640 otherwise.
+        require_once self::ROOT . '/partials/responsive-image.php';
+        $picture = (new ResponsiveImage())->forRender(['src' => '/a.jpg', 'alt' => 'A'], false);
+        $picture['mobile'] = ['src' => '/b.jpg', 'width' => null, 'height' => null];
+        self::assertStringContainsString('<source media="(max-width: 699px)"', responsive_image_html($picture, ['compact_max_width' => $max]));
+        self::assertStringContainsString('<source media="(max-width: 640px)"', responsive_image_html($picture));
+        self::assertStringContainsString("'compact_max_width' => \\App\\Service\\CardCarouselContent::COMPACT_MAX_WIDTH", self::read('partials/section-card-carousel.php'));
+
+        // The general rule for every other block is untouched.
+        self::assertStringContainsString('@media (max-width: 640px)', self::read('assets/css/responsive-media.css'));
+    }
+
     public function testNothingReadsTheNineKeyColumnsAnyMore(): void
     {
         // Code, not history: a quoted name, a key of an array or a column

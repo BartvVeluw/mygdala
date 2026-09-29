@@ -277,6 +277,18 @@
    wins over the heights of the phone and "naast elkaar" rules. The minimum
    height of 0 keeps a picture of another shape from growing the box to its
    own proportions (an aspect-ratio box's automatic minimum is its content). */
+/* A card's compact picture follows the card, not the general phone width
+   (Responsive Media 2.0): from the width where the ring turns into its flat
+   strip, CardCarouselContent::COMPACT_MAX_WIDTH, the <source> already shows
+   the compact picture, and these two rules give it its own point and fit —
+   the same !important reason as assets/css/responsive-media.css, which keeps
+   640px for every other block. "Kaarten naast elkaar" needs neither: its
+   cards print the compact picture itself. */
+@media (max-width: 699px){
+  .orbit-card__media img[data-rm-mobile-position]{ object-position: var(--rm-mobile-position) !important; }
+  .orbit-card__media img[data-rm-mobile-fit]{ object-fit: var(--rm-mobile-fit) !important; }
+}
+
 .orbit-carousel--flat-1-1{ --orbit-flat-ratio: 1 / 1; }
 .orbit-carousel--flat-4-3{ --orbit-flat-ratio: 4 / 3; }
 .orbit-carousel--flat-3-4{ --orbit-flat-ratio: 3 / 4; }

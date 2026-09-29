@@ -437,10 +437,15 @@ final class ResponsiveImage
         return self::clamp($x) . '% ' . self::clamp($y) . '%';
     }
 
-    /** The <source media> of a phone's picture, from the one breakpoint. */
-    public static function mobileMedia(): string
+    /**
+     * The <source media> of a phone's picture, from the one breakpoint. A
+     * place that turns compact at a width of its own names that width (the
+     * Kaarten-carrousel's flat strip, CardCarouselContent::COMPACT_MAX_WIDTH);
+     * every other place keeps MOBILE_MAX_WIDTH.
+     */
+    public static function mobileMedia(?int $maxWidth = null): string
     {
-        return '(max-width: ' . self::MOBILE_MAX_WIDTH . 'px)';
+        return '(max-width: ' . ($maxWidth ?? self::MOBILE_MAX_WIDTH) . 'px)';
     }
 
     /** A stored flat-row ratio of a card carousel, or 'auto' for anything unknown. */

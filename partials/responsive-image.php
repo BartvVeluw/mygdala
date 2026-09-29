@@ -30,12 +30,16 @@ use App\Service\Media\ResponsiveImage;
  *              mobile: array{src: string, width: int|null, height: int|null}|null,
  *              position: string, mobile_position: string|null, fit: string, mobile_fit: string|null} $picture
  * @param array{class?: string, loading?: string, decoding?: bool, fetchpriority?: bool, decorative?: bool,
- *              aria_hidden?: bool, position?: string} $options
+ *              aria_hidden?: bool, position?: string, compact_max_width?: int} $options
  *        loading: 'lazy' (the default) or 'eager'; decoding: add decoding="async";
  *        fetchpriority: the first thing on the page (fetchpriority="high");
  *        decorative: alt="" whatever the picture's alt text;
  *        position: 'omit_center' (the default: no inline style for the middle,
- *        which the browser does by itself) or 'always'
+ *        which the browser does by itself) or 'always';
+ *        compact_max_width: the width below which the place itself turns
+ *        compact, for a block with a layout breakpoint of its own (the
+ *        Kaarten-carrousel); its stylesheet then applies the phone's point and
+ *        fit below that same width
  */
 function responsive_image_html(array $picture, array $options = []): string
 {
@@ -81,7 +85,7 @@ function responsive_image_html(array $picture, array $options = []): string
     }
 
     return '<picture class="rm-picture">'
-        . '<source media="' . $h(ResponsiveImage::mobileMedia()) . '" srcset="' . $h(responsive_image_srcset_url($mobile['src'])) . '"'
+        . '<source media="' . $h(ResponsiveImage::mobileMedia(isset($options['compact_max_width']) ? (int) $options['compact_max_width'] : null)) . '" srcset="' . $h(responsive_image_srcset_url($mobile['src'])) . '"'
         . BlockImage::dimensionAttributes(['width' => $mobile['width'] ?? null, 'height' => $mobile['height'] ?? null])
         . '>'
         . $img

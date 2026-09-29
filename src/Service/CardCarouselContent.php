@@ -105,6 +105,17 @@ class CardCarouselContent
     public const HEADER_ALIGNMENTS = ['left', 'center', 'right'];
 
     /**
+     * The width at which the rotating carousel turns into its flat strip
+     * (assets/css/blocks/card-carousel.css and assets/js/blocks/card-carousel.js
+     * both use it). From there down a card shows its compact picture — the
+     * phone picture of Responsive Media 2.0 — with its point and fit, so the
+     * picture follows the card's real presentation instead of the general
+     * 640px of other blocks. "Kaarten naast elkaar" is compact at every width.
+     * Tests\Service\ResponsiveMediaContractTest keeps the three in step.
+     */
+    public const COMPACT_MAX_WIDTH = 699;
+
+    /**
      * How tall the picture of every card of this carousel is, a closed list:
      * 'medium' is today's height and the default (no class); 'small' leaves
      * more of the card to its text, 'large' gives the picture more. The
