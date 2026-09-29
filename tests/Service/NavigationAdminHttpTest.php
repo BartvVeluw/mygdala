@@ -307,6 +307,21 @@ final class NavigationAdminHttpTest extends TestCase
         );
         $this->assertSame(0, $screen->query('//form[@action="/api/admin/delete-nav-item.php"][.//input[@name="id"][@value="' . $second['id'] . '"]]')->length, 'level 2 with a submenu cannot be deleted yet');
 
+        // Folding (admin/assets/navigation-tree.js): a real button on each
+        // row with a submenu, open by default, naming the zone it folds; a
+        // row without one has none. The rows stay where they were: folding
+        // is a view, the zones keep their order and their parent.
+        foreach ([$top => (int) $second['id'], (int) $second['id'] => (int) $third['id']] as $parent => $child) {
+            $toggle = $screen->query('//*[@id="nav-item-' . $parent . '"]/button[@data-nav-tree-toggle="' . $parent . '"]')->item(0);
+            $this->assertNotNull($toggle, "#{$parent} can be folded");
+            $this->assertSame('button', $toggle->getAttribute('type'));
+            $this->assertSame('true', $toggle->getAttribute('aria-expanded'));
+            $this->assertSame('nav-children-' . $parent, $toggle->getAttribute('aria-controls'));
+            $this->assertStringContainsString('Subitems van', $toggle->textContent, 'an accessible name');
+            $this->assertSame(1, $screen->query('//*[@id="nav-children-' . $parent . '"][@data-nav-zone][@data-parent-id="' . $parent . '"]/*[@id="nav-item-' . $child . '"]')->length);
+        }
+        $this->assertSame(0, $screen->query('//*[@id="nav-item-' . $third['id'] . '"]//*[@data-nav-tree-toggle]')->length, 'a leaf has nothing to fold');
+
         $editor = $this->xpath(self::$server->request('GET', '/admin/navigation-item.php?parent_id=' . $third['id'], $session)['body']);
         $this->assertSame(0, $editor->query('//input[@name="parent_id"]')->length, 'no level-4 form from the address bar');
         $editor = $this->xpath(self::$server->request('GET', '/admin/navigation-item.php?parent_id=' . $second['id'], $session)['body']);

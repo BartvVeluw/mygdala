@@ -3064,6 +3064,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'navigation.menu_empty' => 'The menu is still empty. Add a link to your most important pages, for example Home and Contact.',
     'navigation.add_link' => '+ Add link',
     'navigation.add_child' => '+ Submenu item',
+    'navigation.tree_children' => 'Sub-items of :item',
     'navigation.buttons_heading' => 'Buttons',
     'navigation.buttons_intro' => 'Eye-catching buttons on the right of the header, for example to get in touch. On a phone they sit below the menu.',
     'navigation.search_heading' => 'Search',

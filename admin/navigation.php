@@ -83,7 +83,9 @@ unset($_SESSION['admin_nav_error']);
 
 /**
  * One row of either list. $position/$count drive ↑/↓; $childCount decides
- * whether the row may be deleted; $canHaveChildren whether it offers
+ * whether the row may be deleted and whether it gets the button that folds
+ * its submenu away (admin/assets/navigation-tree.js: a view of this screen
+ * only, nothing is stored on the server); $canHaveChildren whether it offers
  * "+ Submenu-item" (a menu link above the deepest level).
  *
  * @param array<string, mixed> $item
@@ -105,6 +107,12 @@ function navigation_row(array $item, int $position, int $count, int $childCount,
     ?>
     <div class="admin-section-row admin-nav-item-row<?= $isChild ? ' admin-nav-item-row--child' : '' ?><?= $isHidden ? ' is-hidden-section' : '' ?>" id="nav-item-<?= $id ?>" data-nav-item-id="<?= $id ?>">
       <span class="admin-drag-handle" draggable="true" aria-hidden="true">&#8801;</span>
+      <?php if ($childCount > 0): ?>
+        <button type="button" class="admin-nav-tree__toggle" aria-expanded="true" aria-controls="nav-children-<?= $id ?>" data-nav-tree-toggle="<?= $id ?>">
+          <span class="admin-tree-caret" aria-hidden="true"></span>
+          <span class="admin-visually-hidden"><?= admin_te('navigation.tree_children', ['item' => $label]) ?></span>
+        </button>
+      <?php endif; ?>
       <div class="admin-section-row__body">
         <p class="admin-section-row__name">
           <?= $h($label) ?>
@@ -190,7 +198,7 @@ function navigation_menu_rows(array $rows, int $level, array $menuByParent, arra
             continue;
         }
         ?>
-        <div class="admin-nav-children" data-nav-zone data-parent-id="<?= $itemId ?>" data-presentation="link" data-reorder-url="/api/admin/reorder-nav-items.php" data-csrf-token="<?= $h($csrfToken) ?>">
+        <div class="admin-nav-children" id="nav-children-<?= $itemId ?>" data-nav-zone data-parent-id="<?= $itemId ?>" data-presentation="link" data-reorder-url="/api/admin/reorder-nav-items.php" data-csrf-token="<?= $h($csrfToken) ?>">
           <?php navigation_menu_rows($children, $level + 1, $menuByParent, $pagesById, $routes, $csrfToken); ?>
         </div>
         <?php
@@ -283,5 +291,6 @@ function navigation_menu_rows(array $rows, int $level, array $menuByParent, arra
 </main>
 <?= admin_confirm_dialog() ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-tree.js') ?>" defer></script>
 </body>
 </html>

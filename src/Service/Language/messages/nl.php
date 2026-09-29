@@ -3074,6 +3074,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'navigation.menu_empty' => 'Het menu is nog leeg. Voeg een link toe naar je belangrijkste pagina\'s, bijvoorbeeld Home en Contact.',
     'navigation.add_link' => '+ Link toevoegen',
     'navigation.add_child' => '+ Submenu-item',
+    'navigation.tree_children' => 'Subitems van :item',
     'navigation.buttons_heading' => 'Knoppen',
     'navigation.buttons_intro' => 'Opvallende knoppen rechts in de header, bijvoorbeeld om contact op te nemen. Op een telefoon staan ze onder het menu.',
     'navigation.search_heading' => 'Zoeken',

@@ -112,7 +112,16 @@
 
           var rect = row.getBoundingClientRect();
           var isAfter = event.clientY - rect.top > rect.height / 2;
-          zone.insertBefore(dragged, isAfter ? row.nextSibling : row);
+          // A row with a submenu moves together with it, folded or not, and
+          // a row dropped "after" one lands after that one's submenu: the
+          // zone right after a row is its own children (navigation.php).
+          var draggedChildren = navChildrenOf(dragged);
+          var target = isAfter ? (navChildrenOf(row) || row).nextSibling : row;
+          if (target === draggedChildren) return;
+          zone.insertBefore(dragged, target);
+          if (draggedChildren) {
+            zone.insertBefore(draggedChildren, dragged.nextSibling);
+          }
         });
 
         row.addEventListener("drop", function (event) {
@@ -121,6 +130,13 @@
         });
       });
     });
+  }
+
+  /** The submenu zone of a menu row, or null: it is the row's next sibling. */
+  function navChildrenOf(row) {
+    var next = row.nextElementSibling;
+    return next && next.classList.contains("admin-nav-children")
+      && next.getAttribute("data-parent-id") === row.getAttribute("data-nav-item-id") ? next : null;
   }
 
   function persistNavItemOrder(zone) {
