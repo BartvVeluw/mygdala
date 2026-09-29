@@ -115,8 +115,20 @@ Reden: ankers als `#hout` zijn echte afhankelijkheden buiten de pagina (de
 footerkolom "Materialen" linkt eruit). Zodra secties toevoegbaar, verwijderbaar
 en herordenbaar zijn, is een hardcoded ankerlijst in de quicknav gegarandeerd
 een keer onwaar. Een anker dat bij de sectie hoort, verhuist met de sectie mee.
-Het aparte navigatielabel bestaat omdat een kop ("Hout graveren") langer is dan
-wat in een nav past ("Hout"); leeg = val terug op de titel.
+Het aparte navigatielabel bestaat omdat een kop langer is dan wat in een nav
+past; leeg = val terug op de titel.
+
+**Detailsectie 2.0: dezelfde navigatie op elke pagina.** De quicknav was een
+vast blok dat alleen op content key `diensten` mocht staan, een pagina die een
+verse installatie niet heeft. Op elke andere pagina kreeg een anker dus nooit
+zijn label, terwijl de editor dat beloofde. `SectionRegistry::renderPage()`
+drukt nu dezelfde navigatie (`App\Service\Blocks\AnchorNavigation`, dezelfde
+partial) zelf af, direct onder de kop van de pagina, of bovenaan zonder kop,
+zodra blokken een anker dragen (`ContributesAnchor`) en er geen quicknav-blok
+op de pagina staat (`RendersAnchorNavigation`). Geen tweede navigatie en geen
+nieuw veld; het register noemt geen bloktype. Een anker heeft sindsdien één
+vorm (`AnchorName`: `#Hout ` wordt `hout`), bij opslaan en bij lezen, en twee
+secties op één pagina kunnen niet hetzelfde anker hebben.
 
 ## Een vast blok mag afgeleid zijn
 

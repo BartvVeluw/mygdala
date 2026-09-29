@@ -324,6 +324,20 @@ kolom uit elkaar te houden zijn. Een lang label breekt af; er is geen
 horizontale overflow op 320 of 375 px. Het hoofdmenu sluiten zet alle
 submenu's dicht, zoals voorheen.
 
+**Mobiel staat het label op de as, niet label plus pijltje** (v0.1.13). Een
+item met een submenu stond een halve pijltjesbreedte (22 px) links van de
+items zonder, omdat de rij link en pijltje samen centreerde. Nu hangt het
+pijltje rechts naast het label (`position: absolute; left: 100%`), met nog
+steeds een doel van 44×44 px, en houdt de rij links en rechts dezelfde ruimte
+vrij (`margin-inline`), zodat het label op de as blijft en een lang label
+afbreekt voordat het pijltje van het scherm valt. Bij een kop zonder link
+hangt het pijltje zo naast de woorden, binnen de knop. Marges en geen
+procentuele breedte: het item om de rij is maar zo breed als zijn inhoud, en
+een percentage daarvan liet de rij in elkaar klappen. Alleen binnen het
+telefoonmenu; de desktopbalk, hover, flyouts, `aria-expanded`,
+`aria-controls` en het open- en dichtschuiven zijn ongewijzigd
+(`DetailSectionTwoContractTest`).
+
 **Mobiel schuift een submenu open én dicht** (v0.1.12). Vroeger sprong het
 open, omdat een lijst die van `display: none` naar `flex` gaat geen
 beginwaarde heeft om vanaf te animeren. Nu is een dichte lijst 0 hoog en

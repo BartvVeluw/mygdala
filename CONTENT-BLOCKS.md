@@ -275,6 +275,48 @@ structured data of deelafbeelding veranderen. Die blijven van `ProductSeo` en
 terug kunnen komen, geen gedeelde bibliotheek met verwijzingen; een blok op een
 product is een eigen instantie en kan dus niet van betekenis veranderen.
 
+## Detailsectie 2.0
+
+- **Anker.** Eén vorm (`App\Service\Blocks\AnchorName`): kleine letters,
+  cijfers, `-` en `_`; `#Hout ` wordt `hout`, ook voor een anker dat vóór deze
+  regel is opgeslagen. Wat niets overlaat en een anker dat een andere
+  Detailsectie op dezelfde pagina al heeft, weigert het endpoint bij het veld.
+  Een sectie met een anker staat vanzelf in de **ankernavigatie** van haar
+  pagina, direct onder de paginakop, met haar navigatielabel (anders de titel)
+  in de taal van het verzoek. Die navigatie is de bestaande Snelnavigatie, die
+  `SectionRegistry::renderPage()` nu op elke pagina zelf afdrukt
+  (`docs/content-blocks/DECISIONS.md`, "Anker en navigatielabel horen bij de
+  sectie").
+- **Beeldpositie** hoort bij de hoofdafbeelding: het veld staat in de kaart
+  *Hoofdafbeelding* en is alleen zichtbaar met een afbeelding
+  (`admin/assets/detail-section.js`). Het wordt altijd gepost, dus een
+  opgeslagen positie gaat nooit verloren; zonder afbeelding negeert de
+  website haar, zoals altijd. Geen Responsive Media: de hoofdafbeelding wordt
+  in haar eigen verhouding getoond, zonder kader om bij te snijden.
+- **Galerijbronnen.** Een galerij-item is een afbeelding uit de
+  Mediabibliotheek, of een product, portfolioproject of blogbericht dat zijn
+  eigen afbeelding en naam toont en naar zijn pagina linkt
+  (`admin/_gallery_source_field.php`, `App\Service\Media\LinkedImages`).
+  Opgeslagen: alleen `source_type` + `source_id` op `detail_section_images`
+  (`db/migrations/20260930120000`); afbeelding, naam en adres worden bij elke
+  weergave opgezocht, dus een nieuwe slug of foto volgt meteen. Wat een
+  bezoeker niet kan openen (concept, inactief, verborgen, verwijderd, module
+  uit) laat de website weg; de editor houdt de keuze vast en zegt waarom. De
+  soorten komen uit de bestemmingskiezer (`LinkTargets`) plus een afbeelding
+  per module (`ModuleDefinition::linkedImages()`): een toekomstige module als
+  Articles wordt een bron zonder dat de Detailsectie verandert. De alt-tekst
+  is die van het bibliotheekitem achter de afbeelding van dat item.
+- **Op een telefoon** (640 px en smaller) is de galerij een strook met één
+  item tegelijk, native scroll-snap (vegen is de scroll van de browser, dus
+  een tik op een gelinkt item blijft een tik), met twee pijlknoppen die aan
+  de uiteinden uitgeschakeld zijn, zoals de platte strook van de
+  Kaarten-carrousel, en de pijltjestoetsen op de strook
+  (`assets/css/blocks/detail-section.css`, `assets/js/blocks/detail-section.js`).
+  Zonder beweging voor wie minder beweging vraagt. Daarboven het raster van
+  altijd.
+- **Uitleg** staat in de help-knop van het veld en in de infobalk van een
+  kaart, niet meer als alinea onder elk veld.
+
 ## Een blok toevoegen
 
 ```text

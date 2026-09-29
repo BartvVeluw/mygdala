@@ -1104,6 +1104,16 @@ eigen keuze, Projectinformatie, module uit, de admin-endpoints) zitten in
 `blocks` en `shop`. `ContentOwnerPagesMigrationTest` (vers en bijgewerkt,
 opnieuw draaien) zit in `migration` en `blocks`.
 
+### Detailsectie 2.0 en het menu
+
+`DetailSectionTwoTest` (database: de ankervorm, de ankernavigatie onder de
+kop en per taal, de galerijbronnen live en wat wegblijft, de strook) en
+`DetailSectionTwoHttpTest` (eigen `php -S`: het endpoint, beeldpositie,
+bronnen) zitten in `blocks`; `DetailSectionTwoContractTest` (de strook, de
+modulegrens van `LinkedImages`, de ene ankernavigatie, het mobiele menu) in
+`contract` en `fast`; `DetailSectionSourcesMigrationTest` in `migration` en
+`blocks`.
+
 ### Zoeken
 
 De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):

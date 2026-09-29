@@ -156,6 +156,7 @@ hij gebruikt.
 | Header | `headerPartials()` | `partials/header.php` |
 | Dashboard | `dashboardPanels()`, `dashboardCards()` | `admin/index.php` |
 | Mediagebruik | `mediaUsageProviders()` | `App\Service\Media\MediaUsageRegistry` |
+| De afbeelding die een item (product, project, blogbericht) toont waar een blok het als gelinkte afbeelding laat zien | `linkedImages()` | `App\Service\Media\LinkedImages` (`CONTENT-BLOCKS.md`, "Detailsectie 2.0") |
 | Iets anders dan een pagina dat contentblokken draagt (een product, een project) | `contentOwners()` | `App\Service\ContentOwners\ContentOwners` (`CONTENT-BLOCKS.md`, "Blokken op een product of project") |
 | Afhankelijkheden | `dependencies()` | `App\Module\ModuleRegistry` |
 | Eén zin over zichzelf | `description()` | `admin/setup.php` (de installatiewizard) |

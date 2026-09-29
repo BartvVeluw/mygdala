@@ -649,6 +649,12 @@ huidige implementaties. Het overzicht toont een pagina met tegels en heeft
 per tegel een teller nodig; per item vragen zou precies de N+1 zijn die niet
 mag.
 
+Een galerij-item van een Detailsectie dat een product, project of
+blogbericht toont (`App\Service\Media\LinkedImages`, `CONTENT-BLOCKS.md`,
+"Detailsectie 2.0") verwijst naar geen enkel bibliotheekitem: het toont de
+afbeelding van dat item, live, en die telt mee bij dat item (de productfoto,
+de hoofdfoto van het project, de uitgelichte afbeelding van het bericht).
+
 Een blok op de pagina-inhoud van een product of project
 (`CONTENT-BLOCKS.md`, "Blokken op een product of project") staat in dezelfde
 bloktabellen en telt dus vanzelf mee. Het label noemt dan de eigenaar in plaats
