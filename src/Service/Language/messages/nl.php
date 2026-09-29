@@ -3921,6 +3921,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'gallery_source.media' => 'Afbeelding',
     'gallery_source.gone_warning' => 'Dit item bestaat niet meer of kan niet meer gekozen worden. Het blijft bewaard, maar staat niet op de website. Kies een ander of verwijder het item.',
     'gallery_source.not_public' => 'Nog niet openbaar: dit item verschijnt pas op de website als het openbaar is.',
+    'gallery_source.no_preview' => 'Dit item is nu niet openbaar of heeft geen afbeelding, dus er is geen voorbeeld. Op de website wordt het weggelaten.',
     'gallery_source.module_off' => ':module staat uit: dit item blijft bewaard, maar staat niet op de website tot :module weer aan staat.',
     'gallery_source.error_kind' => 'Kies waar de afbeelding vandaan komt.',
     'gallery_source.error_item' => 'Kies een item uit de lijst.',

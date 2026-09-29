@@ -3911,6 +3911,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'gallery_source.media' => 'Image',
     'gallery_source.gone_warning' => 'This item no longer exists or can no longer be chosen. It is kept, but it is not on the website. Choose another or remove the item.',
     'gallery_source.not_public' => 'Not public yet: this item appears on the website once it is public.',
+    'gallery_source.no_preview' => 'This item is not public right now or has no picture, so there is no preview. The website leaves it out.',
     'gallery_source.module_off' => ':module is off: this item is kept, but it is not on the website until :module is switched on again.',
     'gallery_source.error_kind' => 'Choose where the image comes from.',
     'gallery_source.error_item' => 'Choose an item from the list.',

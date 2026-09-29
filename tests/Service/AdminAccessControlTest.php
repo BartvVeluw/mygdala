@@ -86,6 +86,9 @@ final class AdminAccessControlTest extends TestCase
         'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php', 'update-project-info.php',
         'update-rich-text-section.php', 'update-spacer.php', 'update-stat-strip.php', 'update-step-list-section.php',
         'update-text-image-split-section.php',
+        // Reads, never writes: the live picture of a gallery source for the
+        // focus frame, for who may edit that list.
+        'linked-image-preview.php',
     ];
 
     /** Shared includes rendered by other pages, never requested directly. */

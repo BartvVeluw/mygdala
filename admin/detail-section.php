@@ -378,7 +378,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       <?php endif; ?>
 
       <input type="hidden" name="images_present" value="1">
-      <div class="admin-row-cards" data-row-list="detail-section-images">
+      <div class="admin-row-cards" data-row-list="detail-section-images" data-linked-image-preview="/api/admin/linked-image-preview.php">
         <?php foreach ($imageRows as $position => $row): ?>
           <?php $imageRow($row['key'], $row['fields'], $position, count($imageRows)); ?>
         <?php endforeach; ?>
@@ -400,6 +400,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php label_mode_field_script(); ?>
 <?php responsive_image_field_script(); ?>
+<?php gallery_source_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

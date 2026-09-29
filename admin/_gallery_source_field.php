@@ -97,11 +97,28 @@ function gallery_source_field(string $list, string $key, array $fields, callable
           </div>
         <?php endforeach; ?>
 
+        <?php /* An item chosen now that a visitor cannot see has no picture for
+                 the focus frame: admin/assets/gallery-source.js shows this
+                 line then. A stored choice has its own warning above. */ ?>
+        <p class="admin-text-muted" data-linked-image-missing hidden><?= admin_te('gallery_source.no_preview') ?></p>
+
         <?php if ($keepsUnavailable): ?>
           <?php /* The stored item, as the endpoint needs it to keep it. */ ?>
           <input type="hidden" name="<?= $h($name('source_' . $source)) ?>" value="<?= (int) ($fields['source_' . $source] ?? 0) ?>">
           <p class="admin-alert admin-alert--warning" data-nav-link-field="<?= $h($source) ?>"><?= $disabledModule !== null ? admin_te('gallery_source.module_off', ['module' => $disabledModule]) : admin_te('gallery_source.gone_warning') ?></p>
         <?php endif; ?>
       </div>
+    <?php
+}
+
+/**
+ * The script that keeps a row's focus frame on the picture its source shows
+ * now (admin/assets/gallery-source.js); print it once, near the end of
+ * <body>, on a screen whose row list carries data-linked-image-preview.
+ */
+function gallery_source_field_script(): void
+{
+    ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/gallery-source.js') ?>" defer></script>
     <?php
 }
