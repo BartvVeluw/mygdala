@@ -96,6 +96,15 @@ class OrderPaymentSync
                     error_log('[OrderPaymentSync] back-in-stock mails for order ' . $order['id'] . ': ' . $e->getMessage());
                 }
             }
+
+            // The customer's pictures for order questions go back to the
+            // cart, which stays in the browser until an order is paid, so
+            // checking out again can order them. Repeating this is harmless.
+            try {
+                (new \App\Repository\OrderFieldUploadRepository())->releaseForOrder((int) $order['id'], \App\Service\OrderFields\OrderFieldUploadPolicy::TTL_HOURS);
+            } catch (\Throwable $e) {
+                error_log('[OrderPaymentSync] order-field pictures for order ' . $order['id'] . ': ' . $e->getMessage());
+            }
         }
 
         // A refund doesn't change the payment's own status (it stays "paid" —

@@ -29,9 +29,11 @@
  * A forged cross-site request could only upload a picture as the visitor
  * themselves, or discard a picture whose 256-bit token it would have to know
  * already. What an anonymous endpoint that writes files needs — and has — is
- * an abuse ceiling (App\Service\ContactRateLimiter, its own salt) and a strict
- * content check. Every upload also gives expired pictures a small chance to
- * be swept (OrderFieldUploads::sweep()).
+ * an abuse ceiling (App\Service\ContactRateLimiter, its own salt, an IPv6
+ * visitor counted per /64), a ceiling on all temporary pictures together
+ * (OrderFieldUploadPolicy::MAX_TEMPORARY_BYTES) and a strict content check.
+ * Every upload also gives expired pictures a small chance to be swept
+ * (OrderFieldUploads::sweep()).
  */
 
 declare(strict_types=1);
@@ -100,7 +102,15 @@ try {
         ORDER_FIELD_UPLOAD_MAX_ATTEMPTS,
         ORDER_FIELD_UPLOAD_WINDOW_SECONDS
     );
-    if (!$limiter->allow((string) ($_SERVER['REMOTE_ADDR'] ?? ''))) {
+    // An IPv6 visitor counts per /64: one connection gets a whole /64 and can
+    // pick a new address in it for every request.
+    $visitor = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    $packed = @inet_pton($visitor);
+    if (is_string($packed) && strlen($packed) === 16) {
+        $visitor = (string) inet_ntop(substr($packed, 0, 8) . str_repeat("\0", 8)) . '/64';
+    }
+
+    if (!$limiter->allow($visitor)) {
         orderFieldUploadAnswer(429, [
             'error' => SiteText::pick([
                 'nl' => 'Te veel uploads achter elkaar. Probeer het over een paar minuten opnieuw.',

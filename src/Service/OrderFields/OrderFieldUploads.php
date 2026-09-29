@@ -38,7 +38,12 @@ use PDO;
  *                 second ago, makes the claim fail and the WHOLE order roll
  *                 back. The file never moves, so there is nothing on disk to
  *                 undo: a rolled-back claim leaves a temporary upload that
- *                 simply expires.
+ *                 simply expires. An order whose payment then ends without
+ *                 money (could not start, failed, canceled, expired) gives
+ *                 its pictures back to the cart — temporary again with a
+ *                 fresh lifetime — because the cart stays in the browser until
+ *                 an order is paid (OrderFieldUploadRepository::releaseForOrder(),
+ *                 called next to the stock release).
  *   5. sweep()    expired temporary uploads are deleted with their files — on
  *                 roughly one in SWEEP_CHANCE uploads, and by
  *                 scripts/prune-order-field-uploads.php whenever a host runs
@@ -124,6 +129,18 @@ final class OrderFieldUploads
         $maxBytes = OrderFieldUploadPolicy::effectiveMaxBytes($question['max_file_size_mb'] ?? null);
         $file = $this->validator->validate($fileEntry, $maxBytes, $languageCode);
 
+        if ($this->repository->temporaryBytes() + $file['size'] > OrderFieldUploadPolicy::MAX_TEMPORARY_BYTES) {
+            // Make room from what expired before refusing anyone.
+            $this->sweep();
+            if ($this->repository->temporaryBytes() + $file['size'] > OrderFieldUploadPolicy::MAX_TEMPORARY_BYTES) {
+                error_log('[OrderFieldUploads] the ceiling on temporary pictures is reached; an upload was refused');
+                throw new OrderFieldUploadException('busy', SiteText::pick([
+                    'nl' => 'Uploaden lukt op dit moment niet. Probeer het later opnieuw.',
+                    'en' => 'Uploading is not possible right now. Please try again later.',
+                ], $languageCode), 503);
+            }
+        }
+
         $token = OrderFieldUploadPolicy::newToken();
         $storageName = OrderFieldUploadStorage::newStorageName();
 
@@ -206,7 +223,11 @@ final class OrderFieldUploads
         return $row;
     }
 
-    /** Deletes up to $limit expired temporary uploads with their files; returns how many. */
+    /**
+     * Deletes up to $limit expired temporary uploads with their files, and
+     * any file older than the lifetime that no row names any more (a crash
+     * between deleting a row and its files); returns how many uploads went.
+     */
     public function sweep(int $limit = 50): int
     {
         $count = 0;
@@ -215,6 +236,11 @@ final class OrderFieldUploads
                 $this->storage->delete($expired['storage_name'], $expired['extension']);
                 $count++;
             }
+        }
+
+        $old = $this->storage->namesOlderThan(OrderFieldUploadPolicy::TTL_HOURS * 3600, $limit);
+        foreach ($this->repository->unknownStorageNames(array_keys($old)) as $orphan) {
+            $this->storage->delete($orphan, $old[$orphan]);
         }
 
         return $count;

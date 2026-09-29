@@ -119,6 +119,60 @@ class OrderFieldUploadRepository extends Repository
         return $stmt->rowCount() === 1;
     }
 
+    /** The bytes all temporary (unclaimed) pictures take together. */
+    public function temporaryBytes(): int
+    {
+        return (int) $this->db->query('SELECT COALESCE(SUM(byte_size), 0) FROM order_field_uploads WHERE claimed_at IS NULL')->fetchColumn();
+    }
+
+    /**
+     * Gives the pictures of an order whose payment ended without money
+     * (failed to start, failed, canceled, expired) back to the customer's
+     * cart: temporary again, with a fresh lifetime, so the same cart can be
+     * checked out again — the cart stays in the browser until an order is
+     * paid. The order's answers keep their filenames; only the file moves
+     * back. A paid order is never touched here.
+     *
+     * @return int how many pictures came back
+     */
+    public function releaseForOrder(int $orderId, int $ttlHours): int
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE order_field_uploads u
+             INNER JOIN order_item_fields f ON f.id = u.order_item_field_id
+             INNER JOIN order_items oi ON oi.id = f.order_item_id
+             INNER JOIN orders o ON o.id = oi.order_id
+             SET u.claimed_at = NULL, u.order_item_field_id = NULL, u.expires_at = NOW() + INTERVAL :ttl HOUR
+             WHERE oi.order_id = :order_id AND o.status IN ('failed', 'canceled', 'expired')"
+        );
+        $stmt->bindValue('ttl', max(1, $ttlHours), \PDO::PARAM_INT);
+        $stmt->bindValue('order_id', $orderId, \PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Of these storage names, the ones no row names any more: files the sweep
+     * may remove (a crash between deleting a row and its files).
+     *
+     * @param list<string> $storageNames
+     * @return list<string>
+     */
+    public function unknownStorageNames(array $storageNames): array
+    {
+        if ($storageNames === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($storageNames), '?'));
+        $stmt = $this->db->prepare("SELECT storage_name FROM order_field_uploads WHERE storage_name IN ({$placeholders})");
+        $stmt->execute(array_values($storageNames));
+        $known = array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+
+        return array_values(array_diff($storageNames, $known));
+    }
+
     /**
      * Deletes a TEMPORARY upload by its token's hash (the customer replaced
      * or removed the picture) and says which files to remove, or null when

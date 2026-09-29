@@ -906,7 +906,7 @@
         var maxBytes = parseInt(fieldEl.getAttribute("data-order-field-max-bytes"), 10) || 0;
         if (!input) return;
 
-        var image = { token: null, filename: "", pending: null, url: null, clear: clear };
+        var image = { token: null, filename: "", pending: null, url: null, seq: 0, clear: clear };
         imageStates.set(fieldEl, image);
 
         function say(text) {
@@ -930,6 +930,10 @@
            upload too — not when it just went into the cart. */
         function clear(discard) {
           if (discard) discardUpload(image.token);
+          // A picture still on its way no longer counts either.
+          image.seq++;
+          image.pending = null;
+          fieldEl.removeAttribute("aria-busy");
           image.token = null;
           image.filename = "";
           revoke();
@@ -977,7 +981,10 @@
           fieldEl.setAttribute("aria-busy", "true");
           say(S.text("order_field_image_uploading"));
 
-          var previous = image.token;
+          // Only the LATEST choice counts: a picture chosen while another is
+          // still on its way wins, and the earlier one is discarded when it
+          // arrives, whatever order the two answers come back in.
+          var seq = ++image.seq;
           image.pending = fetch(S.apiUrl("/api/order-field-upload.php"), { method: "POST", body: body })
             .then(function (res) {
               return res.json().catch(function () { return {}; }).then(function (payload) {
@@ -986,6 +993,10 @@
             })
             .catch(function () { return { ok: false, payload: {} }; })
             .then(function (result) {
+              if (seq !== image.seq) {
+                if (result.ok && result.payload.token) discardUpload(result.payload.token);
+                return;
+              }
               if (!result.ok || !result.payload.token) {
                 // The earlier picture, if any, stays as it was.
                 say("");
@@ -993,7 +1004,7 @@
                 input.value = "";
                 return;
               }
-              if (previous) discardUpload(previous);
+              if (image.token) discardUpload(image.token);
               image.token = result.payload.token;
               image.filename = result.payload.filename || file.name;
               return previewUrl(file).then(function (url) {
@@ -1002,6 +1013,7 @@
               });
             })
             .then(function () {
+              if (seq !== image.seq) return;
               image.pending = null;
               fieldEl.removeAttribute("aria-busy");
             });

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Database;
+use App\Repository\OrderFieldUploadRepository;
 use App\Repository\OrderRepository;
+use App\Service\OrderFields\OrderFieldUploadPolicy;
 use App\Service\Inventory\Inventory;
 use App\Service\Inventory\StockNotifications;
 use App\Service\Inventory\StockUnit;
@@ -40,6 +42,10 @@ final class OrderPaymentStartFailure
         try {
             (new OrderRepository($db))->markPaymentStartFailed($orderId);
             $cameBack = (new Inventory($db))->releaseForOrder($orderId);
+
+            // A customer's pictures for order questions go back to the cart
+            // too, so trying again with the same cart can order them.
+            (new OrderFieldUploadRepository($db))->releaseForOrder($orderId, OrderFieldUploadPolicy::TTL_HOURS);
 
             // Units that are orderable again: whoever waits for them hears it.
             if ($cameBack !== []) {

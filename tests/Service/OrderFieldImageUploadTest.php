@@ -277,6 +277,16 @@ final class OrderFieldImageUploadTest extends TestCase
         self::assertSame('fotoevil.png', OrderFieldUploadValidator::displayName("foto\r\n\"evil.png", 'png'));
         self::assertSame('afbeelding.webp', OrderFieldUploadValidator::displayName('..', 'webp'));
         self::assertSame('afbeelding.jpg', OrderFieldUploadValidator::displayName(null, 'jpg'));
+        self::assertSame('fotogpj.hta', OrderFieldUploadValidator::displayName("foto\u{202E}gpj.hta", 'jpg'), 'no right-to-left override to disguise a name');
+        self::assertSame('afbeelding.png', OrderFieldUploadValidator::displayName("\xFF\xFE", 'png'), 'not UTF-8: not a name');
+
+        $route = (string) file_get_contents(__DIR__ . '/../../api/admin/order-field-upload.php');
+        self::assertStringContainsString('PATHINFO_FILENAME', $route);
+        self::assertStringContainsString("'.' . \$upload['extension']", $route, 'a download ends in the VERIFIED type\'s extension, never the customer\'s');
+
+        self::assertFalse(OrderFieldUploadStorage::isSafeBase('storage'), 'relative');
+        self::assertFalse(OrderFieldUploadStorage::isSafeBase(dirname(__DIR__, 2) . '/assets'), 'inside the webroot');
+        self::assertTrue(OrderFieldUploadStorage::isSafeBase(sys_get_temp_dir()));
 
         $storage = new OrderFieldUploadStorage($this->dir);
         self::assertNull($storage->path('../../etc/passwd', 'jpg', 'orig'));
@@ -388,6 +398,20 @@ final class OrderFieldImageUploadTest extends TestCase
         self::assertCount(4, glob($this->dir . '/*') ?: [], 'the abandoned picture\'s two files went with it');
         self::assertFalse($repository->deleteUnclaimed((int) $orderedRow['id']), 'not even by hand');
 
+        // A file no row names any more, older than the lifetime, goes too;
+        // a young one may be an upload in progress and stays.
+        $orphan = $this->dir . '/' . str_repeat('ab', 16) . '.orig.jpg';
+        $young = $this->dir . '/' . str_repeat('cd', 16) . '.orig.jpg';
+        file_put_contents($orphan, 'x');
+        file_put_contents($young, 'x');
+        touch($orphan, time() - OrderFieldUploadPolicy::TTL_HOURS * 3600 - 60);
+        touch($this->dir . '/' . $orderedRow['storage_name'] . '.orig.jpg', time() - OrderFieldUploadPolicy::TTL_HOURS * 3600 - 60);
+        $service->sweep();
+        self::assertFileDoesNotExist($orphan);
+        self::assertFileExists($young);
+        self::assertFileExists($this->dir . '/' . $orderedRow['storage_name'] . '.orig.jpg', 'an old file of an order stays');
+        unlink($young);
+
         $script = (string) file_get_contents(__DIR__ . '/../../scripts/prune-order-field-uploads.php');
         self::assertStringContainsString('->sweep(', $script);
         self::assertStringContainsString("PHP_SAPI !== 'cli'", $script);
@@ -446,6 +470,38 @@ final class OrderFieldImageUploadTest extends TestCase
         } catch (\PDOException $e) {
             self::assertStringContainsString('foreign key', strtolower($e->getMessage()));
         }
+    }
+
+    public function testAPaymentThatEndsWithoutMoneyGivesThePictureBackToTheCart(): void
+    {
+        [$product, $field] = $this->imageProduct('ZZ Beeld Terug');
+        $service = $this->service();
+        $repository = new OrderFieldUploadRepository();
+        $db = Database::connection();
+
+        // The payment could not even start: the order fails, the picture is
+        // temporary again and the same cart can be checked out again.
+        $token = $service->upload($product, $field, $this->file($this->picture(IMAGETYPE_JPEG, 10, 10), 'luna.jpg'), 'nl')['token'];
+        $item = $this->claim($product, [$field => $token], $service);
+        $order = (int) $db->query('SELECT order_id FROM order_items WHERE id = ' . $item)->fetchColumn();
+        \App\Service\OrderPaymentStartFailure::handle($order, $db);
+        self::assertSame('failed', $this->fixture->orderRow($order)['status']);
+        $row = $repository->findByTokenHash(OrderFieldUploadPolicy::tokenHash($token));
+        self::assertNull($row['claimed_at']);
+        self::assertSame(0, (int) $row['expired']);
+        self::assertSame('luna.jpg', (new OrderItemFieldRepository())->findByOrderIdGrouped($order)[$item][0]['value'], 'the failed order still says what was sent');
+        $retry = $this->claim($product, [$field => $token], $service);
+        self::assertNotNull($repository->findByTokenHash(OrderFieldUploadPolicy::tokenHash($token))['claimed_at'], 'the retry orders it');
+
+        // A paid order keeps its picture, whatever is asked.
+        $retryOrder = (int) $db->query('SELECT order_id FROM order_items WHERE id = ' . $retry)->fetchColumn();
+        $db->prepare("UPDATE orders SET status = 'paid' WHERE id = :id")->execute(['id' => $retryOrder]);
+        self::assertSame(0, $repository->releaseForOrder($retryOrder, OrderFieldUploadPolicy::TTL_HOURS));
+        $db->prepare("UPDATE orders SET status = 'canceled' WHERE id = :id")->execute(['id' => $retryOrder]);
+        self::assertSame(1, $repository->releaseForOrder($retryOrder, OrderFieldUploadPolicy::TTL_HOURS), 'canceled at the payment provider: back to the cart');
+
+        $sync = (string) file_get_contents(__DIR__ . '/../../src/Service/OrderPaymentSync.php');
+        self::assertStringContainsString('OrderFieldUploadRepository())->releaseForOrder(', $sync, 'the webhook gives pictures back next to the stock');
     }
 
     /* ---- the cart --------------------------------------------------------- */

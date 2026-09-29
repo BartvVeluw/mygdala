@@ -50,6 +50,14 @@ final class OrderFieldUploadPolicy
 
     public const TTL_HOURS = 72;
 
+    /**
+     * The ceiling on all TEMPORARY pictures together: whatever the per-visitor
+     * rate limit lets through (and an IPv6 visitor can change address), a
+     * shop never keeps more than this of pictures nobody ordered. Above it a
+     * new upload is refused with "try again later" until the sweep made room.
+     */
+    public const MAX_TEMPORARY_BYTES = 2 * 1024 * 1024 * 1024;
+
     /** Room left in post_max_size for the rest of a multipart request. */
     private const REQUEST_OVERHEAD_BYTES = 64 * 1024;
 

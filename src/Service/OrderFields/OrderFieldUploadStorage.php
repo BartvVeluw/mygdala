@@ -57,13 +57,64 @@ class OrderFieldUploadStorage
             self::loadEnv();
 
             $configured = trim((string) ($_ENV['ORDER_FIELD_UPLOADS_PATH'] ?? getenv('ORDER_FIELD_UPLOADS_PATH') ?: ''));
-            $base = $configured !== '' ? rtrim($configured, '/\\') : dirname(__DIR__, 4) . '/storage';
+            $base = dirname(__DIR__, 4) . '/storage';
+            if ($configured !== '') {
+                if (self::isSafeBase($configured)) {
+                    $base = rtrim($configured, '/\\');
+                } else {
+                    // A relative path means something else to a web request
+                    // than to the prune script, and a path inside the project
+                    // is inside the webroot: neither is taken.
+                    error_log('[OrderFieldUploadStorage] ORDER_FIELD_UPLOADS_PATH must be an absolute path outside the project; using the default.');
+                }
+            }
             $this->storageDir = $base . '/order-field-uploads/';
         }
 
         if (!is_dir($this->storageDir)) {
-            mkdir($this->storageDir, 0755, true);
+            mkdir($this->storageDir, 0750, true);
         }
+    }
+
+    /** Whether a configured base is absolute and outside the project root (the webroot). */
+    public static function isSafeBase(string $path): bool
+    {
+        $isAbsolute = str_starts_with($path, '/') || preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
+        if (!$isAbsolute) {
+            return false;
+        }
+
+        $normalise = static fn (string $p): string => rtrim(str_replace('\\', '/', $p), '/') . '/';
+        $project = $normalise((string) (realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)));
+        $candidate = $normalise((string) (realpath($path) ?: $path));
+
+        return !str_starts_with($candidate, $project);
+    }
+
+    /**
+     * Pictures on disk older than $seconds, by storage name, with their
+     * extension: what the sweep compares with the table to find files no
+     * row names any more. Bounded, like every sweep here.
+     *
+     * @return array<string, string> storage name => extension
+     */
+    public function namesOlderThan(int $seconds, int $limit): array
+    {
+        $names = [];
+        $cutoff = time() - $seconds;
+        foreach (new \DirectoryIterator($this->storageDir) as $file) {
+            if (!$file->isFile() || $file->getMTime() >= $cutoff) {
+                continue;
+            }
+            if (preg_match('/^([0-9a-f]{32})\.(?:orig|thumb)\.([a-z]+)$/', $file->getFilename(), $m) === 1) {
+                $names[$m[1]] = $m[2];
+                if (count($names) >= $limit) {
+                    break;
+                }
+            }
+        }
+
+        return $names;
     }
 
     public function directory(): string
@@ -119,13 +170,13 @@ class OrderFieldUploadStorage
         @chmod($thumbnail, 0640);
     }
 
-    /** Removes both files of a picture; a file that is already gone is fine. */
+    /** Removes both files of a picture; a file that is already gone is fine, one that stays is logged. */
     public function delete(string $storageName, string $extension): void
     {
         foreach ([self::ORIGINAL, self::THUMBNAIL] as $kind) {
             $path = $this->path($storageName, $extension, $kind);
-            if ($path !== null && is_file($path)) {
-                @unlink($path);
+            if ($path !== null && is_file($path) && !@unlink($path)) {
+                error_log('[OrderFieldUploadStorage] could not delete ' . $storageName . '.' . $kind . '.' . $extension);
             }
         }
     }

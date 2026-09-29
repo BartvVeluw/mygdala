@@ -132,18 +132,20 @@ final class OrderFieldUploadValidator
      * The customer's filename as display text only: never a path, never a
      * MIME type, never part of a stored filename. Any directory, control
      * character, quote or backslash is gone, so it cannot break a header or
-     * a line of a mail either.
+     * a line of a mail either — and so is every invisible Unicode format
+     * character (\p{Cf}: a right-to-left override would show "foto‮gpj.hta"
+     * as "fotoath.jpg").
      */
     public static function displayName(mixed $name, string $extension): string
     {
         $name = is_string($name) ? $name : '';
-        $name = str_replace('\\', '/', $name);
-        $name = basename($name);
-        $name = (string) preg_replace('/[\x00-\x1F\x7F"\/\\\\]/u', '', $name);
-        $name = trim($name);
         if (preg_match('//u', $name) !== 1) {
             $name = '';
         }
+        $name = str_replace('\\', '/', $name);
+        $name = basename($name);
+        $name = (string) preg_replace('/[\x00-\x1F\x7F"\/\\\\]|\p{Cf}/u', '', $name);
+        $name = trim($name);
 
         if ($name === '' || $name === '.' || $name === '..') {
             return 'afbeelding.' . $extension;

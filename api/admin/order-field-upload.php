@@ -21,7 +21,8 @@
  * RESPONSE: the stored MIME type only when it is one of the three raster
  * types the upload was verified as (else octet-stream), nosniff, private and
  * never cached, a sandboxing CSP, and the customer's filename stripped of
- * anything that could break the header. `mode=download` is an attachment,
+ * anything that could break the header, with the extension of the VERIFIED
+ * type (never the customer's own). `mode=download` is an attachment,
  * otherwise the picture opens inline — safe for a verified JPEG, PNG or WebP.
  *
  * A read-only GET, so no CSRF token (nothing changes), like
@@ -74,10 +75,12 @@ $mime = in_array((string) $upload['mime_type'], array_column(OrderFieldUploadPol
     ? (string) $upload['mime_type']
     : 'application/octet-stream';
 
-$filename = str_replace(['"', '\\', '/', "\r", "\n", ';'], '', (string) $upload['original_filename']);
-if ($filename === '') {
-    $filename = 'afbeelding-' . $id . '.' . $upload['extension'];
-}
+// The saved file is named after the customer's file but always ends in the
+// extension of the type it was VERIFIED as: a JPEG sent as "order.hta" is
+// saved as "order.jpg", never as something a double-click would run.
+$stem = pathinfo(str_replace(['"', '\\', '/', "\r", "\n", ';'], '', (string) $upload['original_filename']), PATHINFO_FILENAME);
+$stem = trim((string) preg_replace('/\p{Cf}/u', '', $stem));
+$filename = ($stem !== '' ? $stem : 'afbeelding-' . $id) . '.' . $upload['extension'];
 $asciiFilename = preg_replace('/[^\x20-\x7E]/', '_', $filename);
 
 header('Content-Type: ' . $mime);
