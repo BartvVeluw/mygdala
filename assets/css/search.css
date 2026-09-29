@@ -160,6 +160,10 @@
 }
 
 /* ---- The results page (zoeken.php) ---------------------------------- */
+/* The results line up under the search field of the hero above them, in
+   the same container and at a reading width. */
+.search-page__section{ padding-top: 0; }
+.search-page__body > *{ max-width: 48rem; }
 .search-page__form{ display: flex; gap: 0.5rem; max-width: 40rem; margin-top: var(--sp-3); }
 .search-page__form .site-search__input{ height: 48px; }
 .search-page__form .site-search__submit{ height: 48px; }

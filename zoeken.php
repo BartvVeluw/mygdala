@@ -80,7 +80,8 @@ $seoMetadata = \App\Service\SeoMetadata::create(
         ? sprintf(SiteText::pick(['nl' => 'Zoekresultaten voor “%s”', 'en' => 'Search results for “%s”']), $query->text)
         : $heading),
     description: SiteText::pick(['nl' => 'Zoek op deze website.', 'en' => 'Search this website.']),
-    canonical: LocalizedUrl::absolute($searchPath),
+    // $searchPath already carries the language prefix (SearchService::path()).
+    canonical: \App\Service\AppUrl::canonical($searchPath),
     indexable: false,
 );
 
@@ -110,8 +111,8 @@ $seoMetadata = \App\Service\SeoMetadata::create(
     </div>
   </section>
 
-  <section style="padding-top:0;">
-    <div class="container" style="max-width: var(--container-narrow);">
+  <section class="search-page__section">
+    <div class="container search-page__body">
       <div role="status" aria-live="polite">
       <?php if ($failed): ?>
         <p class="search-page__empty"><?= SiteText::escaped(['nl' => 'Zoeken lukt op dit moment niet. Probeer het later nog eens.', 'en' => 'Search is not available right now. Please try again later.']) ?></p>

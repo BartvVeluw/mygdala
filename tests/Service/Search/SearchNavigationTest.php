@@ -176,7 +176,7 @@ final class SearchNavigationTest extends TestCase
 
         self::assertStringContainsString('value="<?= $h($query->text) ?>"', $page);
         self::assertStringContainsString('indexable: false', $page);
-        self::assertStringContainsString('canonical: LocalizedUrl::absolute($searchPath)', $page, 'canonical to the bare route, never to a query');
+        self::assertStringContainsString('canonical: \App\Service\AppUrl::canonical($searchPath)', $page, 'canonical to the bare route in its own language, never to a query, prefixed once');
         self::assertStringContainsString('SearchQuery::fromInput($_GET[\'q\'] ?? null)', $page);
         self::assertStringNotContainsString('$_GET[\'q\']) ?>', $page, 'the raw query is never printed');
         self::assertStringContainsString('<?= $h($hit->title) ?>', $page);
