@@ -46,6 +46,15 @@
  * card shows the fixed icon. An image that predates the library (a path and
  * no media item) is kept unless `remove_legacy_image` is ticked.
  *
+ * WHAT STANDS ABOVE THE TITLE (`label_mode`, App\Service\Blocks\LabelMode):
+ * nothing, the card's place as 01 or 1 (never stored: worked out at every
+ * render), an icon, or its own words (`number_label`, a word of this
+ * language). A mode outside LabelMode::CARD_MODES is refused. "Icoon" needs
+ * `label_icon_media_id`, an SVG of the Media Library (MediaService::findIcon());
+ * every other mode lets a chosen icon go, so it no longer counts as used. The
+ * own words stay stored whatever the mode, and show again with "Eigen tekst".
+ * A form without `label_mode` keeps both.
+ *
  * HOW THE PICTURE SITS IN THE CARD (Responsive Media 2.0): its focus point,
  * its fit, and a phone's own picture, point and fit, read by
  * App\Service\Media\ResponsiveImage::fromRequest() from the fields
@@ -69,6 +78,7 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\CardCarouselContent;
 use App\Service\Media\BlockImage;
+use App\Service\Media\MediaService;
 use App\Service\Media\ResponsiveImage;
 use App\Repository\ResponsiveImageRepository;
 use App\Service\Routing\LinkChoice;
@@ -145,6 +155,28 @@ $settings = ['link_type' => $link['link_type'], 'link_target_id' => $link['link_
 
 $settings += ['link_url' => $link['link_type'] === null ? '' : $linkUrl, 'is_active' => $isActive];
 
+// What stands above the title (App\Service\Blocks\LabelMode).
+$labelMode = CardCarouselContent::labelMode($card['label_mode'] ?? null);
+$labelIconId = (int) ($card['label_icon_media_id'] ?? 0) ?: null;
+$postedIcon = trim((string) (is_scalar($_POST['label_icon_media_id'] ?? null) ? $_POST['label_icon_media_id'] : ''));
+if (array_key_exists('label_mode', $_POST)) {
+    if (!\App\Service\Blocks\LabelMode::isValid($_POST['label_mode'], \App\Service\Blocks\LabelMode::CARD_MODES)) {
+        $fieldErrors['label_mode'] = AdminTranslator::trans('label_mode.error_mode');
+    } else {
+        $labelMode = (string) $_POST['label_mode'];
+        $labelIconId = null;
+        if ($labelMode === \App\Service\Blocks\LabelMode::ICON) {
+            $icon = ctype_digit($postedIcon) ? MediaService::findIcon((int) $postedIcon) : null;
+            if ($icon === null) {
+                $fieldErrors['label_icon_media_id'] = AdminTranslator::trans('label_mode.error_icon');
+            } else {
+                $labelIconId = $icon->id;
+            }
+        }
+    }
+}
+$settings += ['label_mode' => $labelMode, 'label_icon_media_id' => $labelIconId];
+
 // How the picture sits in the card, on a large screen and on a phone
 // (Responsive Media 2.0): refused parts are named, a part the form does not
 // carry keeps what is stored.
@@ -212,7 +244,11 @@ foreach ($fieldErrors as $message) {
 }
 
 // As typed: the kind as chosen, not as it would be stored.
-$old = ['language_code' => $languageCode, 'link_type' => $linkType, 'link_url' => $linkUrl] + $words + $settings + [
+$old = ['language_code' => $languageCode, 'link_type' => $linkType, 'link_url' => $linkUrl] + $words + [
+    // As chosen, so a refused icon choice comes back with its picker.
+    'label_mode' => is_string($_POST['label_mode'] ?? null) ? $_POST['label_mode'] : $labelMode,
+    'label_icon_media_id' => ctype_digit($postedIcon) ? (int) $postedIcon : (int) $labelIconId,
+] + $settings + [
     'link_target' => array_map('intval', array_filter($postedTargets, 'is_scalar')),
     'tags' => [],
     'presentation' => $presentation->toRow($imageSlot),

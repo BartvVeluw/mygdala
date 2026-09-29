@@ -193,16 +193,22 @@ class CardCarouselRepository extends Repository
      * picture and point) is App\Repository\ResponsiveImageRepository's, in
      * the same transaction.
      *
-     * @param array<string, mixed> $values link_type, link_target_id, link_url, is_active
+     * The label (App\Service\Blocks\LabelMode) only when $values names it:
+     * label_mode, with label_icon_media_id beside it (the icon of `icon`,
+     * NULL otherwise).
+     *
+     * @param array<string, mixed> $values link_type, link_target_id, link_url, is_active, label_mode?, label_icon_media_id?
      */
     public function updateCard(int $id, array $values): void
     {
+        $label = array_key_exists('label_mode', $values);
         $stmt = $this->db->prepare(
             'UPDATE carousel_cards SET
                 link_type = :link_type,
                 link_target_id = :link_target_id,
                 link_url = :link_url,
-                is_active = :is_active,
+                is_active = :is_active,'
+                . ($label ? ' label_mode = :label_mode, label_icon_media_id = :label_icon_media_id,' : '') . '
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -212,7 +218,10 @@ class CardCarouselRepository extends Repository
             'link_url' => self::nullIfEmpty($values['link_url'] ?? null),
             'is_active' => ($values['is_active'] ?? false) ? 1 : 0,
             'id' => $id,
-        ]);
+        ] + ($label ? [
+            'label_mode' => (string) $values['label_mode'],
+            'label_icon_media_id' => self::positiveOrNull($values['label_icon_media_id'] ?? null),
+        ] : []));
     }
 
     /** Only whether one card is shown: the switch on the carousel's card overview. */

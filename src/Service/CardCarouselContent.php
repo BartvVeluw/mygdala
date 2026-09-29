@@ -4,7 +4,11 @@ namespace App\Service;
 
 use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\LabelMode;
 use App\Service\Media\BlockImage;
+use App\Service\Media\MediaItem;
+use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
@@ -32,12 +36,14 @@ use App\Service\Routing\TypedLink;
  * has to check whether the path is empty, so there is no separate
  * presentation-mode field.
  *
- * `index_label` is what the card prints above its title: the card's own
- * `number_label` word ("01", "Nieuw", ...), and nothing at all when it is
- * empty. Until 2026-09 an empty label printed the card's place among the
- * visible cards; db/migrations/20260923170000 wrote that number into every
- * card that showed one, so no site changed, and an owner can now leave a
- * label empty on purpose.
+ * `index_label` is what the card prints above its title, by the card's
+ * `label_mode` (App\Service\Blocks\LabelMode): nothing, its place among the
+ * cards this carousel shows ("01" or "1", worked out here at every render, so
+ * a reordered card renumbers), or its own `number_label` words. `label_icon`
+ * is the URL of the Media Library icon of `icon` ('' otherwise, and for an
+ * icon that is gone or no longer an SVG); the card then prints no words.
+ * db/migrations/20260930140000 made every card that had words `custom` and
+ * every other one `none`, so no site changed.
  *
  * `picture` is the card's picture as Responsive Media 2.0 prints it
  * (App\Service\Media\ResponsiveImage::forRender(), partials/responsive-image.php):
@@ -140,7 +146,8 @@ class CardCarouselContent
      *                                image_height (one of IMAGE_HEIGHTS),
  *                                flat_ratio (one of
  *                                ResponsiveImage::FLAT_RATIOS),
-     *                                index_label ('' for none), image_path
+     *                                index_label ('' for none), label_icon
+     *                                ('' for none), image_path
      *                                (+ image_alt, a string, image_width /
      *                                image_height and picture), title, body and
      *                                link_label (a string each),
@@ -203,13 +210,20 @@ class CardCarouselContent
             return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
+        // Every label icon of the carousel in one query.
+        $icons = MediaService::findMany(array_map(
+            static fn (array $card): ?int => isset($card['label_icon_media_id']) ? (int) $card['label_icon_media_id'] : null,
+            $cards
+        ));
+
         $content['cards'] = [];
         foreach ($cards as $card) {
             if (!BlockLocalization::hasRequiredWords(self::CARDS, (int) $card['id'])) {
                 continue;
             }
 
-            $content['cards'][] = self::card($card, $tagsByCard[(int) $card['id']] ?? []);
+            // A card's number is its place among the cards shown.
+            $content['cards'][] = self::card($card, $tagsByCard[(int) $card['id']] ?? [], count($content['cards']) + 1, $icons);
         }
 
         $content['state'] = self::STATE_ACTIVE;
@@ -231,10 +245,12 @@ class CardCarouselContent
     /**
      * @param array<string, mixed> $card
      * @param array<int, array<string, mixed>> $tags
+     * @param int $position the card's place among the cards shown, from 1
+     * @param array<int, MediaItem> $icons the carousel's label icons by id
      *
      * @return array<string, mixed>
      */
-    private static function card(array $card, array $tags): array
+    private static function card(array $card, array $tags, int $position, array $icons): array
     {
         $cardId = (int) $card['id'];
 
@@ -252,7 +268,9 @@ class CardCarouselContent
             'picture' => ResponsiveImage::fromRow($card, self::imageSlot())->forRender($image),
         ] + BlockLocalization::words(self::CARDS, $cardId);
 
-        $result['index_label'] = (string) ($result['number_label'] ?? '');
+        $mode = self::labelMode($card['label_mode'] ?? null);
+        $result['index_label'] = LabelMode::text($mode, $position, (string) ($result['number_label'] ?? ''));
+        $result['label_icon'] = $mode === LabelMode::ICON ? self::labelIcon($icons[(int) ($card['label_icon_media_id'] ?? 0)] ?? null) : '';
         unset($result['number_label']);
         $result['image_alt'] = $image['alt'];
         $result['link_url'] = self::href($card);
@@ -278,6 +296,18 @@ class CardCarouselContent
         }
 
         return $result;
+    }
+
+    /** A stored label mode, or none for anything that is not a card's (LabelMode::CARD_MODES). */
+    public static function labelMode(mixed $stored): string
+    {
+        return LabelMode::fromStored($stored, LabelMode::CARD_MODES, LabelMode::NONE);
+    }
+
+    /** The URL of a card's label icon: an SVG of the library that still exists, else ''. */
+    private static function labelIcon(?MediaItem $media): string
+    {
+        return $media !== null && MediaType::filterAccepts(MediaType::ICON, $media->mimeType) ? $media->publicPath() : '';
     }
 
     /**

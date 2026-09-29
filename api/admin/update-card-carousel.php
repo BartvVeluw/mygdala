@@ -34,10 +34,10 @@
  * tags' words in every language, in the same transaction.
  *
  * A NEW CARD IS A DRAFT: it is created switched off, so nothing half-filled
- * appears on the website until an editor switches it on. It gets NO number
- * of its own: an empty number is the card's place among the cards that show
- * ("03"), which follows every reorder by itself. Only a number an editor
- * types on the card is stored.
+ * appears on the website until an editor switches it on. Its label starts as
+ * "Geen label" (carousel_cards.label_mode); a number chosen on the card is
+ * its place among the cards that show, worked out at every render, so it
+ * follows every reorder here by itself (App\Service\Blocks\LabelMode).
  */
 
 declare(strict_types=1);
@@ -230,7 +230,7 @@ try {
 
     if ($action !== null && $action['list'] === 'cards' && $action['verb'] === 'add') {
         $newCardId = $repository->createCard($carouselId);
-        // A title and nothing else: an empty number follows the card's place.
+        // A title and nothing else; its label starts as none.
         BlockLocalization::save('carousel_cards', $newCardId, $defaultLanguage, [
             'title' => $newCardTitle !== '' ? $newCardTitle : AdminTranslator::trans('block_carousel.nieuwe_kaart_titel'),
         ]);

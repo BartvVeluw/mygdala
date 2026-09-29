@@ -408,6 +408,7 @@
         <testsuite name="migration">
             <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
+            <file>tests/Install/LabelModesAndGalleryFocusMigrationTest.php</file>
             <file>tests/Install/AdminAccountMigrationTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Install/FreshInstallRenderTest.php</file>
@@ -495,6 +496,7 @@
         <testsuite name="blocks">
             <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
+            <file>tests/Install/LabelModesAndGalleryFocusMigrationTest.php</file>
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
@@ -514,6 +516,7 @@
             <file>tests/Service/BlockWordsEditorHttpTest.php</file>
             <file>tests/Service/TextImageSplitItemsTest.php</file>
             <file>tests/Service/CardCarouselEditorHttpTest.php</file>
+            <file>tests/Service/CardCarouselLabelModeHttpTest.php</file>
             <file>tests/Service/BlockRowEditorsHttpTest.php</file>
             <file>tests/Service/ContentBlocksPolishHttpTest.php</file>
             <file>tests/Service/SimpleBlocksPolishRenderTest.php</file>

@@ -43,8 +43,9 @@ use Tests\Support\PageFixture;
  *  - ↑, ↓ and × without JavaScript store what was typed with the move;
  *  - a save writes only the language on screen, and a new tag is written in
  *    the default language;
- *  - a new card is a draft without a stored number; an empty number follows
- *    the card's place, an own label stays; "Actief" is per card;
+ *  - a new card is a draft without a label; own words show only with the
+ *    label mode "Eigen tekst" (CardCarouselLabelModeHttpTest has the modes);
+ *    "Actief" is per card;
  *  - a button points at a page, a blog post or a product by id.
  *
  * The page, its block, the accounts, the post and the product are this test's
@@ -213,9 +214,10 @@ final class CardCarouselEditorHttpTest extends TestCase
         $content = CardCarouselContent::forSection(self::KEY, explode(':', $this->section)[1]);
         self::assertSame(['Hout'], array_column($content['cards'], 'title'), 'a draft card is not on the website');
 
-        // Its screen says what an empty number means.
+        // Its screen starts on "Geen label", and says what empty own words mean.
         $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $newId, $session)['body'];
-        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = geen nummer"/', $screen);
+        self::assertMatchesRegularExpression('/<option value="none" selected>Geen label<\/option>/', $screen);
+        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = geen label"/', $screen);
     }
 
     public function testAnEmptyNumberShowsNothingAndAnOwnLabelStaysWhereverTheCardGoes(): void
@@ -237,6 +239,7 @@ final class CardCarouselEditorHttpTest extends TestCase
 
         // A label an editor typed stays, wherever the card goes; the others still count.
         BlockLocalization::save('carousel_cards', $a, 'nl', ['title' => 'Hout', 'number_label' => 'A']);
+        Database::connection()->prepare("UPDATE carousel_cards SET label_mode = 'custom' WHERE id = :id")->execute(['id' => $a]);
         CardCarouselContent::clearCache();
         self::assertSame(['Glas' => '', 'Hout' => 'A', 'Acryl' => ''], $labels());
         $this->assertSaved($this->saveCarousel($session, [
@@ -244,8 +247,8 @@ final class CardCarouselEditorHttpTest extends TestCase
         ]));
         self::assertSame(['Hout' => 'A', 'Acryl' => '', 'Glas' => ''], $labels());
 
-        // Saving a card with its number left empty stores none.
-        $this->assertSaved($this->saveCard($session, $b, 'nl', ['is_active' => '1', 'title' => 'Acryl', 'number_label' => '']));
+        // Saving a card with its own words left empty stores none.
+        $this->assertSaved($this->saveCard($session, $b, 'nl', ['is_active' => '1', 'title' => 'Acryl', 'label_mode' => 'custom', 'number_label' => '']));
         self::assertSame(['title' => 'Acryl'], $this->stored('carousel_cards', $b, 'nl'));
     }
 
@@ -282,6 +285,7 @@ final class CardCarouselEditorHttpTest extends TestCase
 
         $this->assertSaved($this->saveCard($session, $card, 'nl', [
             'is_active' => '1',
+            'label_mode' => 'custom',
             'number_label' => 'Nieuw',
             'title' => 'Massief hout',
             'body' => 'Warm en tijdloos.',

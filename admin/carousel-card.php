@@ -22,6 +22,7 @@ use App\Repository\CardCarouselRepository;
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_link_target_field.php';
+require_once __DIR__ . '/_label_mode_field.php';
 
 /**
  * Editor for ONE card of a "Kaarten-carrousel" (?card_id=...): whether it is
@@ -163,9 +164,15 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
 $optional = admin_localized_optional_attr($editLanguage);
-// An empty number is no number (CardCarouselContent): the field says so in
-// the default language; in a translation, what the fallback is.
+// The own words of "Eigen tekst": empty shows nothing (CardCarouselContent);
+// the field says so in the default language, in a translation what the
+// fallback is.
 $numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="' . admin_te('block_carousel.nummer_placeholder') . '"';
+
+// What stands above the title (App\Service\Blocks\LabelMode): as handed
+// back, else as stored; the icon of "Icoon" likewise.
+$labelMode = CardCarouselContent::labelMode(is_array($old) ? ($old['label_mode'] ?? null) : ($card['label_mode'] ?? null));
+$labelIcon = MediaService::find(is_array($old) ? (int) ($old['label_icon_media_id'] ?? 0) : (int) ($card['label_icon_media_id'] ?? 0));
 
 // The picture's presentation (Responsive Media 2.0): as handed back, else
 // as stored. The frames take the card's shape: its picture height on a large
@@ -277,11 +284,24 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
       <h2><?= admin_te('block_carousel.inhoud') ?></h2>
       <?php admin_localized_bar($editLanguage); ?>
 
-      <div class="admin-field">
-        <?= admin_field_label('card-number', admin_t('block_carousel.nummer'), admin_t('help.block_carousel.nummer')) ?>
-        <input type="text" id="card-number" name="number_label" maxlength="40" value="<?= $h($cardWord('number_label')) ?>"<?= $numberPlaceholder ?><?= $invalid('number_label') ?>>
-        <?php $fieldError('number_label'); ?>
-      </div>
+      <?php label_mode_field([
+          'id' => 'card-label-mode',
+          'label' => admin_t('block_carousel.labelweergave'),
+          'help' => admin_t('help.block_carousel.labelweergave'),
+          'modes' => \App\Service\Blocks\LabelMode::CARD_MODES,
+          'mode' => $labelMode,
+          'custom' => static function () use ($h, $cardWord, $numberPlaceholder, $invalid, $fieldError): void {
+              ?>
+              <div class="admin-field">
+                <?= admin_field_label('card-number', admin_t('block_carousel.nummer'), admin_t('help.block_carousel.nummer')) ?>
+                <input type="text" id="card-number" name="number_label" maxlength="40" value="<?= $h($cardWord('number_label')) ?>"<?= $numberPlaceholder ?><?= $invalid('number_label') ?>>
+                <?php $fieldError('number_label'); ?>
+              </div>
+              <?php
+          },
+          'icon' => ['name' => 'label_icon_media_id', 'media' => $labelIcon],
+          'errors' => array_filter(['mode' => $fieldErrors['label_mode'] ?? null, 'icon' => $fieldErrors['label_icon_media_id'] ?? null]),
+      ]); ?>
 
       <div class="admin-field">
         <?= admin_field_label('card-title', admin_t('common.title') . $marker) ?>
@@ -400,6 +420,7 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
 <?php link_target_scripts(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php responsive_image_field_script(); ?>
+<?php label_mode_field_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

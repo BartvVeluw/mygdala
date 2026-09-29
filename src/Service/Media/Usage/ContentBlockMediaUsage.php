@@ -12,7 +12,8 @@ use App\Service\Media\MediaUsageProvider;
 /**
  * The content blocks that pick their images from the Media Library: every
  * item of a Tekst met afbeelding, Detailsectie (its main image and its extra
- * images), the cards of a Kaarten-carrousel, the image behind a Paginakop,
+ * images), the cards of a Kaarten-carrousel and the icon of a card's label,
+ * the image behind a Paginakop,
  * the Homepage Hero's image and video, the icons of Kenmerken in kaartjes,
  * the background picture of an Oproep met knop, the picture or video of a
  * Mediabanner with its poster, both pictures of every card of a Hover
@@ -202,6 +203,20 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
               FROM hover_card_grid_items hi
               JOIN hover_card_grids hg ON hg.id = hi.hover_card_grid_id
              WHERE hi.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT c.label_icon_media_id, \'Carrousel-kaart (label-icoon)\', \'carousel-card\', ca.page_slug, ca.section_key, c.id
+              FROM carousel_cards c
+              JOIN card_carousels ca ON ca.id = c.carousel_id
+             WHERE c.label_icon_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT di.image_mobile_media_id, \'Detailsectie (galerij, telefoon)\', \'detail-section\', d.page_slug, d.section_key, NULL
+              FROM detail_section_images di
+              JOIN detail_sections d ON d.id = di.section_id
+             WHERE di.image_mobile_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);

@@ -240,6 +240,9 @@ final class ReusableBlocksPhase3Test extends TestCase
         BlockLocalization::save('carousel_cards', $one, 'nl', ['title' => 'Zichtbaar een', 'number_label' => '01']);
         BlockLocalization::save('carousel_cards', $hiddenId, 'nl', ['title' => 'Verborgen', 'number_label' => '02']);
         BlockLocalization::save('carousel_cards', $two, 'nl', ['title' => 'Zichtbaar twee', 'number_label' => '03']);
+        // Own words show with the label mode "Eigen tekst" (LabelMode::CUSTOM).
+        \App\Database::connection()->prepare("UPDATE carousel_cards SET label_mode = 'custom' WHERE id IN (:a, :b, :c)")
+            ->execute(['a' => $one, 'b' => $hiddenId, 'c' => $two]);
         CardCarouselContent::clearCache();
 
         $repository->updateCard($hiddenId, ['is_active' => false]);

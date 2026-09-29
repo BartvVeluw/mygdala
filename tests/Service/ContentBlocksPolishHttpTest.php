@@ -354,9 +354,9 @@ final class ContentBlocksPolishHttpTest extends TestCase
         self::assertStringNotContainsString('service-row__index', $this->render(static fn () => render_section_card_carousel($content)));
 
         $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body'];
-        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = geen nummer"/', $screen);
+        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = geen label"/', $screen);
 
-        $this->assertSaved($this->post($session, '/api/admin/update-carousel-card.php', ['card_id' => (string) $card, 'is_active' => '1', 'title' => 'Hout', 'number_label' => '07', 'link_type' => 'none']));
+        $this->assertSaved($this->post($session, '/api/admin/update-carousel-card.php', ['card_id' => (string) $card, 'is_active' => '1', 'title' => 'Hout', 'label_mode' => 'custom', 'number_label' => '07', 'link_type' => 'none']));
         CardCarouselContent::clearCache();
         $content = CardCarouselContent::forSection(self::KEY, explode(':', $section)[1]);
         self::assertStringContainsString('<span class="service-row__index">07</span>', $this->render(static fn () => render_section_card_carousel($content)));

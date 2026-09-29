@@ -22,8 +22,11 @@ require_once __DIR__ . '/responsive-image.php';
  * partials/responsive-image.php (Responsive Media 2.0): its focus point and
  * fit, and on a phone its own picture, point and fit when it has them.
  *
- * The number above a card's title is the card's own label, or its position
- * ("01") when it has none — CardCarouselContent decides, this file prints.
+ * Above a card's title: its label icon, else its label words (a number
+ * worked out from its place, or its own words), else nothing and no room for
+ * it — CardCarouselContent decides by the card's label mode, this file
+ * prints. The icon is decoration next to the title: an empty alt and
+ * aria-hidden, like a feature card's icon, so it is never read out twice.
  *
  * The carousel's aria labels are generic ("kaart", not "materiaal") because
  * the block is: the region announces itself with the block's own title.
@@ -152,7 +155,9 @@ function render_section_card_carousel(array $content): void
                     </div>
                     <?php endif; ?>
                     <div class="orbit-card__body">
-                      <?php if ($card['index_label'] !== ''): ?>
+                      <?php if (($card['label_icon'] ?? '') !== ''): ?>
+                      <span class="orbit-card__label-icon" aria-hidden="true"><img src="<?= $h((string) $card['label_icon']) ?>" alt="" width="28" height="28" loading="lazy" decoding="async"></span>
+                      <?php elseif ($card['index_label'] !== ''): ?>
                       <span class="service-row__index"><?= $h($card['index_label']) ?></span>
                       <?php endif; ?>
                       <?php if ($card['title'] !== ''): ?>

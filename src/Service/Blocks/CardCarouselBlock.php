@@ -161,7 +161,8 @@ final class CardCarouselBlock extends BlockDefinition
         foreach (range(0, 3) as $index) {
             $cards[] = [
                 'id' => 0,
-                'index_label' => sprintf('%02d', $index + 1),
+                'index_label' => LabelMode::text(LabelMode::PADDED, $index + 1, ''),
+                'label_icon' => '',
                 'image_path' => $image['image_path'],
                 'image_alt' => $image['alt'],
                 'image_width' => $image['width'],

@@ -191,6 +191,12 @@ final class AdminAccessControlTest extends TestCase
         // by admin/detail-section.php behind its pages.manage check. The
         // endpoint checks every posted kind and id itself.
         '_gallery_source_field.php',
+        // What stands above a title (a carousel card's and a Detailsectie's
+        // label mode): an output function printed by admin/carousel-card.php
+        // and admin/detail-section.php behind their own guard, over the
+        // closed list App\Service\Blocks\LabelMode and the shared Media
+        // picker. Each editor's own endpoint checks and stores the choice.
+        '_label_mode_field.php',
         // The schematic drawing and icon on a block card, shared by the
         // picker and the Contentblokken catalogue. Two output functions over
         // constant, first-party markup; no URL, no data, nothing to guard.

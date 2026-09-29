@@ -109,6 +109,10 @@
   overflow: hidden;
 }
 .orbit-card__body .service-row__index{ font-size: 1.35rem; line-height: 1; margin-bottom: 0.15rem; flex-shrink: 0; }
+/* A label icon instead of the number (LabelMode::ICON): the size of the
+   number's line, the card's own colour for a currentColor SVG. */
+.orbit-card__label-icon{ display: block; flex-shrink: 0; width: 1.75rem; height: 1.75rem; margin-bottom: 0.3rem; color: var(--color-primary-deep); }
+.orbit-card__label-icon img{ display: block; width: 100%; height: 100%; object-fit: contain; }
 /* An h3 under the carousel's own title, an h2 without one
    (App\Service\Blocks\CardHeading): the class carries the size. */
 .orbit-card__body .orbit-card__title{ font-size: 1.05rem; line-height: 1.2; margin-bottom: 0.3rem; flex-shrink: 0; }
