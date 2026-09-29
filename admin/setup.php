@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_theme_color_field.php';
 
 use App\Install\SetupState;
 use App\Install\SetupWizard;
@@ -361,28 +362,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
       <div class="admin-theme-colors">
         <?php foreach ($colorFields as $key => $field): ?>
           <?php $value = $previous($key, (string) ($themeValues[$key] ?? $themeDefaults[$key])); ?>
-          <div class="admin-theme-color">
-            <label for="theme-<?= $h($key) ?>"><?= $h($field['label']) ?></label>
-            <div class="admin-theme-color__inputs">
-              <input
-                type="color"
-                class="admin-theme-color__swatch"
-                value="<?= $h($value) ?>"
-                data-theme-color-for="theme-<?= $h($key) ?>"
-                aria-label="Kleurkiezer voor <?= $h($field['label']) ?>"
-                tabindex="-1">
-              <input
-                type="text"
-                id="theme-<?= $h($key) ?>"
-                name="<?= $h($key) ?>"
-                value="<?= $h($value) ?>"
-                maxlength="7"
-                pattern="#?[0-9A-Fa-f]{6}"
-                spellcheck="false"
-                class="admin-theme-color__hex">
-            </div>
-            <p class="admin-text-muted"><?= $h($field['help']) ?></p>
-          </div>
+          <?= admin_theme_color_field($key, $field['label'], $field['help'], $value) ?>
         <?php endforeach; ?>
       </div>
 

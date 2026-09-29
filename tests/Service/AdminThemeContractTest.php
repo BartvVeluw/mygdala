@@ -85,9 +85,11 @@ final class AdminThemeContractTest extends TestCase
      * PAGE-EDITOR.md); dressed in the dashboard theme it would be a preview of
      * something else. The preview of one content block is the same case, in
      * the library's frame (admin/block-preview.php), and so is the preview of
-     * one form in the form editor's frame (admin/form-preview.php).
+     * one form in the form editor's frame (admin/form-preview.php) and the
+     * sample page of a page theme in its editor's frame
+     * (admin/page-theme-preview.php).
      */
-    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php', 'block-preview.php', 'form-preview.php'];
+    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php'];
 
     public function testEveryAdminPageInheritsTheThemeFromTheSamePlace(): void
     {

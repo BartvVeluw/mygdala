@@ -119,6 +119,15 @@ final class AdminAccessControlTest extends TestCase
         // endpoints behind it (media-list.php, media-upload.php) each check
         // media.view themselves.
         '_media_picker.php',
+        // One website-theme colour field: markup only, printed by
+        // admin/theme.php, admin/setup.php and admin/page-theme.php behind
+        // their own checks.
+        '_theme_color_field.php',
+        // The Paginathema choice on the page editor, rendered by the
+        // Paginathema's module's App\Service\PageSettingsSection inside
+        // admin/page.php's settings form, behind that screen's pages.manage
+        // check; it posts with that form to api/admin/update-page.php.
+        '_page_theme_field.php',
         // The product editor's pictures and per-variant choices: output
         // functions admin/product-form.php calls behind its own
         // products.manage check. It stores nothing; the product form's own

@@ -1,0 +1,19 @@
+/* =========================================================================
+   Owner: admin/page-theme-preview.php, the sample page inside the preview
+   frame of the page-theme editor (admin/page-theme.php). No public page asks
+   for it.
+
+   The sample is a handful of core elements stacked in one narrow column:
+   a page's blocks would give each of them its own section and spacing, so
+   this gives them the room between them, and nothing else.
+
+   Not here: a colour, a font or anything else a theme decides. A preview
+   that styles what it previews has stopped showing the theme.
+   ========================================================================= */
+
+.page-theme-preview > section{
+  padding-block: var(--sp-5);
+}
+.page-theme-preview .container > * + *{
+  margin-top: var(--sp-3);
+}

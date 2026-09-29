@@ -3552,6 +3552,30 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-theme-reset{ color: var(--admin-error); border-color: var(--admin-error); }
 .admin-theme-reset:hover{ color: var(--admin-error); border-color: var(--admin-error); background: var(--admin-error-soft); }
 
+/* Paginathema's (admin/page-themes.php, admin/page-theme.php and the
+   Paginathema choice on the page editor, admin/_page_theme_field.php): a row
+   of small swatches drawn in a theme's own colours — the only colours here
+   that are not admin tokens, because they ARE the content being shown — and
+   the frame of the live preview (admin/page-theme-preview.php). */
+.admin-page-theme-swatches{ display: inline-flex; gap: 3px; margin-right: var(--admin-sp-2); vertical-align: middle; }
+.admin-page-theme-swatch{
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--admin-border-strong);
+}
+.admin-page-theme-choice{ display: flex; align-items: center; gap: var(--admin-sp-3); flex-wrap: wrap; }
+.admin-page-theme-choice select{ flex: 1 1 16rem; min-width: 0; }
+.admin-page-theme-preview{
+  display: block;
+  width: 100%;
+  height: 32rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-sunken);
+}
+
 .admin-code-block{
   margin: 0 0 var(--admin-sp-4);
   padding: var(--admin-sp-4);
