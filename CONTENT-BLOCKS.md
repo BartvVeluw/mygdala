@@ -379,7 +379,25 @@ terugging, hield een leeg blok tussen de andere over. Nu is een nieuw blok een
 | Bewerken | De gewone editor, met bovenaan één regel "Nieuw blok. Het staat nog niet op de pagina…" en **Annuleren** | `admin/_block_editor.php` (`block_editor_draft_notice()`) |
 | Opslaan | Het endpoint valideert zoals altijd. Pas daarna, als laatste schrijfactie **in de transactie van de opslag**, zet `ContentBlockDrafts::place()` het blok onderaan de lijst en haalt de draftrij weg. Faalt iets, dan rolt alles terug en blijft de redacteur met zijn invoer in de editor | elk `api/admin/update-<type>.php` |
 | Annuleren | De inhoud gaat zoals bij verwijderen (bestanden, woorden, kindrijen, de rij), een Mediabibliotheek-item nooit. Een inhoudspagina die alleen voor dit blok gemaakt was, gaat mee. De lijst ziet er daarna uit als ervóór | `api/admin/discard-block-draft.php` → `ContentBlockDrafts::discard()` |
-| Terugknop of tabblad dicht | Het blok staat nergens; `ContentBlockDrafts::purgeStale()` ruimt een draft na 48 uur op, bij de volgende blokkeuze | `add-page-section.php` |
+| Terugknop of tabblad dicht | Het blok staat nergens; `ContentBlockDrafts::purgeStale()` ruimt een draft na 48 uur op, bij de volgende blokkeuze én via de dagelijkse cronjob | `add-page-section.php`, `scripts/prune-content-block-drafts.php` |
+
+**De opruiming, en de cronjob.** `purgeStale()` gooit een verlopen draft weg
+zoals *Annuleren* dat doet: woorden, kindrijen (kaarten, reviews, items),
+eigen uploads en de inhoudsrij, en een inhoudspagina die alleen voor dat blok
+gemaakt was. Een Mediabibliotheek-item dat de draft koos blijft, en een
+geplaatst blok raakt het nooit: dat heeft geen draftrij. De volgende
+blokkeuze in het CMS ruimt al op, maar op een site waar wekenlang niemand een
+blok toevoegt, doet dat niets. Zet daarom naast de andere onderhoudsscripts
+een dagelijkse cronjob:
+
+```
+/usr/bin/php /home/<account>/domains/<domain>/public_html/scripts/prune-content-block-drafts.php
+```
+
+`--dry-run` telt alleen, `--limit=<n>` begrenst één run (standaard 500).
+Tijdens een update wacht het script, zoals elk script onder `scripts/`
+(`MaintenanceGuard::cliMayRun()`). Er gebeurt niets ergs als de cronjob
+ontbreekt: een draft staat op geen enkele pagina.
 
 **Waarom een draft en geen niet-opgeslagen editor.** Elke editor heeft een rij
 nodig: de woorden staan per taal onder het rij-id in `block_translations`, en

@@ -7,8 +7,10 @@ namespace Tests\Service;
 use App\Database;
 use App\Module\ModuleRegistry;
 use App\Repository\ContentBlockDraftRepository;
+use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Repository\ReviewsRepository;
 use App\Repository\RichTextRepository;
 use App\Repository\SpacerRepository;
 use App\Service\Blocks\BlockDefinitions;
@@ -210,6 +212,57 @@ final class ContentBlockLifecycleTest extends TestCase
         $this->assertNotNull(ContentBlockDrafts::find('spacer', (int) $fresh['section_id']));
     }
 
+    /**
+     * The daily cronjob really reaches the sweep: the script itself, run as
+     * a cron would run it, removes a stale draft with its child rows and
+     * keeps the Media Library picture it chose, a fresh draft, and a placed
+     * block however old.
+     */
+    public function testThePruneScriptRemovesAStaleDraftAndNothingElse(): void
+    {
+        $page = $this->page();
+        [$placedId] = $this->placed($page, 'rich_text');
+        Database::connection()->prepare('UPDATE page_sections SET created_at = NOW() - INTERVAL 30 DAY WHERE id = ?')->execute([$placedId]);
+
+        $root = dirname(__DIR__, 2);
+        $path = 'assets/media/__cbd_' . bin2hex(random_bytes(4)) . '__.png';
+        file_put_contents($root . '/' . $path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
+        $mediaId = (new MediaRepository())->create(['path' => $path, 'original_filename' => 'portret.png', 'mime_type' => 'image/png', 'width' => 1, 'height' => 1]);
+
+        try {
+            $stale = ContentBlockDrafts::open($page, 'reviews');
+            $reviews = new ReviewsRepository();
+            $itemId = $reviews->createItem((int) $stale['section_id'], ['media_id' => $mediaId, 'rating' => 5]);
+            $fresh = ContentBlockDrafts::open($page, 'spacer');
+            Database::connection()->prepare('UPDATE content_block_drafts SET created_at = NOW() - INTERVAL 49 HOUR WHERE section_type = ? AND section_id = ?')
+                ->execute(['reviews', (int) $stale['section_id']]);
+
+            $dry = $this->runPruneScript('--dry-run');
+            $this->assertSame(0, $dry['code'], $dry['err']);
+            $this->assertMatchesRegularExpression('/^Would remove [1-9]\d* stale content block draft\(s\)\.$/', trim($dry['out']));
+            $this->assertNotNull(ContentBlockDrafts::find('reviews', (int) $stale['section_id']), 'a dry run removes nothing');
+
+            $run = $this->runPruneScript();
+            $this->assertSame(0, $run['code'], $run['err']);
+            $this->assertMatchesRegularExpression('/^Removed [1-9]\d* stale content block draft\(s\)\.$/', trim($run['out']));
+
+            $this->assertNull(ContentBlockDrafts::find('reviews', (int) $stale['section_id']));
+            $this->assertNull($reviews->findById((int) $stale['section_id']), 'the draft\'s content row went');
+            $count = Database::connection()->prepare('SELECT COUNT(*) FROM review_block_items WHERE id = ?');
+            $count->execute([$itemId]);
+            $this->assertSame(0, (int) $count->fetchColumn(), 'and its child rows');
+
+            $this->assertNotNull((new MediaRepository())->findById($mediaId), 'a Media Library item a draft chose stays');
+            $this->assertFileExists($root . '/' . $path);
+            $this->assertNotNull(ContentBlockDrafts::find('spacer', (int) $fresh['section_id']), 'a fresh draft stays');
+            $this->assertSame([$placedId], $this->sectionIds($page), 'a placed block is never a draft, however old');
+        } finally {
+            Database::connection()->prepare('DELETE FROM review_block_items WHERE media_id = ?')->execute([$mediaId]);
+            (new MediaRepository())->delete($mediaId);
+            @unlink($root . '/' . $path);
+        }
+    }
+
     public function testDeletingAPageTakesItsDraftsContentAlong(): void
     {
         $page = $this->page();
@@ -326,6 +379,29 @@ final class ContentBlockLifecycleTest extends TestCase
         $this->assertNotNull($row);
 
         return [(int) $row['id'], $row];
+    }
+
+    /**
+     * scripts/prune-content-block-drafts.php as a cronjob runs it. The child
+     * inherits this process's environment, which tests/bootstrap.php pointed
+     * at the test database.
+     *
+     * @return array{code: int, out: string, err: string}
+     */
+    private function runPruneScript(string ...$arguments): array
+    {
+        $process = proc_open(
+            [PHP_BINARY, dirname(__DIR__, 2) . '/scripts/prune-content-block-drafts.php', ...$arguments],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes
+        );
+        $this->assertIsResource($process);
+        $out = (string) stream_get_contents($pipes[1]);
+        $err = (string) stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        return ['code' => proc_close($process), 'out' => $out, 'err' => $err];
     }
 
     /** @return list<int> */

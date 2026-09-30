@@ -77,14 +77,15 @@ final class ContentBlockDraftRepository extends Repository
     }
 
     /**
-     * Drafts older than $hours, oldest first.
+     * At most $limit drafts older than $hours, oldest first.
      *
      * @return list<array<string, mixed>>
      */
-    public function findOlderThan(int $hours): array
+    public function findOlderThan(int $hours, int $limit = 100): array
     {
-        $stmt = $this->db->prepare(self::SELECT . ' WHERE d.created_at < (NOW() - INTERVAL :hours HOUR) ORDER BY d.id LIMIT 100');
+        $stmt = $this->db->prepare(self::SELECT . ' WHERE d.created_at < (NOW() - INTERVAL :hours HOUR) ORDER BY d.id LIMIT :limit');
         $stmt->bindValue('hours', $hours, \PDO::PARAM_INT);
+        $stmt->bindValue('limit', max(1, $limit), \PDO::PARAM_INT);
         $stmt->execute();
 
         return $stmt->fetchAll();

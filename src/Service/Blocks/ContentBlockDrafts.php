@@ -35,7 +35,9 @@ use App\Service\SectionRegistry;
  *              (SectionRegistry::discardContent()), never a Media Library
  *              item it chose. A draft nobody came back to (the browser's back
  *              button, a closed tab) is removed after STALE_AFTER_HOURS by
- *              purgeStale(), which the next block choice runs.
+ *              purgeStale(), which the next block choice runs and the daily
+ *              cronjob scripts/prune-content-block-drafts.php runs on a
+ *              site where nobody adds a block.
  *
  * An existing block never passes through here: cancelling its editor is
  * leaving without saving, and nothing is removed.
@@ -218,19 +220,24 @@ final class ContentBlockDrafts
     }
 
     /**
-     * Removes the drafts nobody saved or cancelled within STALE_AFTER_HOURS.
-     * Cheap when there are none; a failure is logged and never stops the
-     * request that asked.
+     * Removes at most $limit drafts nobody saved or cancelled within
+     * STALE_AFTER_HOURS and returns how many went. Cheap when there are none;
+     * a failure is logged and never stops the request that asked.
      */
-    public static function purgeStale(): void
+    public static function purgeStale(int $limit = 100): int
     {
+        $removed = 0;
+
         try {
-            foreach ((new ContentBlockDraftRepository())->findOlderThan(self::STALE_AFTER_HOURS) as $draft) {
+            foreach ((new ContentBlockDraftRepository())->findOlderThan(self::STALE_AFTER_HOURS, $limit) as $draft) {
                 self::discard($draft);
+                $removed++;
             }
         } catch (\Throwable $e) {
             error_log('[ContentBlockDrafts::purgeStale] ' . $e->getMessage());
         }
+
+        return $removed;
     }
 
     /**
