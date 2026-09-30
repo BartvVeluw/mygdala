@@ -54,6 +54,7 @@ final class Ownership
         'assets/images/',
         'assets/videos/',
         'assets/fonts/personalization/',
+        'assets/fonts/library/',
     ];
 
     /**
@@ -84,6 +85,7 @@ final class Ownership
     private const RELEASE_EXCEPTIONS = [
         'assets/images/block-preview/',
         'assets/fonts/personalization/.htaccess',
+        'assets/fonts/library/.htaccess',
     ];
 
     private const DEVELOPMENT_PREFIXES = [

@@ -94,6 +94,13 @@ docker/volumes/
 !/assets/fonts/personalization/.gitkeep
 !/assets/fonts/personalization/.htaccess
 
+# The Font Library (Vormgeving -> Lettertypen, src/Service/Theme/FontStorage.php):
+# the same reasoning as above. The fonts are this installation's, with this
+# owner's licence; only the folder and its serving rules are committed.
+/assets/fonts/library/*
+!/assets/fonts/library/.gitkeep
+!/assets/fonts/library/.htaccess
+
 # The self-updater (docs/updates/). release.json is generated INTO a release
 # package by the builder and describes that package; a development checkout
 # has none, which is how the Updates screen knows it is not a release

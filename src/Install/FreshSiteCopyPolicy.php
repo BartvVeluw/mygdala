@@ -96,6 +96,7 @@ final class FreshSiteCopyPolicy
         'assets/media',
         'assets/videos',
         'assets/fonts/personalization',
+        'assets/fonts/library',
 
         // Group 4: this site's project history.
         'MAIN.MD',
@@ -133,6 +134,8 @@ final class FreshSiteCopyPolicy
     public const KEPT_INSIDE_EXCLUDED = [
         'assets/fonts/personalization/.gitkeep',
         'assets/fonts/personalization/.htaccess',
+        'assets/fonts/library/.gitkeep',
+        'assets/fonts/library/.htaccess',
     ];
 
     /**

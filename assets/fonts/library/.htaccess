@@ -1,0 +1,29 @@
+# The Font Library's uploaded font files (Vormgeving -> Lettertypen; see
+# App\Service\Theme\FontStorage and THEMING.md, "Font Library"). The folder is
+# installation data: the updater never overwrites or deletes it, and only this
+# file ships with a release.
+#
+# Only generated names are served: 32 hex characters and a verified font
+# extension, exactly what FontStorage writes. Anything else in this folder -
+# a stray upload, a script somebody managed to put here - is refused before a
+# handler ever sees it.
+Require all denied
+<FilesMatch "^[0-9a-f]{32}\.(woff2|woff|ttf|otf)$">
+    Require all granted
+</FilesMatch>
+
+# Set explicitly rather than trusting the host's mime.types to be current: an
+# older Apache serves .woff2 as application/octet-stream.
+AddType font/woff2 .woff2
+AddType font/woff .woff
+AddType font/ttf .ttf
+AddType font/otf .otf
+
+# nosniff: a font is a font, never re-read as something else. The cache may
+# keep a file for a year: a replaced variant gets a NEW generated name, so no
+# visitor ever keeps an old file (there is nothing to invalidate). Only where
+# mod_headers is there; without it the host's own caching applies.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>
