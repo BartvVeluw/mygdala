@@ -493,6 +493,15 @@ final class ShopModule extends ModuleDefinition
         ];
     }
 
+    /**
+     * Uitgelicht product's "Bekijk product" button may use a button style
+     * (Button Styles 2.0, App\Repository\ButtonStyleRepository).
+     */
+    public function buttonStyleSlots(): array
+    {
+        return ['featured_products' => ['button_style_id']];
+    }
+
     public function itemGallerySources(): array
     {
         return [

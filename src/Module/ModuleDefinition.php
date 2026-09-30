@@ -542,4 +542,20 @@ abstract class ModuleDefinition
     {
         return [];
     }
+
+    /**
+     * The columns of this module's own block tables that hold a content
+     * button's choice of button style (Button Styles 2.0, THEMING.md
+     * "Knopstijlen"): table => columns, each a nullable RESTRICT foreign key
+     * to button_styles. Core's App\Repository\ButtonStyleRepository asks
+     * EVERY registered module, on or off, so a style a switched-off module
+     * still uses is counted and cannot be deleted. Empty for every module but
+     * App\Module\ShopModule (Uitgelicht product).
+     *
+     * @return array<string, list<string>>
+     */
+    public function buttonStyleSlots(): array
+    {
+        return [];
+    }
 }
