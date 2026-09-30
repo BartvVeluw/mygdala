@@ -3643,6 +3643,80 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   .admin-palette-preview{ height: 30vh; min-height: 11rem; }
 }
 
+/* Font Library (Vormgeving -> Lettertypen, admin/font-family.php;
+   THEMING.md "Font Library"). A family's own font is set inline from its
+   generated CSS name; these rules only lay out the samples and rows. */
+.admin-typography-preview{
+  display: block;
+  width: 100%;
+  height: 26rem;
+  margin: 0 0 var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-sunken);
+}
+.admin-font-sample{ font-size: 1.15rem; overflow-wrap: anywhere; }
+.admin-font-row .admin-section-row__name{ flex-wrap: wrap; }
+.admin-font-row .admin-section-row__actions,
+.admin-font-variant .admin-section-row__actions{ flex-wrap: wrap; }
+.admin-font-variant__sample{
+  margin: var(--admin-sp-1) 0;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.admin-font-specimen{
+  padding: var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-sunken);
+  overflow-wrap: anywhere;
+}
+.admin-font-specimen p{ margin: 0 0 var(--admin-sp-3); line-height: 1.5; }
+.admin-font-specimen p:last-child{ margin-bottom: 0; }
+.admin-font-specimen__h1{ font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1.15; }
+.admin-font-specimen__h2{ font-size: clamp(1.25rem, 3.6vw, 1.7rem); line-height: 1.2; }
+.admin-font-specimen__chars{ color: var(--admin-text-muted); }
+.admin-font-uploads{
+  display: grid;
+  gap: var(--admin-sp-3);
+  margin: var(--admin-sp-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-font-upload{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 14rem);
+  gap: var(--admin-sp-2) var(--admin-sp-3);
+  align-items: center;
+  padding: var(--admin-sp-3);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+}
+.admin-font-upload__file{ font-weight: 600; overflow-wrap: anywhere; }
+.admin-font-upload__sample,
+.admin-font-upload__note{ grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }
+.admin-font-upload__sample{ font-size: 1.3rem; line-height: 1.3; }
+.admin-font-upload__note{ color: var(--admin-error); font-size: 0.875rem; }
+.admin-font-upload.is-refused{ border-color: var(--admin-error); }
+.admin-font-replace > summary{ cursor: pointer; list-style: none; }
+.admin-font-replace > summary::-webkit-details-marker{ display: none; }
+.admin-font-replace__form{
+  display: grid;
+  gap: var(--admin-sp-2);
+  margin-top: var(--admin-sp-2);
+}
+.admin-font-add{ margin-top: var(--admin-sp-5); }
+.admin-font-help{ margin-top: var(--admin-sp-4); }
+.admin-font-help__steps{ padding-left: 1.4rem; }
+.admin-font-help__steps li{ margin-bottom: var(--admin-sp-2); }
+.admin-font-help__terms dt{ font-weight: 600; margin-top: var(--admin-sp-3); }
+.admin-font-help__terms dd{ margin: var(--admin-sp-1) 0 0; }
+@media (max-width: 640px){
+  .admin-font-upload{ grid-template-columns: minmax(0, 1fr); }
+  .admin-typography-preview{ height: 20rem; }
+}
+
 .admin-code-block{
   margin: 0 0 var(--admin-sp-4);
   padding: var(--admin-sp-4);

@@ -525,4 +525,21 @@ abstract class ModuleDefinition
     {
         return false;
     }
+
+    /**
+     * Where this module uses a Font Library family (Font Library 1.0,
+     * THEMING.md "Font Library"): one entry per use, with the words an
+     * administrator reads ("Paginathema \"Actie\" (koppen)") and the screen
+     * where it can be changed. Core's App\Service\Theme\FontLibrary asks
+     * EVERY registered module, on or off — a switched-off module's choices
+     * are kept and its foreign keys still hold — and refuses to delete a
+     * family anybody uses, saying who. Empty for every module but
+     * App\Module\PageThemesModule.
+     *
+     * @return list<array{label: string, url: string}>
+     */
+    public function fontFamilyUsage(int $familyId): array
+    {
+        return [];
+    }
 }
