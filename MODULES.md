@@ -422,8 +422,9 @@ Alles wat er ook zou zijn zonder webshop.
   Mediabibliotheek op: een nieuw Portfolio-beeld komt uit de bibliotheek.)
 - **Instellingen/navigatie** — `NavigationService`, `FooterService`,
   `LinkResolver`, `RouteRegistry`.
-- **Vormgeving** — `Service\Theme\*` (kleuren, lettertypecombinatie,
-  knopvorm), `Branding`, `admin/theme.php`. Core,
+- **Vormgeving** — `Service\Theme\*` (kleurenpaletten met één actief,
+  lettertypecombinatie, knopvorm), `Branding`, `admin/theme.php`,
+  `admin/color-palette.php`. Core,
   nadrukkelijk geen module: een site zonder vormgeving bestaat niet. Een
   module mág de semantische tokens gebruiken — de Shop doet dat — maar houdt
   zijn eigen presentatie: er komt geen Shop- of personalisatie-instelling in
@@ -1723,6 +1724,12 @@ zelf — de kleurregel, de afgeleide tinten, de lettertypes en het afdrukken
 van het blok — blijft Core (`App\Service\Theme\*`); Core noemt de module
 nergens (`Tests\Module\PageThemesModuleTest`). Uitzetten verwijdert geen
 thema en geen keuze van een pagina. Zie `THEMING.md`, "Paginathema's".
+
+De kleurenpaletten van de website (`color_palettes`, één actief) zijn Core,
+geen deel van deze module, en ook niet van haar schakelaar: met de module uit
+toont elke pagina het actieve palet, met de module aan houdt een pagina met
+thema haar eigen kleuren, welk palet ook actief is. De module leest geen
+palet en het palet kent geen thema (`THEMING.md`, "Kleurenpaletten").
 
 ### Formulieren
 

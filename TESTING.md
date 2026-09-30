@@ -364,10 +364,19 @@ de tokens in `assets/css/`:
 
 ```
 --testsuite fast        (ThemeSettingsTest, ThemeRenderingTest,
-                         BrandingTest en SiteIdentityTest zitten hierin;
-                         database noch webserver nodig)
---testsuite cms         voegt ThemePersistenceTest toe
+                         ThemePaletteRecipeTest, BrandingTest en
+                         SiteIdentityTest zitten hierin; database noch
+                         webserver nodig)
+--testsuite cms         voegt ThemePersistenceTest en de kleurenpaletten toe
 ```
+
+Bij de kleurenpaletten (`THEMING.md`, "Kleurenpaletten") gericht:
+`ThemePaletteRecipeTest`, `ColorPaletteTest`, `ColorPalettesHttpTest` (eigen
+`php -S`, met Paginathema's aan en uit) en `ColorPalettesMigrationTest`
+(ScratchInstall `mygdala_scratch_pal_fresh` en `_upgraded`). Een test die het
+actieve palet verandert, zet de tabel terug met `Tests\Support\ColorPaletteFixture`
+(`snapshot()` in `setUp()`, `restore()` in `tearDown()`): het actieve palet is
+de kleur van elke pagina die een latere test rendert.
 
 Raakte je de stylesheets aan, controleer dan ook dat de standaardvormgeving
 onveranderd rendert — `THEMING.md` beschrijft de vergelijking van
@@ -1209,6 +1218,12 @@ testklassen:
 | `PageThemesRenderingHttpTest` | `modules` | eigen `php -S` met de dispatcher: tokens en lettertypes in `main`, geen overerving, `/en`, SEO gelijk, een pagina zonder thema byte voor byte gelijk, module uit en weer aan, gemanipuleerde rijen, veel bloktypes, het voorbeeld in de editor, product en project zonder thema |
 | `PageThemesApacheHttpTest` | `http`, `modules` | echte Apache: `php_test` toont het thema (NL en EN), `php_cms` (module uit) niet |
 | `PageThemesMigrationTest` | `migration`, `modules` | vers, bijgewerkt en opnieuw: bestaande pagina's `NULL`, de RESTRICT-sleutel, dezelfde kolommen |
+
+Dat een paginathema los staat van het actieve kleurenpalet (activeren
+verandert het thema niet; module uit geeft het palet, weer aan het thema;
+header en footer volgen het palet) staat in `ColorPalettesHttpTest`, dat ook
+in `modules` zit. `PageThemesAdminHttpTest` telt alleen zijn eigen
+`ZZ Test`-thema's: een testdatabase kan al een thema bevatten.
 
 `docker-compose.yml` en `tests/Support/http-tier.sh` zetten
 `MODULE_PAGE_THEMES_ENABLED` vast: aan in `php_test`, uit in `php_cms`. Na

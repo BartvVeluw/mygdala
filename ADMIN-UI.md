@@ -515,6 +515,33 @@ tabblad:
 4. Een test zoals `ProductEditorHttpTest`, die hetzelfde verzoek met en zonder
    JSON stuurt.
 
+## Een live voorbeeld naast de instellingen
+
+De paletteneditor (`admin/color-palette.php`) is het eerste scherm waar
+instellingen en hun voorbeeld naast elkaar staan en het voorbeeld zonder
+request meebeweegt. Wie dat voor een volgende instelling wil (lettertypes,
+knopstijlen), volgt dezelfde afspraken:
+
+- **Het voorbeeld is een eigen document** in een `<iframe>`, met de echte
+  sitestylesheets (`PageAssets`), nooit de site-CSS in het CMS. Het document
+  heeft een Content-Security-Policy zonder script en zonder formulier.
+- **`sandbox="allow-same-origin"` en verder niets**, zodat het script van het
+  scherm de tokens in het frame kan zetten (`element.style.setProperty()`).
+  Nooit samen met `allow-scripts`.
+- **Het script rekent niets zelf uit** wat de server ook uitrekent: de server
+  geeft de regels mee als data (hier `ThemePalette::recipe()` in
+  `data-palette-model`), het script voert ze uit (`MygdalaTheme` in
+  `admin/assets/theme-admin.js`).
+- **Opslaan blijft opslaan**: de opslagbalk (`_save_bar.php`) toont de
+  niet-opgeslagen staat en waarschuwt bij weggaan, *Annuleren* is een link met
+  `data-save-bar-discard`, het formulier heeft `autocomplete="off"` en het
+  script zet bij het laden elk veld terug op zijn `defaultValue`.
+- **Layout**: `.admin-palette-editor` is twee kolommen met `minmax(0, …)`,
+  het voorbeeld `position: sticky`. Onder 1100 px stapelen ze, met het
+  voorbeeld eerst als lage plakkende strook. Een formulier dat de volle
+  breedte nodig heeft, heft de 720 px van `.admin-product-form` op met een
+  eigen modifier (`.admin-palette-form`).
+
 ## Afbeeldingsweergave
 
 Eén veld voor hoe een beeld in zijn kader valt, op elke plek die bijsnijdt
@@ -609,6 +636,7 @@ het werkte.
 | Scherm | Wat |
 |---|---|
 | Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`; het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf, en nieuwe bestanden komen in de map die open staat (`MEDIA.md`). Links de mappen als links (`?folder=`, *Alle media*, *Geen map*, elke map met zijn aantal; op een smal scherm een doorlopende rij erboven), met *Nieuwe map*, en bij een open map *Map hernoemen* (een `<details>`) en *Map verwijderen* in `admin_confirm_dialog()`. Zoekveld (`?q=`, blijft binnen de open map) en de soort bestand als `.admin-select` (`?type=`), die het raster verversen zonder te herladen. *Raster* \| *Lijst* als twee knoppen met `aria-pressed` (`.admin-media-view`), onthouden in `localStorage`. Per kaart een `.admin-checkbox` om meerdere bestanden tegelijk te selecteren; de selectiebalk verplaatst naar een map (`.admin-select`) of verwijdert. *Bewerken* op een kaart opent *Media bewerken* (naam en alt-tekst, één opslag). Het itemscherm heeft één formulier *Naam en alt-tekst* onder de opslagbalk. *Verwijderen* op een item vraagt eerst in `admin_confirm_dialog()`; een selectie verwijderen heeft een eigen dialoog, omdat die per keer toont wat er echt weggaat en wat blijft staan |
+| Vormgeving (`admin/theme.php`) en een kleurenpalet (`admin/color-palette.php`) | Infobalk bij *Kleurenpaletten* over paginathema's; per palet een badge *Actief*/*Inactief*; *Activeren* en *Verwijderen* in `admin_confirm_dialog()`, het actieve palet zonder verwijderknop maar met de reden; de editor met uitleg bij de naam, het kleurveld (`_theme_color_field.php`), de contrastwaarschuwing, het live voorbeeld ernaast, de opslagbalk en *Annuleren* (`data-save-bar-discard`) |
 | Instellingen (`admin/settings.php`) | Infobalk bij *Algemeen* en bij *Adresgegevens*; uitleg bij naam van de website, e-mailadres, telefoonnummer, plaats, plaats en land van het adres, KVK-nummer, standaardtaal, standaard meta description en indexeren. De standaardtaal is een `.admin-select`, indexeren een switch |
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`); in het tabblad *E-mails* de kaart *Terug op voorraad*, een eigen formulier met de taalbalk (onderwerp en tekst per websitetaal), de invulvelden uit `EmailPlaceholders::STOCK`, *Herstel standaardtekst*, daaronder hoeveel meldingen er wachten en klaarstaan, een `.admin-alert--warning` als er mails mislukt zijn, en *Wachtende meldingen nu versturen*; het tabblad *Productoverzicht* met één `.admin-select` (*Geen overzichtspagina* of een bestaande pagina, een concept gemarkeerd) met uitleg, en een melding als de gekozen pagina nog een concept is of nog geen blok *Productgrid* heeft (`MODULES.md`, "Shop"). Het bestel- en het factuurprefix krijgen hun `pattern` uit `App\Service\DocumentNumberPrefix`; een factuurprefix van vóór die regel krijgt geen `pattern` (zodat hij het opslaan van de andere factuurteksten niet blokkeert) maar een waarschuwing die zegt wat nieuwe facturen gebruiken |
 | Betalingen (`admin/payments.php`) | Alleen met `payments.manage`, dat alleen een Super Admin kan toekennen; zonder die permissie staat Betalingen niet in het menu. De dynamische editor (hierboven) met één formulier voor de twee API-sleutels, de modus en de betaalmethoden, en daarbuiten vier kaarten. *Status* met een badge met woord én kleur (`.admin-payments-badge`: *Niet ingesteld* grijs, *Testmodus* amber gevuld, *Live* groen, *Probleem* rood) en een gekleurde linkerrand, feiten als `<dl>` (op een telefoon onder elkaar) en *Verbinding testen*. Werkt de live-sleutel maar is het webadres geen publiek https-adres, dan staat er *Probleem* met een `.admin-alert--error` die zegt waarom en wat te doen. *Mollie koppelen, stap voor stap*: zes `<details>` in de stijl van de inklapbare kaarten met *Klaar* (`.admin-badge--paid`) of *Nu* (`.admin-badge--pending`), de eerste onafgemaakte open, externe links met `target="_blank"` en `rel="noopener noreferrer"` alleen naar mollie.com en my.mollie.com. De sleutelvelden zijn `type="password"`, altijd leeg, met uitleg, de gemaskeerde opgeslagen sleutel erboven en *Test deze sleutel* ernaast (op een telefoon eronder); met een sleutel in de serveromgeving staat er in plaats daarvan *Geconfigureerd via serveromgeving*. De modus als `.admin-segmented` met uitleg; de betaalmethoden als `.admin-checkbox` per methode met *Beschikbaar bij Mollie* of *Niet beschikbaar bij Mollie* als badge. Status, stappenplan, sleutels, modus, methoden en testbetaling zijn regio's (`data-admin-editor-region`), zodat een opslag ze meteen bijwerkt. *Een testbetaling doen* en *Webhook* (het adres als `<code>` met *Kopiëren*, alleen zichtbaar als de browser een klembord-API heeft) staan buiten het formulier. Een bevestiging bij het vervangen van de live-sleutel is een switch in het formulier, niet de dialoog: de balk van de editor verstuurt geen `submit` die de dialoog zou kunnen opvangen, en de server is de poort (`MODULES.md`, "Betalingen") |

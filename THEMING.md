@@ -9,10 +9,10 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 | | Wie de site *is* | Hoe de site er *uitziet* |
 |---|---|---|
 | Klasse | `App\Service\SiteSettings` | `App\Service\Theme\ThemeSettings` |
-| Tabel | `site_settings` | `theme_settings` |
+| Tabel | `site_settings` | `color_palettes` (kleuren) en `theme_settings` |
 | Scherm | Instellingen | Instellingen → Vormgeving |
-| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | vijf kleuren, lettertypecombinatie, knopvorm |
-| Terugzetten | nooit automatisch | één knop, en die raakt de linkerkolom niet aan |
+| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | kleurenpaletten (elk vijf kleuren, één actief), lettertypecombinatie, knopvorm |
+| Terugzetten | nooit automatisch | één knop (kleuren van het actieve palet, lettertype, knopvorm), en die raakt de linkerkolom niet aan |
 
 Twee tabellen en niet één met een prefix, precies omdat "standaardvormgeving
 herstellen" nooit een bedrijfsadres, een logo of een knoptekst mag meenemen.
@@ -129,6 +129,10 @@ verstuurd, de native kleurkiezer ernaast houdt het bij.
 
 ## De zeven instellingen
 
+De vijf kleuren zijn die van het **actieve kleurenpalet** (`color_palettes`,
+zie "Kleurenpaletten"); lettertype en knopvorm zijn rijen in
+`theme_settings`.
+
 ```text
 primary_color        #C9A063   accent: knoppen, links, iconen, lijnen
 on_primary_color     #1B140D   tekst óp een gevulde knop
@@ -146,8 +150,11 @@ draait het hele mechanisme op:
   slaat geen rijen op, krijgt géén `<style id="site-theme">`-blok, en rendert
   dus letterlijk zoals hij altijd deed.
 - **Ontbrekende rij = standaard.** Een verse installatie is meteen coherent,
-  en de publieke site blijft goed staan als de database onbereikbaar is.
-- **Herstellen is verwijderen**, geen standaardwaarden terugschrijven.
+  en de publieke site blijft goed staan als de database onbereikbaar is. Voor
+  de kleuren geldt hetzelfde op waarde: een actief palet dat gelijk is aan de
+  standaard stuurt niets mee.
+- **Herstellen is verwijderen** voor lettertype en knopvorm; de kleuren van
+  het actieve palet worden de standaard. Andere paletten blijven staan.
 
 Meldingskleuren (fout, gelukt, waarschuwing) zijn geen thema-instelling en
 staan als vaste waarden in de stylesheets. Het adminpaneel heeft zijn eigen,
@@ -157,9 +164,14 @@ verandert nooit mee.
 ## Van instelling naar pixel
 
 ```text
-admin/theme.php
+admin/color-palette.php (kleuren)
+  → api/admin/save-color-palette.php      ColorPaletteService::validate()
+  → color_palettes                        één palet actief (activate-color-palette.php)
+admin/theme.php (lettertype, knopvorm)
   → api/admin/update-theme-settings.php   ThemeSettings::validate() + ::save()
   → theme_settings                        alleen wat iemand echt koos
+
+ThemeSettings::all()                      kleuren van het actieve palet + theme_settings
 
 publieke pagina
   → App\Service\PageAssets::renderStyles()
@@ -195,11 +207,25 @@ kan testen. `App\Service\Theme\ThemePalette` rekent ze uit en `ThemeCss` zet
 ze in het overrideblok. Voor het standaardthema draaien die formules nooit —
 `core.css` heeft de exacte waarden al.
 
+De formules staan **één keer, als data**: `ThemePalette::RECIPE`, per
+afgeleide eigenschap een uitdrukking (`lighten`, `mix`, `channels` op een
+gekozen kleur, een eerdere eigenschap of een vaste kleur). `derive()` voert
+dat recept uit; `recipe()` geeft het aan de live preview van de
+paletteneditor, die het met dezelfde drie bewerkingen uitvoert
+(`MygdalaTheme.tokens()` in `admin/assets/theme-admin.js`). Zo kan de preview
+geen tint tonen die de website niet krijgt. `ThemePaletteRecipeTest` pint de
+uitkomst op die van v0.1.13 en houdt `dependencies()` gelijk aan wat het
+recept leest.
+
 Er is **geen aparte instelling** voor een rand, zachte tekst, een glow of een
 hoverkleur, en die moet er ook niet komen. Klein instellingenoppervlak,
 afgeleide rest.
 
 ## Nieuwe thema-instelling toevoegen
+
+Dit recept geldt voor een instelling die geen kleur is (zoals lettertype en
+knopvorm). Een nieuwe kleurrol staat in een palet en een paginathema en
+vraagt dus wél een migratie: zie "Kleurenpaletten", laatste deel.
 
 1. Zet de sleutel + standaardwaarde in `ThemeSettings::DEFAULTS`.
 2. Voeg validatie toe in `ThemeSettings::normalise()` — een gesloten lijst of
@@ -215,6 +241,175 @@ afgeleide rest.
 
 Een migratie is er niet voor nodig: `theme_settings` is een key/value-tabel en
 een ontbrekende rij betekent de standaard.
+
+## Kleurenpaletten
+
+De vijf kleuren van de website staan sinds Branding & Design 2.0 niet meer
+los in `theme_settings`, maar in **kleurenpaletten**: benoemde sets van de
+vijf kleuren, waarvan er **precies één actief** is. Het actieve palet ís de
+kleur van de website. Elk ander palet is een ontwerp in wording dat geen
+bezoeker ziet tot het wordt geactiveerd. Core, geen module.
+
+### Globaal actief palet en paginathema
+
+Twee begrippen die op elkaar lijken en het niet zijn:
+
+| | Globaal actief palet | Paginathema |
+|---|---|---|
+| Wat | De kleuren van de hele website | De kleuren (en het lettertype) van de inhoud van één pagina |
+| Hoeveel | Precies één actief, andere paletten bewaard | Nul of één per pagina |
+| Geldt voor | Elke pagina zonder eigen thema, én de header, het menu, de footer en de cookiebanner van elke pagina | Alleen de `<main>` van die pagina: paginakop en blokken |
+| Waar in CSS | `:root` (`<style id="site-theme">`, alleen wat afwijkt) | `main[data-page-theme="…"]` (`<style id="page-theme">`, de volledige set) |
+| Opslag | `color_palettes` | `page_themes` + `pages.page_theme_id` |
+| Klasse | `App\Service\Theme\ColorPaletteService` (Core) | `App\Service\PageThemes\PageThemeService` (module `page_themes`) |
+| Scherm | Vormgeving, kaart *Kleurenpaletten*; `admin/color-palette.php` | *Paginathema's*; `admin/page-theme.php` |
+
+De regels die daaruit volgen:
+
+1. Er is één globaal actief palet.
+2. Een gewone pagina zonder paginathema gebruikt het actieve palet.
+3. Een pagina met een paginathema houdt haar eigen kleuren, welk palet ook
+   actief is. Een ander palet activeren verandert geen enkel paginathema:
+   een paginathema heeft zijn eigen vijf kleuren, geen verwijzing naar een
+   palet.
+4. Staat de module Paginathema's uit, dan valt zo'n pagina terug op het
+   actieve palet. Weer aan: haar thema is terug (de keuze is bewaard).
+5. Header en footer volgen nooit het paginathema van de huidige pagina: ze
+   staan buiten `<main>`, op `:root`.
+
+Een relatie tussen paginathema's en opgeslagen paletten ("maak een
+paginathema van dit palet") is bewust niet gebouwd. Het kan later, zonder
+de twee opslagen te vermengen.
+
+### Het model
+
+```text
+color_palettes    id, name (uniek, max. 80), primary_color, on_primary_color,
+                  background_color, surface_color, text_color (CHAR(7), #RRGGBB),
+                  is_active (1 of NULL, nooit 0, UNIQUE-index), timestamps
+theme_settings    font_pairing, button_shape   (kleuren staan er niet meer in)
+```
+
+Migratie `20261003100000_create_color_palettes`. `is_active` volgt het
+patroon van `site_languages.is_default`: MySQL staat in een unieke index
+willekeurig veel NULL's toe maar maar één 1, dus "hooguit één actief palet"
+dwingt de database zelf af. "Minstens één" is de regel van het CMS: het
+actieve en het laatste palet zijn niet te verwijderen. Een palet heeft geen
+slug: het wordt nooit een selector of een URL, en de naam wordt alleen
+ge-escaped getoond.
+
+**De migratie neemt de huidige website over.** "Standaard" krijgt de kleuren
+die de site op dat moment toont: elke opgeslagen kleurrij, genormaliseerd
+zoals `ThemeSettings` dat doet (`#abc`, kleine letters en zonder `#` worden
+`#AABBCC`), en de standaardwaarde voor een kleur die nooit gekozen is of niet
+meer valideert. Dat palet wordt actief. Daarna gaan de vijf kleurrijen uit
+`theme_settings`, pas nádat het palet bestaat, zodat een halve run de kleuren
+nooit kwijt is. Een verse installatie krijgt "Standaard" met de
+standaardwaarden. Het bewijs dat de site na de upgrade identiek rendert: op
+een kopie met eigen kleuren gaf de homepage vóór (code van main) en ná
+(nieuwe code, gemigreerd) hetzelfde document.
+
+### Eén bron, één lezer
+
+`ThemeSettings::all()` blijft de enige lezer voor alles wat een pagina
+kleurt. De vijf kleuren komen van `ColorPaletteService::activeColors()`, per
+kleur gevalideerd. Daardoor volgt elke bestaande afnemer het actieve palet
+zonder van paletten te weten: `ThemeCss` (het `site-theme`-blok),
+`ThemeCss::backgroundColor()` (de `theme-color`-meta), de standaardwaarden
+van een nieuw paginathema, de installatiewizard en de preview van een
+paginathema. Niemand leest `color_palettes` om een pagina te kleuren.
+
+| Situatie | Wat de website toont |
+|---|---|
+| Actief palet gelijk aan de standaard | Niets extra: geen `<style id="site-theme">`, precies zoals vóór paletten |
+| Actief palet met een eigen kleur | Die kleur en de tinten die ervan afhangen, in `site-theme` |
+| Eén opgeslagen kleur kapot (met de hand bewerkt) | Voor díe kleur de standaard; de rest van het palet blijft |
+| Geen actief palet (alleen door handwerk in de database) | De standaardvormgeving (`core.css`); Vormgeving meldt het |
+| Tabel onleesbaar (nieuwe code vóór de migratie, bij een update) | De oude kleurrijen uit `theme_settings`, zodat de site tijdens een update zijn kleuren houdt |
+| Database onbereikbaar | De standaardvormgeving, zoals altijd |
+
+**Schrijven** loopt ook via dezelfde deur: `ThemeSettings::save()` met een
+kleur schrijft in het actieve palet (dat doet de installatiewizard), een
+lettertype of knopvorm in `theme_settings`. Is er geen actief palet, dan
+wordt het oudste geactiveerd, of "Standaard" aangemaakt. `ThemeSettings::reset()`
+("Standaardvormgeving herstellen") zet de kleuren van het actieve palet terug
+en laat de andere paletten staan.
+
+### Beheren
+
+Vormgeving, kaart **Kleurenpaletten**, achter `settings.manage` zoals de rest
+van Vormgeving. Per palet: kleurstalen, de naam, een badge *Actief* of
+*Inactief*, en Bewerken, Activeren, Dupliceren en Verwijderen.
+
+- **Nieuw palet** (`admin/color-palette.php` zonder id) begint met de kleuren
+  van de website zoals die nu is, nooit met een palet uit de code.
+- **Opslaan activeert nooit.** Een nieuw of inactief palet opslaan verandert
+  niets wat een bezoeker ziet; de editor zegt dat bovenaan, en de melding na
+  opslaan ook. Het actieve palet opslaan verandert de website direct, en ook
+  dat staat er vooraf.
+- **Activeren** (`api/admin/activate-color-palette.php`) vraagt om
+  bevestiging en is atomair: in één transactie wordt het oude palet gewist en
+  het nieuwe gezet (eerst wissen, want de unieke index staat maar één 1 toe),
+  met de doelrij vergrendeld. Een onbekend id verandert niets.
+- **Dupliceren** geeft "*naam* (kopie)", of "(kopie 2)", met dezelfde kleuren,
+  niet actief, en opent de kopie om een eigen naam te geven.
+- **Hernoemen** gebeurt in de editor. De naam is uniek (hoofdletters tellen
+  niet mee).
+- **Verwijderen** kan alleen voor een inactief palet dat niet het laatste is.
+  Het actieve palet heeft geen verwijderknop en zegt waarom; een verzonnen
+  POST krijgt de melding "maak eerst een ander palet actief", en ook de SQL
+  weigert de actieve rij (`deleteInactive()`).
+
+### De live preview
+
+Links de kleuren, rechts een voorbeeld van de website
+(`admin/color-palette-preview.php` in een frame): koppen, tekst met een link,
+een primaire en een secundaire knop, een kaart, een formulierveld en een band
+op de diepere ondergrond van de footer. Getekend met de echte `core.css`, het
+lettertype en de knopvorm van de site, en het palet als volledige tokenset op
+een `<main data-page-theme>`: hetzelfde pad als een paginathema. Eén
+tokenmodel voor de website, een paginathema en deze preview.
+
+- **Direct, zonder request.** Het frame heeft `sandbox="allow-same-origin"`
+  en verder niets. `admin/assets/color-palette-admin.js` zet bij elke
+  wijziging alle tokens rechtstreeks op die `<main>`: geen herladen en geen
+  serververzoek per kleur. Het document zelf voert geen script uit (zijn
+  Content-Security-Policy weigert elk script en elk formulier).
+- **Geen tweede set formules.** De tinten komen uit
+  `MygdalaTheme.tokens()` in `admin/assets/theme-admin.js`, die het recept
+  uitvoert dat de pagina meekrijgt (`ThemePalette::recipe()`, zie "Afgeleide
+  kleuren"). `ThemePaletteRecipeTest` bewaakt dat het script elke bewerking
+  van het recept kent.
+- **Niet opgeslagen blijft niet opgeslagen.** De opslagbalk
+  (`admin/_save_bar.php`) toont *Niet opgeslagen* en waarschuwt bij
+  weggaan; *Annuleren* gaat terug naar Vormgeving zonder op te slaan. Bij het
+  laden zet het script elk veld terug op de opgeslagen waarde, zodat een
+  browser die formulierwaarden herstelt geen niet-opgeslagen kleur toont.
+- **Breed en smal.** Vanaf 1100 px staan instellingen en preview naast
+  elkaar en blijft de preview in beeld tijdens het scrollen. Smaller komt de
+  preview eerst, als een lage strook die bovenaan blijft plakken terwijl je
+  door de kleuren scrollt.
+- **Contrast**: dezelfde waarschuwing als bij een paginathema, uit Core
+  (`ThemeColor::CONTRAST_PAIRS` en `::contrastWarnings()`), live bijgewerkt
+  met dezelfde WCAG-formule. Een waarschuwing, geen weigering.
+
+### Later uitbreiden: Font Library, Button Styles, Global Theme Engine
+
+Nog niet gebouwd, wel voorbereid:
+
+- **Font Library 1.0** en **Button Styles 2.0** horen niet in een palet. Een
+  palet is kleur, en `theme_settings` houdt lettertype en knopvorm juist
+  apart van het palet. Wordt het later een benoemde "stijlset" (kleur +
+  letter + knop), dan komt die als eigen record naast `color_palettes`, niet
+  als extra kolommen erin.
+- De preview drukt al het lettertype en de knopvorm van de site af, en
+  `ThemeSettings::all()` is al de enige lezer, dus een nieuwe bron hoeft maar
+  op één plek aan te haken.
+- Een nieuwe **kleurrol** is een migratie (een kolom op `color_palettes` én
+  op `page_themes`), een sleutel in `ThemeSettings::COLOR_KEYS`/`DEFAULTS`,
+  een token in `core.css`, `ThemeCss::DIRECT` en eventueel een regel in het
+  recept. Het recept, de preview en een paginathema volgen dan vanzelf.
+
 
 ## Lettertypecombinaties
 
@@ -274,9 +469,10 @@ kan, omdat het dezelfde code gebruikt:
 | Wat | Waar |
 |---|---|
 | Een kleur valideren | `App\Service\Theme\ThemeColor::normalise()` — ook wat `ThemeSettings` gebruikt |
-| De afgeleide tinten | `ThemePalette::derive()` |
+| De afgeleide tinten | `ThemePalette::derive()`, en de volledige kleurtokenset `ThemeCss::paletteDeclarations()` (ook die van een kleurenpalet) |
 | De lettertypes | `ThemeFonts::isValidKey()` / `::pairing()` |
 | De laatste controle op elke waarde | `ThemeCss::isSafeValue()` |
+| Contrast | `ThemeColor::CONTRAST_PAIRS` / `::contrastWarnings()` (ook voor kleurenpaletten) |
 | Een thema als geheel | `App\Service\Theme\PageAppearance::fromTheme()`: alles of niets |
 
 Een opgeslagen rij wordt bij elke weergave opnieuw gevalideerd. Een rij met
@@ -356,7 +552,9 @@ lettertype, hoeveel pagina's het thema gebruiken, en Bewerken, Dupliceren en
 Verwijderen.
 
 - **Een nieuw thema begint als de vormgeving van de website**
-  (`PageThemeService::defaults()`), nooit met een palet uit de code.
+  (`PageThemeService::defaults()`, dus het actieve kleurenpalet), nooit met
+  een palet uit de code. Daarna staat het los: een ander palet activeren
+  verandert het thema niet.
 - **De slug** wordt van de naam gemaakt en uniek gemaakt (`-2`, `-3`); een
   beheerder typt hem nooit.
 - **Het kleurveld** is het kleurveld van Vormgeving (`admin/_theme_color_field.php`,
@@ -370,9 +568,10 @@ Verwijderen.
   toe.
 - **Contrast**: onder de kleuren staat een waarschuwing voor elk paar onder
   WCAG 4,5:1 (tekst op achtergrond, tekst op kaartvlak, tekst op primair,
-  primair op achtergrond). Berekend in PHP (`ThemeColor::contrastRatio()`) en
-  live bijgewerkt door `admin/assets/page-theme-admin.js`. Het is een
-  waarschuwing: opslaan kan altijd.
+  primair op achtergrond: `ThemeColor::CONTRAST_PAIRS`, gedeeld met de
+  kleurenpaletten). Berekend in PHP (`ThemeColor::contrastWarnings()`) en
+  live bijgewerkt door `admin/assets/page-theme-admin.js` met de formule van
+  `MygdalaTheme.contrastRatio()`. Het is een waarschuwing: opslaan kan altijd.
 - **Dupliceren** maakt "*naam* (kopie)", of "(kopie 2)", met een eigen slug.
 - **Verwijderen van een thema in gebruik wordt geweigerd**, met de lijst van
   pagina's die het gebruiken en een link naar elke pagina. De database
@@ -393,8 +592,8 @@ Vormgeving, kaart *Onderdelen van de vormgeving* (voor elke module met
 `switchableFromAppearance()`; een door de omgeving vastgezette module staat
 daar vast en het endpoint weigert). Met de module uit:
 
-- tonen alle pagina's de vormgeving van de website — geen attribuut, geen
-  `page-theme`-blok, geen extra lettertype;
+- tonen alle pagina's de vormgeving van de website, dus het actieve
+  kleurenpalet — geen attribuut, geen `page-theme`-blok, geen extra lettertype;
 - verdwijnen de zijbalkregel, de schermen (niemand houdt
   `page_themes.manage`, ook geen Super Admin) en het veld in de pagina-editor;
 - blijft alles bewaard: de thema's en de keuze van elke pagina. Weer aanzetten
@@ -445,6 +644,15 @@ De paginathema's hebben hun eigen testklassen: `ThemeColorTest` (`unit`,
 `PageThemesAdminHttpTest` en `PageThemesRenderingHttpTest` (`modules`, eigen
 `php -S`), `PageThemesApacheHttpTest` (`http`, `modules`) en
 `PageThemesMigrationTest` (`migration`, `modules`). Zie `TESTING.md`.
+
+De kleurenpaletten: `ThemePaletteRecipeTest` (`unit`, `fast`, `cms`: het
+recept, gepind op de uitkomst van v0.1.13), `ColorPaletteTest` (`cms`:
+beheer, één actief, de website volgt, terugval, onveilige invoer),
+`ColorPalettesHttpTest` (`cms`, `modules`: schermen, endpoints, guards, de
+preview en Paginathema's aan en uit op echte pagina's) en
+`ColorPalettesMigrationTest` (`migration`, `cms`). `ThemePersistenceTest` en
+`SetupCompletionTest` bewaken dat een kleur via `ThemeSettings` in het
+actieve palet landt en nooit meer in `theme_settings`.
 
 Raak je de stylesheets aan, controleer dan of de standaardvormgeving
 onveranderd rendert: vergelijk `getComputedStyle` van élk element vóór en ná,
