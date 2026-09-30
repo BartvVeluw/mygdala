@@ -37,8 +37,12 @@ use App\Repository\ThemeSettingRepository;
  *
  * WHERE THE COLOURS COME FROM (Branding & Design 2.0): the five colours are
  * the ACTIVE colour palette (App\Service\Theme\ColorPaletteService,
- * table color_palettes); the font pairing and the button shape are rows of
- * theme_settings. This class stays the one reader for everything that paints
+ * table color_palettes); the font pairing is a row of theme_settings. The
+ * button shape is the shape of the two default button styles
+ * (App\Service\Theme\ButtonStyles, Button Styles 2.0): read from and written
+ * to the library, and the old row left theme_settings in migration
+ * 20261005100000 — until that has run, the row is still read. This class
+ * stays the one reader for everything that paints
  * a page, so no consumer knows palettes exist and there is no second source:
  * the colour rows left theme_settings in migration 20261003100000. Only
  * while the palette table cannot be read at all (new code on a database whose
@@ -62,15 +66,20 @@ final class ThemeSettings
     ];
 
     /**
-     * The two button shapes. A closed enum rather than a pixel field: a
-     * number invites values that break the button, and nobody outside this
-     * file should be inventing radii.
+     * The button shapes, the closed list of the button style library
+     * (App\Service\Theme\ButtonStyleCss::SHAPES), with the labels the Setup
+     * Wizard shows. A closed enum rather than a pixel field: a number invites
+     * values that break the button. `pill` and `rounded` were the only two
+     * before Button Styles 2.0.
      *
-     * @var array<string, array{label: string, radius: string}>
+     * @var array<string, string>
      */
     private const BUTTON_SHAPES = [
-        'pill' => ['label' => 'Pill (volledig rond)', 'radius' => '999px'],
-        'rounded' => ['label' => 'Afgerond', 'radius' => 'var(--radius-md)'],
+        'pill' => 'Pill (volledig rond)',
+        'round' => 'Sterk afgerond',
+        'rounded' => 'Afgerond',
+        'soft' => 'Licht afgerond',
+        'square' => 'Rechthoekig',
     ];
 
     /**
@@ -143,6 +152,18 @@ final class ThemeSettings
             if ($normalised !== null) {
                 $settings[$key] = $normalised;
             }
+        }
+
+        // The button shape: the shape of the website's standard button in the
+        // button style library (App\Service\Theme\ButtonStyles). Unreadable
+        // (new code before its migration) = the old theme_settings row above.
+        try {
+            $shape = ButtonStyles::defaultShape();
+            if ($shape !== null && array_key_exists($shape, self::BUTTON_SHAPES)) {
+                $settings['button_shape'] = $shape;
+            }
+        } catch (\Throwable $e) {
+            error_log('[ThemeSettings] button styles unavailable: ' . $e->getMessage());
         }
 
         // The two font roles: the website's choice in the Font Library, when
@@ -233,15 +254,18 @@ final class ThemeSettings
      */
     public static function buttonShapes(): array
     {
-        return self::BUTTON_SHAPES;
+        $shapes = [];
+        foreach (self::BUTTON_SHAPES as $key => $label) {
+            $shapes[$key] = ['label' => $label, 'radius' => ButtonStyleCss::SHAPES[$key]];
+        }
+
+        return $shapes;
     }
 
     /** The CSS length behind the stored shape key. */
     public static function buttonRadius(): string
     {
-        $shape = self::get('button_shape');
-
-        return (self::BUTTON_SHAPES[$shape] ?? self::BUTTON_SHAPES['pill'])['radius'];
+        return ButtonStyleCss::SHAPES[self::get('button_shape')] ?? ButtonStyleCss::SHAPES['pill'];
     }
 
     /**
@@ -303,6 +327,18 @@ final class ThemeSettings
         $roles = array_intersect_key($clean, array_flip(FontLibrary::ROLE_KEYS));
         $rest = array_diff_key($clean, $colors, $roles);
 
+        // The shape belongs to the default button styles (ButtonStyles); only
+        // a library that cannot be read yet keeps the old row.
+        if (array_key_exists('button_shape', $rest)) {
+            try {
+                ButtonStyles::defaultShape();
+                ButtonStyles::saveDefaultShape($rest['button_shape']);
+                unset($rest['button_shape']);
+            } catch (\Throwable $e) {
+                error_log('[ThemeSettings] button styles unavailable: ' . $e->getMessage());
+            }
+        }
+
         if ($rest !== []) {
             (new ThemeSettingRepository())->upsertMany($rest);
         }
@@ -333,13 +369,17 @@ final class ThemeSettings
      * The colours are the active palette's: those are set back to the
      * shipped default (ColorPaletteService::resetActiveColors()). The other
      * palettes are designs of their own and stay as they are. Both font roles
-     * go back to the pairing; the Font Library itself keeps every family.
+     * go back to the pairing; the Font Library itself keeps every family. The
+     * two default button styles get the shipped shape back
+     * (ButtonStyles::saveDefaultShape()); every other part of every style
+     * stays as it is.
      */
     public static function reset(): void
     {
         (new ThemeSettingRepository())->deleteKeys(array_keys(self::DEFAULTS));
         ColorPaletteService::resetActiveColors();
         FontLibrary::clearSiteRoles();
+        ButtonStyles::saveDefaultShape(self::DEFAULTS['button_shape']);
         self::clearCache();
     }
 
@@ -349,6 +389,7 @@ final class ThemeSettings
         self::$cache = null;
         ColorPaletteService::forgetActive();
         FontLibrary::forget();
+        ButtonStyles::clearCache();
     }
 
     /**

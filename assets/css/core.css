@@ -109,10 +109,11 @@
   --radius-md: 12px;
   --radius-lg: 20px;
 
-  /* Button shape — a theme setting. `pill` is 999px, `rounded` is
-     var(--radius-md). Only the ordinary branded button (.btn) reads it;
-     badges, chips, steppers and round icon buttons keep their own shape
-     because it carries meaning rather than styling. */
+  /* Button shape — the shape of the website's standard button style
+     (Button Styles 2.0; ThemeCss prints it from ThemeSettings' button_shape).
+     Only the ordinary branded button (.btn) reads it; badges, chips,
+     steppers and round icon buttons keep their own shape because it carries
+     meaning rather than styling. */
   --button-radius: 999px;
 
   --container: 1200px;
@@ -264,46 +265,117 @@ p{ margin: 0; }
 
 /* ==========================================================================
    Buttons
+   Every .btn is drawn from the --btn-* properties below (Button Styles 2.0,
+   THEMING.md "Knopstijlen"). Their values here ARE the shipped design:
+   .btn the standard button, .btn--ghost the second button. A site that
+   changes its default styles gets only the difference, and a content button
+   with a style of its own gets `.btn.btn-style-<id>` with the full set, both
+   in <style id="site-buttons"> (App\Service\Theme\ButtonStyleCss, whose
+   LEGACY_PRIMARY / LEGACY_SECONDARY_OVERRIDES must stay equal to these
+   values; ButtonStyleCssTest parses this rule). The properties are declared
+   on the button itself, so a var(--color-…) resolves where the button is:
+   inside a page theme's <main> to that theme's colours.
+   An icon is a mask on ::before or ::after in the text colour, drawn from
+   a closed list (App\Service\Theme\ButtonIcons); empty content, so it is
+   never read out. Focus stays the site-wide :focus-visible ring: no style
+   can switch it off.
    ========================================================================== */
 .btn{
   --btn-bg: linear-gradient(155deg, var(--color-primary-bright), var(--color-primary) 55%, var(--color-primary-deep));
   --btn-fg: var(--color-on-primary);
+  --btn-border-width: 1.5px;
+  --btn-border-color: transparent;
+  --btn-radius: var(--button-radius);
+  --btn-pad-y: 0.95rem;
+  --btn-pad-x: 1.9rem;
+  --btn-font-size: 0.95rem;
+  --btn-font: var(--font-body);
+  --btn-weight: 700;
+  --btn-case: none;
+  --btn-tracking: 0.01em;
+  --btn-decoration: none;
+  --btn-shadow: none;
+  --btn-gap: 0.6rem;
+  --btn-hover-lift: -2px;
+  --btn-hover-shadow: var(--color-glow);
+  --btn-hover-filter: brightness(1.06);
+  --btn-hover-bg: var(--btn-bg);
+  --btn-hover-fg: var(--btn-fg);
+  --btn-hover-border-color: var(--btn-border-color);
+  --btn-icon: none;
+  --btn-icon-before: none;
+  --btn-icon-after: none;
+  --btn-icon-shift: 0px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  padding: 0.95rem 1.9rem;
-  border-radius: var(--button-radius);
+  gap: var(--btn-gap);
+  padding: var(--btn-pad-y) var(--btn-pad-x);
+  border-radius: var(--btn-radius);
   background: var(--btn-bg);
   color: var(--btn-fg);
-  border: 1.5px solid transparent;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.01em;
+  border: var(--btn-border-width) solid var(--btn-border-color);
+  box-shadow: var(--btn-shadow);
+  font-family: var(--btn-font);
+  font-weight: var(--btn-weight);
+  font-size: var(--btn-font-size);
+  letter-spacing: var(--btn-tracking);
+  text-transform: var(--btn-case);
+  text-decoration: var(--btn-decoration);
+  text-underline-offset: 0.25em;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
-.btn:hover{ transform: translateY(-2px); box-shadow: var(--color-glow); filter: brightness(1.06); }
+.btn:hover{
+  transform: translateY(var(--btn-hover-lift));
+  box-shadow: var(--btn-hover-shadow);
+  filter: var(--btn-hover-filter);
+  background: var(--btn-hover-bg);
+  color: var(--btn-hover-fg);
+  border-color: var(--btn-hover-border-color);
+}
 .btn:active{ transform: translateY(0); }
 .btn svg{ width: 18px; height: 18px; transition: transform var(--dur-fast) var(--ease-out); }
 .btn:hover svg{ transform: translateX(3px); }
+.btn::before,
+.btn::after{
+  content: none;
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  background-color: currentColor;
+  -webkit-mask: var(--btn-icon) center / contain no-repeat;
+  mask: var(--btn-icon) center / contain no-repeat;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.btn::before{ content: var(--btn-icon-before); }
+.btn::after{ content: var(--btn-icon-after); }
+.btn:hover::before,
+.btn:hover::after{ transform: translateX(var(--btn-icon-shift)); }
 .btn:disabled{ opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
 
 .btn--ghost{
   --btn-bg: transparent;
   --btn-fg: var(--color-text);
-  border-color: var(--color-line-strong);
+  --btn-border-color: var(--color-line-strong);
+  --btn-hover-shadow: none;
+  --btn-hover-filter: none;
+  --btn-hover-bg: var(--color-primary-wash);
+  --btn-hover-fg: var(--color-primary-bright);
+  --btn-hover-border-color: var(--color-primary);
 }
-.btn--ghost:hover{ background: var(--color-primary-wash); color: var(--color-primary-bright); border-color: var(--color-primary); box-shadow: none; filter: none; }
 
 .btn--on-dark{
   --btn-bg: transparent;
   --btn-fg: var(--color-text);
-  border-color: rgba(var(--color-text-rgb), 0.4);
+  --btn-border-color: rgba(var(--color-text-rgb), 0.4);
+  --btn-hover-shadow: none;
+  --btn-hover-filter: none;
+  --btn-hover-bg: var(--color-primary-wash);
+  --btn-hover-fg: var(--color-primary-bright);
+  --btn-hover-border-color: var(--color-primary);
 }
-.btn--on-dark:hover{ background: var(--color-primary-wash); color: var(--color-primary-bright); border-color: var(--color-primary); box-shadow: none; filter: none; }
 
 .btn--sm{ padding: 0.7rem 1.4rem; font-size: 0.85rem; }
 .btn--block{ width: 100%; }
@@ -319,6 +391,15 @@ p{ margin: 0; }
 }
 @media (prefers-reduced-motion: reduce){
   .btn.is-added{ animation: none; }
+  /* No movement at all: the colour change of a hover stays. */
+  .btn,
+  .btn::before,
+  .btn::after,
+  .btn svg{ transition-property: background, color, border-color, box-shadow, filter; }
+  .btn:hover,
+  .btn:hover::before,
+  .btn:hover::after,
+  .btn:hover svg{ transform: none; }
 }
 
 /* ==========================================================================

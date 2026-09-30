@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Module\ModuleRegistry;
 use App\Service\Search\SearchService;
+use App\Service\Theme\ButtonStyles;
 use App\Service\Theme\FontLibrary;
 use App\Service\Theme\PageThemeCss;
 use App\Service\Theme\ThemeCss;
@@ -141,6 +142,13 @@ final class PageAssets
         // the default theme it prints nothing at all, not even an empty
         // <style> tag. See App\Service\Theme\ThemeCss.
         ThemeCss::renderStyleBlock();
+
+        // The button styles (Button Styles 2.0): the default buttons where
+        // they differ from core.css, and every style a content button chose.
+        // Nothing for a site on the shipped buttons. Before the page theme,
+        // which only sets tokens these rules read. See
+        // App\Service\Theme\ButtonStyleCss.
+        ButtonStyles::renderStyleBlock();
 
         // A page with a look of its own (a page theme) comes right after
         // the site theme, scoped to its <main>. Nothing at all for every

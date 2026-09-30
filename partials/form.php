@@ -134,7 +134,7 @@ function render_form(FormDefinition $form, FormRenderState $state): void
     </div>
 
     <button type="submit" class="btn btn--block"><?= $h($form->submitLabel) ?>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
     </button>
   </form>
   <div class="form-status" role="status" aria-live="polite" id="<?= $h($state->id('status')) ?>"
