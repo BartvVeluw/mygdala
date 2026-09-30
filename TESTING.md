@@ -1260,6 +1260,20 @@ zonder tweede afbeelding, inklapbare items op hun rij-id, de preview met
 `DetailSectionTwoOneContractTest` (de haak `data-nav-item-form`, de inklapbare
 rij, het script, geen `<img>` zonder bron) in `contract`, `fast` en `blocks`.
 
+De hoogte van de Oproep met knop (`CONTENT-BLOCKS.md`, "De hoogte van het
+achtergrondvlak"): `CtaBandHeightTest` (geen database: `auto` is byte voor
+byte de oude markup, elke keuze een klasse op de kaart of de sectie, een eigen
+hoogte één pixellengte, ongeldige waarden en waarden buiten het bereik lezen
+als `auto`, alleen `min-height` en geen `height`/`overflow`, de pixels van
+`CtaBandContent` gelijk aan het CSS, afbeelding/focus/zoom en knopstijlen
+ongewijzigd) en `CtaBandHeightHttpTest` (eigen `php -S`: bestaande en nieuwe
+oproep `auto`, elke keuze opgeslagen en heropend, eigen hoogte desktop en
+telefoon, weigering bij het veld zonder opslag, het getypte getal terug,
+focus en zoom en knopstijlen blijven, concept tot de eerste opslag,
+annuleren laat niets achter) in `blocks`; `CtaBandHeightMigrationTest`
+(ScratchInstall: bestaande oproepen `auto`, geen bestaande kolom verandert,
+vers = geüpgraded, tweede run verandert niets) in `migration` en `blocks`.
+
 ### Zoeken
 
 De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):

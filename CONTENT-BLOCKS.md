@@ -1199,7 +1199,8 @@ in plaats van op de kaart, en de woorden blijven in de gewone container. Geen
 `100vw`, geen negatieve marges, geen horizontale scroll. De Mediabanner doet
 hetzelfde (zie hieronder): zijn beeld staat dan in de sectie zelf in plaats
 van in de container. De oproep houdt de
-gewone sectieruimte en groeit met zijn woorden mee; er is geen hoogte-instelling.
+gewone sectieruimte en groeit met zijn woorden mee; een minimale hoogte kan
+erbij (zie "De hoogte van het achtergrondvlak" hieronder).
 
 **Knoppen: geen, één of twee.** Beide knoppen gebruiken het gedeelde linkveld
 (`LinkChoice`, hierboven). *Geen knop* bij de eerste knop is een oproep zonder
@@ -1229,10 +1230,50 @@ alleen met het tekstvlak aan (`admin/assets/cta-band.js`; de server print
 dezelfde `hidden`). Er is geen eigen uploadveld: de afbeelding komt uit de
 mediakiezer.
 
-**Niet in CTA 2.0**: een video- of diavoorstellingachtergrond, een vrije
-hoogte, vrije CSS of dekking, eigen kleuren, blokken binnen de oproep,
+**Niet in CTA 2.0**: een video- of diavoorstellingachtergrond, een vaste
+hoogte (een minimale hoogte kwam er later bij, hieronder), vrije CSS of dekking, eigen kleuren, blokken binnen de oproep,
 animatie-instellingen en paginathema's. Wie beeld of video met een bewust
 gekozen hoogte wil, gebruikt de Mediabanner (hieronder).
+
+### De hoogte van het achtergrondvlak
+
+`db/migrations/20261007100000`. Een korte titel kan in een hoge, beeldvullende
+oproep staan: de redacteur kiest een **minimale** hoogte voor het vlak dat de
+achtergrond draagt, los van de hoeveelheid tekst. Het is nooit een vaste
+hoogte. Staat er meer tekst in dan past, dan wordt het blok gewoon hoger:
+niets wordt afgesneden, geen knop overlapt, niets loopt eruit.
+
+| Kolom | Waarden (standaard eerst) | Wat het doet |
+|---|---|---|
+| `min_height` + `min_height_px` | `auto`, `compact`, `normal`, `tall`, `custom` (`HEIGHTS`); pixels 200–1000 (`MIN_HEIGHT_RANGE`) of `NULL` | Op een groot scherm. `auto` is zo hoog als de woorden, zoals elke oproep was. `compact`, `normal` en `tall` zijn minstens 320, 440 en 560 pixels (`HEIGHT_PX`). `custom` neemt de pixels, en alleen dan staan er pixels |
+| `mobile_min_height` + `mobile_min_height_px` | `auto`, `text`, `compact`, `normal`, `tall`, `custom` (`MOBILE_HEIGHTS`); pixels 160–800 (`MOBILE_MIN_HEIGHT_RANGE`) of `NULL` | Op een telefoon (tot 640px, het breekpunt van het blok). `auto` volgt het grote scherm maar lager: `compact`/`normal`/`tall` worden 240/320/420 pixels (`PHONE_HEIGHT_PX`), een eigen hoogte hooguit 420. Zo wordt een hoge desktop-oproep geen onnodig lang telefoonblok. `text` is op een telefoon zo hoog als de woorden, wat het grote scherm ook kiest |
+
+**Het contract.** De hoogte staat op de doos die de lagen draagt: de kaart,
+of de `<section>` van een oproep over de volle breedte. Daar krijgt ze
+`cta-height`, `cta-height--<keuze>` en `cta-height-phone--<keuze>`, en
+`assets/css/blocks/cta-band.css` zet één `min-height` uit een custom property
+(`--cta-min-height`, op een telefoon `--cta-min-height-phone`). Geen `height`,
+geen `max-height`, geen eigen `overflow` (`CtaBandHeightTest` bewaakt dat). De
+doos wordt een kolom die de woorden verticaal centreert in de ruimte die het
+minimum laat. Een eigen hoogte is het enige getal uit de database dat CSS
+wordt: een geheel getal binnen zijn bereik, gecontroleerd in het endpoint, in
+`CtaBandContent::minHeight()` en nog eens in de partial, als één pixellengte in
+één custom property. Een ongeldige opgeslagen waarde leest als `auto`.
+
+**Met Responsive Media.** De achtergrond ligt op `inset: 0` met `object-fit:
+cover` en vult dus vanzelf elk hoger vlak, zonder uitrekken en zonder lege
+randen. Focuspunt en zoom staan op de `<img>` en veranderen niet mee: de
+hoogte raakt geen enkele `background_*`-kolom. De focuskaders in de editor
+krijgen wel de vorm van de gekozen hoogte (`1152 / max(400, hoogte)` en op een
+telefoon `343 / max(480, telefoonhoogte)`), op de server en live in
+`admin/assets/cta-band.js`, zodat het punt gekozen wordt op de vorm die de
+pagina toont.
+
+**Bestaande oproepen** krijgen `auto` op beide schermen, en `auto` op beide
+print geen klasse en geen `style`: byte voor byte de oude markup. Knopstijlen,
+overlay, tekstvlak en de draft-levensloop blijven zoals ze waren. De hoogte
+staat in de kaart *Achtergrond*, ook zonder afbeelding (het vlak is dan de
+themakleur), met de uitleg *Dit bepaalt de minimale hoogte van het blok.*
 
 ## Mediabanner
 
