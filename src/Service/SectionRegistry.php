@@ -433,7 +433,40 @@ class SectionRegistry
             throw new \RuntimeException("Section type \"{$type}\" cannot be deleted via the page builder.");
         }
 
-        $definition = self::definition($type);
+        self::removeContent($pageSection, static function () use ($pageSection, $pageSectionRepository): void {
+            $pageSectionRepository->delete((int) $pageSection['id']);
+        });
+    }
+
+    /**
+     * Removes the content of a block that was never placed on its page: a
+     * draft (App\Service\Blocks\ContentBlockDrafts) the editor cancelled or
+     * never came back to. Exactly what delete() removes — files, words in
+     * every language, the content row and its child rows — minus the
+     * page_sections row, which a draft does not have. A Media Library item it
+     * chose is a reference, never a file of the block, so it stays.
+     *
+     * @param array<string, mixed> $pageSection a page_sections-shaped row (ContentBlockDrafts::asPageSection())
+     */
+    public static function discardContent(array $pageSection): void
+    {
+        if (!self::isDeletable((string) $pageSection['section_type'])) {
+            throw new \RuntimeException('Section type "' . $pageSection['section_type'] . '" cannot be discarded.');
+        }
+
+        self::removeContent($pageSection, null);
+    }
+
+    /**
+     * The one way a block's content goes: files first, then its words, its
+     * content and ($alsoInTransaction, when given) whatever else must go in
+     * the same transaction.
+     *
+     * @param array<string, mixed> $pageSection
+     */
+    private static function removeContent(array $pageSection, ?\Closure $alsoInTransaction): void
+    {
+        $definition = self::definition((string) $pageSection['section_type']);
 
         // Filesystem cleanup happens outside the DB transaction (it isn't
         // transactional itself) and BEFORE the DB rows disappear, so a failed
@@ -459,7 +492,9 @@ class SectionRegistry
 
             $definition->deleteContent($pageSection);
 
-            $pageSectionRepository->delete((int) $pageSection['id']);
+            if ($alsoInTransaction !== null) {
+                $alsoInTransaction();
+            }
 
             $db->commit();
         } catch (\Throwable $e) {
@@ -790,6 +825,24 @@ class SectionRegistry
         }
 
         return BlockDefinitions::get($type)?->editUrl($pageSection);
+    }
+
+    /**
+     * Whether a block of this type, chosen in the block picker, opens its
+     * editor as a draft that joins the page on its first save
+     * (App\Service\Blocks\ContentBlockDrafts), rather than being placed on the
+     * page straight away. The block decides (BlockDefinition::opensAsDraft());
+     * a fixed block and one that cannot be deleted never do, because a
+     * cancelled draft is removed the way a block is deleted.
+     */
+    public static function opensAsDraft(string $type): bool
+    {
+        $definition = BlockDefinitions::get($type);
+
+        return $definition !== null
+            && self::isManuallyAddable($type)
+            && self::isDeletable($type)
+            && $definition->opensAsDraft();
     }
 
     /**

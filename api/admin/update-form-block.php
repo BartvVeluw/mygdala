@@ -127,6 +127,9 @@ try {
     $repository->upsertSection($pageSlug, $sectionKey, $settings);
     BlockLocalization::save('form_blocks', (int) $section['id'], $languageCode, $words);
 
+    // A new block joins its page now, in this save's transaction
+    // (App\Service\Blocks\ContentBlockDrafts); an existing one is found.
+    $placed = \App\Service\Blocks\ContentBlockDrafts::place('form', (int) $section['id']);
     $db->commit();
     FormBlockContent::clearCache();
 } catch (\Throwable $e) {
@@ -142,5 +145,5 @@ try {
     exit;
 }
 
-header('Location: /admin/form-block.php?section=' . urlencode($sectionParam) . '&saved=1');
+header('Location: ' . \App\Service\ContentOwners\ContentBlockAccess::afterSaveUrl($placed, '/admin/form-block.php?section=' . urlencode($sectionParam)));
 exit;

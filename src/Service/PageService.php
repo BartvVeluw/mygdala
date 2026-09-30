@@ -649,6 +649,11 @@ class PageService
             $sectionRepository->delete((int) $pageSection['id']);
         }
 
+        // A new block somebody was still writing (App\Service\Blocks\ContentBlockDrafts)
+        // goes with its page: its record would cascade away with the page row,
+        // but its content would stay behind without anything pointing at it.
+        \App\Service\Blocks\ContentBlockDrafts::discardForPage($pageId);
+
         (new PageRepository())->delete($pageId);
 
         PageContent::clearCache();

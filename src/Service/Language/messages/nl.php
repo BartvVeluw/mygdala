@@ -896,8 +896,6 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'blocks.view_label' => 'Weergave',
     'blocks.view_cards' => 'Kaarten',
     'blocks.view_list' => 'Lijst',
-    'blocks.empty_title' => 'Je pagina heeft nog geen inhoud.',
-    'blocks.empty_text' => 'Voeg hieronder je eerste contentblok toe.',
     'blocks.preview_document_title' => 'Voorbeeld: :block',
     'blocks.preview_not_found' => 'Van dit contentblok is geen voorbeeld beschikbaar.',
     'blocks.preview_open' => 'Voorbeeld bekijken',
@@ -4369,4 +4367,12 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'buttons.field_label_secondary' => 'Knopstijl tweede knop',
     'buttons.field_default' => 'Standaard (:name)',
     'help.buttons.field' => 'Op <strong>Standaard</strong> volgt de knop de standaardknop van de website: verandert die, dan verandert deze knop mee. Kies je een knopstijl, dan krijgt de knop dat ontwerp. De stijlen maak en wijzig je bij Vormgeving → Knoppen.',
+
+    // --- Content Blocks Lifecycle 1.0 (admin/_block_editor.php, admin/_content_blocks.php)
+    'blocks.draft_title' => 'Nieuw blok.',
+    'blocks.draft_text' => 'Het staat nog niet op de pagina. Het wordt toegevoegd zodra je opslaat.',
+    'blocks.draft_cancel' => 'Annuleren',
+    'blocks.draft_discard_failed' => 'Het nieuwe blok kon niet worden opgeruimd. Op de pagina is niets veranderd.',
+    'blocks.saved_badge' => 'Opgeslagen',
+    'blocks.saved_notice' => 'Het contentblok is opgeslagen.',
 ];

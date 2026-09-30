@@ -134,6 +134,9 @@ final class ContentPages
             $sections->delete((int) $pageSection['id']);
         }
 
+        // Its drafts too (App\Service\Blocks\ContentBlockDrafts), as PageService::delete() does.
+        \App\Service\Blocks\ContentBlockDrafts::discardForPage($pageId);
+
         $db = Database::connection();
         $db->beginTransaction();
 

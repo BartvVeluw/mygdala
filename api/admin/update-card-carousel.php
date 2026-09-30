@@ -236,6 +236,9 @@ try {
         ]);
     }
 
+    // A new block joins its page now, in this save's transaction
+    // (App\Service\Blocks\ContentBlockDrafts); an existing one is found.
+    $placed = \App\Service\Blocks\ContentBlockDrafts::place('card_carousel', $carouselId);
     $db->commit();
     CardCarouselContent::clearCache();
 } catch (\Throwable $e) {
@@ -261,5 +264,5 @@ if ($action !== null && $action['list'] === 'cards' && $action['verb'] === 'edit
     exit;
 }
 
-header('Location: ' . $redirect . '&saved=1');
+header('Location: ' . \App\Service\ContentOwners\ContentBlockAccess::afterSaveUrl($placed, $redirect));
 exit;

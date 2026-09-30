@@ -216,4 +216,10 @@ final class HomepageHeroBlock extends BlockDefinition
     {
         return 'homepage_hero';
     }
+
+    /** Placed at once: create() returns the homepage's one Hero row, not a new instance a cancel could take back. */
+    public function opensAsDraft(): bool
+    {
+        return false;
+    }
 }

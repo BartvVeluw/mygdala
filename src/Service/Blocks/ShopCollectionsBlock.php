@@ -156,4 +156,10 @@ final class ShopCollectionsBlock extends BlockDefinition
     {
         render_section_shop_collections($content['collections']);
     }
+
+    /** Placed at once: no editor of its own: nothing to save, so it is placed at once. */
+    public function opensAsDraft(): bool
+    {
+        return false;
+    }
 }

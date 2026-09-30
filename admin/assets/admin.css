@@ -979,6 +979,34 @@ a{ color: var(--admin-accent); }
   .admin-page-section-row.is-just-added{ animation: none; background: var(--admin-accent-soft); }
 }
 
+/* Content Blocks Lifecycle 1.0 (admin/_content_blocks.php). The block whose
+   editor just saved glows once like a new row; its "Opgeslagen" badge stays
+   until the next visit. */
+.admin-page-section-row.is-just-saved{
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 1px var(--admin-accent-soft-strong);
+  animation: admin-just-added 2.4s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .admin-page-section-row.is-just-saved{ animation: none; }
+}
+
+.admin-badge--saved{ color: var(--admin-success); border-color: var(--admin-success-line); background: var(--admin-success-soft); }
+
+/* A new block's editor (admin/_block_editor.php): one note line with its
+   Annuleren beside it, wrapping under it on a narrow screen. */
+.admin-block-draft{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+}
+
+.admin-block-draft__text{ margin: 0; flex: 1 1 20rem; }
+.admin-block-draft__cancel{ margin: 0; }
+
 /* Global Navigation (admin/navigation.php) + Footer (admin/footer.php) —
    same row/handle/hidden-state visuals as the page builder above, extended
    to nav_items/footer_columns/footer_links rows, plus an indented child

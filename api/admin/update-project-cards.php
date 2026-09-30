@@ -55,7 +55,6 @@ use App\Service\ItemGallerySelection;
 use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
-use App\Repository\PageSectionRepository;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -87,7 +86,7 @@ $section = ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $s
 
 if ($section === null
     || \App\Service\ContentOwners\ContentBlockAccess::pageForKeyForApi((string) $pageSlug) === null
-    || (new PageSectionRepository())->findBySectionTypeAndId('project_cards', (int) $section['id']) === null
+    || !\App\Service\Blocks\ContentBlockDrafts::belongsTo('project_cards', (int) $section['id'])
 ) {
     http_response_code(404);
     exit('Unknown section.');
@@ -153,6 +152,9 @@ try {
         ItemGallerySources::saveSelection(PortfolioModule::GALLERY_SOURCE, (int) $section['id'], $selection['selected']);
     }
 
+    // A new block joins its page now, in this save's transaction
+    // (App\Service\Blocks\ContentBlockDrafts); an existing one is found.
+    $placed = \App\Service\Blocks\ContentBlockDrafts::place('project_cards', (int) $section['id']);
     $db->commit();
     ItemGalleryContent::clearCache();
 } catch (\Throwable $e) {
@@ -168,5 +170,5 @@ try {
     exit;
 }
 
-header('Location: /admin/project-cards.php?section=' . urlencode($sectionParam) . '&saved=1');
+header('Location: ' . \App\Service\ContentOwners\ContentBlockAccess::afterSaveUrl($placed, '/admin/project-cards.php?section=' . urlencode($sectionParam)));
 exit;

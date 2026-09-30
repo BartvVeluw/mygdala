@@ -25,8 +25,9 @@ use App\Service\SectionRegistry;
  * @param array<string, mixed> $page a `pages` row, or ContentPages::placeholder() for an owner without one yet
  * @param list<array<string, mixed>> $allSections the page's page_sections rows
  * @param array<string, \App\Service\Blocks\BlockDefinition> $availableBlocks SectionRegistry::availableDefinitionsForPage()
+ * @param int $savedSectionId the block whose editor just saved (`?saved=<id>`, ContentBlockAccess::afterSaveUrl())
  */
-function content_blocks_list(array $page, array $allSections, array $availableBlocks, string $csrfToken, int $addedSectionId): void
+function content_blocks_list(array $page, array $allSections, array $availableBlocks, string $csrfToken, int $addedSectionId, int $savedSectionId = 0): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $pageId = (int) $page['id'];
@@ -68,6 +69,11 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
           $disabledModule = $isUnsupported ? SectionRegistry::disabledModuleFor($sectionType) : null;
           $isJustAdded = $addedSectionId === (int) $pageSection['id'];
 
+          // The block whose editor just saved (Content Blocks Lifecycle 1.0):
+          // it opens, glows once like a new row, wears "Opgeslagen" and is
+          // the row admin-collapse.js brings into view, on its tab.
+          $isJustSaved = $savedSectionId === (int) $pageSection['id'];
+
           // The one line a collapsed row shows. For an ordinary block that
           // is the registry's own instance label — "Tekstblok — Over onze
           // diensten" — so no block type has to invent a summary of its own,
@@ -84,7 +90,7 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                  api/admin/add-page-section.php sends a new block to, what a
                  link from anywhere else can point at, and what
                  admin-collapse.js scrolls back to after an edit. */ ?>
-        <div class="admin-section-row admin-page-section-row<?= $isHidden ? ' is-hidden-section' : '' ?><?= $isJustAdded ? ' is-just-added' : '' ?>" id="blok-<?= (int) $pageSection['id'] ?>" data-page-section-id="<?= (int) $pageSection['id'] ?>">
+        <div class="admin-section-row admin-page-section-row<?= $isHidden ? ' is-hidden-section' : '' ?><?= $isJustAdded ? ' is-just-added' : '' ?><?= $isJustSaved ? ' is-just-saved' : '' ?>" id="blok-<?= (int) $pageSection['id'] ?>" data-page-section-id="<?= (int) $pageSection['id'] ?>">
           <?php /* Outside the <details> on purpose: a collapsed row must
                    still be draggable, and that is most of the reason to
                    collapse rows at all. */ ?>
@@ -94,7 +100,7 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                    expanded/collapsed state for free, and no block type has
                    to know it exists (admin/_admin_collapse.php). A block
                    that was just added opens itself. */ ?>
-          <details class="admin-collapse" data-admin-collapse-id="<?= (int) $pageSection['id'] ?>"<?= $isJustAdded ? ' open data-admin-collapse-open' : '' ?>>
+          <details class="admin-collapse" data-admin-collapse-id="<?= (int) $pageSection['id'] ?>"<?= $isJustAdded ? ' open data-admin-collapse-open' : '' ?><?= $isJustSaved ? ' open data-admin-collapse-open data-admin-collapse-focus' : '' ?>>
             <summary class="admin-collapse__summary">
               <span class="admin-collapse__caret" aria-hidden="true"></span>
               <span class="admin-section-row__name admin-collapse__title"><?= $h($rowLabel) ?></span>
@@ -103,6 +109,9 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                   <span class="admin-badge admin-badge--info">Onderdeel uit</span>
                 <?php elseif ($isUnsupported): ?>
                   <span class="admin-badge admin-badge--warning"><?= admin_te('page.not_supported') ?></span>
+                <?php endif; ?>
+                <?php if ($isJustSaved): ?>
+                  <span class="admin-badge admin-badge--saved"><?= admin_te('blocks.saved_badge') ?></span>
                 <?php endif; ?>
                 <?php if ($isHidden): ?>
                   <span class="admin-badge admin-badge--muted">Verborgen</span>
@@ -204,12 +213,37 @@ function content_blocks_owner_panel(string $kind, int $ownerId, string $csrfToke
         echo '<p class="admin-alert admin-alert--success">' . admin_te('page.sectie_verwijderd') . '</p>';
     }
 
+    $saved = content_blocks_saved_section($state['sections']);
+    if ($saved !== 0) {
+        echo '<p class="admin-alert admin-alert--success">' . admin_te('blocks.saved_notice') . '</p>';
+    }
+
     if (is_string($error) && $error !== '') {
         echo '<p class="admin-alert admin-alert--error">' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</p>';
     }
 
     $added = filter_input(INPUT_GET, 'added', FILTER_VALIDATE_INT) ?: 0;
-    content_blocks_list($state['page'], $state['sections'], $state['available'], $csrfToken, (int) $added);
+    content_blocks_list($state['page'], $state['sections'], $state['available'], $csrfToken, (int) $added, $saved);
+}
+
+/**
+ * The block a block editor's save just landed here with (`?saved=<id>`,
+ * ContentBlockAccess::afterSaveUrl()), or 0 — also when the id is not one of
+ * THIS list's rows, so a hand-made URL cannot make the list claim a save.
+ *
+ * @param list<array<string, mixed>> $sections the list's page_sections rows
+ */
+function content_blocks_saved_section(array $sections): int
+{
+    $saved = filter_input(INPUT_GET, 'saved', FILTER_VALIDATE_INT) ?: 0;
+
+    foreach ($sections as $section) {
+        if ((int) $section['id'] === $saved) {
+            return $saved;
+        }
+    }
+
+    return 0;
 }
 
 /**

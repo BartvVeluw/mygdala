@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_gallery_selection.php';
 require_once __DIR__ . '/_button_style_field.php';
@@ -18,7 +19,6 @@ use App\Service\SectionRegistry;
 use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
-use App\Repository\PageSectionRepository;
 
 /**
  * Editor for one Portfolio-/collectiegalerij block
@@ -61,7 +61,7 @@ $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
 // Projecten. Each row is edited by the editor of the block that placed it
 // (page_sections.section_type), so this screen can never turn another block
 // into a gallery of something else.
-if ((new PageSectionRepository())->findBySectionTypeAndId('item_gallery', (int) $section['id']) === null) {
+if (!\App\Service\Blocks\ContentBlockDrafts::belongsTo('item_gallery', (int) $section['id'])) {
     http_response_code(404);
     exit(admin_t('screen.onbekende_sectie'));
 }
@@ -179,7 +179,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_gallery.text', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <?php if (!block_editor_draft_notice('item_gallery', $csrfToken)): ?>
+    <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_gallery.text', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <?php endif; ?>
   <h1><?= $h(SectionRegistry::label('item_gallery')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_gallery.galerij_kiest_hier_w', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 

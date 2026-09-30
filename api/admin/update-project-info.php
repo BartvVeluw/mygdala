@@ -61,10 +61,21 @@ if (!in_array($position, ProjectInfoContent::POSITIONS, true)) {
     exit;
 }
 
+$db = \App\Database::connection();
+
 try {
+    // The setting and, for a new block, its place on the page are one save
+    // (App\Service\Blocks\ContentBlockDrafts).
+    $db->beginTransaction();
     $repository->updateSettings((int) $section['id'], $position, $showGallery);
+    $placed = \App\Service\Blocks\ContentBlockDrafts::place('project_info', (int) $section['id']);
+    $db->commit();
     ProjectInfoContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-project-info.php] ' . $e->getMessage());
 
     $_SESSION['admin_project_info_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
@@ -72,5 +83,5 @@ try {
     exit;
 }
 
-header('Location: ' . $redirect . '&saved=1');
+header('Location: ' . \App\Service\ContentOwners\ContentBlockAccess::afterSaveUrl($placed, $redirect));
 exit;

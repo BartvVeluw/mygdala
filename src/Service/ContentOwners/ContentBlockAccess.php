@@ -201,6 +201,33 @@ final class ContentBlockAccess
         return '/admin/page.php?id=' . (int) ($page['id'] ?? 0);
     }
 
+    /**
+     * Where a block editor's successful save lands (Content Blocks Lifecycle
+     * 1.0): the list the block stands in — the page builder, or the owner's
+     * Pagina-inhoud tab — naming the block, so the list can say it was saved
+     * and scroll to it (`saved=<page_sections id>#blok-<id>`).
+     *
+     * The destination is derived from the block's own page_sections row and
+     * that row's page, never from the request: there is no return URL to
+     * forge, and the list is the one the save was already allowed to write
+     * to. A row that stands on no page (ContentBlockDrafts::place() returned
+     * null) keeps the old behaviour: back to its editor, `saved=1`.
+     *
+     * @param array<string, mixed>|null $placed the block's page_sections row
+     */
+    public static function afterSaveUrl(?array $placed, string $editorUrl): string
+    {
+        $page = $placed === null ? null : (new PageRepository())->findById((int) $placed['page_id']);
+
+        if ($page === null) {
+            return $editorUrl . (str_contains($editorUrl, '?') ? '&' : '?') . 'saved=1';
+        }
+
+        $id = (int) $placed['id'];
+
+        return self::listUrl($page) . '&saved=' . $id . '#blok-' . $id;
+    }
+
     private static function forbidApi(): never
     {
         http_response_code(403);

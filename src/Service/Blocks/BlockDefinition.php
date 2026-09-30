@@ -399,6 +399,27 @@ abstract class BlockDefinition
     }
 
     /**
+     * Whether a new instance chosen in the block picker opens its editor as a
+     * DRAFT: its content row exists, but it joins the page only when its
+     * editor saves it the first time, and Annuleren leaves the page exactly
+     * as it was (App\Service\Blocks\ContentBlockDrafts, CONTENT-BLOCKS.md,
+     * "De levensloop van een nieuw blok"). True for every block with an
+     * editor of its own: its endpoint places the draft with
+     * ContentBlockDrafts::place(), which
+     * Tests\Service\ContentBlockLifecycleContractTest checks.
+     *
+     * False only for a block that is not a fresh row of its own — the
+     * heroes, whose create() writes the one row of their page (an upsert, not
+     * a new instance a cancel could take back) — and for a block without an
+     * editor (Productraster, Collecties), which has nothing to save and is
+     * placed on the page at once.
+     */
+    public function opensAsDraft(): bool
+    {
+        return true;
+    }
+
+    /**
      * @param array<string, mixed> $pageSection
      */
     protected function pageSlug(array $pageSection): string

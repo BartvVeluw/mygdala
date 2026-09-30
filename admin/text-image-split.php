@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
@@ -305,7 +306,9 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_textimage.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
+  <?php if (!block_editor_draft_notice('text_image_split', $csrfToken)): ?>
+    <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_textimage.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
+  <?php endif; ?>
   <h1><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_textimage.sectie_wijzigingen_direct_zichtbaar', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></p>
 

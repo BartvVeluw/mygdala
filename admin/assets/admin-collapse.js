@@ -16,7 +16,9 @@
  *      the next load of the screen opens it, asks admin-tabs.js to open the
  *      tab it lives in, and scrolls it into view. The target is consumed on
  *      arrival, so coming back from a block editor lands on that block and an
- *      ordinary visit later still starts at the top.
+ *      ordinary visit later still starts at the top. An item the server
+ *      marked data-admin-collapse-focus (the block a save just landed back
+ *      with) is that target without any remembering.
  *
  * There is nothing block-specific here, and nothing a new content block has
  * to implement: everything is read from the markup the list already writes.
@@ -126,6 +128,14 @@
         write(returnKey, item.getAttribute("data-admin-collapse-id"));
       });
     }
+
+    // The server can name the item too: the block whose editor just saved
+    // (data-admin-collapse-focus, admin/_content_blocks.php). It wins over a
+    // remembered target, because it is what the editor just worked on.
+    var serverFocus = items.filter(function (item) {
+      return item.hasAttribute("data-admin-collapse-focus");
+    })[0];
+    if (serverFocus) focusItem = serverFocus;
 
     if (!focusItem) return;
 

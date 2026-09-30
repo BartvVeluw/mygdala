@@ -378,6 +378,9 @@ try {
         static fn (array $order) => $repository->reorderItems($sectionId, $order)
     );
 
+    // A new block joins its page now, in this save's transaction
+    // (App\Service\Blocks\ContentBlockDrafts); an existing one is found.
+    $placed = \App\Service\Blocks\ContentBlockDrafts::place('text_image_split', $sectionId);
     $db->commit();
     TextImageSplitContent::clearCache();
 } catch (\Throwable $e) {
@@ -393,5 +396,5 @@ try {
     exit;
 }
 
-header('Location: ' . $redirect . '&saved=1');
+header('Location: ' . \App\Service\ContentOwners\ContentBlockAccess::afterSaveUrl($placed, $redirect));
 exit;

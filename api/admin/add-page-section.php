@@ -32,6 +32,16 @@
  * after that block passed the same checks — validated against a stand-in for
  * the page it will be (ContentPages::placeholder()) — so an owner nobody adds
  * a block to never gets one. From there on it is the same request.
+ *
+ * A NEW BLOCK IS A DRAFT UNTIL ITS FIRST SAVE (Content Blocks Lifecycle 1.0):
+ * for a block with an editor of its own (SectionRegistry::opensAsDraft()) this
+ * creates the content row only, records it in App\Service\Blocks\ContentBlockDrafts
+ * and opens the editor. The page gets nothing — no row in its list, no
+ * position — until that editor saves; Annuleren (api/admin/discard-block-draft.php)
+ * and the browser's back button leave the page exactly as it was. A block
+ * without an editor (Productraster) has nothing to save and is placed at once,
+ * as before. Every block choice also clears drafts nobody came back to
+ * (ContentBlockDrafts::purgeStale()).
  */
 
 declare(strict_types=1);
@@ -42,6 +52,7 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
+use App\Service\Blocks\ContentBlockDrafts;
 use App\Service\ContentOwners\ContentBlockAccess;
 use App\Service\ContentOwners\ContentOwners;
 use App\Service\ContentOwners\ContentPages;
@@ -115,25 +126,56 @@ if (!array_key_exists($sectionType, $available)
     exit('This section type cannot be added to this page.');
 }
 
+ContentBlockDrafts::purgeStale();
+
+$draft = null;
+
 try {
-    // The owner's content page, made now for its first block.
+    // The owner's content page, made now for its first block. Its editor
+    // needs the page to exist; a cancelled first block takes it away again.
     if ($owner !== null && (int) $page['id'] === 0) {
         $page = ContentPages::ensure($ownerKind, $ownerId);
     }
 
-    [$sectionId, $sectionKey] = SectionRegistry::create($sectionType, (string) $page['content_key'], $preset);
-    $newId = $repository->create(
-        (int) $page['id'],
-        (string) $page['content_key'],
-        $sectionType,
-        $sectionKey,
-        $sectionId
-    );
+    if (SectionRegistry::opensAsDraft($sectionType)) {
+        $draft = ContentBlockDrafts::open($page, $sectionType, $preset);
+    } else {
+        [$sectionId, $sectionKey] = SectionRegistry::create($sectionType, (string) $page['content_key'], $preset);
+        $newId = $repository->create(
+            (int) $page['id'],
+            (string) $page['content_key'],
+            $sectionType,
+            $sectionKey,
+            $sectionId
+        );
+    }
 } catch (\Throwable $e) {
     error_log('[api/admin/add-page-section.php] ' . $e->getMessage());
 
     $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_toegevoegd_probeer_opnieuw');
     header('Location: ' . ((int) $page['id'] > 0 ? ContentBlockAccess::listUrl($page) : $owner->editUrl($ownerId)));
+    exit;
+}
+
+// A draft goes straight into its editor, which is where the editor wants to
+// be after choosing a block; the page has not changed.
+if ($draft !== null) {
+    $draftEditUrl = SectionRegistry::editUrl($draft);
+
+    if ($draftEditUrl === null) {
+        // Only a block with an editor opens as a draft; one that has none
+        // after all could never be saved, so it is not left behind.
+        $record = ContentBlockDrafts::find($sectionType, (int) $draft['section_id']);
+        if ($record !== null) {
+            ContentBlockDrafts::discard($record);
+        }
+
+        $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_toegevoegd_probeer_opnieuw');
+        header('Location: ' . ContentBlockAccess::listUrl($page));
+        exit;
+    }
+
+    header('Location: ' . $draftEditUrl);
     exit;
 }
 

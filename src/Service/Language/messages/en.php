@@ -888,8 +888,6 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'blocks.view_label' => 'View',
     'blocks.view_cards' => 'Cards',
     'blocks.view_list' => 'List',
-    'blocks.empty_title' => 'Your page has no content yet.',
-    'blocks.empty_text' => 'Add your first content block below.',
     'blocks.preview_document_title' => 'Preview: :block',
     'blocks.preview_not_found' => 'There is no preview of this content block.',
     'blocks.preview_open' => 'View example',
@@ -4359,4 +4357,12 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'buttons.field_label_secondary' => 'Button style of the second button',
     'buttons.field_default' => 'Default (:name)',
     'help.buttons.field' => 'On <strong>Default</strong> the button follows the website\'s default button: when that changes, this button changes along. Choose a button style and the button gets that design. Styles are made and changed under Design → Buttons.',
+
+    // --- Content Blocks Lifecycle 1.0 (admin/_block_editor.php, admin/_content_blocks.php)
+    'blocks.draft_title' => 'New block.',
+    'blocks.draft_text' => 'It is not on the page yet. It is added as soon as you save.',
+    'blocks.draft_cancel' => 'Cancel',
+    'blocks.draft_discard_failed' => 'The new block could not be cleared away. Nothing on the page has changed.',
+    'blocks.saved_badge' => 'Saved',
+    'blocks.saved_notice' => 'The content block has been saved.',
 ];

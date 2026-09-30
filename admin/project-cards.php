@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_gallery_selection.php';
 
@@ -16,7 +17,6 @@ use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
-use App\Repository\PageSectionRepository;
 
 /**
  * Editor for one "Projecten" block (?section=<page content_key>:<section_key>):
@@ -61,7 +61,7 @@ $section = ($page === null || $sectionKey === null || $sectionKey === '')
     : (new ItemGalleryRepository())->findBySlugAndKey($pageSlug, $sectionKey);
 
 if ($section === null
-    || (new PageSectionRepository())->findBySectionTypeAndId('project_cards', (int) $section['id']) === null
+    || !\App\Service\Blocks\ContentBlockDrafts::belongsTo('project_cards', (int) $section['id'])
 ) {
     http_response_code(404);
     exit(admin_t('screen.onbekende_sectie'));
@@ -132,7 +132,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_projects.back', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <?php if (!block_editor_draft_notice('project_cards', $csrfToken)): ?>
+    <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_projects.back', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <?php endif; ?>
   <h1><?= $h(SectionRegistry::label('project_cards')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_projects.intro', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 

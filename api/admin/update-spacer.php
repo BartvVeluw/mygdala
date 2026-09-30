@@ -61,10 +61,21 @@ if (!array_key_exists($size, SpacerContent::SIZES)) {
     exit;
 }
 
+$db = \App\Database::connection();
+
 try {
+    // The setting and, for a new block, its place on the page are one save
+    // (App\Service\Blocks\ContentBlockDrafts).
+    $db->beginTransaction();
     $repository->updateSize((int) $section['id'], $size);
+    $placed = \App\Service\Blocks\ContentBlockDrafts::place('spacer', (int) $section['id']);
+    $db->commit();
     SpacerContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-spacer.php] ' . $e->getMessage());
 
     $_SESSION['admin_spacer_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
@@ -72,5 +83,5 @@ try {
     exit;
 }
 
-header('Location: ' . $redirect . '&saved=1');
+header('Location: ' . \App\Service\ContentOwners\ContentBlockAccess::afterSaveUrl($placed, $redirect));
 exit;

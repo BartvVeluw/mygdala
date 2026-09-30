@@ -154,4 +154,10 @@ final class ProductGridBlock extends BlockDefinition
     {
         return null;
     }
+
+    /** Placed at once: no editor of its own: nothing to save, so it is placed at once. */
+    public function opensAsDraft(): bool
+    {
+        return false;
+    }
 }

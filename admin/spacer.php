@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_admin_ui.php';
 
 use App\Repository\SpacerRepository;
@@ -60,7 +61,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_spacer.terug', ['v1' => $h($pageLabel)]) ?></a></p>
+  <?php if (!block_editor_draft_notice('spacer', $csrfToken)): ?>
+    <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_spacer.terug', ['v1' => $h($pageLabel)]) ?></a></p>
+  <?php endif; ?>
   <h1><?= $h(SectionRegistry::label('spacer')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_spacer.uitleg', ['v1' => $h($pageLabel)]) ?></p>
 

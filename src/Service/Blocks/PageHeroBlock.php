@@ -246,4 +246,10 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
     {
         return 'page_heroes';
     }
+
+    /** Placed at once: create() writes the page's one hero row (an upsert), not a new instance a cancel could take back. */
+    public function opensAsDraft(): bool
+    {
+        return false;
+    }
 }

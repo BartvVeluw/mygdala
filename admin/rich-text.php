@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_block_editor.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
@@ -120,7 +121,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_richtext.terug', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <?php if (!block_editor_draft_notice('rich_text', $csrfToken)): ?>
+    <p><a href="<?= htmlspecialchars(\App\Service\ContentOwners\ContentBlockAccess::listUrl($page), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_richtext.terug', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
+  <?php endif; ?>
   <h1><?= $h(SectionRegistry::label('rich_text')) ?></h1>
   <p class="admin-text-muted"><?= admin_t('block_richtext.sectie_pagina', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 

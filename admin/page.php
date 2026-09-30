@@ -132,7 +132,7 @@ if (\App\Service\ContentOwners\ContentPages::isContentPage($page)) {
         exit(admin_t('screen.pagina_gevonden'));
     }
 
-    $passOn = array_intersect_key($_GET, ['added' => true, 'deleted' => true]);
+    $passOn = array_intersect_key($_GET, ['added' => true, 'deleted' => true, 'saved' => true]);
     header('Location: ' . $contentOwner['owner']->editUrl($contentOwner['id'])
         . ($passOn === [] ? '' : '&' . http_build_query(array_map('strval', $passOn))));
     exit;
@@ -228,6 +228,11 @@ $deletedSection = isset($_GET['deleted']);
 // editor when there is one). Then the least the page can do is point at the
 // row that appeared, instead of leaving the editor to spot it.
 $addedSectionId = filter_input(INPUT_GET, 'added', FILTER_VALIDATE_INT) ?: 0;
+
+// A block whose editor just saved lands here (Content Blocks Lifecycle 1.0,
+// ContentBlockAccess::afterSaveUrl()): named only when it is one of this
+// page's own rows.
+$savedSectionId = content_blocks_saved_section($allSections);
 
 /**
  * Value precedence: freshly re-submitted (invalid) input, then the stored
@@ -331,7 +336,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
  * Pagina, and so does a new web address waiting for confirmation. A saved
  * one leaves the choice alone.
  */
-$forcedTab = ($errors !== [] || $pagesError !== null || $urlChange !== null) ? 'pagina' : null;
+$forcedTab = ($errors !== [] || $pagesError !== null || $urlChange !== null) ? 'pagina' : ($savedSectionId !== 0 ? 'inhoud' : null);
 
 // The address field stays open whenever the form holds an address other than
 // the stored one — a refused save, or one waiting for confirmation — so the
@@ -377,6 +382,9 @@ $urlFieldOpen = !$hasFixedUrl
   <?php endif; ?>
   <?php if ($updated): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('page.pagina_instellingen_opgeslagen') ?></p>
+  <?php endif; ?>
+  <?php if ($savedSectionId !== 0): ?>
+    <p class="admin-alert admin-alert--success"><?= admin_te('blocks.saved_notice') ?></p>
   <?php endif; ?>
   <?php if ($deletedSection): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('page.sectie_verwijderd') ?></p>
@@ -716,7 +724,7 @@ $urlFieldOpen = !$hasFixedUrl
 
 <?php /* The block list itself is shared with the Pagina-inhoud tab of a
          product and a project (admin/_content_blocks.php). */ ?>
-<?php content_blocks_list($page, $allSections, $availableBlocks, $csrfToken, $addedSectionId); ?>
+<?php content_blocks_list($page, $allSections, $availableBlocks, $csrfToken, $addedSectionId, $savedSectionId); ?>
   <?php admin_tab_panel_end(); ?>
 
   <?php /* The second Pagina panel. It has to be one: it carries a <form> of

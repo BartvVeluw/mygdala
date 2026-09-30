@@ -38,9 +38,9 @@
  *   - data-save-bar-unsaved on a form: what is on screen was sent but not
  *     written (a refused save, or a change waiting for confirmation), so the
  *     form starts out unsaved;
- *   - data-save-bar-discard on a link: following it throws that input away
- *     on purpose ("Annuleren" on such a screen), so the browser does not ask
- *     a second time.
+ *   - data-save-bar-discard on a link (or a submit button): following it
+ *     throws that input away on purpose ("Annuleren" on such a screen, or on
+ *     a new block), so the browser does not ask a second time.
  *
  * AND ONE A SCREEN MAY CHOOSE: data-save-bar-fallback on a form's own submit
  * button says that button only exists for a browser without this script.
@@ -177,10 +177,13 @@
    * The address an endpoint redirects to when it accepted the data. Every
    * write endpoint in this project appends one of these markers on success
    * and redirects back without it on failure, so this is the server's own
-   * answer rather than a guess about what a 200 means.
+   * answer rather than a guess about what a 200 means. A block editor's save
+   * lands on its page's list naming the block, `saved=<id>`
+   * (ContentBlockAccess::afterSaveUrl()); the fragment never reaches
+   * response.url.
    */
   function wasAccepted(response) {
-    return response.ok && /[?&](saved|updated|created)=1(&|$)/.test(response.url);
+    return response.ok && /[?&](saved|updated|created)=[1-9][0-9]*(&|$)/.test(response.url);
   }
 
   function saveSequentially(queue, index) {
@@ -291,10 +294,12 @@
   /**
    * "Annuleren" on a screen that holds unsent input is the editor's answer
    * already. Only a plain click that navigates this tab counts: a new tab or
-   * window leaves this page, and its input, where it is.
+   * window leaves this page, and its input, where it is. A submit button
+   * counts too: Annuleren on a NEW block is a small form of its own
+   * (admin/_block_editor.php) that removes the block it would have saved.
    */
   document.addEventListener("click", function (event) {
-    var link = event.target && event.target.closest ? event.target.closest("a[href][data-save-bar-discard]") : null;
+    var link = event.target && event.target.closest ? event.target.closest("a[href][data-save-bar-discard], button[type=submit][data-save-bar-discard]") : null;
     if (!link || event.defaultPrevented || event.button !== 0) return;
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
 
