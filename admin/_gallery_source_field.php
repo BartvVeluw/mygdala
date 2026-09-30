@@ -22,6 +22,14 @@ use App\Service\Routing\LinkTargets;
  * which stays what is posted). There is no second address field: an item
  * links to itself.
  *
+ * ONE CHOICE, "Afbeeldingsbron" (Detailsectie 2.1): the Media Library, or a
+ * kind. An item needs nothing else: its MAIN PICTURE (the module's
+ * linkedImages() provider) and its PAGE (LinkTargets::href()) come with it,
+ * live, so there is no second, required picture to pick. Only the panel of
+ * the chosen source shows; that switch is admin/assets/navigation-item.js,
+ * so the form must carry data-nav-item-form. An item without a main picture
+ * yet says so (data-linked-image-no-picture) and is a name tile on the site.
+ *
  * What it posts, per row: `source` ('media' or a kind) and, per kind,
  * `source_<kind>` = the chosen id. The endpoint keeps a stored choice the
  * picker can no longer offer (gone, not public, a module that is off) and
@@ -45,6 +53,9 @@ function gallery_source_field(string $list, string $key, array $fields, callable
     $keepsUnavailable = $source !== 'media' && !isset($kinds[$source]);
     $disabledModule = $keepsUnavailable ? LinkedImages::disabledModuleOf($source) : null;
     $id = 'gallery-' . $list . '-' . $key;
+    // The stored item is public but has no main picture yet: say so now.
+    $storedItem = $source !== 'media' && !$keepsUnavailable ? LinkedImages::item($source, (int) ($fields['source_' . $source] ?? 0)) : null;
+    $withoutPicture = $storedItem !== null && $storedItem['image_path'] === '';
     $name = static fn (string $field): string => editor_row_name($list, $key, $field);
     ?>
       <div class="admin-gallery-source" data-nav-link-group>
@@ -89,6 +100,7 @@ function gallery_source_field(string $list, string $key, array $fields, callable
                 <option value="<?= (int) $choice['id'] ?>"<?= !empty($choice['context']) ? ' disabled' : ($selected === (int) $choice['id'] ? ' selected' : '') ?><?= $note !== '' ? ' data-note="' . $h($note) . '"' : '' ?><?= isset($choice['thumbnail']) ? ' data-thumbnail="' . $h((string) $choice['thumbnail']) . '"' : '' ?> data-name="<?= $h((string) $choice['label']) ?>"><?= $h($choice['label']) ?><?= $note !== '' ? ' ' . admin_te('link_choice.note_' . $note) : '' ?></option>
               <?php endforeach; ?>
             </select>
+            <p class="admin-text-muted admin-gallery-source__follows"><?= admin_te('gallery_source.follows') ?></p>
             <?php if ($selected > 0 && $chosen === null): ?>
               <p class="admin-alert admin-alert--warning admin-destination__warning" role="status" data-destination-warning="<?= $selected ?>"><?= admin_te('gallery_source.gone_warning') ?></p>
             <?php elseif ($chosen !== null && isset($chosen['note'])): ?>
@@ -101,6 +113,11 @@ function gallery_source_field(string $list, string $key, array $fields, callable
                  the focus frame: admin/assets/gallery-source.js shows this
                  line then. A stored choice has its own warning above. */ ?>
         <p class="admin-text-muted" data-linked-image-missing hidden><?= admin_te('gallery_source.no_preview') ?></p>
+        <?php /* A public item without a main picture yet (Detailsectie 2.1):
+                 nothing to choose here, the website shows its name as a
+                 tile. Shown for the stored choice, and by gallery-source.js
+                 for one made on screen. */ ?>
+        <p class="admin-alert admin-alert--warning" role="status" data-linked-image-no-picture<?= $withoutPicture ? '' : ' hidden' ?>><?= admin_te('gallery_source.no_picture') ?></p>
 
         <?php if ($keepsUnavailable): ?>
           <?php /* The stored item, as the endpoint needs it to keep it. */ ?>

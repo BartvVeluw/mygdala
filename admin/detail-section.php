@@ -15,6 +15,7 @@ require_once __DIR__ . '/_gallery_source_field.php';
 require_once __DIR__ . '/_label_mode_field.php';
 require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_button_style_field.php';
+require_once __DIR__ . '/_admin_collapse.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -67,6 +68,15 @@ use App\Repository\DetailSectionRepository;
  * (admin/_gallery_source_field.php, App\Service\Media\LinkedImages). The
  * explanations are the shared help (admin_field_label()'s help and
  * admin_info_panel(), ADMIN-UI.md), not paragraphs under every field.
+ *
+ * DETAILSECTIE 2.1. A gallery item has ONE choice, "Afbeeldingsbron":
+ * Mediabibliotheek, or a product or project (or any other kind a module
+ * offers). Only the chosen source's panel shows — the form carries
+ * data-nav-item-form, the hook of admin/assets/navigation-item.js; without it
+ * every panel was on screen at once and a product picked while the source
+ * still said "Afbeelding" was saved as a library item that demanded a
+ * picture and linked nowhere. A linked item brings its own main picture and
+ * its own page. Gallery items fold to one summary line each.
  */
 
 AdminAuth::requireLogin();
@@ -192,8 +202,25 @@ $pointRow = static function (string $key, array $fields, int $position, int $cou
  * or blog post shown with its own picture (admin/_gallery_source_field.php)
  * — and then only the part that source needs.
  */
-$imageRow = static function (string $key, array $fields, int $position, int $count) use ($placeholder, $fieldErrors): void {
-    editor_row_open('images', $key, admin_t('block_detail.galerij_item'), $position, $count, ($fields['remove'] ?? '') !== '');
+$imageRow = static function (string $key, array $fields, int $position, int $count) use ($placeholder, $fieldErrors, $editLanguage): void {
+    // FOLDED (Detailsectie 2.1): a gallery of ten items is ten summary lines
+    // "Item 3 — Product: Houten naambordje" (the shared collapsible row,
+    // editor_row_open()), not ten open forms. A new item, one with a
+    // message and a lone one start open; the others remember how the editor
+    // left them, by the row's own key (its id), so adding or moving an item
+    // never opens the wrong one. admin/assets/gallery-source.js keeps the
+    // summary on the source chosen on screen.
+    $hasMessage = false;
+    foreach (array_keys($fieldErrors) as $errorKey) {
+        if (str_starts_with((string) $errorKey, 'images.' . $key . '.')) {
+            $hasMessage = true;
+        }
+    }
+    editor_row_open('images', $key, admin_t('block_detail.galerij_item'), $position, $count, ($fields['remove'] ?? '') !== '', '', [
+        'title' => detail_section_item_title($fields, $editLanguage),
+        'open' => !ctype_digit($key) || $hasMessage || $count === 1,
+        'force' => $hasMessage,
+    ]);
     gallery_source_field('images', $key, $fields, static function () use ($key, $fields, $fieldErrors, $placeholder): void {
         editor_row_media('images', $key, $fields, $fieldErrors, ctype_digit($key) ? 'Afbeelding' : 'Afbeelding*');
         editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
@@ -228,8 +255,36 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
         'legend' => admin_t('block_detail.focuspunt'),
         'help' => admin_t('help.block_detail.focuspunt'),
     ]);
-    editor_row_close();
+    editor_row_close(true);
 };
+
+/**
+ * What a folded gallery item's summary names: its source and what was
+ * chosen there — "Mediabibliotheek: Foto 03", "Product: Houten naambordje" —
+ * or '' while nothing is chosen. The item's name in the language being
+ * edited, "#<id>" for one that is gone.
+ *
+ * @param array<string, string> $fields
+ */
+function detail_section_item_title(array $fields, string $language): string
+{
+    $source = (string) ($fields['source'] ?? '');
+    if ($source === '' || $source === 'media') {
+        $media = MediaService::find((int) ($fields['media_id'] ?? 0));
+
+        return $media === null ? '' : admin_t('gallery_source.media') . ': ' . $media->displayName();
+    }
+
+    $id = (int) ($fields['source_' . $source] ?? 0);
+    if ($id < 1) {
+        return '';
+    }
+
+    $kinds = \App\Service\Media\LinkedImages::kinds();
+    $name = \App\Service\Routing\LinkTargets::title($source, $id, $language) ?? '#' . $id;
+
+    return isset($kinds[$source]) ? $kinds[$source] . ': ' . $name : $name;
+}
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -266,7 +321,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-detail-section.php" class="admin-product-form" data-save-name="<?= $h(SectionRegistry::label('detail_section')) ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+  <form method="post" action="/api/admin/update-detail-section.php" class="admin-product-form" data-nav-item-form data-save-name="<?= $h(SectionRegistry::label('detail_section')) ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <?php /* Enter in a text field presses the FIRST submit button of a form.
              This one is a plain save, so Enter never moves a row. */ ?>
     <button type="submit" class="admin-visually-hidden" tabindex="-1" aria-hidden="true"><?= admin_te('common.save') ?></button>
@@ -384,7 +439,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       <?php endif; ?>
 
       <input type="hidden" name="images_present" value="1">
-      <div class="admin-row-cards" data-row-list="detail-section-images" data-linked-image-preview="/api/admin/linked-image-preview.php">
+      <div class="admin-row-cards" data-row-list="detail-section-images" data-linked-image-preview="/api/admin/linked-image-preview.php" data-admin-collapse-group="detail-section-images" data-admin-collapse-scope="<?= $sectionId ?>" data-admin-collapse-no-return>
         <?php foreach ($imageRows as $position => $row): ?>
           <?php $imageRow($row['key'], $row['fields'], $position, count($imageRows)); ?>
         <?php endforeach; ?>
@@ -407,6 +462,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <?php label_mode_field_script(); ?>
 <?php responsive_image_field_script(); ?>
 <?php gallery_source_field_script(); ?>
+<?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

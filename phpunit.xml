@@ -134,6 +134,7 @@
              server, so CMS content cannot affect them at all. -->
         <testsuite name="contract">
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
+            <file>tests/Service/DetailSectionTwoOneContractTest.php</file>
             <file>tests/Service/NavigationTreeContractTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
@@ -216,6 +217,7 @@
              to run constantly while writing code. -->
         <testsuite name="fast">
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
+            <file>tests/Service/DetailSectionTwoOneContractTest.php</file>
             <file>tests/Service/NavigationTreeContractTest.php</file>
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>
@@ -604,7 +606,10 @@
             <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
             <file>tests/Service/DetailSectionTwoTest.php</file>
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
+            <file>tests/Service/DetailSectionTwoOneContractTest.php</file>
             <file>tests/Service/DetailSectionTwoHttpTest.php</file>
+            <file>tests/Service/DetailSectionTwoOneTest.php</file>
+            <file>tests/Service/DetailSectionTwoOneHttpTest.php</file>
             <file>tests/Service/ContentOwnerPagesRoutingTest.php</file>
             <file>tests/Service/DetailSectionLabelModeHttpTest.php</file>
             <file>tests/Service/DetailSectionGalleryFocusHttpTest.php</file>

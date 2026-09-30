@@ -19,16 +19,48 @@
  * The focus sliders stay what they are whatever is shown, so a point set
  * before the first save is saved with it. A slower answer to an earlier
  * choice never overwrites a later one. This file holds no text of its own.
+ *
+ * Detailsectie 2.1: a public item WITHOUT a main picture yet answers
+ * {available: true, picture: false}; the row's [data-linked-image-no-picture]
+ * warning says so (nothing to choose here, the website shows its name). And
+ * a folded row's summary line ([data-row-list-title], admin/_editor_rows.php)
+ * follows the source chosen on screen: " — <source>: <name>", from the
+ * source option's own text and the chosen item's data-name, or the library
+ * picture's name in its picker.
  */
 (function () {
   "use strict";
 
   var sequence = 0;
 
-  function show(row, src, available) {
+  function show(row, src, available, picture) {
     var missing = row.querySelector("[data-linked-image-missing]");
     if (missing) missing.hidden = available;
+    var blank = row.querySelector("[data-linked-image-no-picture]");
+    if (blank) blank.hidden = !(available && picture === false);
     row.dispatchEvent(new CustomEvent("rm:picture", { bubbles: true, detail: { src: src } }));
+  }
+
+  function retitle(row) {
+    var title = row.querySelector("[data-row-list-title]");
+    var type = row.querySelector("[data-nav-link-type]");
+    if (!title || !type) return;
+
+    var option = type.selectedOptions[0];
+    var source = option ? option.textContent.trim() : "";
+    var name = "";
+
+    if (type.value === "media") {
+      var input = row.querySelector('[data-nav-link-field="media"] [data-media-picker-input]');
+      var chosen = row.querySelector('[data-nav-link-field="media"] .admin-media-picker__name');
+      name = input && input.value !== "" && chosen ? chosen.textContent.trim() : "";
+    } else {
+      var select = row.querySelector('[data-destination-select="' + type.value + '"]');
+      var item = select ? select.selectedOptions[0] : null;
+      name = item && item.value !== "" ? (item.getAttribute("data-name") || item.textContent).trim() : "";
+    }
+
+    title.textContent = name === "" ? "" : " \u2014 " + source + ": " + name;
   }
 
   function libraryPicture(row) {
@@ -44,14 +76,14 @@
     row.setAttribute("data-linked-image-ticket", ticket);
 
     if (kind === "media") {
-      show(row, libraryPicture(row), true);
+      show(row, libraryPicture(row), true, true);
       return;
     }
 
     var select = row.querySelector('[data-destination-select="' + kind + '"]');
     var id = select ? select.value : "";
     if (id === "") {
-      show(row, "", true);
+      show(row, "", true, true);
       return;
     }
 
@@ -67,16 +99,23 @@
       .catch(function () { return { src: "", available: false }; })
       .then(function (answer) {
         if (row.getAttribute("data-linked-image-ticket") !== ticket) return;
-        show(row, answer && typeof answer.src === "string" ? answer.src : "", !!(answer && answer.available));
+        show(row, answer && typeof answer.src === "string" ? answer.src : "", !!(answer && answer.available), !(answer && answer.picture === false));
       });
   }
 
   document.addEventListener("change", function (event) {
     var target = event.target;
-    if (!(target instanceof Element) || !target.matches("[data-nav-link-type], [data-destination-select]")) return;
+    if (!(target instanceof Element)) return;
 
     var list = target.closest("[data-linked-image-preview]");
     var row = target.closest("[data-row-list-row]");
-    if (list && row) refresh(row, list);
+    if (!list || !row) return;
+
+    if (target.matches("[data-nav-link-type], [data-destination-select]")) {
+      refresh(row, list);
+      retitle(row);
+    } else if (target.matches('[data-nav-link-field="media"] [data-media-picker-input]')) {
+      retitle(row);
+    }
   });
 })();
