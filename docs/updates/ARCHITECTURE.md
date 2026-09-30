@@ -58,14 +58,14 @@ uitzondering per bestand.
 |---|---|---|---|---|
 | root-`*.php`, `.htaccess`, `phinx.php`, `VERSION`, `composer.json`/`.lock`, `.env.example` | ja, release | ja | nee | ja, als hij vervangen of verwijderd wordt |
 | `admin/`, `api/`, `partials/`, `src/` | ja | ja | nee | idem |
-| `assets/css/`, `assets/js/`, `assets/images/block-preview/`, `assets/fonts/personalization/.htaccess` | ja | ja | nee | idem |
+| `assets/css/`, `assets/js/`, `assets/images/block-preview/`, `assets/fonts/personalization/.htaccess`, `assets/fonts/library/.htaccess` | ja | ja | nee | idem |
 | `db/migrations/`, `db/seeds/` | ja | ja | nee | idem |
 | `vendor/` (no-dev, meegeleverd: een gedeelde host heeft geen Composer) | ja | ja | nee | idem |
 | `scripts/` (productietools; niet `test-db.php`, `create_fresh_site_copy.php`, `release.php`) | ja | ja | nee | idem |
 | `release.json` | ja, als allerlaatste | ja | nee | ja |
 | `*.md`, `docs/`, `tests/`, `docker/`, `docker-compose.yml`, `phpunit.xml`, `.claude/`, editor- en tijdelijke bestanden, een verdwaalde `mygdala-release.key` | nee, zit niet in een release | nooit | ja, blijft staan als het er is | nee |
 | `.env`, `.env.*` | nee, installatie | **nooit** | ja | nee |
-| `assets/media/`, `assets/images/` (behalve `block-preview/`), `assets/videos/`, `assets/fonts/personalization/*` | nee, uploads | **nooit** | ja | nee |
+| `assets/media/`, `assets/images/` (behalve `block-preview/`), `assets/videos/`, `assets/fonts/personalization/*`, `assets/fonts/library/*` (de Font Library, `THEMING.md`) | nee, uploads | **nooit** | ja | nee |
 | `storage/` en de privé-opslag naast de site (bijlagen, facturen, personalisatie) | nee | **nooit** | ja | nee |
 | `.maintenance`, `.user.ini`, `php.ini`, `error_log` van de host | nee | **nooit** (alleen de updater zet en haalt zijn eigen vlag) | ja | nee |
 | de updatemap (`MYGDALA_UPDATE_STORAGE_PATH`) | werkmap van de updater, zelf installatie-eigendom | n.v.t. | ja | n.v.t. |

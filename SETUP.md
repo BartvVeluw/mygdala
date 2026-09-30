@@ -112,8 +112,10 @@ dus een lege Mediabibliotheek in plaats van het merk van iemand anders.
 
 ### 3. Vormgeving
 
-Dezelfde zeven instellingen als het scherm Vormgeving: vijf kleuren, één
-lettertypecombinatie uit de gesloten lijst, en de knopvorm. Ze gaan door
+Zeven van de instellingen van het scherm Vormgeving: vijf kleuren, één
+lettertypecombinatie uit de gesloten lijst, en de knopvorm. Een eigen
+lettertype per rol (de Font Library, `THEMING.md`) kiest de wizard niet: op
+een nieuwe site is de bibliotheek nog leeg. Ze gaan door
 `App\Service\Theme\ThemeSettings::validate()` — er is **geen tweede
 thema-engine** en de wizard verzint geen eigen regel over wat een kleur mag
 zijn.

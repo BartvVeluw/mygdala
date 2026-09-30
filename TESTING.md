@@ -378,6 +378,25 @@ actieve palet verandert, zet de tabel terug met `Tests\Support\ColorPaletteFixtu
 (`snapshot()` in `setUp()`, `restore()` in `tearDown()`): het actieve palet is
 de kleur van elke pagina die een latere test rendert.
 
+Bij de Font Library (`THEMING.md`, "Font Library") gericht:
+`FontFileInspectorTest` en `FontLibraryCssTest` (`unit`, `fast`, `cms`),
+`FontLibraryTest` (`cms`), `FontLibraryHttpTest` (`cms`, `modules`, eigen
+`php -S` met Paginathema's aan en uit), `FontLibraryApacheHttpTest` (`http`,
+`cms`) en `FontLibraryMigrationTest` (`migration`, `cms`; ScratchInstall
+`mygdala_scratch_fonts_fresh` en `_upgraded`). Er staat **geen echt
+lettertype** in de repository: `Tests\Support\FontFileFixture` bouwt
+structureel geldige TTF-, OTF-, WOFF- en WOFF2-bytes (en per regel één kapot
+bestand), `Tests\Support\FontLibraryFixture` maakt `ZZ Font`-families en zet
+de rollen van de website terug. `FontLibraryTest` schrijft in een tijdelijke
+map (`FontLibrary::useStorageForTests()`); de HTTP-tests schrijven in
+`assets/fonts/library/` van de uitchecking en ruimen dat op.
+
+Het beeld van de HTTP-tier heeft geen `mod_headers`. `FontLibraryApacheHttpTest`
+bewijst daar het MIME-type, de weigering van elk ander bestand in de map en
+de 404, en voor `nosniff` en de cache de regels in de `.htaccess`; op een
+server mét `mod_headers` (de SVG-regel in de root-`.htaccess` bewijst dat)
+controleert hij ook de headers zelf. Nooit een skip.
+
 Raakte je de stylesheets aan, controleer dan ook dat de standaardvormgeving
 onveranderd rendert — `THEMING.md` beschrijft de vergelijking van
 `getComputedStyle` vóór en ná.
@@ -1218,6 +1237,7 @@ testklassen:
 | `PageThemesRenderingHttpTest` | `modules` | eigen `php -S` met de dispatcher: tokens en lettertypes in `main`, geen overerving, `/en`, SEO gelijk, een pagina zonder thema byte voor byte gelijk, module uit en weer aan, gemanipuleerde rijen, veel bloktypes, het voorbeeld in de editor, product en project zonder thema |
 | `PageThemesApacheHttpTest` | `http`, `modules` | echte Apache: `php_test` toont het thema (NL en EN), `php_cms` (module uit) niet |
 | `PageThemesMigrationTest` | `migration`, `modules` | vers, bijgewerkt en opnieuw: bestaande pagina's `NULL`, de RESTRICT-sleutel, dezelfde kolommen |
+| `FontLibraryHttpTest` | `cms`, `modules` | eigen `php -S`: een paginathema met een eigen lettertype, met de module aan en uit (zie ook de Font Library hierboven) |
 
 Dat een paginathema los staat van het actieve kleurenpalet (activeren
 verandert het thema niet; module uit geeft het palet, weer aan het thema;

@@ -172,6 +172,7 @@ hij gebruikt.
 | Hoe een gewone CMS-pagina eruitziet als die niet de vormgeving van de site volgt (een paginathema) | `pageAppearance()` | `App\Service\Theme\PageThemeCss`, via `ModuleRegistry::pageAppearance()` (`THEMING.md`, "Paginathema's") |
 | Een eigen instelling op het tabblad Pagina van de pagina-editor, opgeslagen met de pagina | `pageSettingsSections()` (`App\Service\PageSettingsSection`) | `admin/page.php` en `api/admin/update-page.php` |
 | Een aan/uit-schakelaar op het scherm Vormgeving | `switchableFromAppearance()` | `admin/theme.php`, `api/admin/update-appearance-module.php` |
+| Waar de module een lettertype uit de Font Library gebruikt, zodat Core het niet laat verwijderen | `fontFamilyUsage()` | `App\Service\Theme\FontLibrary::usage()`, gevraagd aan elke geregistreerde module, aan of uit (`THEMING.md`, "Font Library") |
 
 Drie van die lijsten komen ergens in het midden van een bestaande, bewust
 geordende lijst terecht (de zijbalk, het permissieformulier, de routekiezer).
@@ -1716,10 +1717,13 @@ Eigen tabel (`page_themes`) en één kolom op `pages` (`page_theme_id`, FK
 RESTRICT), eigen repository (`PageThemeRepository`), eigen service
 (`App\Service\PageThemes\*`), eigen schermen (`admin/page-themes.php`,
 `admin/page-theme.php`, `admin/page-theme-preview.php`) en endpoints
-(`api/admin/*-page-theme.php`) achter `page_themes.manage`. Drie bijdragen:
+(`api/admin/*-page-theme.php`) achter `page_themes.manage`. Vier bijdragen:
 `pageAppearance()` (het uiterlijk van een pagina met een thema),
-`pageSettingsSections()` (de keuze op het tabblad Pagina) en
-`switchableFromAppearance()` (de schakelaar op Vormgeving). De vormgeving
+`pageSettingsSections()` (de keuze op het tabblad Pagina),
+`switchableFromAppearance()` (de schakelaar op Vormgeving) en
+`fontFamilyUsage()` (welke thema's een Font Library-familie gebruiken; twee
+kolommen op `page_themes` met een RESTRICT-sleutel naar Core's
+`font_families`). De vormgeving
 zelf — de kleurregel, de afgeleide tinten, de lettertypes en het afdrukken
 van het blok — blijft Core (`App\Service\Theme\*`); Core noemt de module
 nergens (`Tests\Module\PageThemesModuleTest`). Uitzetten verwijdert geen

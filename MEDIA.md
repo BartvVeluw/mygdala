@@ -1095,7 +1095,13 @@ er met een icoon in, omdat er van een video geen stilstaand beeld is.
   werkvlak van de configurator, geen herbruikbaar sitebeeld. Een eigen upload,
   bewust; een kandidaat voor later;
 - lettertypes van de personalisatie en bestanden van formulierinzendingen:
-  geen media-items (zie de tabel bovenaan).
+  geen media-items (zie de tabel bovenaan);
+- eigen lettertypen van de Font Library (Vormgeving → Lettertypen,
+  `assets/fonts/library/`, `THEMING.md`): een lettertype is een onderdeel
+  van de vormgeving met een rol (koppen, tekst), geen beeld met een alt-tekst,
+  en heeft daarom een eigen bibliotheek met eigen gebruiksbescherming. Een
+  latere iconenbibliotheek hoort juist wél bij de media (SVG-iconen door
+  `SvgSanitizer`), zie `THEMING.md`, "Font Awesome en een latere Icon Library".
 
 `Tests\Service\MediaPickerContractTest` houdt de lijst van CMS-schermen met
 een eigen bestandskiezer gesloten.

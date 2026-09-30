@@ -9,10 +9,10 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 | | Wie de site *is* | Hoe de site er *uitziet* |
 |---|---|---|
 | Klasse | `App\Service\SiteSettings` | `App\Service\Theme\ThemeSettings` |
-| Tabel | `site_settings` | `color_palettes` (kleuren) en `theme_settings` |
+| Tabel | `site_settings` | `color_palettes` (kleuren), `theme_settings` en `theme_font_roles` (eigen lettertype per rol, uit de Font Library) |
 | Scherm | Instellingen | Instellingen → Vormgeving |
-| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | kleurenpaletten (elk vijf kleuren, één actief), lettertypecombinatie, knopvorm |
-| Terugzetten | nooit automatisch | één knop (kleuren van het actieve palet, lettertype, knopvorm), en die raakt de linkerkolom niet aan |
+| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | kleurenpaletten (elk vijf kleuren, één actief), lettertypecombinatie, een eigen lettertype voor koppen en voor lopende tekst, knopvorm |
+| Terugzetten | nooit automatisch | één knop (kleuren van het actieve palet, lettertypecombinatie, eigen lettertypen per rol, knopvorm), en die raakt de linkerkolom niet aan; de Font Library zelf blijft staan |
 
 Twee tabellen en niet één met een prefix, precies omdat "standaardvormgeving
 herstellen" nooit een bedrijfsadres, een logo of een knoptekst mag meenemen.
@@ -127,20 +127,23 @@ zijn de kleurcomponent van het themascherm van de website
 (`.admin-theme-color`, `admin/assets/theme-admin.js`): het hexveld wordt
 verstuurd, de native kleurkiezer ernaast houdt het bij.
 
-## De zeven instellingen
+## De negen instellingen
 
 De vijf kleuren zijn die van het **actieve kleurenpalet** (`color_palettes`,
-zie "Kleurenpaletten"); lettertype en knopvorm zijn rijen in
-`theme_settings`.
+zie "Kleurenpaletten"); lettertypecombinatie en knopvorm zijn rijen in
+`theme_settings`; het eigen lettertype per rol staat in `theme_font_roles`
+(zie "Font Library").
 
 ```text
-primary_color        #C9A063   accent: knoppen, links, iconen, lijnen
-on_primary_color     #1B140D   tekst óp een gevulde knop
-background_color     #120D09   de ondergrond van elke pagina
-surface_color        #1C150E   kaarten, één tint boven de ondergrond
-text_color           #F5EFE4   lopende tekst en koppen
-font_pairing         trirong-quattrocento
-button_shape         pill
+primary_color           #C9A063   accent: knoppen, links, iconen, lijnen
+on_primary_color        #1B140D   tekst óp een gevulde knop
+background_color        #120D09   de ondergrond van elke pagina
+surface_color           #1C150E   kaarten, één tint boven de ondergrond
+text_color              #F5EFE4   lopende tekst en koppen
+font_pairing            trirong-quattrocento
+heading_font_family_id  ''        '' = het koplettertype van de combinatie
+body_font_family_id     ''        '' = het tekstlettertype van de combinatie
+button_shape            pill
 ```
 
 Dat zijn exact de waarden die `assets/css/core.css` zelf declareert. Daar
@@ -167,15 +170,18 @@ verandert nooit mee.
 admin/color-palette.php (kleuren)
   → api/admin/save-color-palette.php      ColorPaletteService::validate()
   → color_palettes                        één palet actief (activate-color-palette.php)
-admin/theme.php (lettertype, knopvorm)
+admin/theme.php (lettertypen, knopvorm)
   → api/admin/update-theme-settings.php   ThemeSettings::validate() + ::save()
   → theme_settings                        alleen wat iemand echt koos
+  → theme_font_roles                      eigen lettertype per rol (FontLibrary::setSiteRole())
 
-ThemeSettings::all()                      kleuren van het actieve palet + theme_settings
+ThemeSettings::all()                      kleuren van het actieve palet + theme_settings + rollen
 
 publieke pagina
   → App\Service\PageAssets::renderStyles()
-      1. het lettertype van de gekozen combinatie (ThemeFonts)
+      1. <style id="site-fonts">: @font-face van de Font Library-families die
+         deze pagina gebruikt (anders niets), en de stylesheet van de
+         combinatie zolang een rol die nog gebruikt (ThemeTypography)
       2. core.css + blok- en modulestylesheets
       3. <style id="site-theme">  — alleen wat afwijkt (ThemeCss)
   → partials/head-branding.php            theme-color + favicon
@@ -397,11 +403,12 @@ tokenmodel voor de website, een paginathema en deze preview.
 
 Nog niet gebouwd, wel voorbereid:
 
-- **Font Library 1.0** en **Button Styles 2.0** horen niet in een palet. Een
-  palet is kleur, en `theme_settings` houdt lettertype en knopvorm juist
-  apart van het palet. Wordt het later een benoemde "stijlset" (kleur +
-  letter + knop), dan komt die als eigen record naast `color_palettes`, niet
-  als extra kolommen erin.
+- **Font Library 1.0** (gebouwd, zie "Font Library") en **Button Styles 2.0**
+  horen niet in een palet. Een palet is kleur, en `theme_settings` en
+  `theme_font_roles` houden lettertype en knopvorm juist apart van het palet:
+  een ander palet activeren verandert nooit een lettertype. Wordt het later
+  een benoemde "stijlset" (kleur + letter + knop), dan komt die als eigen
+  record naast `color_palettes`, niet als extra kolommen erin.
 - De preview drukt al het lettertype en de knopvorm van de site af, en
   `ThemeSettings::all()` is al de enige lezer, dus een nieuwe bron hoeft maar
   op één plek aan te haken.
@@ -422,6 +429,223 @@ Alleen de gekozen combinatie wordt geladen. De `@import` die vroeger bovenaan
 downloadt Trirong niet meer. De combinatie `system` downloadt helemaal niets.
 
 Een combinatie toevoegen is één regel in `PAIRINGS`. Houd de lijst klein.
+
+De combinaties blijven altijd bestaan, ook met een Font Library vol eigen
+lettertypen: een combinatie is de **basis**, een eigen lettertype vervangt
+per rol alleen wat de beheerder kiest (hieronder).
+
+## Font Library (eigen lettertypen)
+
+Een beheerder kan eigen lettertypen uploaden en ze gebruiken voor de koppen
+en de lopende tekst van de website en van een paginathema. **Core**, geen
+module: Vormgeving, tabblad **Lettertypen**, achter `settings.manage`. Er is
+één bibliotheek; de website en de paginathema's kiezen er allebei uit, en
+geen van beide heeft een eigen upload.
+
+### Het model
+
+```text
+font_families      id, name (uniek, max. 80, alleen voor het CMS),
+                   category (sans|serif: de terugvalstack),
+                   source_url (optioneel, http/https: bron of licentie), timestamps
+font_files         id, font_family_id (FK CASCADE), weight (100-900),
+                   style (normal|italic), UNIQUE(family, weight, style),
+                   format (woff2|woff|ttf|otf, uit de bytes),
+                   file_name (gegenereerd, uniek), original_filename (alleen tonen),
+                   byte_size, timestamps
+theme_font_roles   role (PK: heading|body), font_family_id (FK RESTRICT)
+page_themes        heading_font_family_id, body_font_family_id (NULL of FK RESTRICT)
+```
+
+Migratie `20261004100000_create_font_library`: nieuwe tabellen en twee
+lege kolommen, **er wordt geen rij geschreven**. Elke site en elk
+paginathema houdt dus precies zijn lettertypen, en een upgrade zet nooit een
+eigen lettertype aan. Een verse installatie heeft een lege bibliotheek en
+werkt daarmee volledig: dan is Lettertypen alleen de uitleg en de knop om er
+een toe te voegen, en de keuze per rol staat niet eens op het scherm.
+
+### Combinatie plus rol
+
+Het oude model was één sleutel voor twee stacks. Het nieuwe voegt daar per
+rol één optionele familie aan toe, zonder dat een bestaande sleutel iets
+anders gaat betekenen:
+
+| Rol | Token | Eigen familie gekozen | Niet gekozen (`''`/NULL) |
+|---|---|---|---|
+| Koppen | `--font-display` | `'mygdala-font-<id>', <terugval van de soort>` | het koplettertype van de combinatie |
+| Lopende tekst | `--font-body` | idem | het tekstlettertype van de combinatie |
+
+`App\Service\Theme\ThemeTypography` is die ene regel, voor de website
+(`ThemeCss`) en voor een paginathema (`PageAppearance`). Er is geen
+`if` per lettertype: een familie is data.
+
+- **De website**: `ThemeSettings` kent twee extra sleutels,
+  `heading_font_family_id` en `body_font_family_id` (`''` = de combinatie).
+  Ze worden gevalideerd zoals elke thema-instelling (een getal van een
+  familie die een bestand heeft, anders een fout), opgeslagen in
+  `theme_font_roles` en gelezen door `ThemeSettings::all()`, dat de enige
+  lezer blijft. "Standaardvormgeving herstellen" leegt de rollen; de
+  bibliotheek blijft staan.
+- **Een paginathema**: dezelfde twee velden, dezelfde validatie
+  (`PageThemeService` gebruikt `ThemeSettings::validate()`), opgeslagen als
+  kolommen van `page_themes`. `PageAppearance::fromTheme()` weigert een thema
+  waarvan een familie niet bruikbaar is als geheel, zoals een kapotte kleur:
+  nooit stilletjes een ander lettertype.
+- **Een kleurenpalet** raakt geen lettertype: activeren, bewerken of
+  terugzetten van een palet verandert niets aan de rollen.
+
+### Laden
+
+- `PageAssets::renderFontStylesheet()` drukt één `<style id="site-fonts">` af
+  met de `@font-face`-regels van **precies de families die deze pagina
+  gebruikt**: de twee rollen van de site en die van het paginathema, elke
+  familie één keer. Twintig bewaarde families kosten een bezoeker niets
+  zolang ze niet gekozen zijn (gemeten: tien ongebruikte families, nul extra
+  verzoeken).
+- Per familie staat elke variant erin; de browser downloadt alleen de faces
+  die de tekst echt nodig heeft (een cursief bestand alleen voor cursieve
+  tekst).
+- `font-display: swap`: de tekst staat er meteen, in de terugvalstack van de
+  soort, en wisselt als het bestand er is. Geen fontloader, geen script.
+- De Google-stylesheet van de combinatie komt alleen zolang een rol die nog
+  gebruikt. Gebruiken beide rollen een eigen familie, dan gaat er **geen
+  enkel verzoek naar Google**.
+- Ontbreekt een bestand op de schijf, dan geeft de browser een 404 en valt
+  terug op de rest van de stack (een lettertype dat elk apparaat heeft). Het
+  CMS toont bij die familie *Bestand ontbreekt*.
+
+### Veilig tot in de CSS
+
+Niets wat een beheerder typt komt in CSS. De familienaam in CSS is
+`mygdala-font-<id>` (`FontLibrary::cssFamilyName()`), gewicht en stijl komen
+uit de gesloten lijst `FontVariant`, de URL uit een gegenereerde naam die
+`FontStorage::NAME_PATTERN` moet halen, het formaat uit de bytes.
+`FontLibrary::fontFaceRule()` laat een met de hand bewerkte rij weg in plaats
+van hem te repareren. De naam, de oorspronkelijke bestandsnaam en de
+bronlink worden alleen ge-escaped getoond.
+
+### Bestanden: welke, en hoe gecontroleerd
+
+WOFF2 (aanbevolen), WOFF, TTF en OTF. Alle vier gebruikt een browser direct,
+dus er wordt **niets geconverteerd** (geen executable, geen extensie die
+Vimexx niet heeft). TTF is de reden dat het werkt voor een beginner: de ZIP
+van Google Fonts bevat TTF-bestanden, geen WOFF2. Geweigerd: TrueType-
+verzamelingen (`.ttc`), EOT, SVG-fonts en elk archief; een ZIP wordt nooit
+uitgepakt.
+
+`App\Service\Theme\FontFileInspector` controleert, in deze volgorde: een
+echte upload, niet leeg, hooguit 5 MB; de extensie; het type dat de
+**browser** stuurde mag niet iets anders zeggen (tekst, afbeelding, script,
+archief: alleen een weigerlijst, want browsers sturen voor fonts van alles);
+het type dat de **server** ziet (finfo) moet een font of onbekend binair
+zijn; de container uit de bytes (`wOF2`, `wOFF`, een sfnt-versie) moet bij de
+extensie passen; en de structuur: de eigen lengte en tabeltelling van de
+header, elk tabelrecord binnen het bestand, de tabellen zonder welke een
+font niet rendert (cmap, head, hhea, hmtx, maxp, name en outlines) en het
+magische getal van `head`. Verder kan een server niet betrouwbaar zonder
+Brotli; een font dat dit haalt en van binnen toch kapot is, weigert de
+browser zelf (OTS) en de pagina valt terug.
+
+Limieten: 5 MB per bestand, 50 MB voor de hele bibliotheek
+(`FontLibrary::MAX_LIBRARY_BYTES`). Een familie opslaan is alles of niets:
+één geweigerd bestand slaat niets op en elke reden komt terug, met de
+bestandsnaam erin.
+
+### Opslag en de updater
+
+`assets/fonts/library/`, onder een gegenereerde naam (32 hex + het echte
+formaat, `App\Service\Theme\FontStorage`). Installatiegegevens:
+`App\Update\Ownership` noemt de map, dus de updater overschrijft, verwijdert
+of verpakt hem nooit; `.gitignore` en `FreshSiteCopyPolicy` houden de fonts
+van de ene site buiten git en buiten een nieuwe site. Het enige
+releasebestand erin is `.htaccess`:
+
+- `Require all denied`, behalve voor een gegenereerde fontnaam: een ander
+  bestand in de map (een script) wordt geweigerd voordat een handler het
+  ziet;
+- de MIME-types expliciet (`font/woff2`, `font/woff`, `font/ttf`, `font/otf`);
+- met `mod_headers`: `X-Content-Type-Options: nosniff` en
+  `Cache-Control: public, max-age=31536000, immutable`. Dat kan veilig: een
+  vervangen variant krijgt een **nieuwe** naam, dus geen cache houdt ooit
+  het oude bestand vast.
+
+Zelf gehost van de eigen site: geen verplicht verzoek naar Google, goed voor
+privacy, beschikbaarheid en onafhankelijkheid. De website heeft geen eigen
+Content-Security-Policy; de previewdocumenten beperken `font-src` niet.
+
+### Beheren
+
+Vormgeving heeft twee tabbladen, **Kleuren en stijl** en **Lettertypen**.
+
+- **Lettertypen**: de licentiewaarschuwing, elke familie met haar naam in
+  haar eigen letter, haar varianten, *In gebruik* of *Niet in gebruik* met
+  wie haar gebruikt, *Bestand ontbreekt* waar nodig, en de ruimte die de
+  bibliotheek inneemt. Daaronder de handleiding in vier inklapbare kaarten
+  (`admin_font_help()`, zie hieronder).
+- **Een familie** (`admin/font-family.php`): naam, soort (met of zonder
+  schreef), bron of licentie, en de bestanden. Kies je meerdere bestanden,
+  dan krijgt elk een eigen regel met een variantkeuze (voorgesteld uit de
+  bestandsnaam: `Roboto-SemiBoldItalic.ttf` is *Halfvet cursief*) en een
+  regel tekst in dat bestand, rechtstreeks uit de computer, vóór er iets is
+  geüpload (`admin/assets/font-library-admin.js`, `FontFace` uit de bytes).
+  Zonder script: één bestand, één variant.
+- De varianten heten gewoon: Dun, Extra licht, Licht, Normaal, Medium,
+  Halfvet, Vet, Extra vet, Zwart, en elk ook cursief (*Cursief* voor
+  Normaal). Het gewicht staat er tussen haakjes achter voor wie het zoekt.
+- Per variant **Vervangen** (nieuwe naam, oude weg) en **Verwijderen**. Een
+  variant die er al is toevoegen wordt geweigerd met het advies Vervangen te
+  gebruiken; twee bestanden voor één variant in één keer ook.
+- **Voorbeeld**: lopende tekst, H1, H2, vet, cursief, cijfers en Nederlandse
+  tekens, uit de opgeslagen bestanden via dezelfde `@font-face` als een
+  pagina.
+- **Kiezen**: op *Kleuren en stijl* → Typografie, onder de combinatie,
+  *Lettertype voor koppen* en *Lettertype voor lopende tekst*
+  (*Uit de lettertypecombinatie* of een familie), en in een paginathema
+  dezelfde twee velden. Het voorbeeld ernaast is het previewdocument van de
+  kleurenpaletten (`admin/color-palette-preview.php`), dat nu ook de
+  lettertypen uit de query leest (`ThemeSettings::previewFonts()`, elke
+  waarde gevalideerd zoals bij opslaan): geen derde preview-engine.
+- **Verwijderen** kan alleen voor een familie die nergens gebruikt wordt.
+  Anders zegt het CMS wie: "Dit lettertype wordt gebruikt door het
+  website-thema (koppen); paginathema "Actie" (lopende tekst). Kies daar
+  eerst een ander lettertype." De foreign keys (RESTRICT) weigeren ook.
+  Het laatste bestand van een familie in gebruik kan niet weg. Wie een
+  familie gebruikt vraagt Core aan elke geregistreerde module, aan of uit
+  (`ModuleDefinition::fontFamilyUsage()`, alleen Paginathema's antwoordt),
+  zodat Core geen module noemt. Verwijderen ruimt precies de bestanden van
+  die familie op.
+
+### De handleiding in het CMS
+
+"Eigen lettertypen toevoegen" staat niet in een los document maar ís de
+hulp op het scherm (`admin_font_help()` in `admin/_font_library.php`,
+teksten `help.fonts.*` in de CMS-catalogus): *Hoe voeg ik een eigen
+lettertype toe?* (Google Fonts in tien stappen, met de map `static`), *Wat
+betekenen die bestanden?* (Regular, Bold, Italic, Variable, WOFF2, TTF/OTF,
+niet elke familie heeft alles), *Kiezen en verwijderen* en *Font Awesome en
+andere icoontjes*. Eén bron, dus hulp en handleiding lopen niet uiteen.
+
+De licentiewaarschuwing staat altijd zichtbaar waar een bestand gekozen
+wordt, in gewone woorden, zonder juridische claim: gratis downloaden is niet
+automatisch vrij gebruik, een desktoplicentie is geen webfontlicentie, de
+beheerder is verantwoordelijk. De optionele bronlink is alleen een geheugen.
+
+### Font Awesome en een latere Icon Library
+
+Font Awesome is een iconenset in de vorm van een font, geen tekstlettertype.
+Uploaden levert geen icoontjes op (daarvoor zijn een tekenkaart en eigen
+stijlregels nodig) en als kop- of tekstletter wordt tekst onleesbaar; de
+handleiding zegt dat. In deze versie: geen iconenkiezer, geen
+Font Awesome-bestanden meegeleverd, geen externe Font Awesome-CSS.
+
+Een latere **Icon Library** hoort niet in `font_families`: een icoon is een
+losse afbeelding met een naam, geen tekstrol. De nette route is een eigen
+Core-onderdeel naast de Mediabibliotheek: SVG-iconen als media (door
+`SvgSanitizer`), een gesloten set per bibliotheek met een sleutel per
+icoon, en een iconenveld dat een blok via een sleutel kiest (nooit een
+klassenaam of glyph-code uit een request). Een iconfont zou daarna hooguit
+een tweede bron van zo'n set zijn, met een eigen tekenkaart, en nooit een
+rol in de typografie.
 
 ## Knopvorm
 
@@ -448,7 +672,10 @@ per pagina. Core drukt het resultaat af zonder de module te noemen.
 page_themes            id, name (uniek), slug (uniek, [a-z0-9-]),
                        primary_color, on_primary_color, background_color,
                        surface_color, text_color (CHAR(7), #RRGGBB),
-                       font_pairing (een ThemeFonts-sleutel)
+                       font_pairing (een ThemeFonts-sleutel),
+                       heading_font_family_id, body_font_family_id
+                       (NULL = de combinatie; anders een Font Library-
+                       familie, FK RESTRICT; zie "Font Library")
 pages.page_theme_id    NULL = de vormgeving van de website
                        FK naar page_themes, ON DELETE RESTRICT
 ```
@@ -541,8 +768,10 @@ site.
 
 `PageAssets::renderFontStylesheet()` drukt één ontdubbelde set af: de
 stylesheet van de combinatie van de site, en die van het thema als die anders
-is en niet `system`. De twee preconnects komen één keer, ook als alleen het
-thema een webfont heeft.
+is en niet `system` (en zolang een rol hem nog gebruikt). De twee
+preconnects komen één keer, ook als alleen het thema een webfont heeft. De
+Font Library-families van site en thema staan samen in één
+`<style id="site-fonts">`, elke familie één keer.
 
 ### Beheren
 
@@ -644,6 +873,18 @@ De paginathema's hebben hun eigen testklassen: `ThemeColorTest` (`unit`,
 `PageThemesAdminHttpTest` en `PageThemesRenderingHttpTest` (`modules`, eigen
 `php -S`), `PageThemesApacheHttpTest` (`http`, `modules`) en
 `PageThemesMigrationTest` (`migration`, `modules`). Zie `TESTING.md`.
+
+De Font Library: `FontFileInspectorTest` (`unit`, `fast`, `cms`: elk
+formaat, elke weigering, elke structuurregel, de bestandsnaam),
+`FontLibraryCssTest` (`unit`, `fast`, `cms`: de `@font-face`-regel, de
+stacks per rol, de combinaties ongewijzigd, injectie, een paginathema),
+`FontLibraryTest` (`cms`: families, varianten, vervangen, opruimen, gebruik
+en weigering, de foreign keys, de website, herstellen, paletten, een
+paginathema, een ontbrekend bestand), `FontLibraryHttpTest` (`cms`,
+`modules`: upload via het echte endpoint, guards, de pagina's, de previews,
+Paginathema's aan en uit), `FontLibraryApacheHttpTest` (`http`, `cms`: MIME,
+`nosniff`, cache, weigering in de map, 404) en `FontLibraryMigrationTest`
+(`migration`, `cms`).
 
 De kleurenpaletten: `ThemePaletteRecipeTest` (`unit`, `fast`, `cms`: het
 recept, gepind op de uitkomst van v0.1.13), `ColorPaletteTest` (`cms`:
