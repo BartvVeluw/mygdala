@@ -173,6 +173,7 @@ in de schil en heeft geen eigen knop. Dezelfde tekstregels als de uitleg.
 | Checkbox | `<input type="checkbox" class="admin-checkbox">` | In een `.admin-checkbox-label`. Élke zichtbare checkbox van het CMS heeft deze klasse of `.admin-switch` |
 | Getal | `<input type="number">` | Heeft de invoerstijl van het CMS, net als tekst en zoeken; geen eigen klasse |
 | Telefoon, webadres | `<input type="tel">`, `<input type="url">` | Idem: dezelfde gedeelde selectors als tekst en e-mail (hoogte, binnenruimte, rand, afronding, achtergrond, letter, focus). Geen `.phone-input` of andere eigen klasse; het blijft een echt `tel`-veld, zodat een telefoon het juiste toetsenbord toont |
+| Datum, datum met tijd | `<input type="date">`, `<input type="datetime-local">` | Hetzelfde tekstveld, in een eigen regelblok in `admin.css` (look, focus, foutrand). Het kalendericoon van de browser is altijd zwart; het wordt als masker in `--admin-text-muted` getekend, dus leesbaar op elk dashboardthema, ook `custom`. Tot v0.1.14 was het de kale browserbox, 21px hoog (reviewdatum, publicatiemoment, bestelfilter) |
 | Switch | `<input type="checkbox" class="admin-switch" role="switch">` | Voor één aan/uit-instelling |
 | Bestand | `admin_file_input(['name' => 'image', 'accept' => '…', 'required' => true])` | Binnen het `<label>` van het veld, of met een `id` naast `admin_field_label()` |
 | Voorbeeld van een afbeelding | `admin_file_preview('id-van-het-veld', $huidigeAfbeelding)` | Hoort bij één `admin_file_input()` met dat `id`; zie hieronder |

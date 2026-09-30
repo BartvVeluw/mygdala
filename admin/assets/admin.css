@@ -2324,6 +2324,36 @@ select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type
   cursor: not-allowed;
 }
 
+/* A date and a date-with-time field are the same text field. Without this
+   the review date (admin/reviews.php), the blog post's publication moment
+   and the order filter were the browser's own small white box, 21px high,
+   in a dark dashboard. The browser's own calendar icon is black whatever the
+   theme, so it is drawn here in the muted text colour instead: a mask of the
+   same shape, readable on every dashboard theme, the custom one included. */
+:is(input[type="date"], input[type="datetime-local"]){
+  font-family: inherit;
+  font-size: 0.92rem;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--admin-radius-sm);
+  transition: border-color var(--admin-transition);
+}
+:is(input[type="date"], input[type="datetime-local"]):focus{
+  outline: none;
+  border-color: var(--admin-accent);
+}
+:is(input[type="date"], input[type="datetime-local"])[aria-invalid="true"]{
+  border-color: var(--admin-error);
+}
+:is(input[type="date"], input[type="datetime-local"])::-webkit-calendar-picker-indicator{
+  background: var(--admin-text-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M4 0h1.5v2h5V0H12v2h2.5A1.5 1.5 0 0 1 16 3.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-11A1.5 1.5 0 0 1 1.5 2H4zM1.5 6v8.5h13V6z'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M4 0h1.5v2h5V0H12v2h2.5A1.5 1.5 0 0 1 16 3.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-11A1.5 1.5 0 0 1 1.5 2H4zM1.5 6v8.5h13V6z'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+  cursor: pointer;
+}
+
 button{
   background: var(--admin-accent);
   color: var(--admin-on-accent);

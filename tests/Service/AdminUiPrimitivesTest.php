@@ -707,6 +707,29 @@ final class AdminUiPrimitivesTest extends TestCase
         );
     }
 
+    /**
+     * The review date was the browser's own white box, 21px high, in a dark
+     * dashboard (found in the v0.1.14 browser acceptance of Reviews); the blog
+     * post's publication moment and the order filter the same.
+     */
+    public function testADateFieldIsTheSharedTextField(): void
+    {
+        $css = self::source('admin/assets/admin.css');
+
+        $this->assertMatchesRegularExpression(
+            '/:is\(input\[type="date"\], input\[type="datetime-local"\]\)\{[^}]*background: var\(--admin-surface-sunken\);[^}]*border: 1px solid var\(--admin-border\);[^}]*padding: 0\.55rem 0\.7rem;/',
+            $css
+        );
+        $this->assertStringContainsString(':is(input[type="date"], input[type="datetime-local"]):focus{', $css);
+        $this->assertStringContainsString(':is(input[type="date"], input[type="datetime-local"])[aria-invalid="true"]{', $css);
+        $this->assertMatchesRegularExpression(
+            '/::-webkit-calendar-picker-indicator\{\s*background: var\(--admin-text-muted\);/',
+            $css,
+            'the calendar icon follows the theme instead of staying black on a dark field'
+        );
+        $this->assertStringContainsString('<input type="date" id="', self::source('admin/reviews.php'), 'the review date stays a real date field');
+    }
+
     public function testANumberFieldIsTheSharedTextField(): void
     {
         $css = self::source('admin/assets/admin.css');
