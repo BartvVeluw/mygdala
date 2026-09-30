@@ -195,7 +195,7 @@ final class DetailSectionGalleryFocusHttpTest extends TestCase
 
         // The editor's frame shows each item's own picture.
         $screen = self::$server->request('GET', '/admin/detail-section.php?section=' . urlencode(self::KEY . ':' . $this->key($section)), $session)['body'];
-        self::assertMatchesRegularExpression('#<img src="[^"]*zz-focus-project\.jpg" alt="" draggable="false" data-rm-preview style="object-position: 30% 40%;">#', $screen);
+        self::assertMatchesRegularExpression('#<img src="[^"]*zz-focus-project\.jpg" alt="" draggable="false" loading="lazy" decoding="async" data-rm-preview style="object-position: 30% 40%;">#', $screen);
 
         // Each item gets another picture: the new one shows, with the same point.
         $newProduct = $this->media('zz-focus-product-nieuw.jpg');

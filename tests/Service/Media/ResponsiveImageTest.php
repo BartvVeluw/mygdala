@@ -77,13 +77,14 @@ final class ResponsiveImageTest extends TestCase
         $row = [
             'image_focus_x' => 37, 'image_focus_y' => '64',
             'image_mobile_media_id' => '12', 'image_mobile_focus_x' => 5, 'image_mobile_focus_y' => 95,
+            'image_zoom' => '140', 'image_mobile_zoom' => 180,
             'image_fit' => 'contain', 'image_mobile_fit' => 'cover', 'image_mobile_height' => 'large',
         ];
 
         $value = ResponsiveImage::fromRow($row, self::full());
-        self::assertSame([37, 64, 12, 5, 95, 'contain', 'cover', 'large'], [
+        self::assertSame([37, 64, 12, 5, 95, 'contain', 'cover', 'large', 140, 180], [
             $value->focusX, $value->focusY, $value->mobileMediaId, $value->mobileFocusX, $value->mobileFocusY,
-            $value->fit, $value->mobileFit, $value->mobileHeight,
+            $value->fit, $value->mobileFit, $value->mobileHeight, $value->zoom, $value->mobileZoom,
         ]);
 
         $stored = $value->toRow(self::full());
@@ -92,7 +93,7 @@ final class ResponsiveImageTest extends TestCase
 
         // A slot without a frame of its own stores no fit and no height.
         self::assertSame(
-            ['background_focus_x', 'background_focus_y', 'background_mobile_media_id', 'background_mobile_focus_x', 'background_mobile_focus_y'],
+            ['background_focus_x', 'background_focus_y', 'background_mobile_media_id', 'background_mobile_focus_x', 'background_mobile_focus_y', 'background_zoom', 'background_mobile_zoom'],
             array_keys((new ResponsiveImage())->toRow(self::bare()))
         );
         self::assertSame(self::bare()->columns(), array_keys((new ResponsiveImage())->toRow(self::bare())));
@@ -215,7 +216,7 @@ final class ResponsiveImageTest extends TestCase
 
         self::assertSame([
             'src' => '/assets/media/a.jpg', 'alt' => 'Werkplaats', 'width' => 800, 'height' => 600,
-            'mobile' => null, 'position' => '50% 50%', 'mobile_position' => null, 'fit' => 'cover', 'mobile_fit' => null,
+            'mobile' => null, 'position' => '50% 50%', 'mobile_position' => null, 'fit' => 'cover', 'mobile_fit' => null, 'zoom' => 100, 'mobile_zoom' => null,
         ], $picture);
     }
 
@@ -282,7 +283,7 @@ final class ResponsiveImageTest extends TestCase
 
         self::assertSame([
             'src' => '/phone.jpg', 'alt' => 'Werkplaats', 'width' => 900, 'height' => 1600,
-            'mobile' => null, 'position' => '50% 0%', 'mobile_position' => null, 'fit' => 'contain', 'mobile_fit' => null,
+            'mobile' => null, 'position' => '50% 0%', 'mobile_position' => null, 'fit' => 'contain', 'mobile_fit' => null, 'zoom' => 100, 'mobile_zoom' => null,
         ], ResponsiveImage::compact($picture), 'the same alt text, the phone picture\'s own size, point and fit, nothing left to switch');
 
         // A phone point or fit equal to the large screen's is not repeated: the large screen's applies.

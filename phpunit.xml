@@ -104,6 +104,7 @@
             <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
             <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/Media/ResponsiveImageTest.php</file>
+            <file>tests/Service/Media/ResponsiveImageZoomTest.php</file>
             <file>tests/Service/ResponsiveImageRenderTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
@@ -133,6 +134,7 @@
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
+            <file>tests/Service/ResponsiveMediaZoomContractTest.php</file>
             <file>tests/Service/RichContentTypographyTest.php</file>
             <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Service/ShopGalleryContractTest.php</file>
@@ -214,6 +216,7 @@
             <file>tests/Service/Blocks/EditorChildListTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
+            <file>tests/Service/ResponsiveMediaZoomContractTest.php</file>
             <file>tests/Service/RichContentTypographyTest.php</file>
             <file>tests/Service/Routing/AcceptLanguageTest.php</file>
             <file>tests/Service/Routing/RequestPathTest.php</file>
@@ -338,6 +341,7 @@
             <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
             <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/Media/ResponsiveImageTest.php</file>
+            <file>tests/Service/Media/ResponsiveImageZoomTest.php</file>
             <file>tests/Service/ResponsiveImageRenderTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
@@ -457,6 +461,7 @@
             <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/HoverCardsAndMediaSequenceMigrationTest.php</file>
             <file>tests/Install/ResponsiveMediaMigrationTest.php</file>
+            <file>tests/Install/ResponsiveMediaZoomMigrationTest.php</file>
             <file>tests/Install/PortfolioSelectionMigrationTest.php</file>
             <file>tests/Install/TextImageItemsMigrationTest.php</file>
             <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
@@ -543,6 +548,7 @@
             <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/HoverCardsAndMediaSequenceMigrationTest.php</file>
             <file>tests/Install/ResponsiveMediaMigrationTest.php</file>
+            <file>tests/Install/ResponsiveMediaZoomMigrationTest.php</file>
             <file>tests/Install/PortfolioSelectionMigrationTest.php</file>
             <file>tests/Service/HoverCardGridRenderTest.php</file>
             <file>tests/Service/HoverCardGridHttpTest.php</file>
@@ -552,10 +558,13 @@
             <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/Media/ResponsiveImageTest.php</file>
+            <file>tests/Service/Media/ResponsiveImageZoomTest.php</file>
             <file>tests/Service/ResponsiveImageRenderTest.php</file>
             <file>tests/Service/ResponsiveMediaContractTest.php</file>
+            <file>tests/Service/ResponsiveMediaZoomContractTest.php</file>
             <file>tests/Service/RichContentTypographyTest.php</file>
             <file>tests/Service/ResponsiveImageEditorHttpTest.php</file>
+            <file>tests/Service/ResponsiveImageZoomHttpTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/Blocks/EditorChildListTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>

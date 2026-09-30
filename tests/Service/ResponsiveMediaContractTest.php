@@ -167,9 +167,18 @@ final class ResponsiveMediaContractTest extends TestCase
             }
         }
         $gallery = self::read('db/migrations/20260930140000_give_labels_a_mode_and_gallery_items_a_focus_point.php');
-        foreach (DetailSectionContent::imageSlot()->columns() as $column) {
+        foreach (array_slice(DetailSectionContent::imageSlot()->columns(), 0, 5) as $column) {
             self::assertStringContainsString("'" . $column . "' => [", $gallery, $column);
         }
+
+        // The zoom (Responsive Media 3.0) came to all eight places at once,
+        // each with its own prefix, next to the columns every slot has.
+        $zoom = self::read('db/migrations/20261002100000_give_block_images_a_zoom.php');
+        foreach (self::places() as $table => [$slot]) {
+            self::assertStringContainsString("'" . $table . "' => '" . $slot->prefix . "',", $zoom, $table);
+        }
+        self::assertStringContainsString("\$prefix . 'zoom' =>", $zoom);
+        self::assertStringContainsString("\$prefix . 'mobile_zoom' =>", $zoom);
     }
 
     /**
