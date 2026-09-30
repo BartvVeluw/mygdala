@@ -56,7 +56,9 @@ final class PageThemeCssContractTest extends TestCase
     protected function tearDown(): void
     {
         ThemeSettings::overrideForTests(null);
-        ModuleRegistry::reset();
+        // reset() alone keeps an override, and a partial override switches
+        // every module it does not name OFF for the rest of the run.
+        ModuleRegistry::overrideForTests(null);
         PageAssets::reset();
     }
 

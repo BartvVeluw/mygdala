@@ -29,7 +29,9 @@ final class ThemeRenderingTest extends TestCase
     {
         ThemeSettings::overrideForTests(null);
         SiteSettings::overrideForTests(null);
-        ModuleRegistry::reset();
+        // reset() alone keeps an override, and a partial override switches
+        // every module it does not name OFF for the rest of the run.
+        ModuleRegistry::overrideForTests(null);
         PageAssets::reset();
         parent::tearDown();
     }
