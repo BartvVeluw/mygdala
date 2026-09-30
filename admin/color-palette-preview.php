@@ -18,8 +18,8 @@ use App\Service\Theme\ThemeSettings;
  * the preview frame of the palette editor (admin/color-palette.php). See
  * THEMING.md, "Kleurenpaletten".
  *
- * THE REAL STYLESHEET, THE REAL TOKENS. core.css, the site's font pairing
- * and button shape come first, exactly as on a page (App\Service\PageAssets);
+ * THE REAL STYLESHEET, THE REAL TOKENS. core.css, the site's fonts and
+ * button shape come first, exactly as on a page (App\Service\PageAssets);
  * the palette is then printed as the complete token set through the same
  * path a page theme takes (PageAppearance + PageThemeCss onto a
  * <main data-page-theme>): the five colours, every tint of
@@ -29,7 +29,11 @@ use App\Service\Theme\ThemeSettings;
  *
  * LIVE, WITHOUT A REQUEST. The query string carries the palette's colours
  * for the first paint, each validated like a save
- * (ColorPaletteService::previewColors()). After that the editor's script
+ * (ColorPaletteService::previewColors()). The fonts are the site's, or
+ * (Typografie on Vormgeving, admin/assets/theme-fonts-admin.js) the pairing
+ * and the Font Library family per role from the query string, validated the
+ * same way (ThemeSettings::previewFonts()): one preview document for colours
+ * and fonts, no third preview engine. After that the editor's script
  * sets the same properties straight on this document's <main> for every
  * change (admin/assets/color-palette-admin.js), computed from the same
  * recipe (ThemePalette::recipe()): no reload and no server round trip per
@@ -48,6 +52,7 @@ AdminAuth::requireLogin();
 AdminAuth::requirePermission('settings.manage');
 
 $colors = ColorPaletteService::previewColors($_GET);
+$fonts = ThemeSettings::previewFonts($_GET);
 
 session_write_close();
 
@@ -56,7 +61,13 @@ header('X-Robots-Tag: noindex, nofollow');
 // Enforced by the browser, whatever the markup below contains.
 header("Content-Security-Policy: script-src 'none'; form-action 'none'; frame-ancestors 'self'; base-uri 'none'");
 
-PageThemeCss::declare(PageAppearance::fromTheme('palette-preview', $colors, ThemeSettings::get('font_pairing')));
+PageThemeCss::declare(PageAppearance::fromTheme(
+    'palette-preview',
+    $colors,
+    $fonts['font_pairing'],
+    ThemeSettings::familyId($fonts['heading_font_family_id']),
+    ThemeSettings::familyId($fonts['body_font_family_id'])
+));
 PageAssets::requireStyle('assets/css/color-palette-preview.css');
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');

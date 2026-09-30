@@ -27,6 +27,14 @@ use App\Repository\ThemeSettingRepository;
  * that a fresh install is already coherent before anybody has opened the
  * theme screen.
  *
+ * THE FONTS (Font Library 1.0): the pairing is the base, and each of the two
+ * roles — headings and body text — may use a family from the Font Library
+ * instead (`heading_font_family_id` / `body_font_family_id`: '' = the
+ * pairing's font, the default; else the family's id as a string). Those two
+ * are stored in `theme_font_roles`, a real foreign key per role
+ * (App\Service\Theme\FontLibrary), not in theme_settings; only a family
+ * that still has a file counts. A colour palette never touches them.
+ *
  * WHERE THE COLOURS COME FROM (Branding & Design 2.0): the five colours are
  * the ACTIVE colour palette (App\Service\Theme\ColorPaletteService,
  * table color_palettes); the font pairing and the button shape are rows of
@@ -77,6 +85,8 @@ final class ThemeSettings
         'surface_color' => '#1C150E',
         'text_color' => '#F5EFE4',
         'font_pairing' => ThemeFonts::DEFAULT_KEY,
+        'heading_font_family_id' => '',
+        'body_font_family_id' => '',
         'button_shape' => 'pill',
     ];
 
@@ -121,7 +131,7 @@ final class ThemeSettings
         }
 
         foreach ($stored as $key => $value) {
-            if (!array_key_exists($key, self::DEFAULTS) || $value === '') {
+            if (!array_key_exists($key, self::DEFAULTS) || $value === '' || in_array($key, FontLibrary::ROLE_KEYS, true)) {
                 continue;
             }
 
@@ -135,12 +145,58 @@ final class ThemeSettings
             }
         }
 
+        // The two font roles: the website's choice in the Font Library, when
+        // the family still has a file. Unreadable (new code before its
+        // migration) = the pairing, as before.
+        try {
+            foreach (FontLibrary::siteRoles() as $role => $familyId) {
+                if (isset(FontLibrary::ROLE_KEYS[$role]) && FontLibrary::isUsable($familyId)) {
+                    $settings[FontLibrary::ROLE_KEYS[$role]] = (string) $familyId;
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[ThemeSettings] font library unavailable: ' . $e->getMessage());
+        }
+
         return self::$cache = $settings;
+    }
+
+    /**
+     * A role key's value as a family id, or null for "the pairing's font".
+     */
+    public static function familyId(string $value): ?int
+    {
+        return ctype_digit($value) && (int) $value > 0 ? (int) $value : null;
     }
 
     public static function get(string $key): string
     {
         return self::all()[$key] ?? (self::DEFAULTS[$key] ?? '');
+    }
+
+    /**
+     * The fonts for a preview of the site (Typografie on Vormgeving): the
+     * pairing and the family per role from the input, each validated like a
+     * save, and the site's own value for anything absent or refused — a
+     * preview never shows what could not be stored.
+     *
+     * @param array<string, mixed> $input
+     * @return array{font_pairing: string, heading_font_family_id: string, body_font_family_id: string}
+     */
+    public static function previewFonts(array $input): array
+    {
+        $fonts = [];
+        foreach (['font_pairing', 'heading_font_family_id', 'body_font_family_id'] as $key) {
+            $fonts[$key] = self::get($key);
+            if (is_scalar($input[$key] ?? null)) {
+                $normalised = self::normalise($key, trim((string) $input[$key]));
+                if ($normalised !== null) {
+                    $fonts[$key] = $normalised;
+                }
+            }
+        }
+
+        return $fonts;
     }
 
     /** @return array<string, string> */
@@ -244,7 +300,8 @@ final class ThemeSettings
         }
 
         $colors = array_intersect_key($clean, array_flip(self::COLOR_KEYS));
-        $rest = array_diff_key($clean, $colors);
+        $roles = array_intersect_key($clean, array_flip(FontLibrary::ROLE_KEYS));
+        $rest = array_diff_key($clean, $colors, $roles);
 
         if ($rest !== []) {
             (new ThemeSettingRepository())->upsertMany($rest);
@@ -252,6 +309,12 @@ final class ThemeSettings
 
         if ($colors !== []) {
             ColorPaletteService::saveActiveColors($colors);
+        }
+
+        foreach (FontLibrary::ROLE_KEYS as $role => $key) {
+            if (array_key_exists($key, $roles)) {
+                FontLibrary::setSiteRole($role, self::familyId($roles[$key]));
+            }
         }
 
         self::clearCache();
@@ -269,12 +332,14 @@ final class ThemeSettings
      *
      * The colours are the active palette's: those are set back to the
      * shipped default (ColorPaletteService::resetActiveColors()). The other
-     * palettes are designs of their own and stay as they are.
+     * palettes are designs of their own and stay as they are. Both font roles
+     * go back to the pairing; the Font Library itself keeps every family.
      */
     public static function reset(): void
     {
         (new ThemeSettingRepository())->deleteKeys(array_keys(self::DEFAULTS));
         ColorPaletteService::resetActiveColors();
+        FontLibrary::clearSiteRoles();
         self::clearCache();
     }
 
@@ -283,6 +348,7 @@ final class ThemeSettings
     {
         self::$cache = null;
         ColorPaletteService::forgetActive();
+        FontLibrary::forget();
     }
 
     /**
@@ -322,6 +388,17 @@ final class ThemeSettings
             return ThemeFonts::isValidKey($value) ? $value : null;
         }
 
+        if (in_array($key, FontLibrary::ROLE_KEYS, true)) {
+            // '' = the pairing's font. Otherwise a family that has a file.
+            if ($value === '') {
+                return '';
+            }
+
+            $familyId = self::familyId($value);
+
+            return $familyId !== null && FontLibrary::isUsable($familyId) ? (string) $familyId : null;
+        }
+
         if ($key === 'button_shape') {
             return array_key_exists($value, self::BUTTON_SHAPES) ? $value : null;
         }
@@ -337,6 +414,10 @@ final class ThemeSettings
 
         if ($key === 'font_pairing') {
             return 'Kies een lettertypecombinatie uit de lijst.';
+        }
+
+        if (in_array($key, FontLibrary::ROLE_KEYS, true)) {
+            return 'Kies een lettertype uit de lijst.';
         }
 
         return 'Kies een knopvorm uit de lijst.';

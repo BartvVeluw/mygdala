@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Module\ModuleRegistry;
 use App\Service\Search\SearchService;
+use App\Service\Theme\FontLibrary;
 use App\Service\Theme\PageThemeCss;
 use App\Service\Theme\ThemeCss;
 
@@ -168,6 +169,8 @@ final class PageAssets
             static fn (?string $url): bool => $url !== null
         )));
 
+        self::renderFontFaces(array_merge(ThemeCss::fontFamilyIds(), PageThemeCss::fontFamilyIds()));
+
         if ($urls === []) {
             return;
         }
@@ -180,6 +183,36 @@ final class PageAssets
         foreach ($urls as $url) {
             echo '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . "
 ";
+        }
+    }
+
+    /**
+     * The `@font-face` rules of the Font Library families this page uses -
+     * the site's two roles and the page theme's, each family once - as one
+     * small inline block. Nothing at all for a page that uses none: a
+     * library of twenty families costs a visitor nothing until one is
+     * chosen. The browser then downloads only the faces the text needs,
+     * self-hosted from assets/fonts/library/. See App\Service\Theme\FontLibrary.
+     *
+     * @param list<int> $familyIds
+     */
+    private static function renderFontFaces(array $familyIds): void
+    {
+        if ($familyIds === []) {
+            return;
+        }
+
+        try {
+            $css = FontLibrary::fontFaceCss(array_values(array_unique($familyIds)));
+        } catch (\Throwable $e) {
+            // The stacks already end in a font every device has.
+            error_log('[PageAssets] font library unavailable: ' . $e->getMessage());
+
+            return;
+        }
+
+        if ($css !== '') {
+            echo '<style id="site-fonts">' . "\n" . $css . "</style>\n";
         }
     }
 

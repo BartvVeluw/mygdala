@@ -25,8 +25,8 @@ namespace App\Service\Theme;
  *
  * Injection is closed off upstream rather than escaped here: every value
  * comes from ThemeSettings, which only ever returns a validated #RRGGBB, a
- * font stack from the closed ThemeFonts list, or a radius from the closed
- * shape list. The guard in declarations() is a second lock on that door, not
+ * font stack from the closed ThemeFonts list or made from a Font Library
+ * family's id (never its name), or a radius from the closed shape list. The guard in declarations() is a second lock on that door, not
  * the first.
  */
 final class ThemeCss
@@ -92,10 +92,10 @@ final class ThemeCss
             }
         }
 
-        if (in_array('font_pairing', $changed, true)) {
-            $pairing = ThemeFonts::pairing($effective['font_pairing']);
-            $out['--font-display'] = $pairing['heading'];
-            $out['--font-body'] = $pairing['body'];
+        if (array_intersect(['font_pairing', 'heading_font_family_id', 'body_font_family_id'], $changed) !== []) {
+            $stacks = self::stacks();
+            $out['--font-display'] = $stacks['heading'];
+            $out['--font-body'] = $stacks['body'];
         }
 
         if (in_array('button_shape', $changed, true)) {
@@ -164,13 +164,47 @@ final class ThemeCss
 
     /**
      * The one font stylesheet this theme needs, or null for a pairing built
-     * from fonts every device already has. Only the SELECTED pairing is ever
-     * returned, so switching pairing switches the download rather than
-     * adding one.
+     * from fonts every device already has — or when both roles use a Font
+     * Library family and the pairing is not used at all. Only the SELECTED
+     * pairing is ever returned, so switching pairing switches the download
+     * rather than adding one.
      */
     public static function fontStylesheetUrl(): ?string
     {
-        return ThemeFonts::pairing(ThemeSettings::get('font_pairing'))['url'];
+        return ThemeTypography::pairingStylesheetUrl(
+            ThemeSettings::get('font_pairing'),
+            ThemeSettings::familyId(ThemeSettings::get('heading_font_family_id')),
+            ThemeSettings::familyId(ThemeSettings::get('body_font_family_id'))
+        );
+    }
+
+    /**
+     * The Font Library families the site's two roles use, for the
+     * `@font-face` rules of every page (App\Service\PageAssets).
+     *
+     * @return list<int>
+     */
+    public static function fontFamilyIds(): array
+    {
+        return ThemeTypography::familyIds(
+            ThemeSettings::familyId(ThemeSettings::get('heading_font_family_id')),
+            ThemeSettings::familyId(ThemeSettings::get('body_font_family_id'))
+        );
+    }
+
+    /**
+     * The site's --font-display and --font-body: the pairing, with a library
+     * family per role where one is chosen (App\Service\Theme\ThemeTypography).
+     *
+     * @return array{heading: string, body: string}
+     */
+    public static function stacks(): array
+    {
+        return ThemeTypography::stacks(
+            ThemeSettings::get('font_pairing'),
+            ThemeSettings::familyId(ThemeSettings::get('heading_font_family_id')),
+            ThemeSettings::familyId(ThemeSettings::get('body_font_family_id'))
+        );
     }
 
     /**
