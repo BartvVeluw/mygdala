@@ -113,7 +113,8 @@ dus een lege Mediabibliotheek in plaats van het merk van iemand anders.
 ### 3. Vormgeving
 
 Zeven van de instellingen van het scherm Vormgeving: vijf kleuren, één
-lettertypecombinatie uit de gesloten lijst, en de knopvorm. Een eigen
+lettertypecombinatie uit de gesloten lijst, en de knopvorm (die geeft beide
+standaard-knopstijlen hun vorm, `THEMING.md` "Knopstijlen"). Een eigen
 lettertype per rol (de Font Library, `THEMING.md`) kiest de wizard niet: op
 een nieuwe site is de bibliotheek nog leeg. Ze gaan door
 `App\Service\Theme\ThemeSettings::validate()` — er is **geen tweede
@@ -318,7 +319,7 @@ dingen dubbel doet.
 | Naam, e-mailadres, adres, KVK, logo, favicon, deel-afbeelding | Instellingen |
 | Talen van de website | Instellingen → Talen (`MULTILINGUAL.md`) |
 | Taal van het CMS, per persoon | Mijn account (`MULTILINGUAL.md`) |
-| Kleuren, lettertype, knopvorm | Instellingen → Vormgeving (`THEMING.md`) |
+| Kleuren, lettertype, knopstijlen | Instellingen → Vormgeving, tabblad Knoppen voor de knoppen (`THEMING.md`) |
 | Pagina's maken, bewerken, publiceren | Pagina's (`PAGE-TEMPLATES.md`) |
 | Menu, headerknoppen en footer | Header & navigatie en Footer (`HEADER-FOOTER.md`) |
 | Afbeeldingen | Mediabibliotheek (`MEDIA.md`) |

@@ -181,6 +181,39 @@ profielen, en de automatische links van Uitgelicht product, Projecten en
 Collectietegels, die hun bestemming uit het gekozen object halen en niet uit
 een knop.
 
+### Hoe een knop eruitziet: de knopstijl
+
+Waar een knop heen gaat kiest de bestemmingskiezer; hoe hij eruitziet kiest
+het veld **Knopstijl** (Button Styles 2.0, `THEMING.md` "Knopstijlen"). Eén
+veld voor elke blokknop: `admin_button_style_field()` uit
+`admin/_button_style_field.php`, in de groep van de knop zodat het met
+"Geen knop" meeverdwijnt. De opties komen altijd uit de bibliotheek
+(Vormgeving → Knoppen); **Standaard** bewaart `NULL` en volgt de
+standaardknop, of voor een tweede knop de standaard tweede knop.
+
+- **Opslag**: een nullable `…button_style_id` met een RESTRICT foreign key op
+  de rij van het blok of van het item, geschreven door
+  `ButtonStyleRepository::saveChoice()` (gesloten lijst `SLOTS`, voor een
+  moduleblok `ModuleDefinition::buttonStyleSlots()`) in de transactie van het
+  endpoint. Nooit het ontwerp zelf: een wijziging aan de stijl raakt elke
+  knop die hem koos.
+- **Endpoint**: `ButtonStyles::choiceFromRequest()`. Een formulier zonder het
+  veld houdt wat er staat, `''` is Standaard, een vervalst of onbekend id
+  wordt aan het veld geweigerd. In een repeater hoort `button_style_id` in de
+  `$preset` van `EditorChildList`: een gekozen stijl alleen maakt geen rij.
+- **Partial**: `ButtonStyles::classes($keuze, $oudeKlassen, $layoutKlassen)`.
+  Zonder keuze exact de oude markup, inclusief de oude pijl
+  (`<svg class="btn__arrow">`); met keuze `btn btn-style-<id>` plus de
+  layoutklassen (`btn--block`, `text-image__button`) en geen oude pijl. Een
+  look-klasse als `btn--ghost` of `btn--sm` wijkt voor de gekozen stijl.
+- **Aangesloten**: Oproep met knop en Homepage Hero (elk twee knoppen),
+  Tekstblok, Tekst met afbeelding (per item), Kaarten-carrousel (per kaart),
+  Hover kaarten (per kaart; de stijl staat op een `<span class="btn">` binnen
+  de kaartbrede link, die zijn eigen `::after` over de kaart houdt),
+  Detailsectie, Contactkaart, Galerij (voetknop) en Uitgelicht product.
+  `Tests\Service\ButtonStyleBlocksTest::CONNECTED` is de lijst; een blok dat
+  een eigen knop krijgt, hoort erin.
+
 **Een bovenlabel (eyebrow) is altijd optioneel.** Geen blok declareert het als
 `->required()`, geen editor zet er `required` op (de placeholder is
 `admin_localized_optional_attr()`), en een partial print het nooit zelf maar
@@ -1585,6 +1618,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 | Blok met een formulier erin | ook `fast` → `cms` (`FORMS.md`) |
 | Blok-editor of endpoint | `fast` → `blocks` (`PageBuilderSecurityTest` bewaakt de guards) |
 | De bestemmingskiezer, `LinkChoice`, `LinkTargets` of `SafeUrl` | `fast` → `blocks` (`DestinationPickerTest`, `Routing\SafeUrlTest`) → `modules` |
+| Een knop, of de knopstijl van een blok | `fast` (`ButtonStyleBlocksTest`, `ButtonStyleCssTest`) → `blocks` (`ButtonStylesHttpTest`) |
 | Alleen rendering | `blocks`; de HTTP-tests daarin hebben de `php_test`-container nodig |
 | Migratie/backfill | `blocks` → `--group migration-backfill` → volledige suite |
 

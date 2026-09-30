@@ -23,6 +23,12 @@ CSS-overrideblok.
   Font Library-familie vervangt per rol (`ThemeTypography`). In CSS heet een
   familie `mygdala-font-<id>`, nooit haar naam; alleen gebruikte families
   krijgen `@font-face`. Een palet raakt nooit een lettertype.
+- **Knopstijlen** (`ButtonStyles`, `ButtonStyleCss`, `ButtonIcons`): het
+  ontwerp van een knop, twee daarvan de standaard. `core.css` tekent elke
+  `.btn` uit `--btn-*`-properties; dit schrijft alleen het verschil van de
+  standaarden en één regel per gekozen stijl. Een kleur is een themakleurwoord
+  (`var(--color-…)`, volgt palet en paginathema) of een vaste `#RRGGBB`. Een
+  partial vraagt `ButtonStyles::classes()`, nooit eigen knop-CSS.
 - Core, nadrukkelijk geen module. Een module mag de tokens gebruiken maar
   krijgt nooit een eigen instelling in de vormgeving.
 

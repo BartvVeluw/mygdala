@@ -391,6 +391,18 @@ de rollen van de website terug. `FontLibraryTest` schrijft in een tijdelijke
 map (`FontLibrary::useStorageForTests()`); de HTTP-tests schrijven in
 `assets/fonts/library/` van de uitchecking en ruimen dat op.
 
+Bij de knopstijlen (`THEMING.md`, "Knopstijlen") gericht:
+`ButtonStyleCssTest` (`unit`, `fast`, `cms`), `ButtonStyleBlocksTest`
+(`contract`, `fast`, `blocks`), `ButtonStylesTest` (`cms`),
+`ButtonStylesHttpTest` (`cms`, `modules`, `blocks`; eigen `php -S` met de
+dispatcher) en `ButtonStylesMigrationTest` (`migration`, `cms`; ScratchInstall
+`mygdala_scratch_buttons_fresh` en `_upgraded`). Een test die een stijl of een
+standaard verandert, zet de bibliotheek terug met
+`Tests\Support\ButtonStyleFixture` (`snapshot()` in `setUp()`, `restore()` in
+`tearDown()`): de standaardknoppen tekenen elke `.btn` van een latere test.
+Een nieuwe `…button_style_id`-kolom op een bloktabel hoort ook in
+`RemainingBlockWordsMigrationTest::LATER_COLUMNS`.
+
 Het beeld van de HTTP-tier heeft geen `mod_headers`. `FontLibraryApacheHttpTest`
 bewijst daar het MIME-type, de weigering van elk ander bestand in de map en
 de 404, en voor `nosniff` en de cache de regels in de `.htaccess`; op een

@@ -9,9 +9,9 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 | | Wie de site *is* | Hoe de site er *uitziet* |
 |---|---|---|
 | Klasse | `App\Service\SiteSettings` | `App\Service\Theme\ThemeSettings` |
-| Tabel | `site_settings` | `color_palettes` (kleuren), `theme_settings` en `theme_font_roles` (eigen lettertype per rol, uit de Font Library) |
+| Tabel | `site_settings` | `color_palettes` (kleuren), `theme_settings` en `theme_font_roles` (eigen lettertype per rol, uit de Font Library), `button_styles` en `button_style_defaults` (knopstijlen) |
 | Scherm | Instellingen | Instellingen → Vormgeving |
-| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | kleurenpaletten (elk vijf kleuren, één actief), lettertypecombinatie, een eigen lettertype voor koppen en voor lopende tekst, knopvorm |
+| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | kleurenpaletten (elk vijf kleuren, één actief), lettertypecombinatie, een eigen lettertype voor koppen en voor lopende tekst, knopstijlen (twee daarvan de standaard) |
 | Terugzetten | nooit automatisch | één knop (kleuren van het actieve palet, lettertypecombinatie, eigen lettertypen per rol, knopvorm), en die raakt de linkerkolom niet aan; de Font Library zelf blijft staan |
 
 Twee tabellen en niet één met een prefix, precies omdat "standaardvormgeving
@@ -130,9 +130,10 @@ verstuurd, de native kleurkiezer ernaast houdt het bij.
 ## De negen instellingen
 
 De vijf kleuren zijn die van het **actieve kleurenpalet** (`color_palettes`,
-zie "Kleurenpaletten"); lettertypecombinatie en knopvorm zijn rijen in
+zie "Kleurenpaletten"); de lettertypecombinatie is een rij in
 `theme_settings`; het eigen lettertype per rol staat in `theme_font_roles`
-(zie "Font Library").
+(zie "Font Library"); `button_shape` is de vorm van de twee standaard
+knopstijlen (zie "Knopstijlen"), geen rij meer.
 
 ```text
 primary_color           #C9A063   accent: knoppen, links, iconen, lijnen
@@ -404,7 +405,7 @@ tokenmodel voor de website, een paginathema en deze preview.
 Nog niet gebouwd, wel voorbereid:
 
 - **Font Library 1.0** (gebouwd, zie "Font Library") en **Button Styles 2.0**
-  horen niet in een palet. Een palet is kleur, en `theme_settings` en
+  (gebouwd, zie "Knopstijlen") horen niet in een palet. Een palet is kleur, en `theme_settings` en
   `theme_font_roles` houden lettertype en knopvorm juist apart van het palet:
   een ander palet activeren verandert nooit een lettertype. Wordt het later
   een benoemde "stijlset" (kleur + letter + knop), dan komt die als eigen
@@ -649,10 +650,222 @@ rol in de typografie.
 
 ## Knopvorm
 
-`--button-radius`, met twee waarden: `pill` (999px, de standaard) en
-`rounded` (`var(--radius-md)`). Alleen `.btn` leest het token. Ronde
-icoonknoppen, labels, stappentellers, filterchips en kleurstalen houden hun
-eigen vorm, want die vorm betekent iets — vervang die niet mee.
+`--button-radius`: de vorm van de standaardknop (zie "Knopstijlen"), een van
+vijf waarden van `pill` (999px, de standaard) tot `square` (0). Alleen `.btn`
+leest het token. Ronde icoonknoppen, labels, stappentellers, filterchips en
+kleurstalen houden hun eigen vorm, want die vorm betekent iets — vervang die
+niet mee.
+
+## Knopstijlen (Button Styles 2.0)
+
+Een **knopstijl** is een benoemd ontwerp voor knoppen: weergave, vorm,
+grootte, kleuren, rand, schaduw, tekst, een pijl of icoon en wat er gebeurt
+als je de muis erop zet. De website heeft er zoveel als de beheerder wil
+(Vormgeving → **Knoppen**, `admin/theme.php`, tabblad `knoppen`), en een
+knop in een contentblok kiest er één. Pas je een stijl aan, dan veranderen
+alle knoppen met die stijl tegelijk: de keuze is een verwijzing, nooit een
+kopie van het ontwerp.
+
+### Vier dingen die je uit elkaar houdt
+
+| | Wat | Waar | Geldt voor |
+|---|---|---|---|
+| Kleurenpalet | vijf kleuren, één actief | `color_palettes` | de hele website |
+| Font Library | eigen lettertypen per rol | `font_families`, `theme_font_roles` | de hele website, of een paginathema |
+| Knopstijl | het ontwerp van een knop | `button_styles`, `button_style_defaults` | een knop die hem kiest, en de standaardknoppen |
+| Paginathema | vijf kleuren + lettertypen voor één pagina | `page_themes` (module) | alleen die pagina's `<main>` |
+
+Een knopstijl bevat **geen kleuren van zichzelf** als hij themakleuren kiest:
+hij zegt "primair", en welke kleur dat is beslist het actieve palet, of het
+paginathema van de pagina waar de knop staat. Een **vaste kleur** (`#RRGGBB`)
+blijft wat hij is, welk palet of paginathema er ook is. Het lettertype is
+altijd `var(--font-body)` of `var(--font-display)` en volgt dus de Font
+Library en een paginathema.
+
+### Het model
+
+```text
+button_styles            id, name (uniek), appearance, shape, size, fill_color,
+                         fill_gradient, text_color, border_width, border_color,
+                         shadow, font_weight, font_role, uppercase, underline,
+                         icon, icon_position, icon_gap, icon_motion,
+                         hover_effect, hover_fill_color, hover_text_color,
+                         hover_border_color
+button_style_defaults    role (primary|secondary) → button_style_id, FK RESTRICT
+<bloktabel>.…button_style_id   NULL = "Standaard", anders button_styles.id, FK RESTRICT
+```
+
+Elke waarde is een woord uit een gesloten lijst (`ButtonStyles::choices()`,
+de kaarten in `ButtonStyleCss`). Een kleur is een themakleurwoord
+(`ButtonStyleCss::COLORS`: `primary`, `primary_bright`, `primary_deep`,
+`primary_wash`, `on_primary`, `text`, `text_muted`, `background`, `surface`,
+`line_strong`) of een `#RRGGBB` na `ThemeColor::normalise()`. Een icoon is een
+sleutel uit `ButtonIcons` (pijl rechts/links, punthaak, externe link, plus,
+download, winkelwagen). Er is geen vrij CSS-, HTML- of SVG-veld, en een
+klassenaam bevat alleen het id (`btn-style-<id>`).
+
+De vorm is een gecontroleerde schaal van vijf: rechthoekig (0), licht
+afgerond (`--radius-sm`), afgerond (`--radius-md`, de oude "Afgerond"),
+sterk afgerond (`--radius-lg`) en volledig rond (999px, de oude "Pill"). Een
+vrije pixelwaarde is er bewust niet: die breekt een knop sneller dan hij
+helpt.
+
+### Twee standaarden
+
+- **Standaardknop** (`primary`): elke `.btn` zonder eigen keuze. Dat is een
+  contentknop op "Standaard", én elke functionele knop: in winkelwagen,
+  afrekenen, formulier verzenden, de cookiemelding, paginering, de
+  headerknoppen.
+- **Standaard tweede knop** (`secondary`): elke `.btn--ghost`, de rustigere
+  knop naast een eerste (de tweede knop van de CTA en de Hero, de knop van
+  kaarten, Contactkaart, Galerij, Uitgelicht product).
+
+Twee rollen en niet één, omdat de website er vóór deze fase al twee had:
+met één standaard zouden de twee knoppen van een CTA na de migratie gelijk
+worden. Precies één stijl per rol, nooit geen: een standaard kun je niet
+verwijderen, alleen vervangen.
+
+### Van keuze naar pixel
+
+```text
+core.css  .btn{ --btn-bg … --btn-icon-shift }   = het ontwerp van vóór 2.0
+          .btn--ghost{ --btn-… }                 = de tweede knop van vóór 2.0
+          .btn{ background: var(--btn-bg); … }   leest alléén die properties
+
+<style id="site-buttons">   (ButtonStyles::styleBlock(), door PageAssets na site-theme)
+  .btn:where(:not(.btn--ghost, .btn--on-dark)){ verschil van de standaardknop }
+  .btn--ghost{ verschil van de standaard tweede knop }
+  .btn.btn-style-7{ alle properties }         één regel per gekozen stijl
+```
+
+- **Het verschil, zoals `ThemeCss`.** Een site waarvan de twee standaarden
+  nog het meegeleverde ontwerp zijn en waar geen blok een stijl koos, krijgt
+  geen `site-buttons`-blok: hij rendert zoals vóór 2.0.
+  `ButtonStyleCss::LEGACY_PRIMARY` / `LEGACY_SECONDARY_OVERRIDES` en de
+  regels in `core.css` zijn één model; `ButtonStyleCssTest` leest `core.css`
+  en houdt ze gelijk.
+- **Alleen wat gebruikt wordt.** Een stijl krijgt een regel als een knop hem
+  koos (`ButtonStyleRepository::usageCounts()`, één UNION-query over alle
+  knopkolommen). Twintig knoppen met dezelfde stijl delen één regel; een stijl
+  die niemand kiest kost niets.
+- **Declaratie op de knop zelf.** Een `var(--color-primary)` wordt opgelost
+  op de knop, dus binnen `main[data-page-theme]` in de kleuren van het
+  paginathema en in header en footer in die van het actieve palet. Geen
+  eigen kleurlogica per blok.
+- **De vorm van de standaardknop** blijft het token `--button-radius`
+  (`ThemeCss`); `ThemeSettings`' sleutel `button_shape` leest en schrijft
+  voortaan de vorm van beide standaarden (zie hieronder). Zo zijn er geen
+  twee bronnen.
+- **Iconen zonder markup.** Een icoon is een mask op `::before`/`::after`
+  in de tekstkleur, met lege `content`: decoratief, nooit voorgelezen, en een
+  centrale wijziging raakt geen HTML. De oude inline pijl
+  (`<svg class="btn__arrow">`) staat alleen nog op knoppen zonder keuze, en
+  een standaard met een eigen icoon verbergt hem, zodat een knop nooit twee
+  pijlen toont.
+- **Toestanden.** Hover is `--btn-hover-*` (omhoog, gloed, schaduw, lichter,
+  en optioneel een eigen vlak-, tekst- en randkleur). Focus is de
+  site-brede `:focus-visible`-ring: het model heeft geen `outline`, dus geen
+  stijl kan hem uitzetten. `:disabled` en `.is-disabled` houden hun eigen
+  regel. Onder `prefers-reduced-motion: reduce` beweegt er niets meer (ook de
+  meegeleverde knop tilt dan niet meer op; alleen de kleur verandert).
+
+### Een blok aansluiten
+
+Een blok met een knop die een redacteur instelt krijgt:
+
+1. een nullable `…button_style_id` op de rij (of de rij van het item) met
+   `FOREIGN KEY … REFERENCES button_styles(id) ON DELETE RESTRICT`, in een
+   migratie;
+2. de kolom in `ButtonStyleRepository::SLOTS`, of voor een moduleblok in
+   `ModuleDefinition::buttonStyleSlots()` (de Shop: `featured_products`);
+3. in de editor `admin_button_style_field()` (`admin/_button_style_field.php`),
+   in de groep van de knop zodat hij met "Geen knop" meeverdwijnt; de opties
+   komen altijd uit de bibliotheek;
+4. in het endpoint `ButtonStyles::choiceFromRequest()` (een formulier zonder
+   het veld houdt wat er staat, `''` is Standaard, een vervalst id wordt
+   geweigerd) en `ButtonStyleRepository::saveChoice()` in dezelfde transactie;
+5. in de `*Content`-klasse de sleutel `button_style`
+   (`ButtonStyles::storedChoice()`), ook in de lege structuur;
+6. in de partial `ButtonStyles::classes($keuze, $oudeKlassen, $layoutKlassen)`:
+   zonder keuze de oude klassen en de oude pijl, met keuze
+   `btn btn-style-<id>` plus de layoutklassen;
+7. het blok in `ButtonStyleBlocksTest::CONNECTED`.
+
+Aangesloten: Oproep met knop (twee), Homepage Hero (twee), Tekstblok, Tekst
+met afbeelding (per rij), Kaarten-carrousel (per kaart), Hover Cards (per
+kaart), Detailsectie, Contactkaart, Galerij/Projecten (voetknop) en
+Uitgelicht product. Hover Cards zet de stijl op een `<span class="btn">`
+binnen de kaartbrede link: die link heeft zijn eigen `::after` over de hele
+kaart, en de kaart is wat aangewezen en gefocust wordt
+(`hover-card-grid.css`). Geen knop van zichzelf en dus geen keuze: Page
+Header, Mediabanner, Feature Grid, Stappen, Cijfers, Marquee, FAQ.
+
+### Wat bewust de standaard volgt, zonder eigen keuze
+
+Functionele knoppen (winkelwagen, afrekenen, formulier, cookies,
+paginering, "terug"-links) zijn `.btn` of `.btn--ghost` en volgen dus de
+twee standaarden, met hun eigen gedrag, `disabled`-toestand,
+`aria`-labels en `.btn--sm`/`.btn--block`-maat. De headerknoppen houden
+hun keuze eerste/tweede knop (`nav_items.button_variant`) en volgen zo de
+standaarden. Met een eigen, betekenisvolle vorm en dus buiten het systeem:
+de ronde icoonknoppen (zoeken, menu, winkelwagen-icoon, carrouselpijlen,
+lightbox, aantal-stepper), filterchips, `.site-search__submit` en de
+vaste "Bekijk project"-overlay van de Portfoliogalerij.
+
+### Beheren
+
+Vormgeving → Knoppen toont elke stijl met zijn rol (Standaardknop,
+Standaard tweede knop, Beschikbaar) en het aantal knoppen dat hem koos.
+Nieuwe stijl, bewerken, dupliceren ("(kopie)", nooit standaard, door niemand
+gekozen), als standaard instellen (met bevestiging: dat verandert de hele
+website) en verwijderen. Verwijderen weigert een standaard ("maak eerst een
+andere stijl de standaard") en een stijl in gebruik ("wordt gebruikt door N
+knop(pen) … kies daar eerst een andere knopstijl"); de foreign keys weigeren
+beide ook, voor een keuze tussen controle en delete. Alles achter
+`settings.manage`, met de vier guards; een blokkeuze valt onder het recht
+van het blok (`ContentBlockAccess`).
+
+De editor (`admin/button-style.php`) zegt vooraf wat opslaan doet (een
+standaard: de hele website; in gebruik: N knoppen; anders niets) en toont
+alleen de velden die bij de gekozen weergave horen. Een kleur is
+"Themakleur (volgt het palet)" of "Vaste kleur", met de kleurkiezer.
+
+### De live preview
+
+Rechts naast de instellingen, sticky op desktop, erboven op een telefoon:
+`admin/button-style-preview.php` in een frame met `sandbox="allow-same-origin"`
+en een CSP zonder scripts, getekend met de echte `core.css`, het actieve
+palet, de lettertypen en het knopblok van de site. Normaal, muis erop,
+toetsenbordfocus, uitgeschakeld, een lange tekst, en op een lichte en een
+donkere ondergrond. `admin/assets/button-style-admin.js` zet bij elke
+wijziging de `--btn-*`-properties op de voorbeeldknoppen, samengesteld uit
+`ButtonStyleCss::recipe()` (dezelfde kaarten als de website): geen verzoek
+per wijziging. "Muis erop" en "focus" zijn in
+`assets/css/button-style-preview.css` getekend uit dezelfde properties die
+`.btn:hover` en `:focus-visible` gebruiken.
+
+### Knopvorm (de oude instelling)
+
+De keuze "Stijl → Knopvorm" is weg; vorm en uiterlijk staan op Knoppen.
+`ThemeSettings::get('button_shape')` bestaat nog als **façade**: hij leest de
+vorm van de standaardknop, en `save(['button_shape' => …])` (de
+installatiewizard) zet beide standaarden op die vorm, zoals een kleur via
+`ThemeSettings` in het actieve palet landt. "Standaardvormgeving herstellen"
+zet de vorm van beide standaarden terug op volledig rond. De migratie
+`20261005100000` gaf "Primair" en "Secundair" de vorm die de site had en
+verwijderde de rij uit `theme_settings`.
+
+### Later: een Global Theme
+
+Een toekomstig **Global Theme** ("stijlset": palet + lettertypen + knoppen)
+hoeft dit model niet te dupliceren. Het is een record dat naar bestaande
+dingen verwijst: een `color_palettes.id`, twee Font Library-families en twee
+`button_styles.id`'s voor de rollen. Een thema activeren schrijft
+`button_style_defaults` (en het actieve palet, en `theme_font_roles`); meer
+standaardknoppen per thema (bijvoorbeeld een derde rol voor
+"op een donkere foto") zijn een extra rolwoord in
+`ButtonStyleRepository::ROLES` met een eigen `.btn--…`-klasse, nooit een
+tweede CSS-generator. Nog niet gebouwd.
 
 ## Paginathema's
 
@@ -894,6 +1107,20 @@ preview en Paginathema's aan en uit op echte pagina's) en
 `ColorPalettesMigrationTest` (`migration`, `cms`). `ThemePersistenceTest` en
 `SetupCompletionTest` bewaken dat een kleur via `ThemeSettings` in het
 actieve palet landt en nooit meer in `theme_settings`.
+
+De knopstijlen: `ButtonStyleCssTest` (`unit`, `fast`, `cms`: `core.css`
+gelijk aan het meegeleverde model, het verschil van de standaarden, elke
+weergave, vorm, rand, schaduw, hover en icoon, themakleur tegenover vaste
+kleur, injectie, de resolver), `ButtonStyleBlocksTest` (`contract`, `fast`,
+`blocks`: elk aangesloten blok met en zonder keuze, twee knoppen, een
+repeater), `ButtonStylesTest` (`cms`: beheer, standaarden, weigering en de
+foreign keys, validatie, de blokkeuze, gebruik, de knopvorm-façade, de CSS
+van een pagina), `ButtonStylesHttpTest` (`cms`, `modules`, `blocks`: het
+tabblad, de endpoints, guards, de preview, een CTA, een Tekstblok en een rij
+van Tekst met afbeelding die kiezen, een centrale wijziging) en
+`ButtonStylesMigrationTest` (`migration`, `cms`). `SetupCompletionTest`
+bewaakt dat de knopvorm van de installatiewizard in de standaardknoppen
+landt.
 
 Raak je de stylesheets aan, controleer dan of de standaardvormgeving
 onveranderd rendert: vergelijk `getComputedStyle` van élk element vóór en ná,

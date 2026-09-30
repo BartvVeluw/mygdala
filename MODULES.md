@@ -424,8 +424,9 @@ Alles wat er ook zou zijn zonder webshop.
 - **Instellingen/navigatie** — `NavigationService`, `FooterService`,
   `LinkResolver`, `RouteRegistry`.
 - **Vormgeving** — `Service\Theme\*` (kleurenpaletten met één actief,
-  lettertypecombinatie, knopvorm), `Branding`, `admin/theme.php`,
-  `admin/color-palette.php`. Core,
+  lettertypecombinatie, Font Library, knopstijlen), `Branding`, `admin/theme.php`,
+  `admin/color-palette.php`, `admin/button-style.php`. Een module met een
+  blokknop noemt zijn kolom in `buttonStyleSlots()`. Core,
   nadrukkelijk geen module: een site zonder vormgeving bestaat niet. Een
   module mág de semantische tokens gebruiken — de Shop doet dat — maar houdt
   zijn eigen presentatie: er komt geen Shop- of personalisatie-instelling in

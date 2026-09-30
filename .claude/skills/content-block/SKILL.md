@@ -141,6 +141,13 @@ en `GenericBlockDefaultsTest` bewaken beide.
   een eigen paginalijst, een eigen typekeuze of een eigen URL-controle. Een
   ander getypt adresveld gaat door `App\Service\Routing\SafeUrl`
   (`CONTENT-BLOCKS.md`, "Waar een knop heen gaat").
+- **Moet de redacteur kunnen kiezen hoe die knop eruitziet?** Het veld
+  *Knopstijl*: `admin_button_style_field()`, een nullable
+  `…button_style_id` met RESTRICT-sleutel in `ButtonStyleRepository::SLOTS`,
+  `ButtonStyles::choiceFromRequest()` in het endpoint en
+  `ButtonStyles::classes()` in de partial (`CONTENT-BLOCKS.md`, "Hoe een knop
+  eruitziet"). Nooit eigen knop-CSS in de blokstylesheet, en het blok in
+  `ButtonStyleBlocksTest::CONNECTED`.
 - **Heeft je blok kaarten met een titel?** De tag komt van
   `App\Service\Blocks\CardHeading::under()`: een `<h3>` onder de eigen
   bloktitel, een `<h2>` zonder. Geef de kaarttitel een klasse die zijn maat
