@@ -22,7 +22,9 @@
  *       [data-row-list-number]       its place, 1-based; rewritten after every change
  *                                    (every one in the row: a collapsible row has two)
  *       [data-row-list-title]        a collapsible row's title in its summary line,
- *                                    following [data-row-list-title-source] as it is typed
+ *                                    following [data-row-list-title-source] as it is typed;
+ *                                    an empty source shows its data-row-list-title-fallback
+ *                                    (a Reviews review without a name: "Anoniem"), if any
  *       [data-row-list-removing]     a removal MARK (a checkbox): the row stays
  *                                    on screen and is removed by the save
  *   [data-row-list-add="<list id>"]  appends a copy of the list's
@@ -110,7 +112,7 @@
       var title = row ? row.querySelector("[data-row-list-title]") : null;
       if (!title) return;
 
-      var value = source.value.trim();
+      var value = source.value.trim() || source.getAttribute("data-row-list-title-fallback") || "";
       title.textContent = value === "" ? "" : " — " + value;
     });
 

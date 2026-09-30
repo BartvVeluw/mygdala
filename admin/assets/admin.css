@@ -2752,6 +2752,59 @@ body.admin-login-page{
 [data-hover-cards-form]:has([name="layout"][value="open"]:checked){ --admin-rm-desktop-ratio: 1 / 1; --admin-rm-mobile-ratio: 1 / 1; }
 [data-hover-cards-form]:has([name="shape"][value="circle"]:checked) .admin-rm__frame{ border-radius: 50%; }
 
+/* Reviews (admin/reviews.php): a review's picture is a portrait in a round
+   frame on every screen (reviews.css, .review__portrait), so the crop shows
+   what the page will show. */
+[data-reviews-form]{ --admin-rm-desktop-ratio: 1 / 1; --admin-rm-mobile-ratio: 1 / 1; }
+[data-reviews-form] .admin-rm__frame{ border-radius: 50%; }
+
+/* The four layouts of a Reviews block as small sketches beside "Weergave";
+   the chosen one (the form's data-reviews-layout, admin/assets/reviews.js)
+   is marked. Decoration: the select is the control. */
+.admin-reviews-sketches{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+.admin-reviews-sketch{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.4rem 0.5rem;
+  color: var(--admin-text-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+.admin-reviews-sketch svg{ width: 100%; max-width: 96px; height: auto; }
+[data-reviews-layout="cards"] [data-reviews-sketch="cards"],
+[data-reviews-layout="minimal"] [data-reviews-sketch="minimal"],
+[data-reviews-layout="featured"] [data-reviews-sketch="featured"],
+[data-reviews-layout="carousel"] [data-reviews-sketch="carousel"]{
+  color: var(--admin-accent);
+  border-color: var(--admin-accent);
+  box-shadow: inset 0 0 0 1px var(--admin-accent);
+  font-weight: 600;
+}
+@media (max-width: 560px){
+  .admin-reviews-sketches{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.admin-review__grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+}
+@media (max-width: 700px){
+  .admin-review__grid{ grid-template-columns: minmax(0, 1fr); }
+}
+.admin-review__featured{ margin: 0.5rem 0 0; }
+.admin-review__featured label{ display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+
 /* The homepage Hero (admin/homepage-hero.php): beside the text the image has
    its 4:5 frame on every screen (core.css, .hero__media-frame); behind the
    text it fills the whole Hero (homepage-hero.css: about 1280 x 830 in a

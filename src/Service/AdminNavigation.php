@@ -190,6 +190,7 @@ class AdminNavigation
                     'item-gallery.php',
                     'media-banner.php',
                     'hover-card-grid.php',
+                    'reviews.php',
                     'spacer.php',
                     // A module's block editor is still a page-builder screen,
                     // guarded by pages.manage like the rest (the Portfolio's
