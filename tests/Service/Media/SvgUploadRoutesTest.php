@@ -33,6 +33,7 @@ final class SvgUploadRoutesTest extends TestCase
         'src/Service/Personalization/PersonalizationPreviewImageUploader.php' => 'raster',
         'src/Service/Personalization/PersonalizationUploadStorage.php' => 'validated',
         'src/Service/Personalization/PersonalizationFontUploader.php' => 'font',
+        'src/Service/Theme/FontStorage.php' => 'font',
         'src/Service/SectionVideoUploader.php' => 'video',
         'src/Service/ContactAttachmentStorage.php' => 'validated',
         'src/Service/OrderFields/OrderFieldUploadStorage.php' => 'validated',

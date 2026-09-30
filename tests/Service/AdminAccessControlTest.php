@@ -123,6 +123,11 @@ final class AdminAccessControlTest extends TestCase
         // admin/theme.php, admin/setup.php and admin/page-theme.php behind
         // their own checks.
         '_theme_color_field.php',
+        // The Font Library's markup helpers (samples, the choice per role,
+        // the licence warning, the manual), printed by admin/theme.php,
+        // admin/font-family.php and admin/page-theme.php behind their own
+        // checks. Output functions only; every write is a guarded endpoint.
+        '_font_library.php',
         // The Paginathema choice on the page editor, rendered by the
         // Paginathema's module's App\Service\PageSettingsSection inside
         // admin/page.php's settings form, behind that screen's pages.manage

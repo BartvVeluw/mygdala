@@ -37,6 +37,7 @@ final class MediaPickerContractTest extends TestCase
         'admin/_media_picker.php' => 'the picker modal\'s own upload, behind its "Nieuw bestand uploaden" button',
         'admin/media.php' => 'the library\'s own upload queue: this IS the Media Library',
         'admin/personalization-fonts.php' => 'a font file for the personalisation module, not an image',
+        'admin/font-family.php' => 'a font file for the Font Library (Vormgeving, Lettertypen), not an image',
         'admin/_personalization_builder.php' => 'a configurator view\'s preview canvas: its coordinates belong to that one image (MEDIA.md, "Nog op een eigen pad")',
     ];
 

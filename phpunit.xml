@@ -124,6 +124,8 @@
             <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>
             <file>tests/Service/ThemeColorTest.php</file>
             <file>tests/Service/ThemePaletteRecipeTest.php</file>
+            <file>tests/Service/FontFileInspectorTest.php</file>
+            <file>tests/Service/FontLibraryCssTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -377,6 +379,8 @@
             <file>tests/Service/FeaturedProductContractTest.php</file>
             <file>tests/Service/ThemeColorTest.php</file>
             <file>tests/Service/ThemePaletteRecipeTest.php</file>
+            <file>tests/Service/FontFileInspectorTest.php</file>
+            <file>tests/Service/FontLibraryCssTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
             <file>tests/Module/PageThemesModuleTest.php</file>
         </testsuite>
@@ -412,6 +416,7 @@
             <file>tests/Service/SitemapRoutingTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
             <file>tests/Module/PageThemesApacheHttpTest.php</file>
+            <file>tests/Service/FontLibraryApacheHttpTest.php</file>
         </testsuite>
 
         <!-- Migrations and installation, each proven on data the test puts
@@ -485,6 +490,7 @@
             <file>tests/Install/ImageOrderFieldUploadsMigrationTest.php</file>
             <file>tests/Install/PageThemesMigrationTest.php</file>
             <file>tests/Install/ColorPalettesMigrationTest.php</file>
+            <file>tests/Install/FontLibraryMigrationTest.php</file>
         </testsuite>
 
         <!-- ============================================================
@@ -500,6 +506,7 @@
             <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/PageThemesMigrationTest.php</file>
             <file>tests/Service/ColorPalettesHttpTest.php</file>
+            <file>tests/Service/FontLibraryHttpTest.php</file>
         </testsuite>
 
         <!-- The Blog module: posts, taxonomy, its SEO and feed, its media
@@ -825,6 +832,12 @@
             <file>tests/Service/ColorPaletteTest.php</file>
             <file>tests/Service/ColorPalettesHttpTest.php</file>
             <file>tests/Install/ColorPalettesMigrationTest.php</file>
+            <file>tests/Service/FontFileInspectorTest.php</file>
+            <file>tests/Service/FontLibraryCssTest.php</file>
+            <file>tests/Service/FontLibraryTest.php</file>
+            <file>tests/Service/FontLibraryHttpTest.php</file>
+            <file>tests/Service/FontLibraryApacheHttpTest.php</file>
+            <file>tests/Install/FontLibraryMigrationTest.php</file>
         </testsuite>
 
         <testsuite name="shop">
