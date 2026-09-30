@@ -23,7 +23,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-hover-card-grid.php';
  * Library items, so removing a grid removes references and never a file
  * (deleteFiles() keeps its empty default).
  */
-final class HoverCardGridBlock extends BlockDefinition
+final class HoverCardGridBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -220,5 +220,19 @@ final class HoverCardGridBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return HoverCardGridContent::TABLE;
+    }
+
+    /**
+     * Content: at least one card (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = HoverCardGridContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== HoverCardGridContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return ($content['cards'] ?? []) !== [];
     }
 }

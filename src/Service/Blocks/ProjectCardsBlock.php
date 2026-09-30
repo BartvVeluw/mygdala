@@ -49,7 +49,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * (page_sections.section_type): admin/project-cards.php edits only this
  * block's rows, admin/item-gallery.php only the gallery's.
  */
-final class ProjectCardsBlock extends BlockDefinition
+final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -321,5 +321,19 @@ final class ProjectCardsBlock extends BlockDefinition
             'footer_note' => '',
             'button_label' => '',
         ];
+    }
+
+    /**
+     * Content: projects, or a choice that can give them (the Portfolio source, judged on its configuration) (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== ItemGalleryContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['items'] !== [] || ItemGalleryContent::isConfigured($content);
     }
 }

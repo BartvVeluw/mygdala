@@ -15,7 +15,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-stat-strip.php';
  * block_translations (BlockLocalization), each figure's on its own row. The
  * strip itself has no words.
  */
-final class StatStripBlock extends BlockDefinition
+final class StatStripBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -139,5 +139,19 @@ final class StatStripBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'stat_strips';
+    }
+
+    /**
+     * Content: at least one figure (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = StatStripContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== StatStripContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['items'] !== [];
     }
 }

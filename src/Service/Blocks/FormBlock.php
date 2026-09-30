@@ -24,7 +24,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-form.php';
  * derived from `(page_slug, section_key)`
  * (App\Service\Forms\FormRenderState), so two instances share nothing.
  */
-final class FormBlock extends BlockDefinition
+final class FormBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -199,5 +199,19 @@ final class FormBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'form_blocks';
+    }
+
+    /**
+     * Content: a form that can be shown (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = FormBlockContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== FormBlockContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return FormCatalog::renderable($content['form_id'] ?? null) !== null;
     }
 }

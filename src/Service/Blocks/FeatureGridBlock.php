@@ -13,7 +13,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-feature-grid.php';
  * words of the grid and of every card are stored per website language in
  * block_translations (BlockLocalization), each card's on its own row.
  */
-final class FeatureGridBlock extends BlockDefinition
+final class FeatureGridBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -163,5 +163,19 @@ final class FeatureGridBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'feature_grids';
+    }
+
+    /**
+     * Content: a heading or at least one item, as its partial decides (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = FeatureGridContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== FeatureGridContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['eyebrow'] !== '' || $content['title'] !== '' || $content['lead'] !== '' || $content['items'] !== [];
     }
 }

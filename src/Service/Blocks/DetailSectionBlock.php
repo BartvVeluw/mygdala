@@ -24,7 +24,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-detail-section.php';
  * alt text are stored per website language in block_translations
  * (BlockLocalization), each child row's on its own row.
  */
-final class DetailSectionBlock extends BlockDefinition implements ContributesAnchor
+final class DetailSectionBlock extends BlockDefinition implements ContributesAnchor, InspectsContent
 {
     public function type(): string
     {
@@ -253,5 +253,21 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
     public function contentTable(): ?string
     {
         return 'detail_sections';
+    }
+
+    /**
+     * Content: any of its words, its picture, a point or a gallery image (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = DetailSectionContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== DetailSectionContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return (string) $content['title'] !== '' || (string) $content['lead'] !== '' || trim((string) $content['body']) !== ''
+            || (string) $content['cta_label'] !== '' || (string) $content['main_image_path'] !== ''
+            || $content['points'] !== [] || $content['images'] !== [];
     }
 }

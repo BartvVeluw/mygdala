@@ -23,7 +23,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-media-banner.php';
  * Whether it shows a picture or a video is the chosen library item's own
  * kind, never a setting of the block (App\Service\MediaBannerContent).
  */
-final class MediaBannerBlock extends BlockDefinition
+final class MediaBannerBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -167,5 +167,19 @@ final class MediaBannerBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'media_banners';
+    }
+
+    /**
+     * Content: a picture or a video; its words alone show nothing (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = MediaBannerContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== MediaBannerContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return in_array((string) ($content['kind'] ?? ''), [MediaType::IMAGE, MediaType::VIDEO], true) && (string) ($content['src'] ?? '') !== '';
     }
 }

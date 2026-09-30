@@ -888,6 +888,8 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'blocks.view_label' => 'View',
     'blocks.view_cards' => 'Cards',
     'blocks.view_list' => 'List',
+    'blocks.empty_title' => 'Your page has no content yet.',
+    'blocks.empty_text' => 'Add your first content block below.',
     'blocks.preview_document_title' => 'Preview: :block',
     'blocks.preview_not_found' => 'There is no preview of this content block.',
     'blocks.preview_open' => 'View example',
@@ -4365,4 +4367,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'blocks.draft_discard_failed' => 'The new block could not be cleared away. Nothing on the page has changed.',
     'blocks.saved_badge' => 'Saved',
     'blocks.saved_notice' => 'The content block has been saved.',
+    'blocks.empty_badge' => 'Empty block',
+    'blocks.empty_note' => 'This content block has no content yet and is therefore not shown on the website.',
+    'blocks.empty_edit' => 'Add content',
 ];

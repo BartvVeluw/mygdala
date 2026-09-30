@@ -21,7 +21,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-text-image-split.php';
  * items on the block row, and each item's on its own row. What the block row
  * holds besides that is whether the block shows.
  */
-final class TextImageSplitBlock extends BlockDefinition
+final class TextImageSplitBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -231,5 +231,19 @@ final class TextImageSplitBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'text_image_splits';
+    }
+
+    /**
+     * Content: at least one item; its partial shows nothing without one (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = TextImageSplitContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== TextImageSplitContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['items'] !== [];
     }
 }

@@ -13,7 +13,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-contact-card.php';
  * working when that address changes. Its words are stored per website
  * language in block_translations (BlockLocalization).
  */
-final class ContactCardBlock extends BlockDefinition
+final class ContactCardBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -147,5 +147,19 @@ final class ContactCardBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'contact_cards';
+    }
+
+    /**
+     * Content: a title or a text (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = ContactCardContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== ContactCardContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['title'] !== '' || $content['body'] !== '';
     }
 }

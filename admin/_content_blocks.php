@@ -74,6 +74,12 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
           // the row admin-collapse.js brings into view, on its tab.
           $isJustSaved = $savedSectionId === (int) $pageSection['id'];
 
+          // A block that shows nothing yet (SectionRegistry::isEmpty(): the
+          // block itself answers, App\Service\Blocks\InspectsContent). A hint
+          // for the editor only: nothing is removed, the public page is not
+          // touched, and a decorative or dynamic block is never judged.
+          $isEmpty = !$isUnsupported && SectionRegistry::isEmpty($pageSection);
+
           // The one line a collapsed row shows. For an ordinary block that
           // is the registry's own instance label — "Tekstblok — Over onze
           // diensten" — so no block type has to invent a summary of its own,
@@ -90,7 +96,7 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                  api/admin/add-page-section.php sends a new block to, what a
                  link from anywhere else can point at, and what
                  admin-collapse.js scrolls back to after an edit. */ ?>
-        <div class="admin-section-row admin-page-section-row<?= $isHidden ? ' is-hidden-section' : '' ?><?= $isJustAdded ? ' is-just-added' : '' ?><?= $isJustSaved ? ' is-just-saved' : '' ?>" id="blok-<?= (int) $pageSection['id'] ?>" data-page-section-id="<?= (int) $pageSection['id'] ?>">
+        <div class="admin-section-row admin-page-section-row<?= $isHidden ? ' is-hidden-section' : '' ?><?= $isJustAdded ? ' is-just-added' : '' ?><?= $isJustSaved ? ' is-just-saved' : '' ?><?= $isEmpty ? ' is-empty-block' : '' ?>" id="blok-<?= (int) $pageSection['id'] ?>" data-page-section-id="<?= (int) $pageSection['id'] ?>">
           <?php /* Outside the <details> on purpose: a collapsed row must
                    still be draggable, and that is most of the reason to
                    collapse rows at all. */ ?>
@@ -113,6 +119,9 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                 <?php if ($isJustSaved): ?>
                   <span class="admin-badge admin-badge--saved"><?= admin_te('blocks.saved_badge') ?></span>
                 <?php endif; ?>
+                <?php if ($isEmpty): ?>
+                  <span class="admin-badge admin-badge--empty"><?= admin_te('blocks.empty_badge') ?></span>
+                <?php endif; ?>
                 <?php if ($isHidden): ?>
                   <span class="admin-badge admin-badge--muted">Verborgen</span>
                 <?php endif; ?>
@@ -131,6 +140,10 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                   <p class="admin-section-row__note"><?= admin_te('page.blok_kon_geladen_pagina') ?></p>
                 <?php elseif ($note !== null): ?>
                   <p class="admin-section-row__note"><?= $h($note) ?></p>
+                <?php endif; ?>
+                <?php if ($isEmpty): ?>
+                  <?php $emptyEditUrl = SectionRegistry::editUrl($pageSection); ?>
+                  <p class="admin-section-row__note admin-section-row__note--empty"><?= admin_te('blocks.empty_note') ?><?php if ($emptyEditUrl !== null): ?> <a href="<?= $h($emptyEditUrl) ?>"><?= admin_te('blocks.empty_edit') ?> &#8594;</a><?php endif; ?></p>
                 <?php endif; ?>
                 <?php if ($isHidden): ?>
                   <p class="admin-section-row__note"><?= admin_t('page.verborgen_getoond_pagina') ?></p>

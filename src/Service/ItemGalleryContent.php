@@ -295,6 +295,40 @@ class ItemGalleryContent
     }
 
     /**
+     * Whether this gallery's settings can ever give it items — what the page
+     * builder's "Leeg blok" asks of a gallery that shows none today
+     * (ItemGalleryBlock::hasContent()). A gallery is a dynamic block: one
+     * whose source is set is content, even while that source holds nothing.
+     * It is not when there is nothing to draw from: no source, a collection
+     * gallery without its collection, or a hand-picked list with nothing
+     * picked. A source of a module that is off is not judged here.
+     *
+     * @param array<string, mixed> $content forSection() in STATE_ACTIVE
+     */
+    public static function isConfigured(array $content): bool
+    {
+        $source = (string) ($content['source_type'] ?? '');
+
+        if ($source === '') {
+            return false;
+        }
+
+        if (!ItemGallerySources::isAvailable($source)) {
+            return true;
+        }
+
+        if (ItemGallerySources::needsCollection($source)) {
+            return ($content['collection_id'] ?? null) !== null;
+        }
+
+        if (($content['portfolio_scope'] ?? self::SCOPE_ALL) === self::SCOPE_MANUAL && ItemGallerySources::supportsSelection($source)) {
+            return ItemGallerySources::selectedItems($source, (int) ($content['id'] ?? 0)) !== [];
+        }
+
+        return true;
+    }
+
+    /**
      * Clears the in-process cache, and the block words BlockLocalization
      * holds — used by the admin save handler right after writing a new
      * value, and by tests.

@@ -28,7 +28,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-featured-product.php';
  * it is neither offered nor rendered, and a placed block keeps its row until
  * the Shop is back (MODULES.md, "Blokken van een uitgeschakelde module").
  */
-final class FeaturedProductBlock extends BlockDefinition
+final class FeaturedProductBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -217,5 +217,19 @@ final class FeaturedProductBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'featured_products';
+    }
+
+    /**
+     * Content: a product to show (a dynamic block is judged on its source) (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = FeaturedProductContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== FeaturedProductContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return is_array($content['product'] ?? null);
     }
 }

@@ -981,7 +981,8 @@ a{ color: var(--admin-accent); }
 
 /* Content Blocks Lifecycle 1.0 (admin/_content_blocks.php). The block whose
    editor just saved glows once like a new row; its "Opgeslagen" badge stays
-   until the next visit. */
+   until the next visit. An empty block wears a quiet amber "Leeg blok" in
+   its one summary line, so a collapsed list does not grow a line per row. */
 .admin-page-section-row.is-just-saved{
   border-color: var(--admin-accent);
   box-shadow: 0 0 0 1px var(--admin-accent-soft-strong);
@@ -993,6 +994,8 @@ a{ color: var(--admin-accent); }
 }
 
 .admin-badge--saved{ color: var(--admin-success); border-color: var(--admin-success-line); background: var(--admin-success-soft); }
+.admin-badge--empty{ color: var(--admin-warning); border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }
+.admin-section-row__note--empty a{ white-space: nowrap; }
 
 /* A new block's editor (admin/_block_editor.php): one note line with its
    Annuleren beside it, wrapping under it on a narrow screen. */

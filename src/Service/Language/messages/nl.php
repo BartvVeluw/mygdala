@@ -896,6 +896,8 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'blocks.view_label' => 'Weergave',
     'blocks.view_cards' => 'Kaarten',
     'blocks.view_list' => 'Lijst',
+    'blocks.empty_title' => 'Je pagina heeft nog geen inhoud.',
+    'blocks.empty_text' => 'Voeg hieronder je eerste contentblok toe.',
     'blocks.preview_document_title' => 'Voorbeeld: :block',
     'blocks.preview_not_found' => 'Van dit contentblok is geen voorbeeld beschikbaar.',
     'blocks.preview_open' => 'Voorbeeld bekijken',
@@ -4375,4 +4377,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'blocks.draft_discard_failed' => 'Het nieuwe blok kon niet worden opgeruimd. Op de pagina is niets veranderd.',
     'blocks.saved_badge' => 'Opgeslagen',
     'blocks.saved_notice' => 'Het contentblok is opgeslagen.',
+    'blocks.empty_badge' => 'Leeg blok',
+    'blocks.empty_note' => 'Dit contentblok bevat nog geen inhoud en is daarom niet te zien op de website.',
+    'blocks.empty_edit' => 'Inhoud toevoegen',
 ];

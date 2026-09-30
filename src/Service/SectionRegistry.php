@@ -9,6 +9,7 @@ use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\AnchorNavigation;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\ContributesAnchor;
+use App\Service\Blocks\InspectsContent;
 use App\Service\Blocks\RendersAnchorNavigation;
 use App\Service\Blocks\CarriesBreadcrumb;
 use App\Service\Blocks\OffersPickerPresets;
@@ -843,6 +844,40 @@ class SectionRegistry
             && self::isManuallyAddable($type)
             && self::isDeletable($type)
             && $definition->opensAsDraft();
+    }
+
+    /**
+     * Whether the page builder should say "this block has no content yet"
+     * (the CMS-only warning of Content Blocks Lifecycle 1.0). Only a block
+     * that inspects its own content can be judged
+     * (App\Service\Blocks\InspectsContent): a decorative block (Witruimte)
+     * and a dynamic one that shows what its source holds (Productraster,
+     * Projectinformatie) never are. A block hidden in the page builder is not
+     * judged either — it shows nothing on purpose — and a row whose type is
+     * not registered already has its own notice.
+     *
+     * @param array<string, mixed> $pageSection the full page_sections row
+     */
+    public static function isEmpty(array $pageSection): bool
+    {
+        if (!(bool) ($pageSection['is_active'] ?? true)) {
+            return false;
+        }
+
+        $definition = BlockDefinitions::get((string) ($pageSection['section_type'] ?? ''));
+
+        if (!$definition instanceof InspectsContent) {
+            return false;
+        }
+
+        try {
+            return !$definition->hasContent($pageSection);
+        } catch (\Throwable $e) {
+            // A warning is a hint, never a reason for the list to fail.
+            error_log('[SectionRegistry::isEmpty] ' . $e->getMessage());
+
+            return false;
+        }
     }
 
     /**

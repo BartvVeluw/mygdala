@@ -17,7 +17,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-card-carousel.php';
  * card's tags are stored per website language in block_translations
  * (BlockLocalization), each on its own row's id: three levels deep.
  */
-final class CardCarouselBlock extends BlockDefinition
+final class CardCarouselBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -225,5 +225,19 @@ final class CardCarouselBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'card_carousels';
+    }
+
+    /**
+     * Content: at least one card; a title alone shows nothing (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = CardCarouselContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== CardCarouselContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['cards'] !== [];
     }
 }

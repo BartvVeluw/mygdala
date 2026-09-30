@@ -13,7 +13,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-step-list.php';
  * words of the section and of every step are stored per website language in
  * block_translations (BlockLocalization), each step's on its own row.
  */
-final class StepListBlock extends BlockDefinition
+final class StepListBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -151,5 +151,19 @@ final class StepListBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'step_list_sections';
+    }
+
+    /**
+     * Content: a heading or at least one step, as its partial decides (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = StepListContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== StepListContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['eyebrow'] !== '' || $content['title'] !== '' || $content['items'] !== [];
     }
 }

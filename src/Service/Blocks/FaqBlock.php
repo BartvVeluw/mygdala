@@ -13,7 +13,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-faq.php';
  * words of the section and of every question are stored per website language
  * in block_translations (BlockLocalization), each question's on its own row.
  */
-final class FaqBlock extends BlockDefinition
+final class FaqBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -151,5 +151,19 @@ final class FaqBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'faq_sections';
+    }
+
+    /**
+     * Content: a heading or at least one question, as its partial decides (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = FaqContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== FaqContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['eyebrow'] !== '' || $content['title'] !== '' || $content['items'] !== [];
     }
 }

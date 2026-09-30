@@ -17,7 +17,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-rich-text.php';
  * rich_text_sections holds only what is the same in every language: whether
  * it is shown, its alignment and where the button goes (LinkChoice).
  */
-final class RichTextBlock extends BlockDefinition
+final class RichTextBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -160,5 +160,20 @@ final class RichTextBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'rich_text_sections';
+    }
+
+    /**
+     * Content: a body with something in it, or a button (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = RichTextContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== RichTextContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return trim(str_replace('&nbsp;', ' ', strip_tags((string) $content[RichTextContent::BODY], '<img><iframe><video>'))) !== ''
+            || ((string) $content[RichTextContent::BUTTON_LABEL] !== '' && (string) $content['button_href'] !== '');
     }
 }

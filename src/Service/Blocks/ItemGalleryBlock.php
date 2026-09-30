@@ -30,7 +30,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * starting with its source chosen. Still this one type; its own category
  * below is what the Contentblokken catalogue shows.
  */
-final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPresets
+final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPresets, InspectsContent
 {
     public function type(): string
     {
@@ -299,5 +299,19 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
     public function contentTable(): ?string
     {
         return 'item_galleries';
+    }
+
+    /**
+     * Content: pictures, or a source that can give them (a dynamic block is judged on its source, not on what it holds today) (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== ItemGalleryContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['items'] !== [] || ItemGalleryContent::isConfigured($content);
     }
 }

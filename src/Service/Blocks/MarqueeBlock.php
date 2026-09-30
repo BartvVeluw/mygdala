@@ -14,7 +14,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-marquee.php';
  * word is stored per website language in block_translations
  * (BlockLocalization), on its own row. The section itself has no words.
  */
-final class MarqueeBlock extends BlockDefinition
+final class MarqueeBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -144,5 +144,19 @@ final class MarqueeBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'marquee_sections';
+    }
+
+    /**
+     * Content: at least one word in the band (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = MarqueeContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== MarqueeContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return $content['items'] !== [];
     }
 }

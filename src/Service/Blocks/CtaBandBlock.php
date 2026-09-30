@@ -16,7 +16,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-cta-band.php';
  * and a text panel (CtaBandContent, CONTENT-BLOCKS.md). Its words are stored
  * per website language in block_translations (BlockLocalization).
  */
-final class CtaBandBlock extends BlockDefinition
+final class CtaBandBlock extends BlockDefinition implements InspectsContent
 {
     public function type(): string
     {
@@ -172,5 +172,19 @@ final class CtaBandBlock extends BlockDefinition
     public function contentTable(): ?string
     {
         return 'cta_bands';
+    }
+
+    /**
+     * Content: a title or a button (InspectsContent, SectionRegistry::isEmpty()).
+     */
+    public function hasContent(array $pageSection): bool
+    {
+        $content = CtaBandContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        if ($content['state'] !== CtaBandContent::STATE_ACTIVE) {
+            return true;
+        }
+
+        return (string) ($content['title'] ?? '') !== '' || (string) ($content['primary_label'] ?? '') !== '';
     }
 }
