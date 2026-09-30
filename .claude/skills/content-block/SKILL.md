@@ -172,6 +172,12 @@ en `GenericBlockDefaultsTest` bewaken beide.
   met minder effecten. Zet het type in `BlockAppearanceContractTest::SUPPORT`.
   Geen eigen achtergrond-, rand- of ruimteveld in je editor: het paneel in de
   bloklijst doet dat voor elk blok (`CONTENT-BLOCKS.md`, "Extra vormgeving").
+- **Kan je blok later een andere bron krijgen?** Laat de `*Content`-klasse
+  dan een neutrale vorm per item maken en de partial alleen die vorm kennen,
+  nooit een tabel. Reviews is het voorbeeld: `ReviewsContent::review()` is de
+  vorm die een latere Reviews-module ook kan leveren (`CONTENT-BLOCKS.md`,
+  "Later: een Reviews-module"). Bouw geen providerlaag voordat er een tweede
+  bron is.
 - **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de
   partial toont komt als argument binnen; opzoeken doet `render()`. Schrijf
   `sampleContent()` (woorden uit `BlockSamples`, in de vorm van je

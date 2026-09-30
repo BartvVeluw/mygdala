@@ -1488,7 +1488,7 @@ achtergrond; alleen de kaarten zelf hebben `--color-surface`. *Standaard*
 houdt dat. *Websiteachtergrond* of *Transparant*, met *Randen: Geen*, geeft
 de carrousel de achtergrond van de omringende pagina.
 
-### Een nieuw blok aansluiten (bijvoorbeeld Reviews)
+### Een nieuw blok aansluiten (zoals Reviews)
 
 1. Laat de partial één root-element printen, een `<section>` met de inhoud
    in een `.container` direct eronder, en niets als het blok leeg is.
@@ -1862,6 +1862,157 @@ er een kaart met een afbeelding is.
 **Niet in de Hover kaarten grid**: video, een eigen kleur per kaart, een
 carrousel die vanzelf draait, vrije CSS of eigen animatietijden, en meer dan
 één link per kaart.
+
+## Reviews
+
+`db/migrations/20261009100000`. Ervaringen van klanten die een redacteur zelf
+intypt: testimonials, beoordelingen, reacties. Categorie *Inhoud*,
+voorbeeldvorm kop + kolommen. Het blok staat op gewone pagina's en op de
+inhoudspagina van een product of project, zonder `owners` en zonder
+`allowed_pages`.
+
+| Bestand | Wat |
+|---|---|
+| `src/Service/Blocks/ReviewsBlock.php` | Definitie, woorden, voorbeeld (drie reviews), Extra vormgeving |
+| `src/Service/ReviewsContent.php` | Het leesmodel, de gesloten lijsten en de vorm van één review (`review()`) |
+| `src/Repository/ReviewsRepository.php` | `review_blocks` en `review_block_items` |
+| `partials/section-reviews.php` | `render_section_reviews($content, $revealGroup)` en `reviews_figure()` |
+| `admin/reviews.php` + `admin/assets/reviews.js` | De editor |
+| `api/admin/update-reviews.php` | Het endpoint |
+| `assets/css/blocks/reviews.css`, `assets/js/blocks/reviews.js` | De vier weergaven; de pijlen van de carrousel |
+
+De tabellen heten bewust niet `reviews`: die naam blijft vrij voor een latere
+Reviews-module (zie onder).
+
+**Woorden**, per taal in `block_translations`. Van het blok: bovenlabel, titel,
+introtekst en knoptekst (150, 255, 500, 150). Van een review: de tekst
+(verplicht in de standaardtaal, 1500), de naam, het bedrijf of de
+omschrijving, en de brontekst (elk 150, optioneel). Een naam is ook een woord:
+een lege vertaling valt terug op de standaardtaal, dus een naam hoeft maar één
+keer ingevuld te worden.
+
+**Een review** heeft verder, gelijk in elke taal:
+
+| Kolom | Waarden | Wat |
+|---|---|---|
+| `rating` | `NULL` (de start), 1 tot en met 5 | Sterren. Geen sterren is geen lege sterrenrij |
+| `review_date` | `NULL` of een bestaande datum | Getoond als "12 maart 2026" in de taal van de pagina, in een `<time>` |
+| `media_id` | `NULL` of een afbeelding van de bibliotheek | Een portret of representatieve foto, rond; de alt-tekst van de bibliotheek |
+| `image_*` | Responsive Media, prefix `image_`, zonder fit en telefoonhoogte | Welk deel van de foto in de cirkel staat, met zoom en een eigen telefoonfoto |
+| `source_url` | `NULL` of een webadres (`SafeUrl::SCHEMES_WEB`) of een pad van de site | De link van de bron, `rel="nofollow noopener noreferrer"`; zonder brontekst is de host de linktekst |
+| `sort_order` | | De volgorde uit de editor |
+
+Er is **geen label als "Geverifieerde aankoop"**, en het komt er ook niet: dit
+CMS kan niet controleren of een review echt is.
+
+**Het blok** kiest:
+
+| Kolom | Waarden (standaard eerst) | Wat |
+|---|---|---|
+| `layout` | `cards`, `minimal`, `featured`, `carousel` | De weergave (hieronder) |
+| `featured_item_id` | `NULL` of een review van dit blok | Wat *Uitgelichte review* toont. `NULL`, of een review die weg is: de eerste. Bewust geen foreign key (de reviews cascaden al van dit blok; een sleutel terug zou de twee tabellen naar elkaar laten wijzen) |
+| `header_align` | `left`, `center` | Alleen de kop boven de reviews |
+| `link_type`, `link_target_id`, `link_url` | `LinkChoice` | De optionele knop onder de reviews; *Geen knop* bewaart ook geen adres |
+| `button_style_id` | `NULL` of een knopstijl | Button Styles 2.0, rol *secondary* |
+
+### De vier weergaven
+
+Eén review is altijd dezelfde `<figure>` (tekst in een `<blockquote>`, de
+persoon in een `<figcaption>`). De weergave is een klasse op de `<section>`
+(`reviews-section--<layout>`) en geeft die figuur een eigen karakter:
+
+| Weergave | Karakter |
+|---|---|
+| **Reviewkaarten** (`cards`) | Kaarten in een raster: drie naast elkaar, twee onder 1000px, één onder 640px. Sterren bovenaan, dan de tekst, onderaan onder een haarlijn het portret, de naam en de omschrijving. Een accentstreepje boven op de kaart en een vage quote in de hoek. Een rij kaarten is zo hoog als de langste tekst; niets wordt afgesneden |
+| **Minimalistisch** (`minimal`) | Geen kaart. Grote aanhalingstekens in de accentkleur, de tekst groot en gecentreerd in de displayletter, de naam achter een kort accentlijntje. Meerdere reviews onder elkaar, gescheiden door een haarlijn |
+| **Uitgelichte review** (`featured`) | Eén review als blikvanger: een zacht verlopend paneel, een heel grote quote als achtergrondaccent, de tekst in de displayletter, het portret groot in een accentring ernaast (onder 760px erboven). Toont de gekozen review, anders de eerste; de andere staan dan niet op de pagina |
+| **Reviewcarrousel** (`carousel`) | Kaarten naast elkaar in een strook die horizontaal scrollt en snapt: vegen op een telefoon, de pijlen of de pijltjestoetsen (de strook is focusbaar). De pijlen verschijnen pas als niet alles past en staan uit aan het eind; een regel "1–3 / 5" meldt de plek (`aria-live`). Nooit automatisch |
+
+Alles komt uit het thema: het actieve kleurenpalet of het paginathema
+(`--color-*`), de lettertypes van de Font Library (`--font-display` voor de
+quotes), en de ruimte, afronding en schaduw van `core.css`. `ReviewsContractTest`
+faalt op een eigen kleur of lettertype in `reviews.css`.
+
+**De carrousel en het bestaande carrouselcontract.** De Kaarten-carrousel is
+een draaiende 3D-ring met autoplay; die laden voor reviews zou zwaar en verkeerd
+zijn. Reviews volgt het contract van haar platte strook (native scroll-snap,
+vorige/volgende, `aria-roledescription`, geen bibliotheek) in een eigen klein
+script (`assets/js/blocks/reviews.js`, zonder `requestAnimationFrame`). Minder
+beweging: geen vloeiend scrollen. Een regio met een naam (de titel, anders
+*Reviews*), elke review een groep "2 van 5".
+
+**Toegankelijk.** Sterren zijn één element met `role="img"` en de naam "4 van
+de 5 sterren"; de vijf sterren erin zijn decoratie. De quotes zijn
+`aria-hidden`. Alles wat een redacteur typt gaat door `htmlspecialchars()`, een
+regelovergang blijft (`nl2br()` na het escapen).
+
+**Extra vormgeving**: achtergrond, randen, ruimte en alle drie de effecten.
+Vallende bolletjes passen bij een rustige quote en een uitgelichte review, en
+de kaarten zijn dicht, dus er beweegt niets achter de woorden. Achter de
+carrousel laat `reviews.css` de bolletjes weg: een bewegende strook met
+bewegende stipjes erachter is één beweging te veel; de editor zegt dat bij de
+weergave. De editor heeft zelf geen achtergrond-, rand- of kleurinstelling.
+
+**Performance.** `reviews.css` en `reviews.js` komen alleen op een pagina met een
+Reviews-blok. Het script hoort bij het bloktype, zoals elk blokscript; zonder
+carrousel vindt het niets en doet het niets. Een portret gebruikt de thumbnail
+van de bibliotheek (480px aan de lange kant), `loading="lazy"` en de
+afmetingen van het origineel, in een kader met een vaste maat: geen
+layoutverschuiving.
+
+**De editor** heeft vier kaarten: *Weergave* (een select met een schetsje van
+elke weergave en één zin over de gekozen), *Kop boven de reviews*, *Reviews* en
+*Knop onder de reviews (optioneel)*. Elke review klapt apart in met "Review 2 —
+Peter" als kopregel, en "Review 3 — Anoniem" zonder naam
+(`data-row-list-title-fallback`, `admin/assets/row-list.js`). Een review heeft
+de tekst, naam, omschrijving, sterren (een select: *Geen sterren* tot *5
+sterren*), een datum, de mediakiezer met de *Afbeeldingsweergave* in een rond
+kader, de brontekst en het bronadres. *Deze review uitlichten* staat er alleen
+bij *Uitgelichte review*; een nieuwe review kan de uitgelichte zijn (het
+endpoint koppelt haar sleutel aan haar nieuwe id).
+
+**Wat het endpoint controleert**: de vier guards; de weergave en de uitlijning
+uit hun lijst; de tekst verplicht in de standaardtaal en de lengte van elk
+woord; sterren leeg of 1..5; een bestaande datum; een bronadres zonder
+`javascript:`, `data:`, `mailto:` of stuurteken; een foto van de bibliotheek
+(geen video, geen onbekend id); de uitgelichte review als sleutel van een rij
+op dít formulier (iets anders slaat geen keuze op); de knop via `LinkChoice`
+met een knoptekst in de standaardtaal en een bestaande knopstijl. Een review-id
+van een ander blok wordt nooit geschreven (`EditorChildList::fromRequest()`).
+
+**Levensloop.** Een nieuw Reviews-blok is een draft tot de eerste opslag
+(*De levensloop van een nieuw blok*); *Annuleren* ruimt de rij, de reviews en
+hun woorden op (`SectionRegistry::discardContent()`, de reviews via `CASCADE`),
+en een foto is daarna weer vrij.
+
+### Later: een Reviews-module
+
+Dit blok is handmatig. Een latere, optionele module kan reviews centraal
+beheren (moderatie, een inzendformulier, imports). De route, zonder dat daar
+nu iets van bestaat:
+
+1. **Dezelfde vorm, een andere bron.** De partial kent alleen de vorm van
+   `ReviewsContent::review()`: tekst, naam, omschrijving, sterren, datum, foto
+   en bron. Een module levert die vorm uit haar eigen tabel `reviews`; de vier
+   weergaven, de CSS en het script blijven zoals ze zijn.
+2. **Eén keuze erbij op het blok.** Een migratie van de module (of van Core,
+   als de keuze altijd bestaat) geeft `review_blocks` een kolom `source`
+   (`manual`, de standaard, of `module`) plus wat de module nodig heeft om te
+   selecteren (een categorie, een aantal, een minimum aan sterren). Staat de
+   module uit, dan leest het blok `manual`: de handmatige reviews blijven er
+   altijd, niets gaat verloren.
+3. **Het leesmodel kiest.** `ReviewsContent::forSection()` vraagt bij `module`
+   de reviews aan de module (een methode op haar definitie, gesloten lijst, net
+   als `ItemGallerySources`) en valt terug op de handmatige als de module uit
+   staat. Geen providerframework vooraf.
+4. **De editor** toont bij `module` de selectie in plaats van de reviewlijst,
+   met een link naar de module.
+
+**Niet in Reviews 1.0**: automatische imports of externe API's (Google,
+Trustpilot), een inzendformulier, moderatie, een knop per review, automatische
+vertalingen, een eigen kleur per review, een carrousel die vanzelf draait, en
+structured data (`Review`/`AggregateRating`): zelf ingetypte reviews over de
+eigen organisatie horen volgens Google niet als rich result.
 
 ## Projecten 2.0: welke projecten, in welke volgorde
 

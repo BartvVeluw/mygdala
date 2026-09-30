@@ -644,7 +644,9 @@ tegenhouden; de server controleert).
 
 **Inklapbare rijen.** Een lijst met lange rijen (de items van Tekst met
 afbeelding, de kaarten van Kenmerken in kaartjes en van de Hover kaarten
-grid, de galerij-items van de Detailsectie) geeft `editor_row_open()` een `$collapse` mee. Dan vouwen de
+grid, de galerij-items van de Detailsectie, de reviews van Reviews) geeft `editor_row_open()` een `$collapse` mee.
+Heeft een rij geen titel, dan mag het titelveld een `data-row-list-title-fallback`
+dragen (Reviews: "Anoniem"); `row-list.js` toont die zolang het veld leeg is. Dan vouwen de
 velden weg achter dezelfde `<details class="admin-collapse">` als de
 blokkenlijst hierboven, dus geen tweede accordion. De kopregel is de knop:
 "Item 2 — Over ons", met het nummer dat `row-list.js` na elke verschuiving
@@ -684,6 +686,7 @@ Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
 | Detailsectie | `admin/detail-section.php` (*Nummer / label*, woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij met een focuspunt per item) | `api/admin/update-detail-section.php` |
 | Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen met linkdoel, badge, media en lay-out, afbeelding en video uit de mediabibliotheek, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 | Hover kaarten grid | `admin/hover-card-grid.php` (kop, weergave, inklapbare kaarten: afbeelding, tweede afbeelding, label, titel, tekst, link met linkdoel en linktekst) | `api/admin/update-hover-card-grid.php` |
+| Reviews | `admin/reviews.php` (weergave met schetsen, kop, inklapbare reviews: tekst, naam, omschrijving, sterren, datum, portret, bron; de uitgelichte review; een optionele knop) | `api/admin/update-reviews.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
 *Bewerken* en *Kaart toevoegen* slaan de carrousel eerst op.

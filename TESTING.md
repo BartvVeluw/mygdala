@@ -1069,6 +1069,37 @@ afbeelding of de flyouts van het menu** (`hover_card_grid`,
                         wegwerpdatabases mygdala_scratch_hover_sequence_*)
 ```
 
+**Wijziging aan Reviews** (`reviews`, `CONTENT-BLOCKS.md`, "Reviews")
+
+```
+--testsuite fast        ReviewsContractTest (ook in contract en blocks,
+                        geen database): de vorm van één review (sterren
+                        1..5 of geen, een bestaande datum, alleen een
+                        webadres als bronlink), de vier weergaven en hun
+                        eigen CSS, de uitgelichte review en haar
+                        terugval, de carrousel (regio, groepen, pijlen,
+                        nooit automatisch, minder beweging), geen lege
+                        sterrenrij, escapen en niets afgesneden, de knop
+                        met Button Styles, alleen thematokens, Extra
+                        vormgeving op de root, de definitie en de editor
+--testsuite blocks      ReviewsHttpTest (ook in cms, eigen php -S): de vier
+                        guards en de eigenaar van de bloklijst, draft en
+                        annuleren zonder achterblijvers, de eerste opslag
+                        en terug naar de pagina, toevoegen, wijzigen,
+                        verschuiven, verwijderen, verplichte tekst,
+                        sterren, datum, bronadres, vervalste ids, de
+                        uitgelichte review, de knop, XSS, maximale
+                        lengtes, talen en de fallback, de foto als gebruik,
+                        de editor
+--testsuite migration   ReviewsMigrationTest (ook in blocks; ScratchInstall,
+                        wegwerpdatabases mygdala_scratch_reviews_*): vers
+                        en na een upgrade, standaarden, de kolommen van
+                        het portret, CASCADE en RESTRICT, tweede run
+```
+
+Overdag draaien de contracttest en de HTTP-test gericht; de migratietest
+hoort bij de nachtelijke run.
+
 **Wijziging aan de weergave van een beeld: focuspunt, zoom,
 telefoonafbeelding, vullen of hele afbeelding, beeldverhouding op een rij**
 (Responsive Media, `MEDIA.md`)

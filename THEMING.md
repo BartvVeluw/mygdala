@@ -793,8 +793,9 @@ Een blok met een knop die een redacteur instelt krijgt:
 
 Aangesloten: Oproep met knop (twee), Homepage Hero (twee), Tekstblok, Tekst
 met afbeelding (per rij), Kaarten-carrousel (per kaart), Hover Cards (per
-kaart), Detailsectie, Contactkaart, Galerij/Projecten (voetknop) en
-Uitgelicht product. Hover Cards zet de stijl op een `<span class="btn">`
+kaart), Detailsectie, Contactkaart, Galerij/Projecten (voetknop),
+Uitgelicht product en Reviews (de optionele knop onder de reviews, rol
+*secondary*; nooit een knop per review). Hover Cards zet de stijl op een `<span class="btn">`
 binnen de kaartbrede link: die link heeft zijn eigen `::after` over de hele
 kaart, en de kaart is wat aangewezen en gefocust wordt
 (`hover-card-grid.css`). Geen knop van zichzelf en dus geen keuze: Page
@@ -1063,6 +1064,28 @@ kleurt ze op zijn eigen pagina, omdat `main[data-page-theme]` dezelfde tokens
 opnieuw declareert. De header en de footer blijven erbuiten. *Primaire
 themakleur* is bewust een tint: een volle vulling vraagt een tekst- en
 knopset op `--color-on-primary`, en die bestaat nog niet.
+
+## Reviews: vier weergaven, alleen tokens
+
+Het blok Reviews (`CONTENT-BLOCKS.md`, "Reviews") heeft vier weergaven met
+elk een eigen karakter, en geen enkele eigen kleur of eigen letter
+(`assets/css/blocks/reviews.css`):
+
+| Wat | Token |
+|---|---|
+| Sterren, aanhalingstekens, accentlijnen, de ring om een portret | `--color-primary` (via `--review-accent` en `--review-star` op de sectie) |
+| Lege sterren | `--color-text-rgb` op 0.16 |
+| Kaarten en het uitgelichte paneel | `--color-surface`, met een verloop op `--color-primary-rgb` |
+| Randen en haarlijnen | `--color-line`, `--color-line-soft` |
+| De quote bij Minimalistisch en Uitgelicht | `--font-display` (Font Library) |
+| Namen, omschrijvingen, knoppen | `--font-body`, `--color-text`, `--color-text-muted`, `--color-text-faint` |
+| Ruimte, afronding, schaduw | `--sp-*`, `--radius-*`, `--shadow-soft` |
+
+Een actief palet en een paginathema kleuren het blok dus vanzelf mee
+(`main[data-page-theme]` declareert dezelfde tokens). De achtergrond, de
+randen en de effecten achter het blok zijn Extra vormgeving, niet van
+Reviews. `ReviewsContractTest` faalt op een hexkleur, een `rgb()` met een
+getal of een `font-family` zonder token in `reviews.css`.
 
 ## Branding-afbeeldingen
 
