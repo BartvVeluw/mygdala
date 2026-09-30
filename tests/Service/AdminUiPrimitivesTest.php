@@ -313,8 +313,9 @@ final class AdminUiPrimitivesTest extends TestCase
             // (admin/block-preview.php), as the preview of one form does in
             // the form editor's frame (admin/form-preview.php), and the
             // sample page of a page theme in its editor's frame
-            // (admin/page-theme-preview.php).
-            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php'], true)) {
+            // (admin/page-theme-preview.php), like that of a colour palette
+            // (admin/color-palette-preview.php).
+            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php', 'color-palette-preview.php'], true)) {
                 continue;
             }
 

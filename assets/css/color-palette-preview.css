@@ -1,0 +1,35 @@
+/* =========================================================================
+   Owner: admin/color-palette-preview.php, the sample inside the preview
+   frame of the colour-palette editor (admin/color-palette.php). No public
+   page asks for it.
+
+   A handful of core elements stacked in one narrow column, plus one band on
+   the deeper ground the footer uses: spacing and that one background, and
+   nothing else. Every colour comes from the palette's own tokens — a preview
+   that styled what it previews would have stopped showing the palette.
+   ========================================================================= */
+
+.palette-preview{
+  min-height: 100dvh;
+}
+.palette-preview > section{
+  padding-block: var(--sp-4);
+}
+.palette-preview .container > * + *{
+  margin-top: var(--sp-3);
+}
+.palette-preview__buttons{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.palette-preview__band{
+  padding-block: var(--sp-3);
+  background: var(--color-bg-deep);
+  border-top: 1px solid var(--color-line);
+  color: var(--color-text-muted);
+  font-size: var(--fs-small);
+}
+.palette-preview__band p{
+  margin: 0;
+}

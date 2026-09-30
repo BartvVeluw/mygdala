@@ -13,10 +13,11 @@
  * colour is harmless.
  *
  * CONTRAST. The server rendered the warning for the stored values
- * (App\Service\PageThemes\PageThemeService::contrastWarnings(), the WCAG
- * formula in App\Service\Theme\ThemeColor). This recomputes it with the same
- * formula for the values on screen. Which pairs are checked is in the markup
- * (data-contrast-fg / data-contrast-bg), not here, and every word is too.
+ * (App\Service\Theme\ThemeColor::contrastWarnings(), shared with the colour
+ * palettes). This recomputes it for the values on screen with the same
+ * formula, MygdalaTheme.contrastRatio() in admin/assets/theme-admin.js.
+ * Which pairs are checked is in the markup (data-contrast-fg /
+ * data-contrast-bg), not here, and every word is too.
  *
  * The page works without this script: the preview then shows the values
  * the page was loaded with, and the warning the ones last saved.
@@ -25,7 +26,7 @@
   'use strict';
 
   var form = document.querySelector('[data-page-theme-form]');
-  if (!form) {
+  if (!form || !window.MygdalaTheme) {
     return;
   }
 
@@ -49,18 +50,10 @@
     return form.querySelector('[name="' + name + '"]');
   }
 
-  function luminance(value) {
-    var channels = [0, 2, 4].map(function (at) {
-      var c = parseInt(value.substr(at, 2), 16) / 255;
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-  }
-
+  // The WCAG formula lives once, in admin/assets/theme-admin.js (loaded
+  // first), shared with the colour-palette editor.
   function ratio(a, b) {
-    var la = luminance(a);
-    var lb = luminance(b);
-    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    return window.MygdalaTheme.contrastRatio('#' + a, '#' + b);
   }
 
   var warning = form.querySelector('[data-page-theme-contrast]');

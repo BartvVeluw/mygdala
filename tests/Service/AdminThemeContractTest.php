@@ -87,9 +87,10 @@ final class AdminThemeContractTest extends TestCase
      * the library's frame (admin/block-preview.php), and so is the preview of
      * one form in the form editor's frame (admin/form-preview.php) and the
      * sample page of a page theme in its editor's frame
-     * (admin/page-theme-preview.php).
+     * (admin/page-theme-preview.php) and of a colour palette in its editor's
+     * frame (admin/color-palette-preview.php).
      */
-    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php'];
+    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php', 'color-palette-preview.php'];
 
     public function testEveryAdminPageInheritsTheThemeFromTheSamePlace(): void
     {
