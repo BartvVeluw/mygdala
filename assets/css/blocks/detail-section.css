@@ -14,18 +14,22 @@
    the page never scrolls sideways.
    ========================================================================= */
 
-.service-detail__gallery-item{ position: relative; display: block; margin: 0; min-width: 0; }
-.service-detail__gallery-item img{ border-radius: var(--radius-md); aspect-ratio: 1; object-fit: cover; width: 100%; height: 100%; box-shadow: var(--shadow-soft); border: 1px solid var(--color-line); display: block; }
-.service-detail__gallery-link{ display: block; color: inherit; text-decoration: none; border-radius: var(--radius-md); }
-.service-detail__gallery-link:focus-visible{ outline: 2px solid var(--color-primary); outline-offset: 3px; }
+/* THE ITEM IS THE FRAME: its rounded, bordered square clips the picture, so
+   a zoomed one (Responsive Media 3.0) is enlarged inside it and never runs
+   over its neighbours. The picture itself is a bare square. A link's focus
+   ring is the item's, since the clip would cut off a ring of the link's own. */
+.service-detail__gallery-item{ position: relative; display: block; margin: 0; min-width: 0; overflow: hidden; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--color-line); }
+.service-detail__gallery-item img{ aspect-ratio: 1; object-fit: cover; width: 100%; height: 100%; display: block; border: 0; border-radius: 0; box-shadow: none; }
+.service-detail__gallery-link{ display: block; color: inherit; text-decoration: none; }
+.service-detail__gallery-link:focus-visible{ outline: none; }
+.service-detail__gallery-item:has(.service-detail__gallery-link:focus-visible){ outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .service-detail__gallery-caption{
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: var(--sp-3) var(--sp-2) var(--sp-2);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
   color: #fff; font-weight: 700; font-size: var(--fs-small); line-height: 1.3;
 }
-.service-detail__gallery-link:hover img{ border-color: var(--color-line-strong); }
+.service-detail__gallery-item:has(.service-detail__gallery-link:hover){ border-color: var(--color-line-strong); }
 
 .service-detail__gallery-controls{ display: none; }
 

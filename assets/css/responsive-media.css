@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Responsive Media 2.0 — one picture on a large screen and on a phone
+   Responsive Media 3.0 — one picture on a large screen and on a phone
    (App\Service\Media\ResponsiveImage, partials/responsive-image.php,
    MEDIA.md "Responsive Media").
 
@@ -13,8 +13,13 @@
    WHY !important. A picture's desktop point and fit are an inline style on
    the <img> (what the block always printed), and a stylesheet rule only beats
    an inline style with !important. It applies only to an <img> that carries
-   one of the two data attributes, which partials/responsive-image.php prints
-   only when a phone really shows something else.
+   one of the three data attributes, which partials/responsive-image.php
+   prints only when a phone really shows something else.
+
+   ZOOM is the `scale` property on the <img>, around its point
+   (transform-origin); the desktop one inline, the phone's here. A phone's
+   own point is also the origin of its zoom. The frame that clips the
+   enlarged picture is each block's own (overflow: hidden).
 
    NOT HERE: the size or shape of any frame (each block's own stylesheet), a
    colour behind a contained picture (the frame's own background shows), and
@@ -27,6 +32,7 @@
 .rm-picture{ display: contents; }
 
 @media (max-width: 640px){
-  img[data-rm-mobile-position]{ object-position: var(--rm-mobile-position) !important; }
+  img[data-rm-mobile-position]{ object-position: var(--rm-mobile-position) !important; transform-origin: var(--rm-mobile-position) !important; }
   img[data-rm-mobile-fit]{ object-fit: var(--rm-mobile-fit) !important; }
+  img[data-rm-mobile-zoom]{ scale: var(--rm-mobile-zoom) !important; }
 }

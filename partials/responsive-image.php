@@ -4,7 +4,7 @@ use App\Service\Media\BlockImage;
 use App\Service\Media\ResponsiveImage;
 
 /**
- * THE markup of one picture of a content block (Responsive Media 2.0,
+ * THE markup of one picture of a content block (Responsive Media 3.0,
  * App\Service\Media\ResponsiveImage::forRender()). Every block that shows a
  * picture with a focus point prints it through this function, and so does
  * every slide of a media sequence (partials/media-sequence.php): there is no
@@ -13,6 +13,16 @@ use App\Service\Media\ResponsiveImage;
  * WITHOUT PHONE SETTINGS it is one <img>, as it always was: the focus point
  * as an inline object-position, contain as an inline object-fit.
  *
+ * A ZOOM is the CSS `scale` property on that same <img>, around the focus
+ * point (transform-origin = object-position), so the point stays where it is
+ * and the enlarged picture still covers the whole frame: at any point, the
+ * scaled box contains the unscaled one. The frame clips it (every block's
+ * frame has overflow: hidden; MEDIA.md lists them), so nothing around it
+ * moves and the frame never grows. `scale` rather than `transform`, so a
+ * block's own transform (the Hover-kaarten's zoom on hover) still composes
+ * with it. No zoom (100, or a contained picture) prints nothing new: the
+ * <img> is exactly the one it was before zoom existed.
+ *
  * WITH A PHONE PICTURE it is a <picture> with one <source> for a phone
  * (ResponsiveImage::mobileMedia(), the one breakpoint) around the same <img>.
  * The browser downloads one of the two, never both, and the alt text stays on
@@ -20,15 +30,16 @@ use App\Service\Media\ResponsiveImage;
  * (assets/css/responsive-media.css), so the <img> sits in its frame exactly
  * as a bare one would.
  *
- * WITH A PHONE POINT OR FIT the <img> carries it as a custom property
- * (--rm-mobile-position, --rm-mobile-fit) and a data attribute that switches
- * it on for a phone; assets/css/responsive-media.css holds that one rule.
+ * WITH A PHONE POINT, FIT OR ZOOM the <img> carries it as a custom property
+ * (--rm-mobile-position, --rm-mobile-fit, --rm-mobile-zoom) and a data
+ * attribute that switches it on for a phone; assets/css/responsive-media.css holds that one rule.
  * Every value printed here is a whole number or a key from a closed list
  * (ResponsiveImage), and everything is escaped anyway.
  *
  * @param array{src: string, alt: string, width: int|null, height: int|null,
  *              mobile: array{src: string, width: int|null, height: int|null}|null,
- *              position: string, mobile_position: string|null, fit: string, mobile_fit: string|null} $picture
+ *              position: string, mobile_position: string|null, fit: string, mobile_fit: string|null,
+ *              zoom?: int, mobile_zoom?: int|null} $picture
  * @param array{class?: string, loading?: string, decoding?: bool, fetchpriority?: bool, decorative?: bool,
  *              aria_hidden?: bool, position?: string, compact_max_width?: int} $options
  *        loading: 'lazy' (the default) or 'eager'; decoding: add decoding="async";
@@ -46,11 +57,22 @@ function responsive_image_html(array $picture, array $options = []): string
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     $style = [];
-    if (($options['position'] ?? 'omit_center') === 'always' || $picture['position'] !== ResponsiveImage::objectPosition(ResponsiveImage::DEFAULT_FOCUS, ResponsiveImage::DEFAULT_FOCUS)) {
+    $centred = $picture['position'] === ResponsiveImage::objectPosition(ResponsiveImage::DEFAULT_FOCUS, ResponsiveImage::DEFAULT_FOCUS);
+    if (($options['position'] ?? 'omit_center') === 'always' || !$centred) {
         $style[] = 'object-position: ' . $picture['position'];
     }
     if ($picture['fit'] === ResponsiveImage::FIT_CONTAIN) {
         $style[] = 'object-fit: contain';
+    }
+
+    $zoom = (int) ($picture['zoom'] ?? ResponsiveImage::DEFAULT_ZOOM);
+    $mobileZoom = isset($picture['mobile_zoom']) ? (int) $picture['mobile_zoom'] : null;
+    if ($zoom !== ResponsiveImage::DEFAULT_ZOOM) {
+        $style[] = 'scale: ' . ResponsiveImage::scale($zoom);
+    }
+    // Enlarged around the point; the middle is the browser's own origin.
+    if (($zoom !== ResponsiveImage::DEFAULT_ZOOM || $mobileZoom !== null) && !$centred) {
+        $style[] = 'transform-origin: ' . $picture['position'];
     }
 
     $flags = '';
@@ -61,6 +83,10 @@ function responsive_image_html(array $picture, array $options = []): string
     if (($picture['mobile_fit'] ?? null) !== null) {
         $style[] = '--rm-mobile-fit: ' . $picture['mobile_fit'];
         $flags .= ' data-rm-mobile-fit';
+    }
+    if ($mobileZoom !== null) {
+        $style[] = '--rm-mobile-zoom: ' . ResponsiveImage::scale($mobileZoom);
+        $flags .= ' data-rm-mobile-zoom';
     }
 
     $class = (string) ($options['class'] ?? '');

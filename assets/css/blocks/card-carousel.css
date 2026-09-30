@@ -90,7 +90,9 @@
 }
 /* Fixed (not aspect-ratio) media height: keeps the split between image and
    content area predictable regardless of card width at any breakpoint. */
-.orbit-card__media{ height: var(--orbit-media-h); flex-shrink: 0; }
+/* It clips its picture: a zoomed one (Responsive Media 3.0) is enlarged
+   inside this box and must not run over the text below it. */
+.orbit-card__media{ height: var(--orbit-media-h); flex-shrink: 0; overflow: hidden; }
 .orbit-card__media img{ width: 100%; height: 100%; object-fit: cover; }
 .orbit-card__media--icon{
   display: flex; align-items: center; justify-content: center;
@@ -284,13 +286,14 @@
 /* A card's compact picture follows the card, not the general phone width
    (Responsive Media 2.0): from the width where the ring turns into its flat
    strip, CardCarouselContent::COMPACT_MAX_WIDTH, the <source> already shows
-   the compact picture, and these two rules give it its own point and fit —
+   the compact picture, and these rules give it its own point, fit and zoom —
    the same !important reason as assets/css/responsive-media.css, which keeps
    640px for every other block. "Kaarten naast elkaar" needs neither: its
    cards print the compact picture itself. */
 @media (max-width: 699px){
-  .orbit-card__media img[data-rm-mobile-position]{ object-position: var(--rm-mobile-position) !important; }
+  .orbit-card__media img[data-rm-mobile-position]{ object-position: var(--rm-mobile-position) !important; transform-origin: var(--rm-mobile-position) !important; }
   .orbit-card__media img[data-rm-mobile-fit]{ object-fit: var(--rm-mobile-fit) !important; }
+  .orbit-card__media img[data-rm-mobile-zoom]{ scale: var(--rm-mobile-zoom) !important; }
 }
 
 .orbit-carousel--flat-1-1{ --orbit-flat-ratio: 1 / 1; }
