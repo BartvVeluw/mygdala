@@ -1275,6 +1275,238 @@ overlay, tekstvlak en de draft-levensloop blijven zoals ze waren. De hoogte
 staat in de kaart *Achtergrond*, ook zonder afbeelding (het vlak is dan de
 themakleur), met de uitleg *Dit bepaalt de minimale hoogte van het blok.*
 
+## Extra vormgeving (Contentblock Styling 1.0)
+
+`db/migrations/20261008100000`. Eén gedeeld systeem waarmee een redacteur de
+vormgeving van **één blokinstantie** kiest: achtergrond, randen, ruimte
+rondom en een decoratief effect. Vroeger had de galerij twee
+achtergronden, de carrousel een vaste zachte achtergrond, de cijferband een
+vaste diepe band en de meeste blokken niets. Nu is er één paneel, één
+opslagcontract en één stylesheet, en een nieuw blok (straks Reviews) sluit
+met één regel aan.
+
+### Opslag: op de instantie, in `page_sections`
+
+Vijf kolommen op de eigen `page_sections`-rij van het blok, geen kolommen in
+twintig inhoudstabellen:
+
+| Kolom | Waarden (standaard eerst) | `BlockAppearance::` |
+|---|---|---|
+| `appearance_background` | `default`, `page`, `subtle`, `primary`, `secondary`, `transparent` | `BACKGROUNDS` |
+| `appearance_border` | `default`, `none`, `top`, `bottom`, `both` | `BORDERS` |
+| `appearance_border_tone` | `subtle`, `normal`, `accent` | `BORDER_TONES` |
+| `appearance_spacing` | `default`, `compact`, `normal`, `spacious`, `extra` | `SPACINGS` |
+| `appearance_decoration` | `none`, `sparks`, `glow`, `pattern` | `DECORATIONS` |
+
+Twee Tekstblokken op één pagina hebben dus elk hun eigen vormgeving.
+Verbergen, verslepen en verwijderen nemen de vormgeving mee, want het is
+dezelfde rij. Kopiëren of dupliceren van een blok bestaat niet in het CMS.
+
+**Eén lezer, drie controles.** `App\Service\Blocks\BlockAppearance` is de
+enige plek die de lijsten kent:
+
+- `validate()` in het endpoint weigert een onbekend woord en elk woord dat
+  het blok niet ondersteunt, met een melding, en schrijft dan niets.
+- `effective()` op de pagina leest een onbekend of niet-ondersteund
+  opgeslagen woord als de standaard. Een rij die buiten het CMS om is
+  gewijzigd, rendert zo toch alleen wat het blok kan dragen.
+- `classes()` maakt van een woord een klassennaam. Uit de database of een
+  request komt nooit een kleur, lengte of CSS-string.
+
+### Capabilities: wat een bloktype kan dragen
+
+Elk bloktype zegt het zelf, in `BlockDefinition::appearanceSupport()`, met een
+`App\Service\Blocks\AppearanceSupport`. Standaard is dat `none()`: geen
+paneel en geen verandering. De meeste blokken gebruiken
+`AppearanceSupport::section()` (alles), eventueel met minder effecten. Er is
+geen uitzondering op een bestandsnaam of bloktype buiten de definitie zelf.
+
+| Blok | Achtergrond | Randen | Ruimte | Effecten |
+|---|---|---|---|---|
+| Tekstblok, Oproep met knop, Cijferband, Stappen | ja | ja | ja | bolletjes, gloed, patroon |
+| Paginakop | ja | ja | nee (de kop heeft zijn eigen hoogte) | bolletjes, gloed, patroon |
+| Tekst met afbeelding, Kenmerken, FAQ, Kaarten-carrousel, Galerij, Projecten, Hover kaarten, Detailsectie, Uitgelicht product, Formulier | ja | ja | ja | gloed, patroon |
+| Mediabanner | ja | ja | ja | geen (het beeld ís het blok) |
+| Lopende band (marquee) | ja | ja | nee (geen sectie, de hoogte zijn de woorden) | geen |
+| Homepage-opening, Witruimte, Snelnavigatie, Contactformulier/-kaart, Projectinfo, Productgrid, Collectie-tegels | — | — | — | — |
+
+**Waarom geen vallende bolletjes op elk blok.** Beweging achter een grid van
+kaarten, foto's, vragen die open- en dichtklappen of een formulier concurreert
+met wat de bezoeker daar doet: kijken, kiezen, klikken, typen. Een stilstaande
+gloed of een patroon doet dat niet. Bolletjes zijn er voor blokken met
+woorden waar het oog even op rust. De homepage-opening krijgt geen paneel: zij
+heeft haar eigen bolletjes en laserlijnen al. De vaste en dynamische blokken
+(contact, snelnavigatie, productgrid) hebben een vaste plek en een vaste
+bovenruimte.
+
+`Tests\Service\BlockAppearanceContractTest::SUPPORT` schrijft deze tabel op.
+Een verandering is daarmee een besluit, geen toeval.
+
+### Het paneel
+
+In de bloklijst (`admin/_content_blocks.php`) heeft elke rij van een blok dat
+iets ondersteunt, onder zijn knoppen, één inklapbaar paneel *Extra
+vormgeving* (`admin/_block_appearance.php`). Het staat standaard dicht. De
+samenvattingsregel zegt wat er gekozen is (*Standaard*, of bijvoorbeeld
+*Subtiele achtergrond · rand alleen boven (subtiel) · Vallende bolletjes*).
+Het paneel toont alleen de velden die het blok ondersteunt. Een pagina, een
+product en een project delen daarmee één paneel, en geen blok-editor heeft
+een eigen stylingkaart. Er is dus nooit een tweede, tegenstrijdig paneel.
+
+Het formulier post naar `api/admin/update-block-appearance.php` met het
+`page_sections`-id. Het endpoint volgt de vier guards: login,
+`ContentBlockAccess::requireAnyForApi()`, POST en CSRF. Daarna zoekt het de
+rij op (404 als die ontbreekt), en laat de pagina van die rij het recht
+bepalen (`requirePageForApi()`: van een pagina, product of project). Een blok
+zonder ondersteuning geeft 422. Een geweigerde waarde stuurt terug naar
+`#blok-<id>` met de melding. Een opslag landt als na een blok-editor:
+`?saved=<id>#blok-<id>`. Het paneel valt buiten de opslagbalk
+(`data-no-dirty-track`) en heeft een eigen knop *Vormgeving opslaan*.
+
+**Levensloop.** Een nieuw blok is een draft zonder `page_sections`-rij
+("De levensloop van een nieuw blok"). Het staat dus nog niet in de lijst en
+heeft geen paneel. Pas na de eerste opslag heeft het een vormgeving, en die
+begint op de standaard. Annuleren laat niets achter, want er is nooit iets
+geschreven.
+
+### Achtergrond
+
+Alle kleuren zijn theme-tokens (`THEMING.md`). Ze volgen het actieve palet,
+en binnen de `<main>` van een pagina met een paginathema dat thema. De header
+en de footer liggen buiten de `<main>` en veranderen nooit mee.
+
+| Keuze | Wat het wordt |
+|---|---|
+| Standaard | Het blok zoals het was, inclusief een eigen vaste achtergrond (`.bg-soft`, `.bg-forest`, de kaart van een oproep) |
+| Websiteachtergrond | `--color-bg`, effen: de grondkleur van de pagina |
+| Subtiele achtergrond | De zachte achtergrond van de site (het verloop van `.bg-soft`), zonder zijn lijnen (die zijn *Randen*) |
+| Primaire themakleur | Een tint van de accentkleur (`--color-primary-rgb` op 0.14) over de grondkleur. Bewust geen volle vulling: tekst, links en de gevulde `.btn` zijn voor de grondkleur ontworpen en blijven zo leesbaar. Een volle vulling vraagt een `--color-on-primary`-tokenset voor tekst en knoppen die er nog niet is |
+| Secundaire themakleur | `--color-surface`, het tweede vlak van het palet (de kleur van de kaarten). Het palet heeft geen aparte secundaire kleur, dit is de tweede kleur die het wel heeft |
+| Transparant | Geen eigen achtergrond: de ondergrond van de pagina schijnt door |
+
+Een keuze vervangt de achtergrond van de `<section>` van het blok, niet die
+van kaarten erin. Een oproep als kaart houdt zijn kaart; bij een oproep over
+de volle breedte is de sectie het vlak en wordt dat vervangen. De afbeelding
+en overlay liggen daar gewoon overheen.
+
+### Randen, ruimte
+
+**Randen**: *Standaard* houdt de eigen lijnen van het blok (de lijnen van
+`.bg-soft`, `.bg-forest` met zijn haarlijn, de lijn boven een Detailsectie of
+een oproep over de volle breedte). *Geen*, *Alleen boven*, *Alleen onder* en
+*Boven en onder* vervangen ze. *Randkleur*: *Subtiel* (`--color-line-soft`),
+*Normaal* (`--color-line`), *Accentkleur* (`--color-primary`), steeds 1px.
+Geen numerieke velden.
+
+**Ruimte rondom** is alleen de verticale padding van de `<section>` van het
+blok: *Compact* `--sp-5`, *Normaal* `--sp-7` (wat elke sectie al heeft),
+*Ruim* `--sp-8`, *Extra ruim* `--sp-8 + --sp-5`, en op een telefoon zijn de
+laatste twee één stap kleiner. De gaten tussen kaarten, items en foto's in
+het blok veranderen niet. Een blok direct onder een paginakop houdt zijn
+aansluitende bovenkant (de inline `padding-top:0` van `$tightTop` wint).
+
+### Decoratieve effecten
+
+Drie effecten, puur CSS (`assets/css/block-decorations.css`), zonder script,
+bibliotheek of animatiecontroller per blok:
+
+- **Vallende bolletjes**: het effect van de homepage-opening
+  (`homepage-hero.css` `.spark`, `homepage-hero.js` met GSAP) nagebouwd als
+  CSS-animatie. Het uiterlijk is hetzelfde: 4px, `--color-primary-bright`
+  met gloed, oplichten, 24–54px vallen en uitdoven, rusten. Het zijn 14
+  punten, en op een telefoon 6, zoals in de opening. De opening zelf is niet
+  aangeraakt.
+- **Zachte gloed**: twee stilstaande poelen van de accentkleur.
+- **Stippenpatroon**: een fijn raster van accentstippen dat naar onder
+  vervaagt.
+
+**De laag.** `BlockAppearance::apply()` zet één element als eerste kind in de
+root van het blok (`<div class="block-decor block-decor--…"
+aria-hidden="true">`). Dat element ligt `absolute` over de sectie en is
+geknipt op de sectie (`overflow: hidden`), dus niets steekt buiten het blok
+en er ontstaat geen horizontale scroll. Het heeft `pointer-events: none`. De
+sectie wordt een eigen stacking context (`isolation: isolate`). Daarin ligt
+het effect op laag 1: boven de eigen achtergrond en afbeelding van het blok
+(de foto van een paginakop, het beeld van een oproep), en onder de inhoud,
+die via zijn `.container` op laag 2 staat. Links en knoppen blijven dus
+klikbaar en liggen bovenop.
+
+**Reduced motion**: niets beweegt, de bolletjes staan stil als vage punten.
+**Laden**: `block-decorations.css` wordt alleen gevraagd op een pagina waar
+een blok een effect toont, één keer, hoeveel blokken het ook hebben.
+
+### Rendering: op de root, niet eromheen
+
+`SectionRegistry::renderPage()` vraagt per blok `BlockAppearance::forSection()`.
+Bij `null` (alles standaard, of niets ondersteund) rendert het blok direct,
+zoals altijd: **byte voor byte de oude markup**. Anders buffert het de
+uitvoer en zet `apply()` de klassen naast de eigen klassen van het
+root-element (`<section class="bg-soft block-appearance
+block-appearance--bg-page">`). Een eigen `style` (de hoogte van een oproep)
+blijft staan. Er komt geen wrapper, zodat sibling-selectors
+(`.rich-text-section + .rich-text-section`), ankers, reveal-groepen en de
+stacking van blokken die zichzelf isoleren blijven werken. Rendert een blok
+niets (verborgen, leeg), dan blijft het leeg: een onzichtbaar blok wordt
+nooit een lege gekleurde band.
+
+`BlockAppearance::collectAssets()`, vanuit `collectPageAssets()`, vraagt
+`assets/css/block-appearance.css` alleen als een blok op de pagina een
+vormgeving heeft. De regels zijn twee klassen breed
+(`.block-appearance.block-appearance--bg-page`), zodat een keuze wint van de
+oppervlakken van één klasse die een blok zelf heeft, ongeacht de volgorde van de
+stylesheets.
+
+### Voorrang en bestaande instellingen
+
+1. **Standaard is het blok zelf.** Een vaste achtergrond of lijn van een
+   blok blijft, tot iemand iets anders kiest.
+2. **Een gekozen achtergrond vervangt de achtergrond van de sectie**, niet
+   van kaarten, panelen of afbeeldingen erin. **Een gekozen rand** vervangt
+   de lijnen boven en onder de sectie, niet de randen van kaarten.
+3. **De eigen keuzes van een blok met een eigen betekenis blijven in de
+   blok-editor.** Voorbeelden: de overlay en het tekstvlak van een oproep, de
+   minimale hoogte, de breedte van een mediabanner, de hoogte en
+   afbeeldingsweergave van een paginakop, de vorm van hover-kaarten. Ze gaan
+   over de inhoud van het blok, niet over zijn plek op de pagina.
+4. **De enige algemene achtergrondkeuze die een blok zelf had, is
+   verhuisd.** Dat was de *Achtergrond* van de galerij en Projecten
+   (`item_galleries.background`, `default`/`soft`). De migratie geeft een
+   geplaatste galerij op `soft` *Subtiele achtergrond* plus *Boven en onder*
+   in *Subtiel*: precies `.bg-soft`, dus dezelfde pagina. Haar eigen kolom
+   gaat naar `default`. Het veld is uit beide editors weg. Een verzoek zonder
+   het veld houdt wat er staat. Een galerij die nog een draft was, houdt haar
+   eigen waarde, want zij heeft geen rij voor de nieuwe.
+
+### Waarom de Kaarten-carrousel een andere achtergrond had
+
+Een vaste klasse op de buitenste sectie:
+`partials/section-card-carousel.php` print altijd `<section class="bg-soft">`.
+Dat is een zacht verloop van de accentkleur rechtsboven, een witte waas en
+lijnen boven en onder (`core.css`, `.bg-soft`). Het is geen blokinstelling
+en geen afgeleide themakleur, en de binnenste carrouselcontainer heeft geen
+achtergrond; alleen de kaarten zelf hebben `--color-surface`. *Standaard*
+houdt dat. *Websiteachtergrond* of *Transparant*, met *Randen: Geen*, geeft
+de carrousel de achtergrond van de omringende pagina.
+
+### Een nieuw blok aansluiten (bijvoorbeeld Reviews)
+
+1. Laat de partial één root-element printen, een `<section>` met de inhoud
+   in een `.container` direct eronder, en niets als het blok leeg is.
+2. Zet in de definitie `appearanceSupport()` met
+   `AppearanceSupport::section()`, of met minder effecten.
+3. Zet het type in `BlockAppearanceContractTest::SUPPORT`. Die test rendert
+   het voorbeeld van het blok en controleert de root en de `.container`.
+
+Meer is niet nodig: geen migratie, geen endpoint, geen veld in de editor en
+geen CSS.
+
+### Niet in Contentblock Styling 1.0
+
+Vrije kleuren of CSS, numerieke randen, ruimte links en rechts, een volle
+primaire vulling met omgekeerde tekstkleuren, eigen animatie-instellingen
+(snelheid, aantal), kopiëren van vormgeving tussen blokken, vormgeving op een
+draft, en de homepage-opening.
+
 ## Mediabanner
 
 `db/migrations/20260926130000`. Eén afbeelding of één video uit de

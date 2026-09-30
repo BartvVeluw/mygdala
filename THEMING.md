@@ -1041,6 +1041,29 @@ daar vast en het endpoint weigert). Met de module uit:
 - blijft alles bewaard: de thema's en de keuze van elke pagina. Weer aanzetten
   brengt ze terug.
 
+## Extra vormgeving van een blok
+
+Per blokinstantie kan een redacteur een achtergrond, randen en een
+decoratief effect kiezen (`CONTENT-BLOCKS.md`, "Extra vormgeving"). Er is geen
+kleurkiezer: elke keuze is een theme-token.
+
+| Keuze | Token |
+|---|---|
+| Websiteachtergrond | `--color-bg` |
+| Subtiele achtergrond | het verloop van `.bg-soft` op `--color-primary-rgb` |
+| Primaire themakleur | `--color-primary-rgb` op 0.14 over `--color-bg` |
+| Secundaire themakleur | `--color-surface` |
+| Randkleur subtiel / normaal / accent | `--color-line-soft` / `--color-line` / `--color-primary` |
+| Effecten | `--color-primary-rgb`, `--color-primary-bright`, `--color-primary-bright-rgb` |
+
+De regels staan in `assets/css/block-appearance.css` en
+`block-decorations.css`, nooit op `:root`. Ze lezen de tokens dus op het blok
+zelf, binnen de `<main>`. Een actief palet kleurt ze mee. Een paginathema
+kleurt ze op zijn eigen pagina, omdat `main[data-page-theme]` dezelfde tokens
+opnieuw declareert. De header en de footer blijven erbuiten. *Primaire
+themakleur* is bewust een tint: een volle vulling vraagt een tekst- en
+knopset op `--color-on-primary`, en die bestaat nog niet.
+
 ## Branding-afbeeldingen
 
 Logo, tweede logo, favicon en deel-afbeelding blijven `site_settings`, en

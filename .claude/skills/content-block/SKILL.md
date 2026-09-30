@@ -166,6 +166,12 @@ en `GenericBlockDefaultsTest` bewaken beide.
   draagt en stijl hem nooit op het element (`CONTENT-BLOCKS.md`, "Koppen in
   kaarten"); `CardHeadingContractTest` rendert je voorbeeld met en zonder
   titel.
+- **Kan je blok Extra vormgeving dragen?** Laat de partial één root-element
+  printen (een `<section>` met de inhoud in een `.container` direct eronder)
+  en zet `appearanceSupport()` op `AppearanceSupport::section()`, eventueel
+  met minder effecten. Zet het type in `BlockAppearanceContractTest::SUPPORT`.
+  Geen eigen achtergrond-, rand- of ruimteveld in je editor: het paneel in de
+  bloklijst doet dat voor elk blok (`CONTENT-BLOCKS.md`, "Extra vormgeving").
 - **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de
   partial toont komt als argument binnen; opzoeken doet `render()`. Schrijf
   `sampleContent()` (woorden uit `BlockSamples`, in de vorm van je

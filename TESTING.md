@@ -1274,6 +1274,38 @@ annuleren laat niets achter) in `blocks`; `CtaBandHeightMigrationTest`
 (ScratchInstall: bestaande oproepen `auto`, geen bestaande kolom verandert,
 vers = geüpgraded, tweede run verandert niets) in `migration` en `blocks`.
 
+Extra vormgeving (`CONTENT-BLOCKS.md`, "Extra vormgeving"):
+`BlockAppearanceContractTest` (geen database, in `contract`, `fast` en
+`blocks`) dekt:
+
+- de gesloten lijsten en hun standaard;
+- validatie tegen de lijsten én tegen wat het blok ondersteunt, met CSS in
+  een waarde, een kleurcode en een onbekend effect;
+- de klassen, en `apply()` op de root naast eigen klassen en `style`;
+- de laag als eerste kind met `aria-hidden`;
+- dat een leeg blok leeg blijft en Standaard byte voor byte is;
+- de capability-tabel `SUPPORT`, en per ondersteunend blok zijn echte
+  voorbeeld met een root en een `.container`;
+- de carrousel met `.bg-soft` en de CTA-hoogte naast een vormgeving;
+- de stylesheets: alleen tokens, twee klassen, geen hoogte, het effect
+  binnen het blok met `pointer-events: none`, reduced motion, geen script.
+
+`BlockAppearanceTest` (database, `blocks` en `cms`) dekt de standaard op een
+nieuwe rij, vormgeving per instantie en alleen dat blok anders, terug naar
+Standaard is byte voor byte de oude pagina, meerdere effecten met één
+stylesheet, niet-ondersteund en verborgen, draft en annuleren,
+verslepen/verbergen/verwijderen, en de inhoudspagina van product en project.
+
+`BlockAppearanceHttpTest` (eigen `php -S`, `blocks` en `cms`) dekt het paneel
+alleen waar het past, opslaan van één blok tot de publieke pagina en terug,
+CSRF, GET, vervalst id, ongeldige en niet-ondersteunde waarden, geen recht,
+en de eigen beheerder van een product.
+
+`BlockAppearanceMigrationTest` (ScratchInstall, `migration` en `blocks`) dekt
+de standaard voor elk bestaand blok, de galerij op `soft` die verhuist, de
+draft die haar waarde houdt, geen andere kolom die verandert, een tweede run
+zonder effect, en vers = geüpgraded.
+
 ### Zoeken
 
 De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):
