@@ -206,6 +206,20 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
 
             UNION ALL
 
+            SELECT ri.media_id, \'Reviews\', \'reviews\', rb.page_slug, rb.section_key, NULL
+              FROM review_block_items ri
+              JOIN review_blocks rb ON rb.id = ri.review_block_id
+             WHERE ri.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT ri.image_mobile_media_id, \'Reviews (telefoon)\', \'reviews\', rb.page_slug, rb.section_key, NULL
+              FROM review_block_items ri
+              JOIN review_blocks rb ON rb.id = ri.review_block_id
+             WHERE ri.image_mobile_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
             SELECT c.label_icon_media_id, \'Carrousel-kaart (label-icoon)\', \'carousel-card\', ca.page_slug, ca.section_key, c.id
               FROM carousel_cards c
               JOIN card_carousels ca ON ca.id = c.carousel_id

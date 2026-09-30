@@ -34,6 +34,7 @@ final class ResponsiveImageRepository extends Repository
         'hover_card_grid_items',
         'homepage_hero',
         'detail_section_images',
+        'review_block_items',
     ];
 
     public function save(string $table, int $rowId, ResponsiveImageSlot $slot, ResponsiveImage $image): void

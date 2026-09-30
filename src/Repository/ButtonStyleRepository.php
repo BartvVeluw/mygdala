@@ -50,6 +50,7 @@ final class ButtonStyleRepository extends Repository
         'detail_sections' => ['button_style_id'],
         'contact_cards' => ['button_style_id'],
         'item_galleries' => ['button_style_id'],
+        'review_blocks' => ['button_style_id'],
     ];
 
     /** @return list<array<string, mixed>> every style, by name */

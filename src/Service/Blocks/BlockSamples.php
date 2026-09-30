@@ -183,6 +183,22 @@ final class BlockSamples
             ['Tweede collectie', 'Second collection'],
             ['Derde collectie', 'Third collection'],
         ],
+        // A review's words (the Reviews block): clearly samples, no real
+        // person and no claim about any real business.
+        'review' => [
+            ['Hier staat de ervaring van een klant, in diens eigen woorden. Een review mag kort zijn of wat langer.', 'This is where a customer\'s experience goes, in their own words. A review may be short or a little longer.'],
+            ['Een tweede voorbeeldreview, zodat je ziet hoe meer ervaringen naast elkaar staan.', 'A second sample review, so you can see how more experiences sit side by side.'],
+            ['Een derde, korte voorbeeldreview.', 'A third, short sample review.'],
+        ],
+        'reviewer' => [
+            ['Voorbeeldklant', 'Sample customer'],
+            ['Tweede klant', 'Second customer'],
+            ['Derde klant', 'Third customer'],
+        ],
+        'reviewer_role' => [
+            ['Omschrijving of bedrijf', 'Description or company'],
+            ['Particuliere klant', 'Private customer'],
+        ],
     ];
 
     /**
