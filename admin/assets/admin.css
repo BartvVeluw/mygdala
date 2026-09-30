@@ -7470,3 +7470,35 @@ label:has(> .admin-checkbox:disabled){ color: var(--admin-text-muted) !important
   .admin-checkbox::before,
   .admin-switch::before{ display: none; }
 }
+
+/* Extra vormgeving (admin/_block_appearance.php): one folded panel per block
+   row, under the row's buttons. Its summary names the chosen look, so a
+   closed panel still says a block has one; open, the fields sit side by side
+   where there is room and stack on a phone. */
+.block-appearance-panel{
+  border-top: 1px dashed var(--admin-border);
+  padding-top: 0.45rem;
+}
+.block-appearance-panel__summary{ gap: 0.5rem; }
+.block-appearance-panel__title{ font-weight: 600; }
+.block-appearance-panel__current{
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.block-appearance-panel__form{
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.6rem 0.2rem 0.2rem;
+}
+.block-appearance-panel__intro{ margin: 0; }
+.block-appearance-panel__fields{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 0.75rem 1rem;
+}
+.block-appearance-panel__fields .admin-field{ margin: 0; min-width: 0; }
+.block-appearance-panel__fields .admin-select{ width: 100%; }
+.block-appearance-panel__actions{ display: flex; justify-content: flex-start; }

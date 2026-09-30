@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_block_picker.php';
 require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_block_appearance.php';
 
 use App\Service\SectionRegistry;
 
@@ -179,6 +180,10 @@ function content_blocks_list(array $page, array $allSections, array $availableBl
                 </form>
                 <?php endif; ?>
               </div>
+              <?php /* The block's own look (Extra vormgeving): one shared
+                       panel per row, only for a block type that supports
+                       it, folded shut until it is needed. */ ?>
+              <?php if (!$isUnsupported) { block_appearance_panel($pageSection, $csrfToken); } ?>
             </div>
           </details>
         </div>
