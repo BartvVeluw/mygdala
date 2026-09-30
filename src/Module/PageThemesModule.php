@@ -23,7 +23,9 @@ use App\Service\Theme\PageAppearance;
  *     the page editor (App\Service\PageThemes\PageThemeSettingsSection);
  *   - pageAppearance(): the look of a page that chose a theme, which Core
  *     prints scoped to that page's <main> (App\Service\Theme\PageThemeCss);
- *   - switchableFromAppearance(): its on/off switch on the Vormgeving screen.
+ *   - switchableFromAppearance(): its on/off switch on the Vormgeving screen;
+ *   - fontFamilyUsage(): which themes use a Font Library family, so Core
+ *     refuses to delete it and says which.
  *
  * SWITCHING IT OFF DELETES NOTHING, like every module (MODULES.md). The
  * themes stay in `page_themes`, every page keeps its `page_theme_id`, and
@@ -114,5 +116,10 @@ final class PageThemesModule extends ModuleDefinition
     public function switchableFromAppearance(): bool
     {
         return true;
+    }
+
+    public function fontFamilyUsage(int $familyId): array
+    {
+        return PageThemeService::fontUsage($familyId);
     }
 }

@@ -22,7 +22,12 @@ final class PageThemeRepository extends Repository
         'surface_color',
         'text_color',
         'font_pairing',
+        'heading_font_family_id',
+        'body_font_family_id',
     ];
+
+    /** The two Font Library columns: '' is stored as NULL (the pairing's font). */
+    private const FAMILY_COLUMNS = ['heading_font_family_id', 'body_font_family_id'];
 
     /**
      * Every theme, by name.
@@ -62,9 +67,11 @@ final class PageThemeRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO page_themes
-                (name, slug, primary_color, on_primary_color, background_color, surface_color, text_color, font_pairing, created_at, updated_at)
+                (name, slug, primary_color, on_primary_color, background_color, surface_color, text_color, font_pairing,
+                 heading_font_family_id, body_font_family_id, created_at, updated_at)
              VALUES
-                (:name, :slug, :primary_color, :on_primary_color, :background_color, :surface_color, :text_color, :font_pairing, NOW(), NOW())'
+                (:name, :slug, :primary_color, :on_primary_color, :background_color, :surface_color, :text_color, :font_pairing,
+                 :heading_font_family_id, :body_font_family_id, NOW(), NOW())'
         );
         $stmt->execute(self::only($values));
 
@@ -82,6 +89,7 @@ final class PageThemeRepository extends Repository
                 primary_color = :primary_color, on_primary_color = :on_primary_color,
                 background_color = :background_color, surface_color = :surface_color,
                 text_color = :text_color, font_pairing = :font_pairing,
+                heading_font_family_id = :heading_font_family_id, body_font_family_id = :body_font_family_id,
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -98,6 +106,23 @@ final class PageThemeRepository extends Repository
         $stmt->execute(['id' => $id]);
     }
 
+    /**
+     * The themes that use a Font Library family, for either role, by name.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findUsingFontFamily(int $familyId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, name, heading_font_family_id, body_font_family_id FROM page_themes
+              WHERE heading_font_family_id = :heading OR body_font_family_id = :body
+              ORDER BY name ASC, id ASC'
+        );
+        $stmt->execute(['heading' => $familyId, 'body' => $familyId]);
+
+        return $stmt->fetchAll();
+    }
+
     private function taken(string $column, string $value, ?int $exceptId): bool
     {
         // $column is one of two literals above, never input.
@@ -110,14 +135,18 @@ final class PageThemeRepository extends Repository
     }
 
     /**
-     * @param array<string, string> $values
-     * @return array<string, string>
+     * @param array<string, string|null> $values
+     * @return array<string, string|null>
      */
     private static function only(array $values): array
     {
         $clean = [];
         foreach (self::COLUMNS as $column) {
             $clean[$column] = (string) ($values[$column] ?? '');
+        }
+
+        foreach (self::FAMILY_COLUMNS as $column) {
+            $clean[$column] = ctype_digit($clean[$column]) && (int) $clean[$column] > 0 ? $clean[$column] : null;
         }
 
         return $clean;

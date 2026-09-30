@@ -29,6 +29,8 @@ AdminAuth::requireLogin();
 AdminAuth::requirePermission('page_themes.manage');
 
 $themes = PageThemeService::allWithUsage();
+/** The Font Library families, to name a theme's own fonts in the list. */
+$fontFamilies = \App\Service\Theme\FontLibrary::usableFamilies();
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
@@ -106,6 +108,12 @@ $swatchKeys = ['background_color', 'surface_color', 'text_color', 'primary_color
               </p>
               <p class="admin-section-row__note">
                 <?= $h(admin_registry_label('themefont.' . (string) $theme['font_pairing'], (string) $pairing['label'])) ?>
+                <?php foreach (['heading', 'body'] as $fontRole): ?>
+                  <?php $fontFamilyId = (int) ($theme[$fontRole . '_font_family_id'] ?? 0); ?>
+                  <?php if ($fontFamilyId > 0 && isset($fontFamilies[$fontFamilyId])): ?>
+                    &middot; <?= admin_te('fonts.role_label_' . $fontRole) ?>: <?= $h((string) $fontFamilies[$fontFamilyId]['name']) ?>
+                  <?php endif; ?>
+                <?php endforeach; ?>
                 &middot;
                 <?= $usage === 0 ? admin_te('pagethemes.usage_none') : admin_te($usage === 1 ? 'pagethemes.usage_one' : 'pagethemes.usage_many', ['count' => $usage]) ?>
               </p>

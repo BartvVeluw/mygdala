@@ -10,6 +10,7 @@ use App\Service\Language\SiteText;
 use App\Service\PageAssets;
 use App\Service\PageThemes\PageThemeService;
 use App\Service\Theme\PageAppearance;
+use App\Service\Theme\ThemeSettings;
 use App\Service\Theme\PageThemeCss;
 
 /**
@@ -50,7 +51,13 @@ header('X-Robots-Tag: noindex, nofollow');
 // Enforced by the browser, whatever the markup below contains.
 header("Content-Security-Policy: script-src 'none'; form-action 'none'; frame-ancestors 'self'; base-uri 'none'");
 
-PageThemeCss::declare(PageAppearance::fromTheme('preview', $values, $values['font_pairing']));
+PageThemeCss::declare(PageAppearance::fromTheme(
+    'preview',
+    $values,
+    $values['font_pairing'],
+    ThemeSettings::familyId($values['heading_font_family_id']),
+    ThemeSettings::familyId($values['body_font_family_id'])
+));
 PageAssets::requireStyle('assets/css/page-theme-preview.css');
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');

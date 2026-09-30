@@ -6,7 +6,8 @@ namespace App\Service\Theme;
 
 /**
  * How ONE page looks when it does not look like the rest of the site: a
- * validated set of the five theme colours plus a font pairing, under a slug
+ * validated set of the five theme colours plus a font pairing (and, per role,
+ * optionally a Font Library family), under a slug
  * that names it in the markup (`<main data-page-theme="halloween">`).
  *
  * Core, and deliberately ignorant of where it came from. A module that lets
@@ -39,7 +40,9 @@ final class PageAppearance
     private function __construct(
         public readonly string $slug,
         public readonly array $colors,
-        public readonly string $fontPairing
+        public readonly string $fontPairing,
+        public readonly ?int $headingFamilyId = null,
+        public readonly ?int $bodyFamilyId = null
     ) {
     }
 
@@ -49,12 +52,22 @@ final class PageAppearance
      * half-valid theme would silently mix page and site colours, which is a
      * look nobody chose.
      *
+     * A Font Library family per role is optional (null = the pairing's
+     * font); one that is given must be usable — a family without a file is
+     * refused like any other broken value, never silently swapped.
+     *
      * @param array<string, mixed> $colors keyed by ThemeSettings::COLOR_KEYS
      */
-    public static function fromTheme(string $slug, array $colors, string $fontPairing): ?self
+    public static function fromTheme(string $slug, array $colors, string $fontPairing, ?int $headingFamilyId = null, ?int $bodyFamilyId = null): ?self
     {
         if (!self::isValidSlug($slug) || !ThemeFonts::isValidKey($fontPairing)) {
             return null;
+        }
+
+        foreach ([$headingFamilyId, $bodyFamilyId] as $familyId) {
+            if ($familyId !== null && !FontLibrary::isUsable($familyId)) {
+                return null;
+            }
         }
 
         $clean = [];
@@ -69,7 +82,7 @@ final class PageAppearance
             $clean[$key] = $normalised;
         }
 
-        return new self($slug, $clean, $fontPairing);
+        return new self($slug, $clean, $fontPairing, $headingFamilyId, $bodyFamilyId);
     }
 
     public static function isValidSlug(string $slug): bool
@@ -91,16 +104,29 @@ final class PageAppearance
     {
         $out = ThemeCss::paletteDeclarations($this->colors);
 
-        $pairing = ThemeFonts::pairing($this->fontPairing);
-        $out['--font-display'] = $pairing['heading'];
-        $out['--font-body'] = $pairing['body'];
+        $stacks = ThemeTypography::stacks($this->fontPairing, $this->headingFamilyId, $this->bodyFamilyId);
+        $out['--font-display'] = $stacks['heading'];
+        $out['--font-body'] = $stacks['body'];
 
         return array_filter($out, static fn (string $value): bool => ThemeCss::isSafeValue($value));
     }
 
-    /** The web font this appearance needs, or null for a system pairing. */
+    /**
+     * The pairing's web font stylesheet this appearance needs, or null for a
+     * system pairing or when both roles use a Font Library family.
+     */
     public function fontStylesheetUrl(): ?string
     {
-        return ThemeFonts::pairing($this->fontPairing)['url'];
+        return ThemeTypography::pairingStylesheetUrl($this->fontPairing, $this->headingFamilyId, $this->bodyFamilyId);
+    }
+
+    /**
+     * The Font Library families this appearance uses.
+     *
+     * @return list<int>
+     */
+    public function fontFamilyIds(): array
+    {
+        return ThemeTypography::familyIds($this->headingFamilyId, $this->bodyFamilyId);
     }
 }

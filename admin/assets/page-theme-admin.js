@@ -32,7 +32,7 @@
 
   var HEX = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
   var MIN_CONTRAST = 4.5;
-  var FIELDS = ['primary_color', 'on_primary_color', 'background_color', 'surface_color', 'text_color', 'font_pairing'];
+  var FIELDS = ['primary_color', 'on_primary_color', 'background_color', 'surface_color', 'text_color', 'font_pairing', 'heading_font_family_id', 'body_font_family_id'];
 
   function hex(value) {
     var v = String(value || '').trim();

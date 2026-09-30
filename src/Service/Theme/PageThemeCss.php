@@ -15,8 +15,8 @@ use App\Module\ModuleRegistry;
  *      scoped to `main[data-page-theme="<slug>"]`;
  *   2. the attribute on <main id="main">, printed by every template that
  *      renders a CMS page (mainAttribute());
- *   3. the page theme's web font, next to the site's
- *      (PageAssets::renderFontStylesheet()).
+ *   3. the page theme's web font, next to the site's, and the @font-face
+ *      rules of its Font Library families (PageAssets::renderFontStylesheet()).
  *
  * WHICH PAGE. declareForPage() is called once, by partials/page-head.php —
  * the head of every template that renders a `pages` row (the seven page
@@ -133,6 +133,16 @@ final class PageThemeCss
     public static function fontStylesheetUrl(): ?string
     {
         return self::$current?->fontStylesheetUrl();
+    }
+
+    /**
+     * The Font Library families the declared appearance uses.
+     *
+     * @return list<int>
+     */
+    public static function fontFamilyIds(): array
+    {
+        return self::$current?->fontFamilyIds() ?? [];
     }
 
     public static function reset(): void

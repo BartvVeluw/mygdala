@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_theme_color_field.php';
+require_once __DIR__ . '/_font_library.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -185,6 +186,19 @@ $pageTitle = $isNew ? admin_t('pagethemes.new') : admin_t('pagethemes.edit_title
           <?php endforeach; ?>
         </select>
       </div>
+      <?php $usableFonts = \App\Service\Theme\FontLibrary::usableFamilies(); ?>
+      <?php if ($usableFonts !== []): ?>
+        <?php /* The same Font Library as Vormgeving: a family per role, over
+                 the pairing (THEMING.md, "Font Library"). */ ?>
+        <?php foreach (['heading' => 'heading_font_family_id', 'body' => 'body_font_family_id'] as $fontRole => $fontKey): ?>
+          <div class="admin-field">
+            <?= admin_field_label('theme-' . $fontKey, admin_t('fonts.role_label_' . $fontRole), admin_t('help.fonts.role_' . $fontRole)) ?>
+            <?= admin_font_role_select('theme-' . $fontKey, $fontKey, $value($fontKey), $usableFonts, isset($errors[$fontKey])) ?>
+          </div>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <p class="admin-text-muted" data-fonts-empty-hint><?= admin_t('fonts.empty_hint') ?></p>
+      <?php endif; ?>
     </section>
 
     <section class="admin-card">

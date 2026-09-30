@@ -20,10 +20,11 @@ use App\Service\Theme\ThemeSettings;
  * from it. The module's own logic; Core only ever sees the resulting
  * App\Service\Theme\PageAppearance (THEMING.md, "Paginathema's").
  *
- * NOTHING IS VALIDATED TWICE IN TWO WAYS. A colour and a font pairing go
- * through App\Service\Theme\ThemeSettings::validate(), the site theme's own
- * validation (ThemeColor::normalise(), ThemeFonts::isValidKey()), so a page
- * theme accepts exactly what Vormgeving accepts. Reading a stored theme goes
+ * NOTHING IS VALIDATED TWICE IN TWO WAYS. A colour, a font pairing and a
+ * Font Library family per role go through
+ * App\Service\Theme\ThemeSettings::validate(), the site theme's own
+ * validation (ThemeColor::normalise(), ThemeFonts::isValidKey(), a usable
+ * family), so a page theme accepts exactly what Vormgeving accepts. Reading a stored theme goes
  * through PageAppearance::fromTheme(), which validates again: a hand-edited
  * row falls back to the site theme rather than reaching a stylesheet.
  *
@@ -42,6 +43,8 @@ final class PageThemeService
         'surface_color',
         'text_color',
         'font_pairing',
+        'heading_font_family_id',
+        'body_font_family_id',
     ];
 
     public const MAX_NAME_LENGTH = 80;
@@ -285,8 +288,37 @@ final class PageThemeService
         return PageAppearance::fromTheme(
             (string) ($theme['slug'] ?? ''),
             $theme,
-            (string) ($theme['font_pairing'] ?? '')
+            (string) ($theme['font_pairing'] ?? ''),
+            ThemeSettings::familyId((string) ($theme['heading_font_family_id'] ?? '')),
+            ThemeSettings::familyId((string) ($theme['body_font_family_id'] ?? ''))
         );
+    }
+
+    /**
+     * The themes that use a Font Library family, in the words of the delete
+     * refusal on Lettertypen (App\Service\Theme\FontLibrary::usage()):
+     * the theme's name, the roles, and its editor.
+     *
+     * @return list<array{label: string, url: string}>
+     */
+    public static function fontUsage(int $familyId): array
+    {
+        $uses = [];
+        foreach ((new PageThemeRepository())->findUsingFontFamily($familyId) as $theme) {
+            $roles = [];
+            foreach (['heading', 'body'] as $role) {
+                if ((int) ($theme[$role . '_font_family_id'] ?? 0) === $familyId) {
+                    $roles[] = AdminTranslator::trans('fonts.role_' . $role);
+                }
+            }
+
+            $uses[] = [
+                'label' => AdminTranslator::trans('pagethemes.font_usage', ['name' => (string) $theme['name'], 'roles' => implode(', ', $roles)]),
+                'url' => '/admin/page-theme.php?id=' . (int) $theme['id'],
+            ];
+        }
+
+        return $uses;
     }
 
     /**
