@@ -563,7 +563,7 @@ final class PortfolioModuleTest extends TestCase
             strpos($editor, 'ContentBlockAccess::requireAny()'),
             strpos($editor, "SectionRegistry::exists('project_cards')"),
             strpos($editor, 'Repository('),
-            strpos($editor, "findBySectionTypeAndId('project_cards'"),
+            strpos($editor, "ContentBlockDrafts::belongsTo('project_cards'"),
             strpos($editor, '<!doctype html>'),
         ];
         $this->assertNotContains(false, $positions, 'admin/project-cards.php is missing a guard');
@@ -578,7 +578,7 @@ final class PortfolioModuleTest extends TestCase
             strpos($endpoint, "REQUEST_METHOD'] !== 'POST'"),
             strpos($endpoint, 'Csrf::validate('),
             strpos($endpoint, "SectionRegistry::exists('project_cards')"),
-            strpos($endpoint, "findBySectionTypeAndId('project_cards'"),
+            strpos($endpoint, "ContentBlockDrafts::belongsTo('project_cards'"),
             strpos($endpoint, 'ItemGallerySelection::fromRequest('),
             strpos($endpoint, 'ProjectCardsBlock::rowValues('),
         ];
@@ -590,7 +590,9 @@ final class PortfolioModuleTest extends TestCase
 
         foreach (['admin/item-gallery.php', 'api/admin/update-item-gallery.php'] as $file) {
             $this->assertStringContainsString(
-                "findBySectionTypeAndId('item_gallery'",
+                // Placed by a gallery block, or a gallery block's draft
+                // (Content Blocks Lifecycle 1.0).
+                "ContentBlockDrafts::belongsTo('item_gallery'",
                 self::withoutComments(self::sourceOf($file)),
                 $file . ' must edit only the rows a gallery block placed'
             );

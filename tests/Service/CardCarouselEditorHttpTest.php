@@ -30,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * The Kaarten-carrousel's two one-form editors, over real HTTP
@@ -689,13 +690,13 @@ final class CardCarouselEditorHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $what = ''): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $what);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
     }
 
     /** @param array{location: string} $response */
     private function assertRefused(array $response, string $what = ''): void
     {
-        self::assertStringNotContainsString('saved=1', $response['location'], $what);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
         self::assertStringStartsWith('/admin/', $response['location'], $what . ': back to the editor');
     }
 

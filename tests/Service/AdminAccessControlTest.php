@@ -80,7 +80,7 @@ final class AdminAccessControlTest extends TestCase
 
     private const OWNER_AWARE_BLOCK_ENDPOINTS = [
         'add-page-section.php', 'delete-page-section.php', 'toggle-page-section.php', 'reorder-page-sections.php',
-        'update-card-carousel.php', 'update-carousel-card.php', 'update-contact-card.php', 'update-contact-form.php',
+        'discard-block-draft.php', 'update-card-carousel.php', 'update-carousel-card.php', 'update-contact-card.php', 'update-contact-form.php',
         'update-cta-band.php', 'update-detail-section.php', 'update-faq-section.php', 'update-feature-grid.php',
         'update-featured-product.php', 'update-form-block.php', 'update-hover-card-grid.php', 'update-item-gallery.php',
         'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php', 'update-project-info.php',
@@ -208,6 +208,12 @@ final class AdminAccessControlTest extends TestCase
         // the caller's page holds; every button in it posts to an endpoint
         // that guards itself.
         '_content_blocks.php',
+        // The "Nieuw blok" line and its Annuleren at the top of a block
+        // editor (Content Blocks Lifecycle 1.0): an output function every
+        // block editor prints after its own owner-aware check, over the
+        // editor's own ?section=. Annuleren posts
+        // api/admin/discard-block-draft.php, which guards itself.
+        '_block_editor.php',
         // Where a gallery item's picture comes from (Detailsectie 2.0): an
         // output function over the Destination Picker's own choices, printed
         // by admin/detail-section.php behind its pages.manage check. The

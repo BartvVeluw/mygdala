@@ -24,6 +24,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\ShopStockFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * Product & Portfolio Content Pages 1.0 and Portfolio layout 2.0, over real
@@ -462,9 +463,12 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
         $this->assertSame(302, $added['status']);
         $this->assertStringStartsWith('/admin/rich-text.php?section=' . urlencode('product_' . $id . ':'), $added['location']);
 
+        // The page exists for the editor; the block joins it on its first
+        // save (Content Blocks Lifecycle 1.0, ContentBlockLifecycleHttpTest).
         $page = ContentPages::pageFor(ProductContentOwner::KIND, $id);
         $this->assertNotNull($page);
-        $this->assertCount(1, (new PageSectionRepository())->findForPage((int) $page['id']));
+        $this->assertCount(0, (new PageSectionRepository())->findForPage((int) $page['id']));
+        $this->assertCount(1, (new \App\Repository\ContentBlockDraftRepository())->findForPage((int) $page['id']));
     }
 
     public function testTheProductEditorHasAPaginaInhoudTabForWhoMayEditBlocks(): void
@@ -517,7 +521,7 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
 
         $saved = self::$on->request('POST', '/api/admin/update-portfolio-settings.php', $session, ['csrf_token' => $csrf, 'project_layout' => 'image_right']);
         $this->assertSame(302, $saved['status']);
-        $this->assertStringContainsString('saved=1', $saved['location']);
+        $this->assertMatchesRegularExpression(SavedRedirect::PATTERN, $saved['location']);
         SiteSettings::clearCache();
         $this->assertSame('image_right', PortfolioProjectLayout::siteDefault());
 

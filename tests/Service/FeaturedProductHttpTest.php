@@ -22,6 +22,7 @@ use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
 use Tests\Support\ShopStockFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * Uitgelicht product through the real editor, endpoint and page, over PHP's
@@ -157,7 +158,7 @@ final class FeaturedProductHttpTest extends TestCase
         $response = self::$server->request('POST', self::ENDPOINT, $session, $this->fields($section, $csrf, ['product_id' => '', 'intro' => 'Straks komt hier een product']));
 
         self::assertSame(302, $response['status']);
-        self::assertStringEndsWith('&saved=1', $response['location']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location']);
         self::assertNull((new FeaturedProductRepository())->findById($id)['product_id']);
         self::assertSame('Straks komt hier een product', BlockLocalization::raw('featured_products', $id, 'intro', 'nl'));
 
@@ -245,13 +246,13 @@ final class FeaturedProductHttpTest extends TestCase
         foreach ($cases as $field => $posted) {
             $response = self::$server->request('POST', self::ENDPOINT, $session, $this->fields($section, $csrf, $posted + ['product_id' => (string) $product]));
             self::assertSame(302, $response['status'], $field);
-            self::assertStringNotContainsString('saved=1', $response['location'], $field);
+            self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $field);
             self::assertArrayHasKey($field, (array) $this->accounts->read($session, 'admin_featured_product_field_errors'), $field . ' is refused at its field');
             self::assertSame($before, (new FeaturedProductRepository())->findById($id), $field . ': nothing stored');
         }
 
         $letters = self::$server->request('POST', self::ENDPOINT, $session, $this->fields($section, $csrf, ['product_id' => 'abc']));
-        self::assertStringNotContainsString('saved=1', $letters['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $letters['location']);
         self::assertSame($before, (new FeaturedProductRepository())->findById($id));
     }
 

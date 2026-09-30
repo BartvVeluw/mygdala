@@ -26,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * The Content Blocks UX polish phase over real HTTP, block by block:
@@ -333,7 +334,7 @@ final class ContentBlocksPolishHttpTest extends TestCase
         self::assertSame(['image_focus_x' => 100, 'image_focus_y' => 0], $point(), 'a number outside the frame is clamped');
 
         $refused = $save(['image_presentation' => '1', 'image_focus_x' => 'everywhere', 'image_focus_y' => '50']);
-        self::assertStringNotContainsString('saved=1', (string) $refused['location'], 'what is no number is refused');
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, (string) $refused['location'], 'what is no number is refused');
         self::assertSame(['image_focus_x' => 100, 'image_focus_y' => 0], $point(), 'and nothing is stored');
 
         $this->assertSaved($save(['image_presentation' => '1', 'image_focus_x' => '50', 'image_focus_y' => '0']));
@@ -521,13 +522,13 @@ final class ContentBlocksPolishHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $what = ''): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $what . ' ' . $response['body']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $what . ' ' . $response['body']);
     }
 
     /** @param array{location: string} $response */
     private function assertRefused(array $response, string $what = ''): void
     {
-        self::assertStringNotContainsString('saved=1', $response['location'], $what);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
         self::assertStringStartsWith('/admin/', $response['location'], $what . ': back to the editor');
     }
 

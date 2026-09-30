@@ -32,6 +32,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * The Destination Picker (2.0, Pages & Destinations 3.0; CONTENT-BLOCKS.md
@@ -302,7 +303,7 @@ final class DestinationPickerTest extends TestCase
             'background_overlay' => 'medium',
             'text_panel_opacity' => 'strong',
         ]);
-        self::assertStringContainsString('saved=1', $response['location'], $response['body']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $response['body']);
         $row = Database::connection()->query('SELECT primary_link_type, primary_link_target_id FROM cta_bands WHERE id = ' . (int) $bandId)->fetch();
         self::assertSame(['primary_link_type' => 'product', 'primary_link_target_id' => $product], ['primary_link_type' => $row['primary_link_type'], 'primary_link_target_id' => (int) $row['primary_link_target_id']]);
     }

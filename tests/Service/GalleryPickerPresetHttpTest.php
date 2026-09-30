@@ -6,6 +6,7 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Service\AdminPermissions;
+use App\Service\Blocks\ContentBlockDrafts;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
@@ -21,7 +22,9 @@ use Tests\Support\BuiltInServer;
  *  - a preset the block does not offer, a malformed choice, or a preset of
  *    a block without presets is refused and creates nothing.
  *
- * Every block it adds is removed again in tearDown(), by id.
+ * A chosen block is a draft until its editor saves it (Content Blocks
+ * Lifecycle 1.0), so "created" is read from content_block_drafts. Every draft
+ * it makes is removed again in tearDown(), by id.
  */
 final class GalleryPickerPresetHttpTest extends TestCase
 {
@@ -31,10 +34,10 @@ final class GalleryPickerPresetHttpTest extends TestCase
 
     private int $pageId = 0;
 
-    /** page_sections ids before the test, so exactly the added ones are removed. */
-    private int $lastSectionId = 0;
+    /** content_block_drafts ids before the test, so exactly the added ones are removed. */
+    private int $lastDraftId = 0;
 
-    /** Only the rows added since the last look count as "added" next time. */
+    /** Only the drafts added since the last look count as "added" next time. */
     private ?int $watermark = null;
 
     public static function setUpBeforeClass(): void
@@ -61,23 +64,20 @@ final class GalleryPickerPresetHttpTest extends TestCase
         if ($this->pageId === 0) {
             $this->markTestSkipped('this database has no page to add a block to');
         }
-        $this->lastSectionId = (int) $db->query('SELECT COALESCE(MAX(id), 0) FROM page_sections')->fetchColumn();
+        $this->lastDraftId = (int) $db->query('SELECT COALESCE(MAX(id), 0) FROM content_block_drafts')->fetchColumn();
     }
 
     protected function tearDown(): void
     {
-        $db = Database::connection();
-        $added = $db->prepare('SELECT section_type, page_slug, section_key FROM page_sections WHERE id > :id');
-        $added->execute(['id' => $this->lastSectionId]);
+        $stmt = Database::connection()->prepare(
+            'SELECT d.*, p.content_key AS page_slug FROM content_block_drafts d JOIN pages p ON p.id = d.page_id WHERE d.id > :id'
+        );
+        $stmt->execute(['id' => $this->lastDraftId]);
 
-        foreach ($added->fetchAll() as $row) {
-            if ($row['section_type'] === 'item_gallery') {
-                $db->prepare('DELETE FROM item_galleries WHERE page_slug = :slug AND section_key = :key')
-                    ->execute(['slug' => $row['page_slug'], 'key' => $row['section_key']]);
-            }
+        foreach ($stmt->fetchAll() as $draft) {
+            ContentBlockDrafts::discard($draft);
         }
 
-        $db->prepare('DELETE FROM page_sections WHERE id > :id')->execute(['id' => $this->lastSectionId]);
         $this->accounts->forget();
     }
 
@@ -91,9 +91,9 @@ final class GalleryPickerPresetHttpTest extends TestCase
             ]);
 
             $this->assertSame(302, $response['status'], $choice);
-            $this->assertStringStartsWith('/admin/', (string) $response['location'], $choice . ' goes to the new block\'s editor');
+            $this->assertStringStartsWith('/admin/item-gallery.php?section=', (string) $response['location'], $choice . ' goes to the new block\'s editor');
             $this->assertSame([['section_type' => 'item_gallery', 'source_type' => $source]], $this->added(), $choice);
-            $this->lastSectionIdAfter();
+            $this->lastDraftIdAfter();
         }
 
         // The ordinary card of the same type still works, and starts on the first source.
@@ -129,18 +129,18 @@ final class GalleryPickerPresetHttpTest extends TestCase
     private function added(): array
     {
         $stmt = Database::connection()->prepare(
-            'SELECT s.section_type, g.source_type
-               FROM page_sections s
-               LEFT JOIN item_galleries g ON g.page_slug = s.page_slug AND g.section_key = s.section_key
-              WHERE s.id > :id ORDER BY s.id'
+            'SELECT d.section_type, g.source_type
+               FROM content_block_drafts d
+               LEFT JOIN item_galleries g ON g.id = d.section_id
+              WHERE d.id > :id ORDER BY d.id'
         );
-        $stmt->execute(['id' => $this->watermark ?? $this->lastSectionId]);
+        $stmt->execute(['id' => $this->watermark ?? $this->lastDraftId]);
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    private function lastSectionIdAfter(): void
+    private function lastDraftIdAfter(): void
     {
-        $this->watermark = (int) Database::connection()->query('SELECT COALESCE(MAX(id), 0) FROM page_sections')->fetchColumn();
+        $this->watermark = (int) Database::connection()->query('SELECT COALESCE(MAX(id), 0) FROM content_block_drafts')->fetchColumn();
     }
 }

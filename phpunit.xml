@@ -183,6 +183,7 @@
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleContractTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/PageUrlChangeTest.php</file>
@@ -319,6 +320,7 @@
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleContractTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
             <file>tests/Service/PagesOverviewSearchTest.php</file>
@@ -623,6 +625,9 @@
             <file>tests/Service/NoFallbackCopyTest.php</file>
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleContractTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleHttpTest.php</file>
             <file>tests/Service/GalleryPickerPresetHttpTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/PageHeroEditorHttpTest.php</file>
@@ -764,6 +769,8 @@
             <file>tests/Service/FooterAdminHttpTest.php</file>
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleTest.php</file>
+            <file>tests/Service/ContentBlockLifecycleHttpTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Install/PageEnglishTitleMigrationTest.php</file>

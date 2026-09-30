@@ -22,6 +22,8 @@ class PageBuilderSecurityTest extends TestCase
         'delete-page-section.php',
         'toggle-page-section.php',
         'reorder-page-sections.php',
+        // Annuleren on a new block (Content Blocks Lifecycle 1.0).
+        'discard-block-draft.php',
         'update-rich-text-section.php',
         // The page itself (settings + lifecycle), not just its sections.
         'create-page.php',

@@ -29,6 +29,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * The "Afbeeldingsweergave" field over real HTTP (Responsive Media 2.0,
@@ -242,7 +243,7 @@ final class ResponsiveImageEditorHttpTest extends TestCase
 
         foreach (['999999999' => 'an id that names nothing', (string) $video => 'a video', (string) $document => 'a document', '12 OR 1=1' => 'no number'] as $posted => $what) {
             $response = $this->saveCard($session, $card, $picture, ['image_mobile_source' => 'own', 'image_mobile_media_id' => $posted]);
-            self::assertStringNotContainsString('saved=1', $response['location'], $what);
+            self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
             self::assertSame($before, $this->carousels->findCardById($card), $what . ': nothing is stored');
         }
 
@@ -263,7 +264,7 @@ final class ResponsiveImageEditorHttpTest extends TestCase
 
         foreach ([['image_focus_x' => 'links'], ['image_fit' => 'stretch'], ['image_mobile_fit' => 'fill']] as $refused) {
             $response = $this->saveCard($session, $card, $picture, $refused);
-            self::assertStringNotContainsString('saved=1', $response['location'], (string) json_encode($refused));
+            self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], (string) json_encode($refused));
         }
         self::assertSame($row, $this->carousels->findCardById($card));
     }
@@ -336,7 +337,7 @@ final class ResponsiveImageEditorHttpTest extends TestCase
         self::assertSame(5, substr_count($screen, 'name="flat_image_ratio"'));
         self::assertMatchesRegularExpression('/name="flat_image_ratio" value="4-3" checked/', $screen);
 
-        self::assertStringNotContainsString('saved=1', $this->saveCarousel($session, ['desktop_layout' => 'row', 'flat_image_ratio' => '2-1'])['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $this->saveCarousel($session, ['desktop_layout' => 'row', 'flat_image_ratio' => '2-1'])['location']);
         $this->assertSaved($this->saveCarousel($session, ['desktop_layout' => 'row']));
         self::assertSame('4-3', $this->carousels->findById($this->carouselId)['flat_image_ratio']);
     }
@@ -426,7 +427,7 @@ final class ResponsiveImageEditorHttpTest extends TestCase
         // A forged phone picture is refused at its card, and nothing is stored.
         $itemId = (string) $items[0]['id'];
         $response = self::$server->request('POST', '/api/admin/update-hover-card-grid.php', $session, $fields + ['cards' => [$itemId => ['image_mobile_media_id' => '999999999'] + $card]]);
-        self::assertStringNotContainsString('saved=1', $response['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location']);
         self::assertSame($items, (new HoverCardGridRepository())->findItemsByGridId((int) $id));
         $screen = self::$server->request('GET', '/admin/hover-card-grid.php?section=' . urlencode($section), $session)['body'];
         self::assertStringContainsString(AdminTranslator::trans('media.responsive.error_mobile_media', [], 'nl'), $screen);
@@ -618,7 +619,7 @@ final class ResponsiveImageEditorHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $what = ''): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $what);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
     }
 
     private function removePage(): void

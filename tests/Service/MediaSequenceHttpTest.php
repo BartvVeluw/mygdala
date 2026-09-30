@@ -23,6 +23,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 require_once dirname(__DIR__, 2) . '/partials/section-page-hero.php';
 require_once dirname(__DIR__, 2) . '/partials/section-media-banner.php';
@@ -518,14 +519,16 @@ final class MediaSequenceHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $editor): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $response['body']);
-        self::assertStringStartsWith($editor, $response['location']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $response['body']);
+        // A block's save lands on its page's list (Content Blocks Lifecycle
+        // 1.0); the Paginakop's editor still lands on itself.
+        self::assertMatchesRegularExpression('~^(' . preg_quote($editor, '~') . '|/admin/page\.php\?id=)~', $response['location']);
     }
 
     /** @param array{location: string} $response */
     private function assertRefused(array $response, string $editor, string $what = ''): void
     {
-        self::assertStringNotContainsString('saved=1', $response['location'], $what);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
         self::assertStringStartsWith($editor, $response['location'], $what . ': back to the editor');
     }
 

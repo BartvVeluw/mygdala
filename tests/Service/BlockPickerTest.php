@@ -290,6 +290,9 @@ final class BlockPickerTest extends TestCase
         $this->assertStringContainsString("preg_match('/^([a-z0-9_]{1,64}):([a-z0-9_]{1,64})\$/', \$presetChoice, \$choice)", $endpoint);
         $this->assertStringContainsString('($preset !== null && !SectionRegistry::offersPreset($sectionType, $preset))', $endpoint);
         $this->assertStringContainsString("SectionRegistry::create(\$sectionType, (string) \$page['content_key'], \$preset)", $endpoint);
+        // A block with an editor opens as a draft, with the same preset
+        // (Content Blocks Lifecycle 1.0).
+        $this->assertStringContainsString('ContentBlockDrafts::open($page, $sectionType, $preset)', $endpoint);
         // The guards still come first.
         $this->assertLessThan(strpos($endpoint, 'section_preset'), strpos($endpoint, 'Csrf::validate'));
 
@@ -1031,7 +1034,12 @@ final class BlockPickerTest extends TestCase
         $withMarker = 0;
         foreach ($endpoints as $endpoint) {
             $source = (string) file_get_contents($endpoint);
-            if (preg_match('/[?&](saved|updated|created)=1/', $source) === 1) {
+            // A block editor's endpoint marks success through
+            // ContentBlockAccess::afterSaveUrl(): saved=<id> on its page's
+            // list, or saved=1 on the editor (Content Blocks Lifecycle 1.0).
+            if (preg_match('/[?&](saved|updated|created)=1/', $source) === 1
+                || str_contains($source, 'ContentBlockAccess::afterSaveUrl(')
+            ) {
                 $withMarker++;
             }
         }
@@ -1074,7 +1082,7 @@ final class BlockPickerTest extends TestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '/closest\("a\[href\]\[data-save-bar-discard\]"\)[\s\S]{0,200}event\.button !== 0[\s\S]{0,120}event\.ctrlKey \|\| event\.metaKey \|\| event\.shiftKey \|\| event\.altKey[\s\S]{0,80}leavingOnPurpose = true/',
+            '/closest\("a\[href\]\[data-save-bar-discard\], button\[type=submit\]\[data-save-bar-discard\]"\)[\s\S]{0,200}event\.button !== 0[\s\S]{0,120}event\.ctrlKey \|\| event\.metaKey \|\| event\.shiftKey \|\| event\.altKey[\s\S]{0,80}leavingOnPurpose = true/',
             $script,
             'only a plain click on a discard link leaves without the warning'
         );

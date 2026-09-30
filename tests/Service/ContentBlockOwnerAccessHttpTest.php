@@ -152,17 +152,28 @@ final class ContentBlockOwnerAccessHttpTest extends TestCase
         $this->assertSame(302, $added['status']);
         $page = ContentPages::pageFor(ProductContentOwner::KIND, $productId);
         $this->assertNotNull($page);
-        [$pageSection] = (new PageSectionRepository())->findForPage((int) $page['id']);
-        $key = (string) $page['content_key'] . ':' . (string) $pageSection['section_key'];
-        $this->assertStringStartsWith('/admin/spacer.php?section=' . urlencode($key), $added['location']);
+        // A new block is a draft (Content Blocks Lifecycle 1.0): its editor
+        // opens, the list holds nothing until it is saved.
+        $this->assertSame([], (new PageSectionRepository())->findForPage((int) $page['id']));
+        $key = $this->sectionFrom($added['location'], '/admin/spacer.php');
 
         $editor = $this->get('/admin/spacer.php?section=' . urlencode($key), $shop);
         $this->assertSame(200, $editor['status']);
-        $this->assertStringContainsString('href="/admin/product-form.php?id=' . $productId . '&amp;tab=inhoud"', $editor['body'], 'back to the product, not to page.php');
+        $this->assertStringContainsString('action="/api/admin/discard-block-draft.php"', $editor['body'], 'a new block can be cancelled');
         $this->assertStringNotContainsString('/admin/page.php?id=', $editor['body']);
 
-        $this->assertSame(302, $this->post('/api/admin/update-spacer.php', $shop, ['csrf_token' => $csrf, 'section' => $key, 'size' => 'xlarge'])['status']);
+        $saved = $this->post('/api/admin/update-spacer.php', $shop, ['csrf_token' => $csrf, 'section' => $key, 'size' => 'xlarge']);
+        $this->assertSame(302, $saved['status']);
         $this->assertSame('xlarge', $this->spacerSize($key));
+        [$pageSection] = (new PageSectionRepository())->findForPage((int) $page['id']);
+        $this->assertSame(
+            '/admin/product-form.php?id=' . $productId . '&tab=inhoud&saved=' . $pageSection['id'] . '#blok-' . $pageSection['id'],
+            $saved['location'],
+            'back to the product, not to page.php'
+        );
+
+        $editor = $this->get('/admin/spacer.php?section=' . urlencode($key), $shop);
+        $this->assertStringContainsString('href="/admin/product-form.php?id=' . $productId . '&amp;tab=inhoud"', $editor['body'], 'a saved block links back to the product');
 
         $hidden = $this->post('/api/admin/toggle-page-section.php', $shop, ['csrf_token' => $csrf, 'id' => (string) $pageSection['id'], 'is_active' => '0']);
         $this->assertSame(302, $hidden['status']);
@@ -172,6 +183,9 @@ final class ContentBlockOwnerAccessHttpTest extends TestCase
             'csrf_token' => $csrf, 'page_id' => (string) $page['id'], 'section_type' => 'spacer',
         ]);
         $this->assertSame(302, $second['status'], 'a list that exists is added to by its page id');
+        $this->assertSame(302, $this->post('/api/admin/update-spacer.php', $shop, [
+            'csrf_token' => $csrf, 'section' => $this->sectionFrom($second['location'], '/admin/spacer.php'), 'size' => 'small',
+        ])['status']);
         $rows = (new PageSectionRepository())->findForPage((int) $page['id']);
         $this->assertCount(2, $rows);
 
@@ -249,14 +263,16 @@ final class ContentBlockOwnerAccessHttpTest extends TestCase
         $this->assertSame(302, $added['status']);
         $page = ContentPages::pageFor(PortfolioContentOwner::KIND, $itemId);
         $this->assertNotNull($page);
-        [$row] = (new PageSectionRepository())->findForPage((int) $page['id']);
-        $key = (string) $page['content_key'] . ':' . (string) $row['section_key'];
+        $key = $this->sectionFrom($added['location'], '/admin/spacer.php');
 
         $editor = $this->get('/admin/spacer.php?section=' . urlencode($key), $portfolio);
         $this->assertSame(200, $editor['status']);
-        $this->assertStringContainsString('href="/admin/portfolio-item.php?id=' . $itemId . '&amp;tab=inhoud"', $editor['body']);
-        $this->assertSame(302, $this->post('/api/admin/update-spacer.php', $portfolio, ['csrf_token' => $csrf, 'section' => $key, 'size' => 'small'])['status']);
+        $saved = $this->post('/api/admin/update-spacer.php', $portfolio, ['csrf_token' => $csrf, 'section' => $key, 'size' => 'small']);
+        $this->assertSame(302, $saved['status']);
         $this->assertSame('small', $this->spacerSize($key));
+        [$row] = (new PageSectionRepository())->findForPage((int) $page['id']);
+        $this->assertStringStartsWith('/admin/portfolio-item.php?id=' . $itemId . '&tab=inhoud&saved=' . $row['id'], $saved['location']);
+        $this->assertStringContainsString('href="/admin/portfolio-item.php?id=' . $itemId . '&amp;tab=inhoud"', $this->get('/admin/spacer.php?section=' . urlencode($key), $portfolio)['body']);
 
         // Not a product's, not a page's.
         $this->assertSame(403, $this->post('/api/admin/update-spacer.php', $portfolio, ['csrf_token' => $csrf, 'section' => $productKey, 'size' => 'small'])['status']);
@@ -313,6 +329,15 @@ final class ContentBlockOwnerAccessHttpTest extends TestCase
         $id = (new PageSectionRepository())->create((int) $page['id'], (string) $page['content_key'], 'spacer', $sectionKey, $sectionId);
 
         return [$id, (string) $page['content_key'] . ':' . $sectionKey];
+    }
+
+    /** The `<page>:<key>` a redirect into a block editor names, checking the editor it goes to. */
+    private function sectionFrom(string $location, string $editor): string
+    {
+        $this->assertStringStartsWith($editor . '?section=', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+        return (string) ($query['section'] ?? '');
     }
 
     private function spacerSize(string $key): ?string

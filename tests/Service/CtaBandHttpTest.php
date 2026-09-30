@@ -28,6 +28,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 require_once dirname(__DIR__, 2) . '/partials/section-cta-band.php';
 
@@ -605,13 +606,13 @@ final class CtaBandHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $what = ''): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $what . ' ' . $response['body']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $what . ' ' . $response['body']);
     }
 
     /** @param array{location: string} $response */
     private function assertRefused(array $response, string $what = ''): void
     {
-        self::assertStringNotContainsString('saved=1', $response['location'], $what);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
         self::assertStringStartsWith('/admin/', $response['location'], $what . ': back to the editor');
     }
 

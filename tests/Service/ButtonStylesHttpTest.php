@@ -27,6 +27,7 @@ use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\ButtonStyleFixture;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * Button Styles 2.0 over PHP's built-in server (Tests\Support\BuiltInServer),
@@ -315,7 +316,7 @@ final class ButtonStylesHttpTest extends TestCase
 
         foreach (['999999', 'abc', '1 OR 1=1'] as $forged) {
             $response = $this->post($session, '/api/admin/update-cta-band.php', ['csrf_token' => $csrf] + $this->ctaForm($cta) + ['primary_button_style_id' => $forged]);
-            self::assertStringNotContainsString('saved=1', $response['location'], $forged);
+            self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $forged);
             self::assertSame($style, (int) (new CtaBandRepository())->findById($bandId)['primary_button_style_id'], $forged);
         }
 
@@ -355,7 +356,7 @@ final class ButtonStylesHttpTest extends TestCase
             (string) $stored[0]['id'] => $row + ['button_style_id' => '999999'],
             (string) $stored[1]['id'] => ['title' => 'Tweede'] + $row,
         ]));
-        self::assertStringNotContainsString('saved=1', $response['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location']);
         $items->execute([(int) $id]);
         self::assertSame($style, (int) $items->fetchAll()[0]['button_style_id']);
     }
@@ -453,7 +454,7 @@ final class ButtonStylesHttpTest extends TestCase
     /** @param array{location: string, body: string} $response */
     private function assertSaved(array $response): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $response['body']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $response['body']);
     }
 
     private function clearCaches(): void

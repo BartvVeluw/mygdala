@@ -21,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * The block editors phase 3B moved onto per-language storage (Multilingual 2.0,
@@ -605,13 +606,13 @@ final class BlockWordsEditorHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $what = ''): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $what);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
     }
 
     /** @param array{location: string} $response */
     private function assertRefused(array $response, string $what = ''): void
     {
-        self::assertStringNotContainsString('saved=1', $response['location'], $what);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
         self::assertStringStartsWith('/admin/', $response['location'], $what . ': back to the editor');
     }
 

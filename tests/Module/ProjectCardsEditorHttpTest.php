@@ -21,6 +21,7 @@ use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
+use Tests\Support\SavedRedirect;
 
 /**
  * Projecten 2.0 in its editors (admin/project-cards.php, admin/item-gallery.php)
@@ -155,7 +156,7 @@ final class ProjectCardsEditorHttpTest extends TestCase
             'item_ids' => [(string) $b, (string) $gone, (string) $a, (string) $b],
         ]);
 
-        self::assertStringContainsString('saved=1', $response['location']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location']);
         $row = (new ItemGalleryRepository())->findBySlugAndKey($pageKey, $sectionKey);
         self::assertSame(['category', $wolves, 'newest', 6], [$row['portfolio_scope'], (int) $row['portfolio_category_id'], $row['item_sort'], (int) $row['max_items']]);
         self::assertSame([$b, $a], ItemGallerySources::selectedItems(PortfolioModule::GALLERY_SOURCE, $galleryId), 'kept while "one category" is on, in order, once, the deleted one gone');
@@ -166,7 +167,7 @@ final class ProjectCardsEditorHttpTest extends TestCase
             'manual_random' => '1',
             'item_ids' => [(string) $a],
         ]);
-        self::assertStringContainsString('saved=1', $manual['location']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $manual['location']);
         $row = (new ItemGalleryRepository())->findBySlugAndKey($pageKey, $sectionKey);
         self::assertSame(['manual', 'random', $wolves], [$row['portfolio_scope'], $row['item_sort'], (int) $row['portfolio_category_id']], 'a picked list is its own order or random; the category is kept for later');
         self::assertSame([$a], ItemGallerySources::selectedItems(PortfolioModule::GALLERY_SOURCE, $galleryId));
@@ -178,11 +179,11 @@ final class ProjectCardsEditorHttpTest extends TestCase
         [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
 
         $response = $this->saveProjects($session, $csrf, $pageKey, $sectionKey, ['portfolio_scope' => 'category', 'category_id' => '']);
-        self::assertStringNotContainsString('saved=1', $response['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location']);
         self::assertSame(['Kies een categorie, of kies een andere bron.'], $this->accounts->read($session, 'admin_project_cards_errors'));
 
         $response = $this->saveProjects($session, $csrf, $pageKey, $sectionKey, ['item_sort' => 'popular']);
-        self::assertStringNotContainsString('saved=1', $response['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location']);
         self::assertSame(['Kies een volgorde uit de lijst.'], $this->accounts->read($session, 'admin_project_cards_errors'));
 
         $row = (new ItemGalleryRepository())->findBySlugAndKey($pageKey, $sectionKey);
@@ -227,7 +228,7 @@ final class ProjectCardsEditorHttpTest extends TestCase
             'background' => 'default',
             'is_active' => '1',
         ]);
-        self::assertStringContainsString('saved=1', $response['location']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location']);
         self::assertSame([$a, $b], ItemGallerySources::selectedItems(PortfolioModule::GALLERY_SOURCE, $galleryId));
 
         // A form that could not show the choice (no items_submitted) keeps it.

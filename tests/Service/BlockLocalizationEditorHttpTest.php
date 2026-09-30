@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * The three block editors on per-language storage (Multilingual 2.0 phase 3A,
@@ -216,7 +217,7 @@ final class BlockLocalizationEditorHttpTest extends TestCase
 
         foreach (['fr', 'x1', '', 'NL; DROP'] as $code) {
             $response = $this->save($session, 'contact_card', $code, ['title' => 'Titre', 'body' => '', 'button_label' => '']);
-            self::assertStringNotContainsString('saved=1', $response['location'], $code);
+            self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $code);
         }
 
         $count = Database::connection()->prepare("SELECT COUNT(*) FROM block_translations WHERE owner_table = 'contact_cards' AND owner_id = ?");
@@ -289,7 +290,9 @@ final class BlockLocalizationEditorHttpTest extends TestCase
 
         $response = $this->save($session, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Neem contact op', 'lead' => '', 'primary_label' => 'Contact']);
         $this->assertSaved($response);
-        $saved = $this->xpath(self::$server->request('GET', $response['location'], $session)['body']);
+        // A saved block lands on its page's list now (Content Blocks
+        // Lifecycle 1.0); its editor, opened again, starts out saved.
+        $saved = $this->xpath($this->editor($session, 'cta_band'));
         self::assertFalse($this->form($saved, 'cta_band')->hasAttribute('data-save-bar-unsaved'));
     }
 
@@ -405,13 +408,13 @@ final class BlockLocalizationEditorHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response, string $what = ''): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $what);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
     }
 
     /** @param array{location: string} $response */
     private function assertRefused(array $response, string $what = ''): void
     {
-        self::assertStringNotContainsString('saved=1', $response['location'], $what);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location'], $what);
         self::assertStringStartsWith('/admin/', $response['location'], $what . ': back to the editor');
     }
 

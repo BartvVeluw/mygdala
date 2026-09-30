@@ -44,6 +44,7 @@ use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 use Tests\Support\PageFixture;
 use Tests\Support\ShopStockFixture;
+use Tests\Support\SavedRedirect;
 
 /**
  * Focus and zoom (Responsive Media 3.0) over real HTTP, through the editors'
@@ -173,7 +174,7 @@ final class ResponsiveImageZoomHttpTest extends TestCase
 
         // A zoom that is no number is refused, next to the field; nothing changes.
         $response = $this->saveCard($session, $csrf, $card, $picture, ['image_zoom' => 'heel veel', 'image_focus_x' => '10']);
-        self::assertStringNotContainsString('saved=1', $response['location']);
+        self::assertDoesNotMatchRegularExpression(SavedRedirect::PATTERN, $response['location']);
         self::assertSame([0, 150], [(int) (new CardCarouselRepository())->findCardById($card)['image_focus_x'], (int) (new CardCarouselRepository())->findCardById($card)['image_zoom']]);
         self::assertStringContainsString('Deze zoom kan niet.', self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body']);
 
@@ -535,7 +536,7 @@ final class ResponsiveImageZoomHttpTest extends TestCase
     /** @param array{location: string} $response */
     private function assertSaved(array $response): void
     {
-        self::assertStringContainsString('saved=1', $response['location'], $response['location']);
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location'], $response['location']);
     }
 
     private function clearCaches(): void
