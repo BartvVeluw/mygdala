@@ -165,7 +165,11 @@ final class PageThemesAdminHttpTest extends TestCase
 
         $overview = $this->get(self::$on, $session, '/admin/page-themes.php');
         self::assertStringContainsString('ZZ Test Najaar (kopie 2)', $overview);
-        self::assertSame(3, substr_count($overview, 'data-page-theme-row='));
+        // This test's own three; a theme the installation already had is not its to count.
+        self::assertSame(
+            3 + (int) Database::connection()->query("SELECT COUNT(*) FROM page_themes WHERE name NOT LIKE 'ZZ Test %'")->fetchColumn(),
+            substr_count($overview, 'data-page-theme-row=')
+        );
 
         $deleted = $this->post(self::$on, $session, '/api/admin/delete-page-theme.php', ['csrf_token' => $csrf, 'id' => (string) $copy['id']]);
         self::assertSame('/admin/page-themes.php?done=deleted', $deleted['location']);
