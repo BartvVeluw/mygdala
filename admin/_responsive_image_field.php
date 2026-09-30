@@ -12,7 +12,7 @@ use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 
 /**
- * THE EDITOR OF A PICTURE'S PRESENTATION (Responsive Media 2.0,
+ * THE EDITOR OF A PICTURE'S PRESENTATION (Responsive Media 3.0,
  * App\Service\Media\ResponsiveImage, ADMIN-UI.md "Afbeeldingsweergave"): one
  * field for every block that crops a picture, so they cannot grow apart.
  *
@@ -23,6 +23,11 @@ use App\Service\Media\ResponsiveImageSlot;
  *                     they are what the form posts, and the keyboard's and a
  *                     screen reader's way to set it. The frame is for a mouse,
  *                     a finger or a pen, and repeats what the sliders say.
+ *                     A third slider, Zoom (100-200%), enlarges the picture
+ *                     around that point, and "Afbeelding resetten" puts the
+ *                     point back in the middle and the zoom at 100%. With
+ *                     "Hele afbeelding" the zoom row is hidden (it does
+ *                     nothing there) but still posted, so nothing is lost.
  *   Weergave          cover or contain, where the picture has a frame of its own
  *   Op een telefoon   closed until it holds something: the phone's own
  *                     picture, its own point (always with a picture of its
@@ -30,10 +35,18 @@ use App\Service\Media\ResponsiveImageSlot;
  *
  * WITHOUT THE SCRIPT every control is an ordinary form control, the frames
  * show what is stored, and the form posts the same fields; only the nine
- * one-click points and dragging need admin/assets/responsive-image.js
- * (responsive_image_field_script()).
+ * one-click points, the reset button and dragging need
+ * admin/assets/responsive-image.js (responsive_image_field_script()).
  *
- * THE FORM'S NAMES ARE THE COLUMNS' (image_focus_x, background_mobile_media_id,
+ * LIGHT ON A LONG SCREEN. A preview is the Media Library's thumbnail (the
+ * block passes MediaItem::displayPath(), a linked item LinkedImages'
+ * preview_path), loaded lazily: a frame far below the fold, in a folded row
+ * or in the closed phone part downloads nothing until it is about to be
+ * seen. The script wakes a field only when it comes near the screen
+ * (responsive-image.js), and all fields share one set of delegated
+ * listeners.
+ *
+ * THE FORM'S NAMES ARE THE COLUMNS' (image_focus_x, image_zoom, background_mobile_media_id,
  * …) through $field['name'], plus <prefix>presentation, <prefix>mobile_source
  * and <prefix>mobile_focus_own: exactly what ResponsiveImage::fromRequest()
  * reads, for a single picture and for one row of a row list alike.
@@ -103,8 +116,12 @@ function responsive_image_field(array $field): void
     $ownSource = $value->mobileMediaId !== null;
     $ownFocus = $value->mobileFocusX !== null;
     $mobilePoint = $value->mobileFocus($ownSource) ?? [$value->focusX, $value->focusY];
+    // The phone frame starts from what a phone shows now: its own zoom, the
+    // middle's 100 for a picture of its own never given a point, else the
+    // desktop zoom it follows.
+    $mobileZoom = $ownFocus ? $value->ownMobileZoom() : ($ownSource ? ResponsiveImage::DEFAULT_ZOOM : $value->zoom);
     $mobileHasSettings = $ownSource || $ownFocus || $value->mobileFit !== null || $value->mobileHeight !== null;
-    $mobileHasErrors = array_intersect_key($errors, array_flip(['mobile_media', 'mobile_focus', 'mobile_fit', 'mobile_height'])) !== [];
+    $mobileHasErrors = array_intersect_key($errors, array_flip(['mobile_media', 'mobile_focus', 'mobile_zoom', 'mobile_fit', 'mobile_height'])) !== [];
 
     $error = static function (string $part) use ($errors, $h, $id): void {
         if (isset($errors[$part])) {
@@ -114,7 +131,7 @@ function responsive_image_field(array $field): void
     $invalid = static fn (string $part): string => isset($errors[$part]) ? ' aria-invalid="true" aria-describedby="' . $h($id . '-' . $part . '-error') . '"' : '';
     ?>
     <fieldset class="admin-rm" data-rm data-rm-picker="<?= $h((string) ($field['picker'] ?? '')) ?>"<?= $ratios !== [] ? ' style="' . $h(implode('; ', $ratios) . ';') . '"' : '' ?>
-              data-rm-value-template="<?= admin_te('media.responsive.value') ?>">
+              data-rm-value-template="<?= admin_te('media.responsive.value') ?>" data-rm-zoom-template="<?= admin_te('media.responsive.zoom_value') ?>">
       <legend><?= $h($legend) ?> <?= admin_help($legend, $help) ?></legend>
       <input type="hidden" name="<?= $h($name($slot->column('presentation'))) ?>" value="1">
 
@@ -123,12 +140,15 @@ function responsive_image_field(array $field): void
           'part' => 'desktop',
           'label' => admin_t('media.responsive.focus'),
           'point' => [$value->focusX, $value->focusY],
-          'names' => [$name($slot->column('focus_x')), $name($slot->column('focus_y'))],
+          'zoom' => $value->zoom,
+          'names' => [$name($slot->column('focus_x')), $name($slot->column('focus_y')), $name($slot->column('zoom'))],
           'preview' => $preview,
           'fit' => $value->fit,
           'invalid' => $invalid('focus'),
+          'invalid_zoom' => $invalid('zoom'),
       ]); ?>
       <?php $error('focus'); ?>
+      <?php $error('zoom'); ?>
 
       <?php if ($slot->fit): ?>
         <?php responsive_image_choice(
@@ -183,12 +203,15 @@ function responsive_image_field(array $field): void
                 'part' => 'mobile',
                 'label' => admin_t('media.responsive.mobile_focus'),
                 'point' => $mobilePoint,
-                'names' => [$name($slot->column('mobile_focus_x')), $name($slot->column('mobile_focus_y'))],
+                'zoom' => $mobileZoom,
+                'names' => [$name($slot->column('mobile_focus_x')), $name($slot->column('mobile_focus_y')), $name($slot->column('mobile_zoom'))],
                 'preview' => $mobilePreview,
                 'fit' => $value->effectiveMobileFit(),
                 'invalid' => $invalid('mobile_focus'),
+                'invalid_zoom' => $invalid('mobile_zoom'),
             ]); ?>
             <?php $error('mobile_focus'); ?>
+            <?php $error('mobile_zoom'); ?>
           </div>
 
           <?php if ($slot->fit): ?>
@@ -236,24 +259,35 @@ function responsive_image_field(array $field): void
 }
 
 /**
- * One crop frame with its nine points and its two sliders: the desktop focus
- * or the phone's. The sliders are the value; the frame and the points set them.
+ * One crop frame with its nine points, its two point sliders and its zoom
+ * slider: the desktop focus or the phone's. The sliders are the value; the
+ * frame, the points and the reset button set them.
  *
- * @param array{id: string, part: string, label: string, point: array{0: int, 1: int}, names: array{0: string, 1: string},
- *              preview: string, fit: string, invalid: string} $editor
+ * The preview is lazy and async: it costs nothing until its frame is about
+ * to be seen, and a hidden frame (the phone's, while it follows the desktop)
+ * never downloads at all.
+ *
+ * @param array{id: string, part: string, label: string, point: array{0: int, 1: int}, zoom: int,
+ *              names: array{0: string, 1: string, 2: string}, preview: string, fit: string,
+ *              invalid: string, invalid_zoom: string} $editor
  */
 function responsive_image_focus_editor(array $editor): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     [$x, $y] = $editor['point'];
+    $zoom = max(ResponsiveImage::ZOOM_MIN, min(ResponsiveImage::ZOOM_MAX, (int) $editor['zoom']));
     $position = ResponsiveImage::objectPosition($x, $y);
     $contained = $editor['fit'] === ResponsiveImage::FIT_CONTAIN;
+    $previewStyle = 'object-position: ' . $position . ';' . ($contained ? ' object-fit: contain;' : '');
+    if (!$contained && $zoom !== ResponsiveImage::DEFAULT_ZOOM) {
+        $previewStyle .= ' scale: ' . ResponsiveImage::scale($zoom) . '; transform-origin: ' . $position . ';';
+    }
     ?>
       <div class="admin-rm__focus<?= $contained ? ' is-contained' : '' ?>" data-rm-focus="<?= $h($editor['part']) ?>">
         <p class="admin-rm__label" id="<?= $h($editor['id']) ?>-label"><?= $h($editor['label']) ?></p>
         <div class="admin-rm__editor">
           <div class="admin-rm__frame" data-rm-frame aria-hidden="true"<?= $editor['preview'] === '' ? ' hidden' : '' ?>>
-            <img src="<?= $h($editor['preview']) ?>" alt="" draggable="false" data-rm-preview style="object-position: <?= $h($position) ?>;<?= $contained ? ' object-fit: contain;' : '' ?>">
+            <img src="<?= $h($editor['preview']) ?>" alt="" draggable="false" loading="lazy" decoding="async" data-rm-preview style="<?= $h($previewStyle) ?>">
           </div>
           <div class="admin-rm__controls">
             <div class="admin-rm__presets" role="group" aria-labelledby="<?= $h($editor['id']) ?>-label" data-rm-presets hidden>
@@ -272,8 +306,14 @@ function responsive_image_focus_editor(array $editor): void
                 <span><?= admin_te('media.responsive.axis_y') ?></span>
                 <input type="range" id="<?= $h($editor['id']) ?>-y" name="<?= $h($editor['names'][1]) ?>" min="0" max="100" step="1" value="<?= $y ?>" aria-valuetext="<?= $y ?>%" data-rm-axis="y"<?= $editor['invalid'] ?>>
               </label>
+              <label class="admin-rm__axis admin-rm__zoom" for="<?= $h($editor['id']) ?>-zoom">
+                <span><?= admin_te('media.responsive.zoom') ?></span>
+                <input type="range" id="<?= $h($editor['id']) ?>-zoom" name="<?= $h($editor['names'][2]) ?>" min="<?= ResponsiveImage::ZOOM_MIN ?>" max="<?= ResponsiveImage::ZOOM_MAX ?>" step="1" value="<?= $zoom ?>" aria-valuetext="<?= $zoom ?>%" data-rm-axis="zoom"<?= $editor['invalid_zoom'] ?>>
+                <output class="admin-rm__zoom-value" for="<?= $h($editor['id']) ?>-zoom" data-rm-zoom-value><?= $h(str_replace(':zoom', (string) $zoom, admin_t('media.responsive.zoom_value'))) ?></output>
+              </label>
             </div>
             <p class="admin-text-muted admin-rm__value" data-rm-value aria-live="polite"><?= $h(str_replace([':x', ':y'], [(string) $x, (string) $y], admin_t('media.responsive.value'))) ?></p>
+            <p class="admin-rm__reset" data-rm-reset-row hidden><button type="button" class="admin-btn-text" data-rm-reset><?= admin_te('media.responsive.reset') ?></button></p>
             <p class="admin-text-muted admin-rm__hint"><?= admin_te('media.responsive.focus_hint') ?></p>
             <p class="admin-text-muted admin-rm__contained"><?= admin_te('media.responsive.contain_note') ?></p>
           </div>

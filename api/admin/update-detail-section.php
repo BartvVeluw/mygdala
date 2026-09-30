@@ -186,7 +186,7 @@ $points = EditorChildList::fromRequest($_POST, 'points', 'detail_section_points'
 // A gallery item's focus point arrives already set (the middle) on a new
 // row: it does not make an empty new row a row.
 $imageSlot = DetailSectionContent::imageSlot();
-$imagePreset = array_map(static fn (string $part): string => $imageSlot->column($part), ['presentation', 'focus_x', 'focus_y']);
+$imagePreset = array_map(static fn (string $part): string => $imageSlot->column($part), ['presentation', 'focus_x', 'focus_y', 'zoom']);
 $images = EditorChildList::fromRequest($post, 'images', 'detail_section_images', $idsOf($repository->findImagesBySectionId($sectionId)), $action, $imagePreset);
 
 // What each stored gallery row shows now, so a kept choice is recognised.

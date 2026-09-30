@@ -142,10 +142,11 @@ $imageRows = editor_rows_on_screen(
         // Where the picture comes from (Detailsectie 2.0): 'media', or the
         // kind of item with its id under source_<kind>.
         'source' => (string) ($image['source_type'] ?? '') !== '' ? (string) $image['source_type'] : 'media',
-        // Where the picture sits in its square (Responsive Media 2.0).
-        'image_focus_x' => (string) (int) ($image['image_focus_x'] ?? 50),
-        'image_focus_y' => (string) (int) ($image['image_focus_y'] ?? 50),
     ] + ((string) ($image['source_type'] ?? '') !== '' ? ['source_' . $image['source_type'] => (string) (int) ($image['source_id'] ?? 0)] : [])
+        // Where the picture sits in its square and how far it is zoomed
+        // (Responsive Media 3.0): every column of the slot, as the other row
+        // editors take them, so no part is dropped on the way to the form.
+        + \App\Service\Media\ResponsiveImage::fromRow($image, \App\Service\DetailSectionContent::imageSlot())->toRow(\App\Service\DetailSectionContent::imageSlot())
 );
 
 $csrfToken = Csrf::token();
@@ -205,7 +206,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
     $source = (string) ($fields['source'] ?? 'media');
     $preview = $source === '' || $source === 'media'
         ? (string) MediaService::find((int) ($fields['media_id'] ?? 0))?->displayPath()
-        : (string) (\App\Service\Media\LinkedImages::resolve($source, (int) ($fields['source_' . $source] ?? 0))['image_path'] ?? '');
+        : (string) (\App\Service\Media\LinkedImages::resolve($source, (int) ($fields['source_' . $source] ?? 0))['preview_path'] ?? '');
     $presentationErrors = [];
     foreach ($fieldErrors as $errorKey => $message) {
         if (str_starts_with((string) $errorKey, 'images.' . $key . '.presentation.')) {

@@ -166,7 +166,7 @@ $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $imageSlot = TextImageSplitContent::imageSlot();
 $preset = ['image_side', 'image_column', 'image_height', 'button_link_type'];
 // The picture's presentation arrives filled in on a new item too.
-foreach (['presentation', 'focus_x', 'focus_y', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'fit', 'mobile_fit', 'mobile_height'] as $part) {
+foreach (['presentation', 'focus_x', 'focus_y', 'zoom', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'mobile_zoom', 'fit', 'mobile_fit', 'mobile_height'] as $part) {
     $preset[] = $imageSlot->column($part);
 }
 $items = EditorChildList::fromRequest($post, 'items', 'text_image_split_items', array_keys($storedItems), $action, $preset);

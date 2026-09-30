@@ -153,7 +153,7 @@ $post = ['cards' => $postedCards] + $_POST;
 // a new card: alone they do not make it a card.
 $imageSlot = HoverCardGridContent::imageSlot();
 $preset = ['link_type'];
-foreach (['presentation', 'focus_x', 'focus_y', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'fit', 'mobile_fit'] as $part) {
+foreach (['presentation', 'focus_x', 'focus_y', 'zoom', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'mobile_zoom', 'fit', 'mobile_fit'] as $part) {
     $preset[] = $imageSlot->column($part);
 }
 $cards = EditorChildList::fromRequest($post, 'cards', 'hover_card_grid_items', array_keys($storedCards), EditorRows::parseAction($_POST['editor_action'] ?? null), $preset);

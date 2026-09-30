@@ -1,25 +1,49 @@
 /*
- * The editor of a picture's presentation (Responsive Media 2.0,
+ * The editor of a picture's presentation (Responsive Media 3.0,
  * admin/_responsive_image_field.php, ADMIN-UI.md "Afbeeldingsweergave").
  *
- * THE SLIDERS ARE THE VALUE. Every frame has two range inputs, horizontal and
- * vertical, and they are what the form posts (the focus point in whole
- * percentages, what CSS object-position means). Everything here only sets
- * them — dragging the picture, one of the nine points — and then fires the
- * same "input" and "change" a person moving the slider would, so the save bar
- * and anything else listening hears one ordinary edit.
+ * THE SLIDERS ARE THE VALUE. Every frame has three range inputs: horizontal
+ * and vertical (the focus point in whole percentages, what CSS
+ * object-position means) and zoom (100-200%, the CSS `scale` of the picture
+ * around that point). They are what the form posts. Everything here only
+ * sets them — dragging the picture, one of the nine points, "Afbeelding
+ * resetten" — and then fires the same "input" and "change" a person moving
+ * the slider would, so the save bar and anything else listening hears one
+ * ordinary edit.
+ *
+ * THE PREVIEW IS THE PAGE. The picture in the frame gets the same
+ * object-position, `scale` and transform-origin partials/responsive-image.php
+ * prints on the website, inside a frame that clips it the same way, so what
+ * the editor shows is the crop a visitor gets. A contained picture ("Hele
+ * afbeelding") is never zoomed: its zoom row hides and its value waits.
  *
  * DRAGGING moves the picture inside its frame, the way it will be cropped:
- * drag it to the right and more of its left side comes into view. Only the
- * direction in which the picture is larger than its frame moves anything.
- * Pointer events, so a mouse, a finger and a pen all work, with the pointer
- * captured while it is down and the frame drawn at most once per animation
- * frame. The frame is aria-hidden: the sliders are the keyboard's and a
- * screen reader's way (arrow keys, Page Up/Down), with their value named.
+ * drag it to the right and more of its left side comes into view. The
+ * room it can move is how much larger the (zoomed) picture is than its
+ * frame, so at 150% both directions move even where the picture itself fits
+ * the frame exactly. Pointer events, so a mouse, a finger and a pen all
+ * work, with the pointer captured while it is down and the frame drawn at
+ * most once per animation frame. The frame is aria-hidden: the sliders are
+ * the keyboard's and a screen reader's way (arrow keys, Page Up/Down), with
+ * their value named.
+ *
+ * LAZY, SO A LONG SCREEN STAYS LIGHT. A field is woken (its points and reset
+ * button shown, its state drawn: data-rm-ready) only when it comes within
+ * a screen of the viewport (IntersectionObserver), when a row list adds it,
+ * or when someone reaches it first by pointer or keyboard; the server already
+ * printed its state, so an unwoken field looks right and posts right. Its
+ * preview is loading="lazy" in the markup, so the browser fetches it on the
+ * same approach. Without IntersectionObserver every field wakes at once.
+ *
+ * DELEGATED: one set of listeners on the document for every field on the
+ * screen, however many there are, so a row admin/assets/row-list.js adds
+ * after the page loaded works like one the server printed, and a row it
+ * removes ("row-list:removed") leaves nothing behind but its observation,
+ * which is dropped.
  *
  * THE PHONE PART shows only what applies: the phone's own picture picker
  * when "Eigen afbeelding" is chosen, else the switch for a point of its own,
- * and the phone's frame whenever it has a point of its own.
+ * and the phone's frame whenever it has a point (and zoom) of its own.
  *
  * THE FRAMES FOLLOW THE PICTURES: choosing another desktop picture in the
  * block's own picker (the field's data-rm-picker names it) or another phone
@@ -29,17 +53,19 @@
  * chosen some other way than a Media picker (a Detailsectie gallery item that
  * shows a product's own picture) reaches the frame through an "rm:picture"
  * event the block's own script sends from inside the row, with the picture's
- * URL in detail.src ('' for none).
+ * URL in detail.src ('' for none). Point and zoom stay what they are.
  *
- * DELEGATED, so a row admin/assets/row-list.js adds after the page loaded
- * works like one the server printed. This file holds no text of its own
- * (ADMIN-UI.md): the words come from the field's data attributes.
+ * This file holds no text of its own (ADMIN-UI.md): the words come from the
+ * field's data attributes.
  */
 (function () {
   "use strict";
 
+  var ZOOM_MIN = 100;
+  var ZOOM_MAX = 200;
+
   function fieldOf(element) {
-    return element.closest("[data-rm]");
+    return element instanceof Element ? element.closest("[data-rm]") : null;
   }
 
   function scopeOf(element) {
@@ -49,12 +75,23 @@
   function axes(focus) {
     return {
       x: focus.querySelector('[data-rm-axis="x"]'),
-      y: focus.querySelector('[data-rm-axis="y"]')
+      y: focus.querySelector('[data-rm-axis="y"]'),
+      zoom: focus.querySelector('[data-rm-axis="zoom"]')
     };
   }
 
   function clamp(value) {
     return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  function clampZoom(value) {
+    var zoom = Math.round(Number(value));
+    return isFinite(zoom) ? Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom)) : ZOOM_MIN;
+  }
+
+  function zoomOf(focus) {
+    var input = axes(focus).zoom;
+    return input ? clampZoom(input.value) : ZOOM_MIN;
   }
 
   function announce(input) {
@@ -72,8 +109,16 @@
 
     var x = clamp(Number(inputs.x.value));
     var y = clamp(Number(inputs.y.value));
+    var zoom = zoomOf(focus);
+    var contained = focus.classList.contains("is-contained");
     var preview = focus.querySelector("[data-rm-preview]");
-    if (preview) preview.style.objectPosition = x + "% " + y + "%";
+    if (preview) {
+      preview.style.objectPosition = x + "% " + y + "%";
+      // The page's own rendering (partials/responsive-image.php): scaled
+      // around the point, nothing at 100% or when contained.
+      preview.style.scale = !contained && zoom !== ZOOM_MIN ? String(zoom / 100) : "";
+      preview.style.transformOrigin = !contained && zoom !== ZOOM_MIN ? x + "% " + y + "%" : "";
+    }
 
     inputs.x.setAttribute("aria-valuetext", x + "%");
     inputs.y.setAttribute("aria-valuetext", y + "%");
@@ -90,21 +135,29 @@
         .replace(":x", String(x))
         .replace(":y", String(y));
     }
+
+    if (inputs.zoom && field) {
+      var words = (field.getAttribute("data-rm-zoom-template") || ":zoom").replace(":zoom", String(zoom));
+      inputs.zoom.setAttribute("aria-valuetext", words);
+      var shown = focus.querySelector("[data-rm-zoom-value]");
+      if (shown) shown.textContent = words;
+    }
   }
 
-  function setPoint(focus, x, y, final) {
+  /** Sets the sliders (a zoom of undefined keeps the zoom) and tells the form. */
+  function setPoint(focus, x, y, final, zoom) {
     var inputs = axes(focus);
     if (!inputs.x || !inputs.y) return;
 
     inputs.x.value = String(clamp(x));
     inputs.y.value = String(clamp(y));
+    if (inputs.zoom && zoom !== undefined) inputs.zoom.value = String(clampZoom(zoom));
     draw(focus);
-    announce(inputs.x);
-    announce(inputs.y);
-    if (final) {
-      commit(inputs.x);
-      commit(inputs.y);
-    }
+
+    var touched = [inputs.x, inputs.y];
+    if (inputs.zoom && zoom !== undefined) touched.push(inputs.zoom);
+    touched.forEach(announce);
+    if (final) touched.forEach(commit);
   }
 
   /** The fit that applies to one frame: its own radio, the phone's falling back to the desktop's. */
@@ -123,6 +176,7 @@
       var preview = focus.querySelector("[data-rm-preview]");
       if (preview) preview.style.objectFit = fit;
       focus.classList.toggle("is-contained", fit === "contain");
+      draw(focus);
     });
   }
 
@@ -167,7 +221,7 @@
     }
 
     var image = frame.querySelector("[data-rm-preview]");
-    if (image && src !== "") image.setAttribute("src", src);
+    if (image && src !== "" && image.getAttribute("src") !== src) image.setAttribute("src", src);
     frame.hidden = src === "";
   }
 
@@ -180,28 +234,64 @@
   }
 
   function drawAll(field) {
-    field.querySelectorAll("[data-rm-focus]").forEach(draw);
-    field.querySelectorAll("[data-rm-presets]").forEach(function (presets) { presets.hidden = false; });
+    field.querySelectorAll("[data-rm-presets], [data-rm-reset-row]").forEach(function (part) { part.hidden = false; });
     drawFit(field);
     drawMobile(field);
   }
+
+  // ---------------------------------------------------------- waking up
+
+  var observer = typeof window.IntersectionObserver === "function"
+    ? new window.IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) wake(entry.target);
+      });
+    }, { rootMargin: "100% 0px" })
+    : null;
+
+  /** Makes one field fully interactive, once. */
+  function wake(field) {
+    if (!field || field.hasAttribute("data-rm-ready")) return;
+    field.setAttribute("data-rm-ready", "");
+    if (observer) observer.unobserve(field);
+    drawAll(field);
+  }
+
+  function watch(field) {
+    if (field.hasAttribute("data-rm-ready")) return;
+    if (observer) {
+      observer.observe(field);
+    } else {
+      wake(field);
+    }
+  }
+
+  // Reached before it scrolled into view: by Tab, or by a pointer.
+  document.addEventListener("focusin", function (event) {
+    wake(fieldOf(event.target));
+  });
 
   // ------------------------------------------------------------- dragging
 
   var drag = null;
 
   function startDrag(event) {
-    var frame = event.target.closest("[data-rm-frame]");
+    var frame = event.target instanceof Element ? event.target.closest("[data-rm-frame]") : null;
     if (!frame || event.button > 0) return;
 
     var focus = frame.closest("[data-rm-focus]");
     var field = fieldOf(frame);
+    wake(field);
     var image = frame.querySelector("[data-rm-preview]");
     if (!focus || !field || !image || !image.naturalWidth || !image.naturalHeight) return;
     if (fitFor(field, focus.getAttribute("data-rm-focus")) === "contain") return;
 
+    // The picture as drawn: covering the frame (object-fit: cover), then
+    // enlarged by the zoom. Measured on the frame, whose box the scale does
+    // not change.
     var box = frame.getBoundingClientRect();
-    var scale = Math.max(box.width / image.naturalWidth, box.height / image.naturalHeight);
+    var zoom = zoomOf(focus) / 100;
+    var scale = Math.max(box.width / image.naturalWidth, box.height / image.naturalHeight) * zoom;
     var inputs = axes(focus);
 
     drag = {
@@ -227,7 +317,10 @@
     if (!drag || event.pointerId !== drag.pointer) return;
 
     // The picture moves with the pointer: more of its left side comes into
-    // view when it goes right, so the point moves the other way.
+    // view when it goes right, so the point moves the other way. Zoomed
+    // around the point, a point's move of p% shifts the picture by p% of
+    // its overflow (the zoomed picture's size less the frame's), so one
+    // pixel of pointer is one pixel of picture at every zoom.
     var dx = event.clientX - drag.startX;
     var dy = event.clientY - drag.startY;
     var x = drag.overflowX > 0.5 ? drag.fromX - (dx / drag.overflowX) * 100 : drag.fromX;
@@ -266,13 +359,20 @@
   // ------------------------------------------------------------ the rest
 
   document.addEventListener("click", function (event) {
-    var preset = event.target instanceof Element ? event.target.closest("[data-rm-preset]") : null;
-    if (!preset) return;
+    var target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
 
-    var focus = preset.closest("[data-rm-focus]");
+    var preset = target.closest("[data-rm-preset]");
+    var reset = preset ? null : target.closest("[data-rm-reset]");
+    var focus = (preset || reset) ? (preset || reset).closest("[data-rm-focus]") : null;
     if (!focus) return;
 
-    setPoint(focus, Number(preset.getAttribute("data-x")), Number(preset.getAttribute("data-y")), true);
+    if (preset) {
+      setPoint(focus, Number(preset.getAttribute("data-x")), Number(preset.getAttribute("data-y")), true);
+    } else {
+      // Back to the middle, unzoomed.
+      setPoint(focus, 50, 50, true, ZOOM_MIN);
+    }
   });
 
   document.addEventListener("input", function (event) {
@@ -326,17 +426,20 @@
     var name = target.getAttribute("name") || "";
     scopeOf(target).querySelectorAll("[data-rm]").forEach(function (rm) {
       if (rm.getAttribute("data-rm-picker") !== name) return;
-
-      var src = chosenPicture(target.closest("[data-media-picker]"));
-      var frame = rm.querySelector('[data-rm-focus="desktop"] [data-rm-frame]');
-      var image = frame ? frame.querySelector("[data-rm-preview]") : null;
-      if (frame && image) {
-        if (src !== "") image.setAttribute("src", src);
-        frame.hidden = src === "";
-      }
-      drawMobilePicture(rm);
+      showPicture(rm, chosenPicture(target.closest("[data-media-picker]")));
     });
   });
+
+  /** Another desktop picture in a field's frames; point and zoom stay. */
+  function showPicture(rm, src) {
+    var frame = rm.querySelector('[data-rm-focus="desktop"] [data-rm-frame]');
+    var image = frame ? frame.querySelector("[data-rm-preview]") : null;
+    if (frame && image) {
+      if (src !== "") image.setAttribute("src", src);
+      frame.hidden = src === "";
+    }
+    drawMobilePicture(rm);
+  }
 
   // A picture chosen some other way than a Media picker (see above).
   document.addEventListener("rm:picture", function (event) {
@@ -345,21 +448,21 @@
 
     var src = event.detail && typeof event.detail.src === "string" ? event.detail.src : "";
     scopeOf(target).querySelectorAll("[data-rm]").forEach(function (rm) {
-      var frame = rm.querySelector('[data-rm-focus="desktop"] [data-rm-frame]');
-      var image = frame ? frame.querySelector("[data-rm-preview]") : null;
-      if (frame && image) {
-        if (src !== "") image.setAttribute("src", src);
-        frame.hidden = src === "";
-      }
-      drawMobilePicture(rm);
+      showPicture(rm, src);
     });
   });
 
-  // A row a row list adds later.
+  // A row a row list adds later: it is where the editor is looking.
   document.addEventListener("row-list:added", function (event) {
     var row = event.target instanceof Element ? event.target : null;
-    if (row) row.querySelectorAll("[data-rm]").forEach(drawAll);
+    if (row) row.querySelectorAll("[data-rm]").forEach(wake);
   });
 
-  document.querySelectorAll("[data-rm]").forEach(drawAll);
+  // A row a row list removes: forget its fields.
+  document.addEventListener("row-list:removed", function (event) {
+    var row = event.target instanceof Element ? event.target : null;
+    if (row && observer) row.querySelectorAll("[data-rm]").forEach(function (rm) { observer.unobserve(rm); });
+  });
+
+  document.querySelectorAll("[data-rm]").forEach(watch);
 })();

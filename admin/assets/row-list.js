@@ -138,6 +138,9 @@
 
       if (button.hasAttribute("data-row-list-remove")) {
         var neighbour = all[index + 1] || all[index - 1] || null;
+        // Said while the row is still in the document, so a script that
+        // watches its fields (responsive-image.js) can let go of them.
+        row.dispatchEvent(new CustomEvent("row-list:removed", { bubbles: true }));
         list.removeChild(row);
         refresh();
         changed();

@@ -2528,7 +2528,7 @@ body.admin-login-page{
 .admin-carousel-layout legend{ padding: 0; font-weight: 600; }
 .admin-carousel-layout .admin-template-grid{ margin-top: var(--admin-sp-2); }
 
-/* A picture's presentation (Responsive Media 2.0, responsive_image_field(),
+/* A picture's presentation (Responsive Media 3.0, responsive_image_field(),
    admin/_responsive_image_field.php, ADMIN-UI.md "Afbeeldingsweergave"): the
    place's own frame with the picture in it, to drag; nine points beside it
    and two sliders under them, which hold the value; and a closed "Op een
@@ -2596,8 +2596,15 @@ body.admin-login-page{
 .admin-rm__preset[aria-pressed="true"]::after{ background: var(--admin-accent); border-color: var(--admin-accent); }
 .admin-rm__preset:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
 .admin-rm__axes{ display: grid; gap: var(--admin-sp-1); max-width: 20rem; }
-.admin-rm__axis{ display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; gap: var(--admin-sp-2); font-size: 0.875rem; }
+.admin-rm .admin-rm__axis{ display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; gap: var(--admin-sp-2); font-size: 0.875rem; }
 .admin-rm__axis input[type="range"]{ width: 100%; margin: 0; accent-color: var(--admin-accent); }
+/* Zoom (Responsive Media 3.0): the same row as the two point sliders, with
+   its value beside it. The preview's zoom is the CSS `scale` on the picture
+   in the frame, which clips it, exactly as the page does. */
+.admin-rm .admin-rm__zoom{ grid-template-columns: 6.5rem 1fr 3.25rem; }
+.admin-rm__zoom-value{ font-variant-numeric: tabular-nums; text-align: right; font-size: 0.8125rem; }
+.admin-rm__reset{ margin: 0; }
+.admin-rm__reset[hidden]{ display: none; }
 .admin-rm__value, .admin-rm__hint, .admin-rm__contained{ margin: 0; font-size: 0.8125rem; }
 /* "Hele afbeelding" shows the whole picture: the point does nothing then,
    so the controls step back and a line says why. Nothing is disabled or
@@ -2608,6 +2615,8 @@ body.admin-login-page{
 .admin-rm__focus.is-contained .admin-rm__axes,
 .admin-rm__focus.is-contained .admin-rm__hint{ opacity: 0.55; }
 .admin-rm__focus.is-contained .admin-rm__frame{ cursor: default; }
+/* A contained picture is never zoomed: the row goes, its value stays. */
+.admin-rm .admin-rm__focus.is-contained .admin-rm__zoom{ display: none; }
 .admin-rm__mobile{ border: 1px solid var(--admin-border); border-radius: var(--admin-radius-sm); background: var(--admin-surface); }
 .admin-rm__mobile > summary{
   display: flex;
