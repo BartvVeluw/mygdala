@@ -159,4 +159,13 @@ final class MarqueeBlock extends BlockDefinition implements InspectsContent
 
         return $content['items'] !== [];
     }
+
+    /**
+     * Background and lines only: a running band without a section or
+     * container, whose height is its words.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::only(true, true, false);
+    }
 }

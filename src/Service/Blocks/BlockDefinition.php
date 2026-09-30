@@ -399,6 +399,22 @@ abstract class BlockDefinition
     }
 
     /**
+     * Which parts of "Extra vormgeving" this block can carry per instance —
+     * background, lines, room, decorative effects (App\Service\Blocks\BlockAppearance,
+     * CONTENT-BLOCKS.md "Extra vormgeving"). The one capability contract: the
+     * block list shows only these settings, the endpoint refuses the rest and
+     * the page draws nothing else.
+     *
+     * Nothing by default: a block opts in once its root element is a
+     * `<section>` with its content in a `.container` and a chosen surface
+     * cannot damage its layout. Most do that with AppearanceSupport::section().
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::none();
+    }
+
+    /**
      * Whether a new instance chosen in the block picker opens its editor as a
      * DRAFT: its content row exists, but it joins the page only when its
      * editor saves it the first time, and Annuleren leaves the page exactly

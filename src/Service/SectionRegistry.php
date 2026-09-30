@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\PageSectionRepository;
+use App\Service\Blocks\BlockAppearance;
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
@@ -580,8 +581,12 @@ class SectionRegistry
             $revealGroup = $pageSection['section_type'] . '-' . $pageSection['id'];
             $isHead = $definition->category() === BlockCategories::HERO;
 
+            // The instance's own look (Extra vormgeving), or null for a block
+            // nobody styled — which then renders exactly as it always did.
+            $appearance = BlockAppearance::forSection($pageSection, $definition);
+
             if ($trail !== null && $definition instanceof CarriesBreadcrumb && $definition->carriesBreadcrumb($pageSection)) {
-                $definition->renderWithBreadcrumb($pageSection, $tightTop, $revealGroup, $trail);
+                self::renderWithAppearance($appearance, static fn () => $definition->renderWithBreadcrumb($pageSection, $tightTop, $revealGroup, $trail));
             } else {
                 self::renderBreadcrumb($trail);
 
@@ -591,7 +596,7 @@ class SectionRegistry
                     $anchors = null;
                 }
 
-                $definition->render($pageSection, $tightTop, $revealGroup);
+                self::renderWithAppearance($appearance, static fn () => $definition->render($pageSection, $tightTop, $revealGroup));
             }
 
             // Directly under the page's head.
@@ -648,6 +653,32 @@ class SectionRegistry
         return $items === [] ? null : $items;
     }
 
+    /**
+     * Renders one block, with its look put on its root element when it has
+     * one (BlockAppearance::apply()). Without a look the block prints
+     * straight to the page, unbuffered, as it always did.
+     *
+     * @param array{background: string, border: string, border_tone: string, spacing: string, decoration: string}|null $appearance
+     */
+    private static function renderWithAppearance(?array $appearance, callable $render): void
+    {
+        if ($appearance === null) {
+            $render();
+
+            return;
+        }
+
+        ob_start();
+
+        try {
+            $render();
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        echo BlockAppearance::apply($html, $appearance);
+    }
+
     /** The page's trail on its own (partials/breadcrumb.php); nothing for null. */
     private static function renderBreadcrumb(?BreadcrumbTrail $trail): void
     {
@@ -682,8 +713,9 @@ class SectionRegistry
     public static function collectPageAssets(string $pageContentKey): void
     {
         $seen = [];
+        $sections = self::visibleSections($pageContentKey);
 
-        foreach (self::visibleSections($pageContentKey) as $pageSection) {
+        foreach ($sections as $pageSection) {
             $type = (string) $pageSection['section_type'];
 
             if (isset($seen[$type]) || !BlockDefinitions::has($type)) {
@@ -693,6 +725,10 @@ class SectionRegistry
             $seen[$type] = true;
             self::collectBlockAssets(self::definition($type));
         }
+
+        // The looks of the blocks (Extra vormgeving): their stylesheets come
+        // after the blocks' own, and only when a block on this page has one.
+        BlockAppearance::collectAssets($sections);
     }
 
     /**

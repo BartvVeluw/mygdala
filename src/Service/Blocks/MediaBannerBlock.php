@@ -182,4 +182,13 @@ final class MediaBannerBlock extends BlockDefinition implements InspectsContent
 
         return in_array((string) ($content['kind'] ?? ''), [MediaType::IMAGE, MediaType::VIDEO], true) && (string) ($content['src'] ?? '') !== '';
     }
+
+    /**
+     * Background, lines and room, no effect: the picture or video is the
+     * block, and an effect would only sit behind it.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::only(true, true, true);
+    }
 }

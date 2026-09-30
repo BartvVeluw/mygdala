@@ -235,4 +235,14 @@ final class HoverCardGridBlock extends BlockDefinition implements InspectsConten
 
         return ($content['cards'] ?? []) !== [];
     }
+
+    /**
+     * Background, lines and room, and the effects that stand still (glow,
+     * pattern) only: falling sparks would move behind cards that react to the
+     * pointer, where they compete with the pictures and the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

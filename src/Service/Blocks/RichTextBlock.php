@@ -176,4 +176,13 @@ final class RichTextBlock extends BlockDefinition implements InspectsContent
         return trim(str_replace('&nbsp;', ' ', strip_tags((string) $content[RichTextContent::BODY], '<img><iframe><video>'))) !== ''
             || ((string) $content[RichTextContent::BUTTON_LABEL] !== '' && (string) $content['button_href'] !== '');
     }
+
+    /**
+     * Every part of Extra vormgeving: a text block: its words are what the eye
+     * rests on, so every effect fits behind them.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section();
+    }
 }

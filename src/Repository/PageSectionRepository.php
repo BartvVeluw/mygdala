@@ -206,6 +206,36 @@ class PageSectionRepository extends Repository
         }
     }
 
+    /**
+     * Stores the look of one block instance (Extra vormgeving): the five
+     * appearance_* columns of its own row, nothing else. The values are
+     * words that App\Service\Blocks\BlockAppearance::validate() already
+     * checked against its closed lists and the block's support.
+     *
+     * @param array{background: string, border: string, border_tone: string, spacing: string, decoration: string} $appearance
+     */
+    public function updateAppearance(int $id, array $appearance): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE page_sections
+                SET appearance_background = :background,
+                    appearance_border = :border,
+                    appearance_border_tone = :border_tone,
+                    appearance_spacing = :spacing,
+                    appearance_decoration = :decoration,
+                    updated_at = NOW()
+              WHERE id = :id'
+        );
+        $stmt->execute([
+            'background' => $appearance['background'],
+            'border' => $appearance['border'],
+            'border_tone' => $appearance['border_tone'],
+            'spacing' => $appearance['spacing'],
+            'decoration' => $appearance['decoration'],
+            'id' => $id,
+        ]);
+    }
+
     public function setActive(int $id, bool $isActive): void
     {
         $stmt = $this->db->prepare('UPDATE page_sections SET is_active = :is_active, updated_at = NOW() WHERE id = :id');

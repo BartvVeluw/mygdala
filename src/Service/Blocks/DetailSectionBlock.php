@@ -270,4 +270,15 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
             || (string) $content['cta_label'] !== '' || (string) $content['main_image_path'] !== ''
             || $content['points'] !== [] || $content['images'] !== [];
     }
+
+    /**
+     * Background, lines and room — Standaard keeps its alternating soft
+     * surface — and the effects that stand still (glow, pattern) only: falling
+     * sparks would move behind its gallery and links, where they compete with
+     * the pictures and the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

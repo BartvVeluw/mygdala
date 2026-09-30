@@ -166,4 +166,13 @@ final class StepListBlock extends BlockDefinition implements InspectsContent
 
         return $content['eyebrow'] !== '' || $content['title'] !== '' || $content['items'] !== [];
     }
+
+    /**
+     * Every part of Extra vormgeving: a text block: its words are what the eye
+     * rests on, so every effect fits behind them.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section();
+    }
 }

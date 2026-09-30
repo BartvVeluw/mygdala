@@ -336,4 +336,15 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
 
         return $content['items'] !== [] || ItemGalleryContent::isConfigured($content);
     }
+
+    /**
+     * As the gallery it draws (ItemGalleryBlock): background, lines and room,
+     * and the effects that stand still (glow, pattern) only: falling sparks
+     * would move behind a grid of projects, where they compete with the
+     * pictures and the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

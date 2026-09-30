@@ -314,4 +314,15 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
 
         return $content['items'] !== [] || ItemGalleryContent::isConfigured($content);
     }
+
+    /**
+     * Background, lines and room (its old own background moved here,
+     * db/migrations/20261008100000), and the effects that stand still (glow,
+     * pattern) only: falling sparks would move behind a grid of pictures,
+     * where they compete with the pictures and the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

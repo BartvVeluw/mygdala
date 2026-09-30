@@ -246,4 +246,14 @@ final class TextImageSplitBlock extends BlockDefinition implements InspectsConte
 
         return $content['items'] !== [];
     }
+
+    /**
+     * Background, lines and room, and the effects that stand still (glow,
+     * pattern) only: falling sparks would move behind the pictures, where they
+     * compete with the pictures and the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

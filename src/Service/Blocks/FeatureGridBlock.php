@@ -178,4 +178,14 @@ final class FeatureGridBlock extends BlockDefinition implements InspectsContent
 
         return $content['eyebrow'] !== '' || $content['title'] !== '' || $content['lead'] !== '' || $content['items'] !== [];
     }
+
+    /**
+     * Background, lines and room, and the effects that stand still (glow,
+     * pattern) only: falling sparks would move behind a grid of cards, where
+     * they compete with the pictures and the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

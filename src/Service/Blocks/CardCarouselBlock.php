@@ -240,4 +240,16 @@ final class CardCarouselBlock extends BlockDefinition implements InspectsContent
 
         return $content['cards'] !== [];
     }
+
+    /**
+     * Background, lines and room — Standaard keeps its soft surface
+     * (.bg-soft), any other background replaces it — and the effects that
+     * stand still (glow, pattern) only: falling sparks would move behind
+     * moving cards, where they compete with the pictures and the things to
+     * click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

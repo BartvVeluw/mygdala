@@ -106,13 +106,6 @@ $word = static function (string $field) use ($old, $oldInThisLanguage, $sectionI
 };
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 
-// The choices come from the gallery's own closed lists, the ones the endpoint
-// validates against; only the words are this screen's.
-$backgroundLabels = [
-    'default' => admin_t('block_projects.background_default'),
-    'soft' => admin_t('block_projects.background_soft'),
-];
-
 // How many projects this block would show right now, so an empty choice shows
 // up here rather than as a section that is missing from the public page.
 $projectCount = count(ItemGalleryContent::mapRow($section)['items']);
@@ -178,15 +171,8 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <input type="checkbox" class="admin-checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_projects.filter_bar') ?>
       </label>
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('block_projects.background') ?>
-          <select name="background">
-            <?php foreach (ItemGalleryContent::BACKGROUNDS as $backgroundKey => $background): ?>
-            <option value="<?= $h($backgroundKey) ?>" <?= ($values['background'] ?? '') === $backgroundKey ? 'selected' : '' ?>><?= $h($backgroundLabels[$backgroundKey] ?? $background['label']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-      </div>
+      <?php /* The background is part of the block's Extra vormgeving in the
+               block list (admin/_block_appearance.php), not a field here. */ ?>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_projects.heading') ?></h2>
       <p class="admin-text-muted"><?= admin_te('block_projects.heading_hint') ?></p>

@@ -1,0 +1,109 @@
+/* ==========================================================================
+   Extra vormgeving — decorative effects (CONTENT-BLOCKS.md, "Extra
+   vormgeving"; App\Service\Blocks\BlockAppearance::decorationMarkup()).
+
+   Loaded only on a page where a block shows an effect. Pure CSS: no script,
+   no library, no animation controller per block. However many blocks show
+   an effect, the page has this one stylesheet and the browser's own
+   animation engine, which runs transform and opacity off the main thread.
+
+   THE LAYER. The effect is one element, the first child of the block's root
+   (<div class="block-decor … " aria-hidden="true">): absolutely placed over
+   the root, clipped to it (so nothing reaches past the block and nothing
+   causes a horizontal scroll), and never a target for the pointer. The root
+   becomes its own stacking context; inside it the layer lies above the
+   block's own background and picture (a page header's photo, a full-width
+   CTA's image, both at z-index 0 or lower) and under the block's content,
+   which is lifted onto the layer above it through its .container.
+
+   REDUCED MOTION. Nothing moves: the sparks stand still as faint points.
+   ========================================================================== */
+
+.block-appearance.block-appearance--decor-sparks,
+.block-appearance.block-appearance--decor-glow,
+.block-appearance.block-appearance--decor-pattern{
+  position: relative;
+  isolation: isolate;
+}
+
+.block-appearance--decor-sparks > .container,
+.block-appearance--decor-glow > .container,
+.block-appearance--decor-pattern > .container{
+  position: relative;
+  z-index: 2;
+}
+
+.block-decor{
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.block-decor *{ pointer-events: none; }
+
+/* --- Zachte gloed: two soft pools of the accent, standing still --------- */
+.block-decor--glow{
+  background:
+    radial-gradient(ellipse 55% 70% at 12% 0%, rgba(var(--color-primary-rgb), 0.16), transparent 70%),
+    radial-gradient(ellipse 45% 60% at 92% 100%, rgba(var(--color-primary-bright-rgb), 0.10), transparent 70%);
+}
+
+/* --- Stippenpatroon: a fine grid of accent dots, fading downwards ------- */
+.block-decor--pattern{
+  background-image: radial-gradient(rgba(var(--color-primary-rgb), 0.22) 1px, transparent 1.6px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.35) 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.35) 55%, transparent 100%);
+}
+
+/* --- Vallende bolletjes: the homepage hero's sparks (homepage-hero.css,
+   .spark; homepage-hero.js) as CSS. Each point flares up where it is, falls
+   a little while it fades, rests, and starts again: the same look and
+   rhythm, 14 points (6 on a phone), each with its own place and pace. --- */
+.block-decor--sparks span{
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-primary-bright);
+  box-shadow: 0 0 8px 2px rgba(var(--color-primary-bright-rgb), 0.75);
+  opacity: 0;
+  animation: block-decor-spark var(--spark-duration, 3.2s) ease-out var(--spark-delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+
+.block-decor--sparks span:nth-child(1){  left: 6%;  top: 14%; --spark-duration: 3.1s; --spark-delay: -0.4s; }
+.block-decor--sparks span:nth-child(2){  left: 18%; top: 62%; --spark-duration: 3.9s; --spark-delay: -2.1s; }
+.block-decor--sparks span:nth-child(3){  left: 31%; top: 28%; --spark-duration: 2.8s; --spark-delay: -1.2s; }
+.block-decor--sparks span:nth-child(4){  left: 47%; top: 8%;  --spark-duration: 3.6s; --spark-delay: -3.0s; }
+.block-decor--sparks span:nth-child(5){  left: 63%; top: 44%; --spark-duration: 3.3s; --spark-delay: -0.9s; }
+.block-decor--sparks span:nth-child(6){  left: 88%; top: 22%; --spark-duration: 4.1s; --spark-delay: -2.6s; }
+.block-decor--sparks span:nth-child(7){  left: 76%; top: 70%; --spark-duration: 2.9s; --spark-delay: -1.7s; }
+.block-decor--sparks span:nth-child(8){  left: 11%; top: 84%; --spark-duration: 3.7s; --spark-delay: -0.2s; }
+.block-decor--sparks span:nth-child(9){  left: 39%; top: 76%; --spark-duration: 3.4s; --spark-delay: -2.9s; }
+.block-decor--sparks span:nth-child(10){ left: 55%; top: 60%; --spark-duration: 4.0s; --spark-delay: -1.5s; }
+.block-decor--sparks span:nth-child(11){ left: 93%; top: 52%; --spark-duration: 3.0s; --spark-delay: -3.4s; }
+.block-decor--sparks span:nth-child(12){ left: 24%; top: 40%; --spark-duration: 3.8s; --spark-delay: -0.7s; }
+.block-decor--sparks span:nth-child(13){ left: 70%; top: 12%; --spark-duration: 3.5s; --spark-delay: -2.3s; }
+.block-decor--sparks span:nth-child(14){ left: 82%; top: 88%; --spark-duration: 3.2s; --spark-delay: -1.0s; }
+
+@keyframes block-decor-spark{
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  8%   { opacity: 1; transform: translateY(0) scale(1.4); }
+  38%  { opacity: 0; transform: translateY(40px) scale(1); }
+  100% { opacity: 0; transform: translateY(40px) scale(1); }
+}
+
+@media (max-width: 640px){
+  .block-decor--sparks span:nth-child(n+7){ display: none; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .block-decor--sparks span{
+    animation: none;
+    opacity: 0.35;
+    transform: none;
+    will-change: auto;
+  }
+}

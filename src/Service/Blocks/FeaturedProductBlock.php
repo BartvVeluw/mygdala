@@ -232,4 +232,15 @@ final class FeaturedProductBlock extends BlockDefinition implements InspectsCont
 
         return is_array($content['product'] ?? null);
     }
+
+    /**
+     * Background, lines and room, and the effects that stand still (glow,
+     * pattern) only: falling sparks would move behind a product with its
+     * options and buy button, where they compete with the pictures and the
+     * things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }

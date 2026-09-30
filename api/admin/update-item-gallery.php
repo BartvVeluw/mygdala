@@ -99,7 +99,9 @@ $fields = [
     'enable_lightbox' => isset($_POST['enable_lightbox']),
     'fallback_link_url' => trim((string) ($_POST['fallback_link_url'] ?? '')),
     'button_url' => trim((string) ($_POST['button_url'] ?? '')),
-    'background' => trim((string) ($_POST['background'] ?? '')),
+    // Not in the form any more (the background is Extra vormgeving now,
+    // admin/_block_appearance.php): a request without it keeps what is stored.
+    'background' => array_key_exists('background', $_POST) ? trim((string) $_POST['background']) : (string) ($section['background'] ?? 'default'),
     'tight_top' => isset($_POST['tight_top']),
     'is_active' => isset($_POST['is_active']),
 ];

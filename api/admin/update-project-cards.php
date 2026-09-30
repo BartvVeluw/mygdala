@@ -100,7 +100,9 @@ $selection = ItemGallerySelection::fromRequest($_POST, PortfolioModule::GALLERY_
 $fields = $selection['values'] + [
     'max_items' => $maxItems,
     'show_filter_bar' => isset($_POST['show_filter_bar']),
-    'background' => trim((string) ($_POST['background'] ?? '')),
+    // Not in the form any more (the background is Extra vormgeving now,
+    // admin/_block_appearance.php): a request without it keeps what is stored.
+    'background' => array_key_exists('background', $_POST) ? trim((string) $_POST['background']) : (string) ($section['background'] ?? 'default'),
     'is_active' => isset($_POST['is_active']),
 ];
 

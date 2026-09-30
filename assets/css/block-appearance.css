@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Extra vormgeving — the look of one block instance (CONTENT-BLOCKS.md,
+   "Extra vormgeving"; App\Service\Blocks\BlockAppearance).
+
+   Loaded only on a page where a block has a look of its own
+   (BlockAppearance::collectAssets()). Every class below is built from a word
+   of a closed list, and every colour is a theme token: the active palette,
+   and inside a page theme's <main> that theme's colours. Nothing reaches the
+   header or the footer, because a block lives inside <main>.
+
+   The classes sit on the block's OWN root element (its <section>), next to
+   its own classes, never on a wrapper. They are written as two classes
+   (`.block-appearance.block-appearance--…`) so a chosen look wins over a
+   block's own one-class surface (.bg-soft, .bg-forest, .cta-section--full)
+   whatever the order of the stylesheets. An inline `padding-top:0` of a
+   block right under a page header still wins over a chosen room: that tight
+   top belongs to the header above it.
+   ========================================================================== */
+
+/* --- Background: replaces the block's own surface ------------------------
+   'default' prints no class: the block keeps whatever it had. */
+.block-appearance.block-appearance--bg-page{
+  background: var(--color-bg);
+}
+/* The site's soft surface (.bg-soft) without its lines: those are Randen. */
+.block-appearance.block-appearance--bg-subtle{
+  background:
+    radial-gradient(ellipse 800px 420px at 85% 0%, rgba(var(--color-primary-rgb), 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0) 40%);
+}
+/* A tint of the accent over the ground, not a solid fill: text, links and the
+   filled .btn are designed for the ground and stay readable on it. */
+.block-appearance.block-appearance--bg-primary{
+  background:
+    linear-gradient(rgba(var(--color-primary-rgb), 0.14), rgba(var(--color-primary-rgb), 0.14)),
+    var(--color-bg);
+}
+/* The palette's second surface: the colour of its cards. */
+.block-appearance.block-appearance--bg-secondary{
+  background: var(--color-surface);
+}
+/* No surface of its own: the page ground shows through. */
+.block-appearance.block-appearance--bg-transparent{
+  background: none;
+}
+
+/* --- Borders: replace the block's own lines above and below -------------- */
+.block-appearance.block-appearance--line-subtle{ --block-appearance-line: var(--color-line-soft); }
+.block-appearance.block-appearance--line-normal{ --block-appearance-line: var(--color-line); }
+.block-appearance.block-appearance--line-accent{ --block-appearance-line: var(--color-primary); }
+
+.block-appearance.block-appearance--border-none,
+.block-appearance.block-appearance--border-top,
+.block-appearance.block-appearance--border-bottom,
+.block-appearance.block-appearance--border-both{
+  border-block: 0;
+}
+/* Every chosen line names its colour class (BlockAppearance::classes()), so
+   the fallback is only a safety net. */
+.block-appearance.block-appearance--border-top{ border-top: 1px solid var(--block-appearance-line, var(--color-line-soft)); }
+.block-appearance.block-appearance--border-bottom{ border-bottom: 1px solid var(--block-appearance-line, var(--color-line-soft)); }
+.block-appearance.block-appearance--border-both{ border-block: 1px solid var(--block-appearance-line, var(--color-line-soft)); }
+
+/* The figures' band draws one more hairline of its own (core.css,
+   .bg-forest::before); a chosen border replaces that one too. */
+.block-appearance.block-appearance--border-none.bg-forest::before,
+.block-appearance.block-appearance--border-top.bg-forest::before,
+.block-appearance.block-appearance--border-bottom.bg-forest::before,
+.block-appearance.block-appearance--border-both.bg-forest::before{
+  content: none;
+}
+
+/* --- Room around: the section's vertical padding, from the spacing scale --
+   Only the outside of the block: its grid, cards and gallery keep their own
+   gaps. 'normal' is the room every section already has (--sp-7). */
+.block-appearance.block-appearance--space-compact{ padding-block: var(--sp-5); }
+.block-appearance.block-appearance--space-normal{ padding-block: var(--sp-7); }
+.block-appearance.block-appearance--space-spacious{ padding-block: var(--sp-8); }
+.block-appearance.block-appearance--space-extra{ padding-block: calc(var(--sp-8) + var(--sp-5)); }
+
+@media (max-width: 640px){
+  .block-appearance.block-appearance--space-spacious{ padding-block: var(--sp-7); }
+  .block-appearance.block-appearance--space-extra{ padding-block: var(--sp-8); }
+}

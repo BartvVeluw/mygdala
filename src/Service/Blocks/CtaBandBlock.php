@@ -187,4 +187,15 @@ final class CtaBandBlock extends BlockDefinition implements InspectsContent
 
         return (string) ($content['title'] ?? '') !== '' || (string) ($content['primary_label'] ?? '') !== '';
     }
+
+    /**
+     * Every part of Extra vormgeving. A chosen background replaces the
+     * section's own surface (a full-width band's colour); the card of a card
+     * band keeps its own. The minimum height stays on the box that carries
+     * the layers and the effect sits under the words, so the two combine.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section();
+    }
 }

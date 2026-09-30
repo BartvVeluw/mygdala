@@ -154,4 +154,13 @@ final class StatStripBlock extends BlockDefinition implements InspectsContent
 
         return $content['items'] !== [];
     }
+
+    /**
+     * Every part of Extra vormgeving: a short band of figures, calm enough for
+     * every effect. Standaard keeps its deep band (.bg-forest).
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section();
+    }
 }

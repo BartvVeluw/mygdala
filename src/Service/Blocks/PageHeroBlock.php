@@ -252,4 +252,14 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
     {
         return false;
     }
+
+    /**
+     * Background, lines and every effect (the falling sparks of the homepage
+     * hero on another page's head). No room: the header's height is its own
+     * setting.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::only(true, true, false, ['sparks', 'glow', 'pattern']);
+    }
 }

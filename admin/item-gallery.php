@@ -259,14 +259,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?= admin_te('block_gallery.lightbox_klik_kaart_zonder') ?>
       </label>
 
+      <?php /* No background choice here any more: a gallery's background is
+               part of its Extra vormgeving in the block list
+               (admin/_block_appearance.php), the one place for every block's
+               look (db/migrations/20261008100000 moved the old choice). */ ?>
       <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('block_gallery.achtergrond') ?>
-          <select name="background">
-            <?php foreach (ItemGalleryContent::BACKGROUNDS as $backgroundKey => $background): ?>
-            <option value="<?= $h($backgroundKey) ?>" <?= ($values['background'] ?? '') === $backgroundKey ? 'selected' : '' ?>><?= $h($background['label']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
         <label><?= admin_te('block_gallery.kaarten_zonder_eigen_pagina') ?>
           <input type="text" name="fallback_link_url" maxlength="255" value="<?= $h((string) ($values['fallback_link_url'] ?? '')) ?>" placeholder="Leeg = geen link">
         </label>

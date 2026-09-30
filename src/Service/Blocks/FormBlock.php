@@ -214,4 +214,15 @@ final class FormBlock extends BlockDefinition implements InspectsContent
 
         return FormCatalog::renderable($content['form_id'] ?? null) !== null;
     }
+
+    /**
+     * Background, lines and room around the form card, and the effects that
+     * stand still (glow, pattern) only: falling sparks would move behind
+     * fields someone is filling in, where they compete with the pictures and
+     * the things to click.
+     */
+    public function appearanceSupport(): AppearanceSupport
+    {
+        return AppearanceSupport::section(['glow', 'pattern']);
+    }
 }
