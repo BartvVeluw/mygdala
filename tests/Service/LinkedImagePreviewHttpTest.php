@@ -158,7 +158,7 @@ final class LinkedImagePreviewHttpTest extends TestCase
         foreach (['an inactive product' => $product, 'a gone id' => 999999999] as $what => $id) {
             $answer = $this->ask($session, $csrf, 'product', $id);
             self::assertSame(200, $answer['status'], $what);
-            self::assertSame(['src' => '', 'available' => false], $answer['json'], $what . ': no picture, not an admin-only one');
+            self::assertSame(['src' => '', 'available' => false, 'picture' => false], $answer['json'], $what . ': no picture, not an admin-only one');
         }
         self::assertSame(404, $this->ask($session, $csrf, 'App\\Service\\Page', 1)['status'], 'a kind, never a class');
 

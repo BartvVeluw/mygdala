@@ -123,6 +123,25 @@ final class LinkedImages
      */
     public static function resolve(string $kind, int $id): ?array
     {
+        $item = self::item($kind, $id);
+
+        return $item === null || $item['image_path'] === '' ? null : $item;
+    }
+
+    /**
+     * The item as a visitor sees it now, WITH OR WITHOUT a picture: null only
+     * when a visitor cannot open it (the kind unavailable, the item not public
+     * or gone). An item that has no main picture yet — a new product, a
+     * project still without its photo — answers with `image_path` and
+     * `preview_path` '' and its address and name as always, so a block can
+     * still link to it and say in the CMS why there is no picture, instead of
+     * silently dropping it (Detailsectie 2.1: a gallery item then shows as a
+     * tile with the name only). Never throws.
+     *
+     * @return array{image_path: string, preview_path: string, alt: string, width: int|null, height: int|null, href: string, title: string}|null
+     */
+    public static function item(string $kind, int $id): ?array
+    {
         if ($id < 1 || !self::isAvailable($kind)) {
             return null;
         }
@@ -141,8 +160,18 @@ final class LinkedImages
             $image = null;
         }
 
+        $title = (string) (LinkTargets::title($kind, $id, RequestLanguage::current()) ?? '');
+
         if (!is_array($image) || trim((string) ($image['image_path'] ?? '')) === '') {
-            return null;
+            return [
+                'image_path' => '',
+                'preview_path' => '',
+                'alt' => '',
+                'width' => null,
+                'height' => null,
+                'href' => $href,
+                'title' => $title,
+            ];
         }
 
         $media = isset($image['media_id']) && (int) $image['media_id'] > 0 ? MediaService::find((int) $image['media_id']) : null;
@@ -155,7 +184,7 @@ final class LinkedImages
             'width' => isset($image['width']) ? (int) $image['width'] : null,
             'height' => isset($image['height']) ? (int) $image['height'] : null,
             'href' => $href,
-            'title' => (string) (LinkTargets::title($kind, $id, RequestLanguage::current()) ?? ''),
+            'title' => $title,
         ];
     }
 }

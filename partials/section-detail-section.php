@@ -30,7 +30,8 @@ require_once __DIR__ . '/responsive-image.php';
  * THE GALLERY (Detailsectie 2.0): a library picture, or an item of the site
  * (a product, a project, a blog post) as a picture that links to it, with
  * its name on it — resolved live by the read model, which leaves out what a
- * visitor cannot open. Above 640px the grid it always was; on a phone a
+ * visitor cannot open; a linked item without a main picture yet is the same
+ * square with only its name, still linked (Detailsectie 2.1). Above 640px the grid it always was; on a phone a
  * strip one item wide with two arrow buttons (assets/css/blocks/detail-section.css,
  * assets/js/blocks/detail-section.js), never a two-plus-one grid.
  *
@@ -110,10 +111,18 @@ function render_section_detail_section(array $content, array $markers, string $r
       <div class="service-detail__gallery-wrap" data-detail-gallery>
         <div class="service-detail__gallery" data-reveal data-reveal-group="<?= $h($revealGroup) ?>-gallery" data-detail-gallery-strip<?= $galleryCount > 1 ? ' tabindex="0" role="region" aria-label="' . \App\Service\Language\SiteText::escaped(['nl' => 'Galerij', 'en' => 'Gallery']) . '"' : '' ?>>
           <?php foreach ($content['images'] as $image): ?>
-          <figure class="service-detail__gallery-item" data-detail-gallery-item>
+          <?php $hasPicture = ($image['image_path'] ?? '') !== ''; ?>
+          <figure class="service-detail__gallery-item<?= $hasPicture ? '' : ' service-detail__gallery-item--name' ?>" data-detail-gallery-item>
             <?php if (($image['href'] ?? '') !== ''): ?>
             <a class="service-detail__gallery-link" href="<?= $h($image['href']) ?>">
+              <?php if ($hasPicture): ?>
               <?php render_responsive_image($galleryPicture($image)); ?>
+              <?php else: ?>
+              <?php /* A product or project without a main picture yet
+                       (Detailsectie 2.1): the same square, its name on it,
+                       still a link; never an <img> without a source. */ ?>
+              <span class="service-detail__gallery-blank" aria-hidden="true"></span>
+              <?php endif; ?>
               <?php if (($image['title'] ?? '') !== ''): ?>
               <span class="service-detail__gallery-caption"><?= $h($image['title']) ?></span>
               <?php endif; ?>

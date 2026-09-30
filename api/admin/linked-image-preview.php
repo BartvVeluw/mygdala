@@ -24,7 +24,8 @@
  * NOTHING LEAKS. What a visitor cannot open (a draft, an inactive product, a
  * hidden project, a gone item, a module that is off) answers
  * {"src": "", "available": false}, exactly as the website leaves it out;
- * there is no admin-only picture here.
+ * there is no admin-only picture here. A public item without a main picture
+ * yet answers {"src": "", "available": true, "picture": false}.
  */
 
 declare(strict_types=1);
@@ -72,9 +73,12 @@ if (!LinkedImages::isAvailable($kind)) {
     exit;
 }
 
-$image = $id === false ? null : LinkedImages::resolve($kind, (int) $id);
+$image = $id === false ? null : LinkedImages::item($kind, (int) $id);
 
+// `picture` false: public, but without a main picture yet (Detailsectie 2.1),
+// which the editor explains; the website shows its name as a tile.
 echo json_encode([
     'src' => $image['preview_path'] ?? '',
     'available' => $image !== null,
+    'picture' => $image !== null && $image['image_path'] !== '',
 ]);

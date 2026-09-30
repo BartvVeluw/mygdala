@@ -57,7 +57,7 @@ final class DetailSectionTwoContractTest extends TestCase
         $this->assertStringContainsString("'blog_post' => static function (int \$id): ?array", self::source('src/Module/BlogModule.php'));
 
         $detail = self::source('src/Service/DetailSectionContent.php');
-        $this->assertStringContainsString('LinkedImages::resolve(', $detail);
+        $this->assertStringContainsString('LinkedImages::item(', $detail);
         foreach (["'product'", "'blog_post'", "'portfolio_project'", 'Shop', 'Blog'] as $name) {
             $this->assertStringNotContainsString($name, $detail, 'Detailsectie names no provider: ' . $name);
         }

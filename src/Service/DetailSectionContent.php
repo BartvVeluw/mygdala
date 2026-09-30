@@ -111,7 +111,10 @@ class DetailSectionContent
      *                                list of App\Service\Media\BlockImage::fromOwner()
      *                                plus `href` and `title` (both '' for a
      *                                library picture; a linked item's live
-     *                                address and name, LinkedImages::resolve()).
+     *                                address and name, LinkedImages::item())
+     *                                and `picture` (the focus point, or
+     *                                null for a linked item without a main
+     *                                picture: image_path '', a name tile).
      *                                Templates must check 'state' !==
      *                                STATE_HIDDEN before rendering the
      *                                section at all.
@@ -200,10 +203,23 @@ class DetailSectionContent
                     BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
                 ) + ['href' => '', 'title' => ''];
             } else {
-                $item = LinkedImages::resolve($sourceType, (int) ($image['source_id'] ?? 0));
+                $item = LinkedImages::item($sourceType, (int) ($image['source_id'] ?? 0));
                 if ($item === null) {
                     continue;
                 }
+            }
+
+            // No picture (Detailsectie 2.1): a linked item whose product or
+            // project has no main picture yet is a tile with its name, still
+            // linked; anything else without a picture (a library item whose
+            // file went) is left out rather than shown as a broken image.
+            if ($item['image_path'] === '') {
+                if ($item['href'] === '' || trim($item['title']) === '') {
+                    continue;
+                }
+                $item['picture'] = null;
+                $content['images'][] = $item;
+                continue;
             }
 
             $item['picture'] = ResponsiveImage::fromRow($image, self::imageSlot())->forRender($item);

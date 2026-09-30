@@ -31,6 +31,12 @@
 }
 .service-detail__gallery-item:has(.service-detail__gallery-link:hover){ border-color: var(--color-line-strong); }
 
+/* A LINKED ITEM WITHOUT A MAIN PICTURE yet (Detailsectie 2.1): the same
+   square in the site's own wash, its name on it in the text colour instead
+   of white on a shadow. */
+.service-detail__gallery-blank{ display: block; aspect-ratio: 1; background: var(--color-primary-wash); }
+.service-detail__gallery-item--name .service-detail__gallery-caption{ background: none; color: var(--color-text); }
+
 .service-detail__gallery-controls{ display: none; }
 
 @media (max-width: 640px){
