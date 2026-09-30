@@ -126,6 +126,7 @@
             <file>tests/Service/ThemePaletteRecipeTest.php</file>
             <file>tests/Service/FontFileInspectorTest.php</file>
             <file>tests/Service/FontLibraryCssTest.php</file>
+            <file>tests/Service/ButtonStyleCssTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -167,6 +168,7 @@
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
+            <file>tests/Service/ButtonStyleBlocksTest.php</file>
             <file>tests/Service/CardHeadingContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/OptionalEyebrowTest.php</file>
@@ -381,6 +383,8 @@
             <file>tests/Service/ThemePaletteRecipeTest.php</file>
             <file>tests/Service/FontFileInspectorTest.php</file>
             <file>tests/Service/FontLibraryCssTest.php</file>
+            <file>tests/Service/ButtonStyleCssTest.php</file>
+            <file>tests/Service/ButtonStyleBlocksTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
             <file>tests/Module/PageThemesModuleTest.php</file>
         </testsuite>
@@ -491,6 +495,7 @@
             <file>tests/Install/PageThemesMigrationTest.php</file>
             <file>tests/Install/ColorPalettesMigrationTest.php</file>
             <file>tests/Install/FontLibraryMigrationTest.php</file>
+            <file>tests/Install/ButtonStylesMigrationTest.php</file>
         </testsuite>
 
         <!-- ============================================================
@@ -507,6 +512,7 @@
             <file>tests/Install/PageThemesMigrationTest.php</file>
             <file>tests/Service/ColorPalettesHttpTest.php</file>
             <file>tests/Service/FontLibraryHttpTest.php</file>
+            <file>tests/Service/ButtonStylesHttpTest.php</file>
         </testsuite>
 
         <!-- The Blog module: posts, taxonomy, its SEO and feed, its media
@@ -586,6 +592,8 @@
             <file>tests/Service/BlockPreviewAccessTest.php</file>
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
+            <file>tests/Service/ButtonStyleBlocksTest.php</file>
+            <file>tests/Service/ButtonStylesHttpTest.php</file>
             <file>tests/Service/CardHeadingContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/OptionalEyebrowTest.php</file>
@@ -834,6 +842,10 @@
             <file>tests/Install/ColorPalettesMigrationTest.php</file>
             <file>tests/Service/FontFileInspectorTest.php</file>
             <file>tests/Service/FontLibraryCssTest.php</file>
+            <file>tests/Service/ButtonStyleCssTest.php</file>
+            <file>tests/Service/ButtonStylesTest.php</file>
+            <file>tests/Service/ButtonStylesHttpTest.php</file>
+            <file>tests/Install/ButtonStylesMigrationTest.php</file>
             <file>tests/Service/FontLibraryTest.php</file>
             <file>tests/Service/FontLibraryHttpTest.php</file>
             <file>tests/Service/FontLibraryApacheHttpTest.php</file>

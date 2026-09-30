@@ -224,7 +224,14 @@ final class SetupCompletionTest extends TestCase
         }
 
         $this->assertSame('poppins-inter', $theme['font_pairing']);
-        $this->assertSame('rounded', $theme['button_shape']);
+        // The button shape is the shape of the two default button styles
+        // (Button Styles 2.0, THEMING.md "Knopstijlen"), not a
+        // theme_settings row.
+        $this->assertArrayNotHasKey('button_shape', $theme);
+        $this->assertSame(
+            [['role' => 'primary', 'shape' => 'rounded'], ['role' => 'secondary', 'shape' => 'rounded']],
+            $this->install()->rows('SELECT d.role, s.shape FROM button_style_defaults d JOIN button_styles s ON s.id = d.button_style_id ORDER BY d.role')
+        );
 
         // The colours are the active colour palette (Branding & Design 2.0,
         // THEMING.md "Kleurenpaletten"), not theme_settings rows: the chosen
