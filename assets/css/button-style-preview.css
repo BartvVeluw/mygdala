@@ -1,0 +1,82 @@
+/* =========================================================================
+   Owner: admin/button-style-preview.php, the samples inside the preview
+   frame of the button style editor (admin/button-style.php). No public page
+   asks for it.
+
+   Layout of the samples, two grounds (light, dark) to judge a style
+   against, and the two states a real element cannot be forced into: "under
+   the mouse" and "with keyboard focus". Those two are drawn from exactly the
+   properties core.css's .btn:hover and :focus-visible use, so they show what
+   the website would show. Nothing here gives a button a look of its own.
+   ========================================================================= */
+
+.button-preview{
+  min-height: 100dvh;
+}
+.button-preview__stage{
+  padding: var(--sp-4) var(--sp-3);
+}
+.button-preview__stage--light{
+  background: #F7F4EE;
+  color: #1B1B1B;
+}
+.button-preview__stage--dark{
+  background: #0E0E10;
+  color: #F2F2F2;
+}
+.button-preview__heading{
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-small);
+  opacity: 0.8;
+}
+.button-preview__grid{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  align-items: flex-start;
+}
+.button-preview__grid--wide{
+  margin-top: var(--sp-3);
+}
+.button-preview__sample{
+  margin: 0;
+  display: grid;
+  gap: var(--sp-1);
+  justify-items: start;
+  max-width: 100%;
+}
+.button-preview__sample figcaption{
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+.button-preview__grid--wide .btn{
+  white-space: normal;
+  text-align: center;
+  max-width: 100%;
+}
+
+/* .btn:hover, forced (assets/css/core.css). */
+.button-preview .btn.is-preview-hover{
+  transform: translateY(var(--btn-hover-lift));
+  box-shadow: var(--btn-hover-shadow);
+  filter: var(--btn-hover-filter);
+  background: var(--btn-hover-bg);
+  color: var(--btn-hover-fg);
+  border-color: var(--btn-hover-border-color);
+}
+.button-preview .btn.is-preview-hover::before,
+.button-preview .btn.is-preview-hover::after{
+  transform: translateX(var(--btn-icon-shift));
+}
+
+/* :focus-visible, forced (assets/css/core.css). */
+.button-preview .btn.is-preview-focus{
+  outline: 2.5px solid var(--color-primary-bright);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .button-preview .btn.is-preview-hover,
+  .button-preview .btn.is-preview-hover::before,
+  .button-preview .btn.is-preview-hover::after{ transform: none; }
+}

@@ -128,6 +128,11 @@ final class AdminAccessControlTest extends TestCase
         // admin/font-family.php and admin/page-theme.php behind their own
         // checks. Output functions only; every write is a guarded endpoint.
         '_font_library.php',
+        // The two Button Styles 2.0 controls (the "Knopstijl" choice next to
+        // a content button, a colour in the button style editor): markup
+        // only, printed by the block editors and admin/button-style.php
+        // behind their own checks; every write is a guarded endpoint.
+        '_button_style_field.php',
         // The Paginathema choice on the page editor, rendered by the
         // Paginathema's module's App\Service\PageSettingsSection inside
         // admin/page.php's settings form, behind that screen's pages.manage

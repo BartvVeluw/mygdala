@@ -10,6 +10,7 @@ require_once __DIR__ . '/_font_library.php';
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SiteSettings;
+use App\Service\Theme\ButtonStyles;
 use App\Service\Theme\ColorPaletteService;
 use App\Service\Theme\FontLibrary;
 use App\Service\Theme\ThemeCss;
@@ -85,6 +86,19 @@ $fontsError = $_SESSION['admin_fonts_error'] ?? null;
 unset($_SESSION['admin_fonts_error']);
 $fontsBytes = FontLibrary::totalBytes();
 
+/**
+ * The button style library (Button Styles 2.0, THEMING.md "Knopstijlen"), on
+ * the tab Knoppen: every style with the defaults it is and how many content
+ * buttons chose it. A style is edited on admin/button-style.php; this screen
+ * duplicates it, makes it a default and deletes it. ?buttons=<done> is an
+ * action's outcome, a refusal comes back as a session flash.
+ */
+$buttonStyles = ButtonStyles::all();
+$buttonsNotice = is_string($_GET['buttons'] ?? null)
+    && in_array($_GET['buttons'], ['deleted', 'default'], true) ? $_GET['buttons'] : '';
+$buttonsError = $_SESSION['admin_buttons_error'] ?? null;
+unset($_SESSION['admin_buttons_error']);
+
 /** The typography preview: the site as it is, with the choice in the form. */
 $typographyPreviewQuery = http_build_query(array_intersect_key($values, array_flip(['font_pairing', 'heading_font_family_id', 'body_font_family_id'])));
 
@@ -140,6 +154,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <p class="admin-alert admin-alert--error" data-palette-error><?= $h($paletteError) ?></p>
   <?php endif; ?>
 
+  <?php if ($buttonsNotice !== ''): ?>
+    <p class="admin-alert admin-alert--success" data-buttons-notice="<?= $h($buttonsNotice) ?>"><?= admin_te('buttons.done_' . $buttonsNotice) ?></p>
+  <?php endif; ?>
+
+  <?php if (is_string($buttonsError)): ?>
+    <p class="admin-alert admin-alert--error" data-buttons-error><?= $h($buttonsError) ?></p>
+  <?php endif; ?>
+
   <?php if ($fontsNotice): ?>
     <p class="admin-alert admin-alert--success" data-fonts-notice><?= admin_te('fonts.done_deleted') ?></p>
   <?php endif; ?>
@@ -148,16 +170,21 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <p class="admin-alert admin-alert--error" data-fonts-error><?= $h($fontsError) ?></p>
   <?php endif; ?>
 
-  <?php /* Two tabs: the look of the site, and the Font Library it can choose
-           from (admin/_admin_tabs.php). Every form keeps its own endpoint. */ ?>
+  <?php /* Three tabs: the look of the site, the Font Library it can choose
+           from, and the button styles (admin/_admin_tabs.php). Every form
+           keeps its own endpoint. */ ?>
   <?php admin_tabs_start('theme', [
       'stijl' => admin_t('fonts.tab_style'),
       'lettertypen' => admin_t('fonts.tab_fonts'),
+      'knoppen' => admin_t('buttons.tab'),
   ], [
       'label' => admin_t('fonts.tabs_label'),
-      'force' => $fontsNotice || is_string($fontsError) || ($_GET['tab'] ?? '') === 'lettertypen'
-          ? 'lettertypen'
-          : (($saved || $errors !== []) ? 'stijl' : null),
+      'force' => match (true) {
+          $fontsNotice || is_string($fontsError) || ($_GET['tab'] ?? '') === 'lettertypen' => 'lettertypen',
+          $buttonsNotice !== '' || is_string($buttonsError) || ($_GET['tab'] ?? '') === 'knoppen' => 'knoppen',
+          $saved || $errors !== [] => 'stijl',
+          default => null,
+      },
   ]); ?>
 
   <?php admin_tab_panel('stijl'); ?>
@@ -278,17 +305,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
               src="/admin/color-palette-preview.php?<?= $h($typographyPreviewQuery) ?>"
               data-typography-preview sandbox="allow-same-origin" referrerpolicy="same-origin"></iframe>
 
-      <h3><?= admin_te('design.stijl') ?></h3>
-      <p class="admin-text-muted"><?= admin_te('design.geldt_gewone_knoppen_ronde') ?></p>
-      <div class="admin-form-row">
-        <label for="theme-button-shape"><?= admin_te('design.knopvorm') ?>
-          <select id="theme-button-shape" name="button_shape">
-            <?php foreach (ThemeSettings::buttonShapes() as $key => $shape): ?>
-              <option value="<?= $h($key) ?>" <?= ($values['button_shape'] ?? '') === $key ? 'selected' : '' ?>><?= $h($shape['label']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-      </div>
+      <?php /* The button shape moved into the button styles (tab Knoppen):
+               one place for everything about a button, and no second
+               setting that could disagree with it. */ ?>
+      <h3><?= admin_te('buttons.tab') ?></h3>
+      <p class="admin-text-muted" data-buttons-moved><?= admin_t('buttons.moved_hint') ?></p>
 
       <div class="admin-theme-actions">
         <button type="submit"><?= admin_te('common.save') ?></button>
@@ -423,6 +444,83 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   </section>
 
   <?= admin_font_help() ?>
+  <?php admin_tab_panel_end(); ?>
+
+  <?php admin_tab_panel('knoppen'); ?>
+  <section class="admin-card" id="knoppen" data-button-styles>
+    <header class="admin-page-head">
+      <div>
+        <h2 class="admin-page-head__title"><?= admin_te('buttons.title') ?></h2>
+        <p class="admin-page-head__desc"><?= admin_te('buttons.intro') ?></p>
+      </div>
+      <a href="/admin/button-style.php" class="admin-btn-link" data-button-style-new><?= admin_te('buttons.new') ?></a>
+    </header>
+
+    <?= admin_info_panel(admin_t('help.buttons.overview')) ?>
+
+    <div class="admin-page-sections">
+      <?php foreach ($buttonStyles as $buttonStyle): ?>
+        <?php
+        $buttonStyleId = (int) $buttonStyle['id'];
+        $buttonUses = (int) $buttonStyle['uses'];
+        $buttonInUse = ButtonStyles::inUse(['roles' => $buttonStyle['roles'], 'buttons' => $buttonUses]);
+        $usesKey = $buttonUses === 0 ? 'buttons.uses_none' : ($buttonUses === 1 ? 'buttons.uses_one' : 'buttons.uses_many');
+        ?>
+        <div class="admin-section-row admin-palette-row" data-button-style-row="<?= $buttonStyleId ?>"<?= $buttonInUse ? ' data-button-style-in-use' : '' ?>>
+          <div class="admin-section-row__body">
+            <p class="admin-section-row__name">
+              <?= $h((string) $buttonStyle['name']) ?>
+              <?php foreach ($buttonStyle['roles'] as $buttonRole): ?>
+                <span class="admin-badge admin-badge--published" data-button-status="<?= $h($buttonRole) ?>"><?= admin_te('buttons.status_' . $buttonRole) ?></span>
+              <?php endforeach; ?>
+              <?php if ($buttonStyle['roles'] === []): ?>
+                <span class="admin-badge admin-badge--muted" data-button-status="available"><?= admin_te('buttons.status_available') ?></span>
+              <?php endif; ?>
+            </p>
+            <p class="admin-section-row__note" data-button-style-uses="<?= $buttonUses ?>"><?= admin_te($usesKey, ['count' => $buttonUses]) ?></p>
+            <?php if ($buttonStyle['roles'] !== []): ?>
+              <p class="admin-section-row__note"><?= admin_te('buttons.default_no_delete') ?></p>
+            <?php elseif ($buttonInUse): ?>
+              <p class="admin-section-row__note"><?= admin_te('buttons.in_use_no_delete') ?></p>
+            <?php endif; ?>
+          </div>
+          <div class="admin-section-row__actions">
+            <a href="/admin/button-style.php?id=<?= $buttonStyleId ?>" class="admin-section-row__edit"><?= admin_te('common.edit') ?> &#8594;</a>
+            <?php foreach (['primary', 'secondary'] as $buttonRole): ?>
+              <?php if (!in_array($buttonRole, $buttonStyle['roles'], true)): ?>
+                <form method="post" action="/api/admin/set-default-button-style.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                    admin_t('buttons.make_' . $buttonRole . '_confirm_title'),
+                    admin_t('buttons.make_' . $buttonRole . '_confirm', ['name' => (string) $buttonStyle['name']]),
+                    admin_t('buttons.make_default')
+                ) ?>>
+                  <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                  <input type="hidden" name="id" value="<?= $buttonStyleId ?>">
+                  <input type="hidden" name="role" value="<?= $h($buttonRole) ?>">
+                  <button type="submit" class="admin-btn-text"><?= admin_te('buttons.make_' . $buttonRole) ?></button>
+                </form>
+              <?php endif; ?>
+            <?php endforeach; ?>
+            <form method="post" action="/api/admin/duplicate-button-style.php" class="admin-inline-form">
+              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+              <input type="hidden" name="id" value="<?= $buttonStyleId ?>">
+              <button type="submit" class="admin-btn-text"><?= admin_te('buttons.duplicate') ?></button>
+            </form>
+            <?php if (!$buttonInUse): ?>
+              <form method="post" action="/api/admin/delete-button-style.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                  admin_t('buttons.delete_confirm_title'),
+                  admin_t('buttons.delete_confirm', ['name' => (string) $buttonStyle['name']]),
+                  admin_t('common.delete')
+              ) ?>>
+                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                <input type="hidden" name="id" value="<?= $buttonStyleId ?>">
+                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
+              </form>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
   <?php admin_tab_panel_end(); ?>
 
   <?php admin_tabs_end(); ?>

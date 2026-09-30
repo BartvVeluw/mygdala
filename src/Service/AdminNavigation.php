@@ -325,7 +325,7 @@ class AdminNavigation
                 'icon' => 'theme',
                 'permission' => AdminPermissions::SETTINGS_MANAGE,
                 'order' => 810,
-                'scripts' => ['theme.php', 'color-palette.php', 'color-palette-preview.php', 'font-family.php'],
+                'scripts' => ['theme.php', 'color-palette.php', 'color-palette-preview.php', 'font-family.php', 'button-style.php', 'button-style-preview.php'],
             ],
             [
                 // Next to Instellingen and Vormgeving, because a redirect

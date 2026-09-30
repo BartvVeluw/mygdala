@@ -3717,6 +3717,29 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   .admin-typography-preview{ height: 20rem; }
 }
 
+/* Button Styles 2.0 (Vormgeving -> Knoppen, admin/button-style.php;
+   THEMING.md "Knopstijlen"). The editor reuses the palette editor's two
+   columns and sticky preview; these rules only add the colour choice's
+   fixed-colour input, the icon strip, and hide what the chosen appearance
+   does not use (admin/assets/button-style-admin.js sets `hidden`). */
+[data-button-when][hidden],
+.admin-button-color__custom[hidden]{ display: none; }
+.admin-button-color__custom{ margin-top: var(--admin-sp-2); }
+.admin-button-icons{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2);
+  margin: 0 0 var(--admin-sp-3);
+  color: var(--admin-text-muted);
+}
+.admin-button-icons__item{
+  display: inline-flex;
+  padding: var(--admin-sp-1);
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+}
+.admin-button-icons__item svg{ display: block; }
+
 .admin-code-block{
   margin: 0 0 var(--admin-sp-4);
   padding: var(--admin-sp-4);
