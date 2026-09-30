@@ -57,7 +57,7 @@ class CtaBandRepository extends Repository
     /**
      * What a row stores when a caller leaves a setting out: no destination,
      * and the presentation every band had before CTA 2.0 (the column
-     * defaults of db/migrations/20260926120000).
+     * defaults of db/migrations/20260926120000 and 20261007100000).
      */
     private const DEFAULTS = [
         'primary_link_type' => null,
@@ -71,6 +71,10 @@ class CtaBandRepository extends Repository
         'background_overlay' => 'medium',
         'text_panel' => false,
         'text_panel_opacity' => 'strong',
+        'min_height' => 'auto',
+        'min_height_px' => null,
+        'mobile_min_height' => 'auto',
+        'mobile_min_height_px' => null,
     ];
 
     /**
@@ -94,12 +98,14 @@ class CtaBandRepository extends Repository
                 (page_slug, section_key, primary_url, primary_link_type, primary_link_target_id,
                  secondary_url, secondary_link_type, secondary_link_target_id,
                  content_align, lead_width, full_width, background_media_id,
-                 background_overlay, text_panel, text_panel_opacity, is_active, created_at, updated_at)
+                 background_overlay, text_panel, text_panel_opacity,
+                 min_height, min_height_px, mobile_min_height, mobile_min_height_px, is_active, created_at, updated_at)
              VALUES
                 (:page_slug, :section_key, :primary_url, :primary_link_type, :primary_link_target_id,
                  :secondary_url, :secondary_link_type, :secondary_link_target_id,
                  :content_align, :lead_width, :full_width, :background_media_id,
-                 :background_overlay, :text_panel, :text_panel_opacity, :is_active, NOW(), NOW())
+                 :background_overlay, :text_panel, :text_panel_opacity,
+                 :min_height, :min_height_px, :mobile_min_height, :mobile_min_height_px, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 primary_url = VALUES(primary_url),
                 primary_link_type = VALUES(primary_link_type),
@@ -114,6 +120,10 @@ class CtaBandRepository extends Repository
                 background_overlay = VALUES(background_overlay),
                 text_panel = VALUES(text_panel),
                 text_panel_opacity = VALUES(text_panel_opacity),
+                min_height = VALUES(min_height),
+                min_height_px = VALUES(min_height_px),
+                mobile_min_height = VALUES(mobile_min_height),
+                mobile_min_height_px = VALUES(mobile_min_height_px),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -134,6 +144,10 @@ class CtaBandRepository extends Repository
             'background_overlay' => $values['background_overlay'],
             'text_panel' => $values['text_panel'] ? 1 : 0,
             'text_panel_opacity' => $values['text_panel_opacity'],
+            'min_height' => $values['min_height'],
+            'min_height_px' => $values['min_height_px'],
+            'mobile_min_height' => $values['mobile_min_height'],
+            'mobile_min_height_px' => $values['mobile_min_height_px'],
             'is_active' => $values['is_active'] ? 1 : 0,
         ]);
     }

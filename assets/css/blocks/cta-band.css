@@ -21,10 +21,15 @@
    its words in the ordinary .container. No 100vw, no negative margins, and
    nothing that could make the page scroll sideways.
 
+   THE MINIMUM HEIGHT (section 6) is a min-height on the box that carries
+   the layers, never a height: the words can always make the band taller,
+   nothing is cut off and nothing overflows. The picture lies at inset: 0
+   with object-fit: cover, so it fills a taller box by itself, its focus point
+   and zoom (Responsive Media) untouched.
+
    NOT HERE: the card's own base look (core.css), the buttons' shape and
-   colours (.btn, Theme & Branding), any height of the band (it grows with
-   its words; a band of a chosen height is a different block), and any value
-   an editor types.
+   colours (.btn, Theme & Branding), a fixed height of any kind, and any value
+   an editor types other than the one pixel length of an own minimum height.
    ========================================================================== */
 
 .cta-section{
@@ -37,6 +42,14 @@
   --cta-lead-narrow: 46ch;                  /* the .lead every page has */
   --cta-lead-medium: var(--container-narrow);
   --cta-lead-wide: 60rem;
+  /* The minimum heights, the same pixels as CtaBandContent::HEIGHT_PX and
+     ::PHONE_HEIGHT_PX (CtaBandHeightTest keeps them equal). */
+  --cta-height-compact: 320px;
+  --cta-height-normal: 440px;
+  --cta-height-tall: 560px;
+  --cta-height-phone-compact: 240px;
+  --cta-height-phone-normal: 320px;
+  --cta-height-phone-tall: 420px;
 }
 
 /* --- 1. The full-width band: the section is the box -------------------- */
@@ -128,6 +141,32 @@
 .cta-band--lead-wide .lead{ max-width: var(--cta-lead-wide); }
 .cta-band--lead-full .lead{ max-width: none; }
 
+/* --- 6. The minimum height --------------------------------------------- */
+/* On the box that carries the layers: the card, or the full-width <section>.
+   A column that centres the words in the room a minimum leaves them; the
+   picture and the accent line are absolute and take no part in it. The
+   .container of a full-width band has width: 100%, so it keeps its width in
+   the column. Without a chosen minimum (--cta-min-height unset) min-height
+   falls back to auto: as tall as the words. */
+.cta-height{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--cta-min-height, auto);
+}
+.cta-height--compact{ --cta-min-height: var(--cta-height-compact); --cta-min-height-phone: var(--cta-height-phone-compact); }
+.cta-height--normal{ --cta-min-height: var(--cta-height-normal); --cta-min-height-phone: var(--cta-height-phone-normal); }
+.cta-height--tall{ --cta-min-height: var(--cta-height-tall); --cta-min-height-phone: var(--cta-height-phone-tall); }
+/* An own height arrives as --cta-min-height on the element itself; on a
+   phone that follows it, it is capped at the phone's Hoog. */
+.cta-height--custom{ --cta-min-height-phone: min(var(--cta-min-height), var(--cta-height-phone-tall)); }
+/* The phone's own choice, after the ones above so it wins: 'text' is as tall
+   as the words, an own phone height arrives as --cta-min-height-phone. */
+.cta-height-phone--text{ --cta-min-height-phone: auto; }
+.cta-height-phone--compact{ --cta-min-height-phone: var(--cta-height-phone-compact); }
+.cta-height-phone--normal{ --cta-min-height-phone: var(--cta-height-phone-normal); }
+.cta-height-phone--tall{ --cta-min-height-phone: var(--cta-height-phone-tall); }
+
 /* --- Small screens ------------------------------------------------------ */
 /* A card with a picture or a panel gives the words more of the width: the
    panel has its own padding, and two paddings on a 320px screen would leave
@@ -140,4 +179,6 @@
   .cta-band--card.cta-band--has-media,
   .cta-band--card.cta-band--has-panel{ padding: var(--sp-5) var(--sp-3); }
   .cta-band__content--panel{ padding: var(--sp-4) var(--sp-3); }
+  /* A phone takes its own minimum, never the large screen's. */
+  .cta-height{ min-height: var(--cta-min-height-phone, auto); }
 }

@@ -26,7 +26,16 @@ use App\Service\Theme\ButtonStyles;
  *
  * NOTHING FROM THE DATABASE BECOMES CSS. Every presentation value is a word
  * of a closed list, checked again here with CtaBandContent::choice(), and
- * becomes a class. The picture is printed by partials/responsive-image.php
+ * becomes a class. The one number is an own minimum height: an integer
+ * within its range (CtaBandContent::pixels(), again here), printed as a
+ * pixel length in one custom property and nothing else.
+ *
+ * THE MINIMUM HEIGHT (CONTENT-BLOCKS.md, "De hoogte van het achtergrondvlak")
+ * sits on the box that carries the layers — the card, or the <section> of a
+ * full-width band — as `cta-height` plus a class per choice; the lengths and
+ * the phone rules are in assets/css/blocks/cta-band.css. It is a min-height,
+ * never a height: more words make the box taller. 'auto' on both screens
+ * prints nothing at all, which is the band every page had before. The picture is printed by partials/responsive-image.php
  * (Responsive Media 2.0, `picture`): its focus point as object-position, and
  * on a phone its own picture and point when it has them, as on the Paginakop.
  * The picture is decorative (alt="" and hidden from assistive technology):
@@ -53,6 +62,24 @@ function render_section_cta_band(array $cta): void
     $panel = ($cta['panel'] ?? '') === '' ? '' : CtaBandContent::choice(CtaBandContent::PANEL_OPACITIES, $cta['panel']);
     $fullWidth = !empty($cta['full_width']);
     $background = is_array($cta['background'] ?? null) && (string) ($cta['background']['image_path'] ?? '') !== '' ? $cta['background'] : null;
+    $height = CtaBandContent::minHeight([
+        'min_height' => $cta['height'] ?? null,
+        'min_height_px' => $cta['height_px'] ?? null,
+        'mobile_min_height' => $cta['mobile_height'] ?? null,
+        'mobile_min_height_px' => $cta['mobile_height_px'] ?? null,
+    ]);
+    $heightClass = '';
+    $heightStyle = [];
+    if ($height['height'] !== 'auto' || $height['mobile_height'] !== 'auto') {
+        $heightClass = ' cta-height cta-height--' . $height['height'] . ' cta-height-phone--' . $height['mobile_height'];
+        if ($height['height_px'] !== null) {
+            $heightStyle[] = '--cta-min-height: ' . $height['height_px'] . 'px';
+        }
+        if ($height['mobile_height_px'] !== null) {
+            $heightStyle[] = '--cta-min-height-phone: ' . $height['mobile_height_px'] . 'px';
+        }
+    }
+    $heightAttribute = $heightStyle === [] ? '' : ' style="' . $h(implode('; ', $heightStyle) . ';') . '"';
     $hasPrimary = $text('primary_label') !== '' && $text('primary_url') !== '';
     $hasSecondary = $hasPrimary && $text('secondary_label') !== '' && $text('secondary_url') !== '';
     // Button Styles 2.0: the default look, or the style each button chose.
@@ -76,19 +103,20 @@ function render_section_cta_band(array $cta): void
         <?php
     };
 
-    $sectionClass = 'cta-section' . ($fullWidth ? ' cta-section--full' : '') . ($fullWidth && $background !== null ? ' cta-section--has-media' : '');
+    $sectionClass = 'cta-section' . ($fullWidth ? ' cta-section--full' : '') . ($fullWidth && $background !== null ? ' cta-section--has-media' : '') . ($fullWidth ? $heightClass : '');
     $bandClass = 'cta-band'
         . ($fullWidth ? '' : ' cta-band--card')
         . ' cta-band--align-' . $align
         . ' cta-band--lead-' . $leadWidth
         . (!$fullWidth && $background !== null ? ' cta-band--has-media' : '')
-        . ($panel !== '' ? ' cta-band--has-panel' : '');
+        . ($panel !== '' ? ' cta-band--has-panel' : '')
+        . ($fullWidth ? '' : $heightClass);
     $contentClass = 'cta-band__content' . ($panel !== '' ? ' cta-band__content--panel cta-band__content--panel-' . $panel : '');
     ?>
-    <section class="<?= $h($sectionClass) ?>">
+    <section class="<?= $h($sectionClass) ?>"<?= $fullWidth ? $heightAttribute : '' ?>>
       <?php if ($fullWidth) { $media(); } ?>
       <div class="container">
-        <div class="<?= $h($bandClass) ?>" data-reveal>
+        <div class="<?= $h($bandClass) ?>"<?= $fullWidth ? '' : $heightAttribute ?> data-reveal>
           <?php if (!$fullWidth) { $media(); } ?>
           <div class="<?= $h($contentClass) ?>">
             <?php render_eyebrow($text('eyebrow')); ?>

@@ -36,7 +36,9 @@ use App\Service\Theme\ButtonStyles;
  * in every language; a stored value that is not on its list reads as the
  * list's first entry, which is the presentation every band had before. The
  * layers, from the back: the band's own theme colour, the picture, the overlay
- * over the picture, the text panel, the words.
+ * over the picture, the text panel, the words. It may also have a minimum
+ * height, on a large screen and on a phone (minHeight()): a minimum, never a
+ * fixed height, so more words always make the band taller.
  *
  * THE BUTTONS. Each button's destination is the shape every block button has
  * (App\Service\Routing\LinkChoice), so a page is followed by id through a
@@ -101,6 +103,38 @@ class CtaBandContent
 
     /** How opaque the text panel is: the theme's surface, from see-through to solid. */
     public const PANEL_OPACITIES = ['strong', 'subtle', 'medium', 'solid'];
+
+    /**
+     * The MINIMUM height of the box that carries the background (the card, or
+     * the <section> of a full-width band), on a large screen. Never a fixed
+     * height: more words make the band taller. 'auto' is as tall as the words,
+     * as every band was before; 'custom' takes its pixels from
+     * min_height_px, within MIN_HEIGHT_RANGE.
+     */
+    public const HEIGHTS = ['auto', 'compact', 'normal', 'tall', 'custom'];
+
+    /**
+     * The same on a phone (max-width 640px, the block's own breakpoint).
+     * 'auto' follows the large screen, capped for a phone: a preset takes its
+     * phone counterpart, an own height at most PHONE_HEIGHT_PX['tall']; 'text'
+     * is as tall as the words, whatever the large screen chose.
+     */
+    public const MOBILE_HEIGHTS = ['auto', 'text', 'compact', 'normal', 'tall', 'custom'];
+
+    /**
+     * The presets in pixels, the same lengths as assets/css/blocks/cta-band.css
+     * (CtaBandHeightTest keeps them equal). The editor's focus frames take
+     * their shape from these too.
+     */
+    public const HEIGHT_PX = ['compact' => 320, 'normal' => 440, 'tall' => 560];
+
+    public const PHONE_HEIGHT_PX = ['compact' => 240, 'normal' => 320, 'tall' => 420];
+
+    /** @var array{int, int} the pixels an own height may have on a large screen */
+    public const MIN_HEIGHT_RANGE = [200, 1000];
+
+    /** @var array{int, int} the pixels an own height may have on a phone */
+    public const MOBILE_MIN_HEIGHT_RANGE = [160, 800];
 
     private const TABLE = 'cta_bands';
 
@@ -173,8 +207,9 @@ class CtaBandContent
      * (Responsive Media 2.0, backgroundSlot()): its focus point, and on a
      * phone its own picture and point when it has them; null without one.
      *
-     * @return array{align: string, lead_width: string, full_width: bool, background: array{image_path: string, width: int|null, height: int|null}|null, picture: array<string, mixed>|null, overlay: string, panel: string}
-     *         panel is '' for no text panel, else a word of PANEL_OPACITIES
+     * @return array{align: string, lead_width: string, full_width: bool, background: array{image_path: string, width: int|null, height: int|null}|null, picture: array<string, mixed>|null, overlay: string, panel: string, height: string, height_px: int|null, mobile_height: string, mobile_height_px: int|null}
+     *         panel is '' for no text panel, else a word of PANEL_OPACITIES;
+     *         height/mobile_height see minHeight()
      */
     public static function presentation(array $row): array
     {
@@ -193,14 +228,91 @@ class CtaBandContent
             'picture' => $background === null ? null : ResponsiveImage::fromRow($row, self::backgroundSlot())->forRender($background + ['alt' => '']),
             'overlay' => self::choice(self::OVERLAYS, $row['background_overlay'] ?? null),
             'panel' => (bool) ($row['text_panel'] ?? false) ? self::choice(self::PANEL_OPACITIES, $row['text_panel_opacity'] ?? null) : '',
-        ];
+        ] + self::minHeight($row);
+    }
+
+    /**
+     * The band's minimum height on a large screen and on a phone, from a
+     * stored row: each a word of its list, and the pixels only for 'custom'.
+     * An own height without valid pixels (missing, not a number, outside its
+     * range) reads as 'auto', so a damaged row never becomes a length.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array{height: string, height_px: int|null, mobile_height: string, mobile_height_px: int|null}
+     */
+    public static function minHeight(array $row): array
+    {
+        [$height, $heightPx] = self::heightChoice(self::HEIGHTS, $row['min_height'] ?? null, $row['min_height_px'] ?? null, self::MIN_HEIGHT_RANGE);
+        [$mobile, $mobilePx] = self::heightChoice(self::MOBILE_HEIGHTS, $row['mobile_min_height'] ?? null, $row['mobile_min_height_px'] ?? null, self::MOBILE_MIN_HEIGHT_RANGE);
+
+        return ['height' => $height, 'height_px' => $heightPx, 'mobile_height' => $mobile, 'mobile_height_px' => $mobilePx];
+    }
+
+    /**
+     * Posted or stored pixels as an int within the range, else null: digits
+     * only, no unit, no sign, no decimals.
+     *
+     * @param array{int, int} $range
+     */
+    public static function pixels(mixed $value, array $range): ?int
+    {
+        if (is_int($value)) {
+            $value = (string) $value;
+        }
+        if (!is_string($value) || preg_match('/^\d{1,4}$/', trim($value)) !== 1) {
+            return null;
+        }
+        $px = (int) trim($value);
+
+        return $px >= $range[0] && $px <= $range[1] ? $px : null;
+    }
+
+    /**
+     * The phone's minimum height in pixels as a phone shows it, or null for
+     * none: the editor's phone frame follows it. Mirrors the phone rules of
+     * assets/css/blocks/cta-band.css.
+     *
+     * @param array{height: string, height_px: int|null, mobile_height: string, mobile_height_px: int|null} $height
+     */
+    public static function phonePixels(array $height): ?int
+    {
+        return match ($height['mobile_height']) {
+            'text' => null,
+            'custom' => $height['mobile_height_px'],
+            'compact', 'normal', 'tall' => self::PHONE_HEIGHT_PX[$height['mobile_height']],
+            default => match ($height['height']) {
+                'compact', 'normal', 'tall' => self::PHONE_HEIGHT_PX[$height['height']],
+                'custom' => $height['height_px'] === null ? null : min($height['height_px'], self::PHONE_HEIGHT_PX['tall']),
+                default => null,
+            },
+        };
+    }
+
+    /**
+     * @param list<string> $list
+     * @param array{int, int} $range
+     *
+     * @return array{string, int|null}
+     */
+    private static function heightChoice(array $list, mixed $word, mixed $pixels, array $range): array
+    {
+        $choice = self::choice($list, $word);
+        if ($choice !== 'custom') {
+            return [$choice, null];
+        }
+
+        $px = self::pixels($pixels, $range);
+
+        return $px === null ? [$list[0], null] : ['custom', $px];
     }
 
     /**
      * Where a band keeps its background's presentation (Responsive Media
      * 2.0): the background_ columns of cta_bands, a focus point and a phone's
      * own picture and point. No fit and no height: the picture lies behind
-     * the words and the band is as tall as they are.
+     * the words and covers the whole band, however tall the words and the
+     * band's own minimum height (minHeight()) make it.
      */
     public static function backgroundSlot(): ResponsiveImageSlot
     {
