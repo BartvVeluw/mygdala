@@ -8,8 +8,10 @@
  * CONTENT-BLOCKS.md "Detailsectie 2.0"): the SAME live resolution the website
  * uses (App\Service\Media\LinkedImages::resolve(), the module's own
  * linkedImages() provider), so the frame shows before a save exactly what the
- * visitor will see after it. Writes nothing and stores no path: the gallery
- * row keeps only the kind, the id and its own focus point.
+ * visitor will see after it, as its small preview (`preview_path`: the Media
+ * Library thumbnail where there is one, never a full-size original only to
+ * fill a small frame). Writes nothing and stores no path: the gallery row
+ * keeps only the kind, the id and its own focus point and zoom.
  *
  * Body: csrf_token, section (<page content_key>:<section_key>, the block list
  * the editor is on), kind (a LinkedImages kind), id.
@@ -73,6 +75,6 @@ if (!LinkedImages::isAvailable($kind)) {
 $image = $id === false ? null : LinkedImages::resolve($kind, (int) $id);
 
 echo json_encode([
-    'src' => $image['image_path'] ?? '',
+    'src' => $image['preview_path'] ?? '',
     'available' => $image !== null,
 ]);

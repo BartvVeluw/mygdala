@@ -113,7 +113,13 @@ final class LinkedImages
      * null when there is nothing a visitor may see: the kind unavailable, the
      * item not public or gone, or without a picture. Never throws.
      *
-     * @return array{image_path: string, alt: string, width: int|null, height: int|null, href: string, title: string}|null
+     * `preview_path` is the same picture for the CMS's focus frame, as small
+     * as there is one: the Media Library's thumbnail (MediaItem::displayPath(),
+     * 480 pixels on the long edge) when the picture is a library item, else
+     * a preview the module names itself (a legacy Portfolio thumbnail), else
+     * the picture itself. The website always shows `image_path`.
+     *
+     * @return array{image_path: string, preview_path: string, alt: string, width: int|null, height: int|null, href: string, title: string}|null
      */
     public static function resolve(string $kind, int $id): ?array
     {
@@ -139,8 +145,12 @@ final class LinkedImages
             return null;
         }
 
+        $media = isset($image['media_id']) && (int) $image['media_id'] > 0 ? MediaService::find((int) $image['media_id']) : null;
+        $preview = trim((string) ($image['preview_path'] ?? ''));
+
         return [
             'image_path' => '/' . ltrim((string) $image['image_path'], '/'),
+            'preview_path' => $media !== null ? $media->displayPath() : '/' . ltrim($preview !== '' ? $preview : (string) $image['image_path'], '/'),
             'alt' => (string) ($image['alt'] ?? ''),
             'width' => isset($image['width']) ? (int) $image['width'] : null,
             'height' => isset($image['height']) ? (int) $image['height'] : null,

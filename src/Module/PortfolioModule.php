@@ -397,8 +397,18 @@ final class PortfolioModule extends ModuleDefinition
         return [
             'portfolio_project' => static function (int $id): ?array {
                 $item = (new \App\Repository\PortfolioGalleryRepository())->findItemById($id);
+                if ($item === null) {
+                    return null;
+                }
 
-                return $item === null ? null : \App\Service\Media\BlockImage::fromOwner($item, null);
+                // A project from before the Media Library has a thumbnail
+                // of its own, which the CMS's focus frame shows instead.
+                $image = \App\Service\Media\BlockImage::fromOwner($item, null);
+                if ($image['media_id'] === null && trim((string) ($item['thumbnail_path'] ?? '')) !== '') {
+                    $image['preview_path'] = (string) $item['thumbnail_path'];
+                }
+
+                return $image;
             },
         ];
     }
