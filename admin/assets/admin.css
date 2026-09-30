@@ -1600,6 +1600,10 @@ a{ color: var(--admin-accent); }
 /* "Saved and kept, but not doing what you think right now" — nothing was
    refused, so not an error, and nothing went right either. */
 .admin-alert--warning{ background: var(--admin-accent-soft); border: 1px solid var(--admin-accent); color: var(--admin-accent); }
+/* Plain information the editor needs to act on — not help (that is the
+   switchable .admin-info-panel), not a warning: "saving this does not change
+   the website yet" (admin/color-palette.php). */
+.admin-alert--note{ background: var(--admin-surface-sunken); border: 1px solid var(--admin-border-strong); color: var(--admin-text); }
 
 /* --- A page's web address (admin/page.php, admin/page-new.php) -------------
    Shown as the link it is and changed on purpose. The change is a native
@@ -3583,6 +3587,60 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   background: var(--admin-surface-sunken);
+}
+
+/* Kleurenpaletten (admin/color-palette.php): the colours on the left, the
+   live preview of the website on the right, kept in view while scrolling
+   through the colours. Below 1100px the two stack; the preview then comes
+   first as a short sticky strip at the top of the screen, so a colour
+   change stays visible while scrolling through the fields. min-width: 0 on both columns keeps a long hex field or the
+   frame from pushing the page sideways. */
+/* A palette row on Vormgeving carries up to four actions (Bewerken,
+   Activeren, Dupliceren, Verwijderen): they wrap on a phone, like the
+   navigation and footer rows. */
+.admin-palette-row .admin-section-row__actions{ flex-wrap: wrap; }
+.admin-palette-row .admin-section-row__name{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+
+/* The two columns need the whole content width, not the 720px a plain
+   form column gets. */
+.admin-product-form.admin-palette-form{ max-width: none; }
+.admin-palette-editor{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: var(--admin-sp-5);
+  align-items: start;
+}
+.admin-palette-editor__settings,
+.admin-palette-editor__preview{ min-width: 0; }
+.admin-palette-editor__preview{
+  position: sticky;
+  top: var(--admin-sp-4);
+}
+.admin-palette-editor__colors{
+  display: grid;
+  gap: var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-4);
+}
+.admin-palette-preview{
+  display: block;
+  width: 100%;
+  height: min(40rem, calc(100vh - 12rem));
+  min-height: 22rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-sunken);
+}
+@media (max-width: 1100px){
+  .admin-palette-editor{ grid-template-columns: minmax(0, 1fr); }
+  .admin-palette-editor__preview{
+    order: -1;
+    top: 0;
+    z-index: 2;
+    margin-bottom: 0;
+    box-shadow: var(--admin-shadow-md);
+  }
+  .admin-palette-editor__preview > p{ display: none; }
+  .admin-palette-preview{ height: 30vh; min-height: 11rem; }
 }
 
 .admin-code-block{

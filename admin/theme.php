@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_theme_color_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SiteSettings;
+use App\Service\Theme\ColorPaletteService;
 use App\Service\Theme\ThemeCss;
 use App\Service\Theme\ThemeFonts;
 use App\Service\Theme\ThemeSettings;
@@ -38,42 +38,35 @@ $appearanceModules = array_filter(
     static fn (\App\Module\ModuleDefinition $module): bool => $module->switchableFromAppearance()
 );
 
+/**
+ * The colour palettes (Branding & Design 2.0, THEMING.md "Kleurenpaletten"):
+ * every palette with its state, and what can be done to it. The colours
+ * themselves are edited on admin/color-palette.php; this screen activates,
+ * duplicates and deletes. ?palette=<done> is a palette action's outcome,
+ * a refusal comes back as a session flash.
+ */
+$palettes = ColorPaletteService::all();
+$activePalette = null;
+foreach ($palettes as $palette) {
+    if ($palette['active']) {
+        $activePalette = $palette;
+    }
+}
+$paletteNotice = is_string($_GET['palette'] ?? null)
+    && in_array($_GET['palette'], ['deleted', 'duplicated', 'activated'], true) ? $_GET['palette'] : '';
+$paletteError = $_SESSION['admin_palettes_error'] ?? null;
+unset($_SESSION['admin_palettes_error']);
+
+/** The five colours, in the page themes' swatch order. */
+$swatchKeys = ['background_color', 'surface_color', 'text_color', 'primary_color', 'on_primary_color'];
+
 $values = is_array($old) ? array_merge(ThemeSettings::all(), $old) : ThemeSettings::all();
-$defaults = ThemeSettings::defaults();
 $isDefault = ThemeSettings::isDefault();
 
 $csrfToken = Csrf::token();
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
-/**
- * The five colours, in the order they build on each other: what carries the
- * brand, what sits on top of it, then the three grounds and the type.
- *
- * @var array<string, array{label: string, help: string}>
- */
-$colorFields = [
-    'primary_color' => [
-        'label' => admin_t('design.colour_primary'),
-        'help' => admin_t('design.colour_primary_help'),
-    ],
-    'on_primary_color' => [
-        'label' => admin_t('design.colour_on_primary'),
-        'help' => admin_t('design.colour_on_primary_help'),
-    ],
-    'background_color' => [
-        'label' => admin_t('design.colour_background'),
-        'help' => admin_t('design.colour_background_help'),
-    ],
-    'surface_color' => [
-        'label' => admin_t('design.colour_surface'),
-        'help' => admin_t('design.colour_surface_help'),
-    ],
-    'text_color' => [
-        'label' => admin_t('design.colour_text'),
-        'help' => admin_t('design.colour_text_help'),
-    ],
-];
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -111,25 +104,97 @@ $colorFields = [
     </div>
   <?php endif; ?>
 
+  <?php if ($paletteNotice !== ''): ?>
+    <p class="admin-alert admin-alert--success" data-palette-notice="<?= $h($paletteNotice) ?>"><?= $paletteNotice === 'activated'
+        ? admin_te('palettes.done_activated', ['name' => (string) ($activePalette['name'] ?? '')])
+        : admin_te('palettes.done_' . $paletteNotice) ?></p>
+  <?php endif; ?>
+
+  <?php if (is_string($paletteError)): ?>
+    <p class="admin-alert admin-alert--error" data-palette-error><?= $h($paletteError) ?></p>
+  <?php endif; ?>
+
+  <section class="admin-card" id="paletten" data-palettes>
+    <header class="admin-page-head">
+      <div>
+        <h2 class="admin-page-head__title"><?= admin_te('palettes.title') ?></h2>
+        <p class="admin-page-head__desc"><?= admin_t('palettes.intro') ?></p>
+      </div>
+      <a href="/admin/color-palette.php" class="admin-btn-link" data-palette-new><?= admin_te('palettes.new') ?></a>
+    </header>
+
+    <?= admin_info_panel(admin_t('help.palettes.overview')) ?>
+
+    <?php if ($activePalette === null): ?>
+      <p class="admin-alert admin-alert--warning" data-palettes-none-active><?= admin_te('palettes.none_active') ?></p>
+    <?php endif; ?>
+
+    <div class="admin-page-sections">
+      <?php foreach ($palettes as $palette): ?>
+        <?php $paletteId = (int) $palette['id']; ?>
+        <div class="admin-section-row admin-palette-row" data-palette-row="<?= $paletteId ?>"<?= $palette['active'] ? ' data-palette-active' : '' ?>>
+          <div class="admin-section-row__body">
+            <p class="admin-section-row__name">
+              <span class="admin-page-theme-swatches" aria-hidden="true">
+                <?php foreach ($swatchKeys as $swatchKey): ?>
+                  <span class="admin-page-theme-swatch" style="background:<?= $h((string) $palette[$swatchKey]) ?>;"></span>
+                <?php endforeach; ?>
+              </span>
+              <?= $h((string) $palette['name']) ?>
+              <?php if ($palette['active']): ?>
+                <span class="admin-badge admin-badge--published" data-palette-status="active"><?= admin_te('palettes.status_active') ?></span>
+              <?php else: ?>
+                <span class="admin-badge admin-badge--muted" data-palette-status="inactive"><?= admin_te('palettes.status_inactive') ?></span>
+              <?php endif; ?>
+            </p>
+            <?php if ($palette['active']): ?>
+              <p class="admin-section-row__note"><?= admin_te('palettes.active_no_delete') ?></p>
+            <?php endif; ?>
+          </div>
+          <div class="admin-section-row__actions">
+            <a href="/admin/color-palette.php?id=<?= $paletteId ?>" class="admin-section-row__edit"><?= admin_te('common.edit') ?> &#8594;</a>
+            <?php if (!$palette['active']): ?>
+              <form method="post" action="/api/admin/activate-color-palette.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                  admin_t('palettes.activate_confirm_title'),
+                  admin_t('palettes.activate_confirm', ['name' => (string) $palette['name']]),
+                  admin_t('palettes.activate')
+              ) ?>>
+                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                <input type="hidden" name="id" value="<?= $paletteId ?>">
+                <button type="submit" class="admin-btn-text"><?= admin_te('palettes.activate') ?></button>
+              </form>
+            <?php endif; ?>
+            <form method="post" action="/api/admin/duplicate-color-palette.php" class="admin-inline-form">
+              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+              <input type="hidden" name="id" value="<?= $paletteId ?>">
+              <button type="submit" class="admin-btn-text"><?= admin_te('palettes.duplicate') ?></button>
+            </form>
+            <?php if (!$palette['active'] && count($palettes) > 1): ?>
+              <form method="post" action="/api/admin/delete-color-palette.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                  admin_t('palettes.delete_confirm_title'),
+                  admin_t('palettes.delete_confirm', ['name' => (string) $palette['name']]),
+                  admin_t('common.delete')
+              ) ?>>
+                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                <input type="hidden" name="id" value="<?= $paletteId ?>">
+                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
+              </form>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
   <form method="post" action="/api/admin/update-theme-settings.php" class="admin-product-form">
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
     <section class="admin-card">
-      <h2><?= admin_te('design.kleuren') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('design.vijf_kleuren_meer_randen') ?></p>
+      <h2><?= admin_te('design.appearance_title') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('design.appearance_intro') ?></p>
 
-      <div class="admin-theme-colors">
-        <?php foreach ($colorFields as $key => $field): ?>
-          <?php $value = (string) ($values[$key] ?? $defaults[$key]); ?>
-          <?= admin_theme_color_field($key, $field['label'], $field['help'], $value, [admin_t('design.standaard', ['v1' => $h($defaults[$key])])]) ?>
-        <?php endforeach; ?>
-      </div>
-    </section>
-
-    <section class="admin-card">
-      <h2><?= admin_te('design.typografie') ?></h2>
+      <h3><?= admin_te('design.typografie') ?></h3>
       <p class="admin-text-muted"><?= admin_te('design.e_n_combinatie_kop') ?></p>
-
       <div class="admin-form-row">
         <label for="theme-font-pairing"><?= admin_te('design.lettertypecombinatie') ?>
           <select id="theme-font-pairing" name="font_pairing">
@@ -139,12 +204,9 @@ $colorFields = [
           </select>
         </label>
       </div>
-    </section>
 
-    <section class="admin-card">
-      <h2><?= admin_te('design.stijl') ?></h2>
+      <h3><?= admin_te('design.stijl') ?></h3>
       <p class="admin-text-muted"><?= admin_te('design.geldt_gewone_knoppen_ronde') ?></p>
-
       <div class="admin-form-row">
         <label for="theme-button-shape"><?= admin_te('design.knopvorm') ?>
           <select id="theme-button-shape" name="button_shape">
@@ -154,25 +216,11 @@ $colorFields = [
           </select>
         </label>
       </div>
-    </section>
 
-    <section class="admin-card">
-      <h2><?= admin_te('design.voorbeeld') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('design.indruk_gekozen_kleuren_knopvorm') ?></p>
-
-      <div class="admin-theme-preview" data-theme-preview>
-        <p class="admin-theme-preview__heading" data-theme-preview-heading><?= admin_te('design.kop_koplettertype') ?></p>
-        <p class="admin-theme-preview__body"><?= admin_t('design.lopende_tekst_zoals_bezoeker') ?></p>
-        <div class="admin-theme-preview__card" data-theme-preview-card>
-          <span class="admin-theme-preview__muted"><?= admin_te('design.kaart_zachtere_tekst') ?></span>
-        </div>
-        <span class="admin-theme-preview__btn" data-theme-preview-btn><?= admin_te('design.knop') ?></span>
+      <div class="admin-theme-actions">
+        <button type="submit"><?= admin_te('common.save') ?></button>
       </div>
     </section>
-
-    <div class="admin-theme-actions">
-      <button type="submit"><?= admin_te('common.save') ?></button>
-    </div>
   </form>
 
   <?php if ($appearanceModules !== []): ?>
@@ -235,6 +283,7 @@ $colorFields = [
     <p class="admin-text-muted"><?= admin_t('design.current_site_name', ['name' => $h(SiteSettings::get('site_name'))]) ?></p>
   </section>
 </main>
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/theme-admin.js') ?>" defer></script>
+<?= admin_confirm_dialog() ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
 </body>
 </html>
