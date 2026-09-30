@@ -9,14 +9,21 @@ use App\Repository\ThemeSettingRepository;
 use App\Service\SiteSettings;
 use App\Service\Theme\ThemeSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\ColorPaletteFixture;
 
 /**
  * Storage: saving, reading back, partial saves, and what "restore theme
  * defaults" is and is not allowed to touch.
  *
+ * Since Branding & Design 2.0 the colours are the ACTIVE colour palette
+ * (color_palettes) and the font pairing and button shape stay in
+ * theme_settings; ThemeSettings is still the one reader and writer of both,
+ * which is what these tests hold it to. The palettes themselves are
+ * ColorPaletteTest's.
+ *
  * Runs against the test database (tests/bootstrap.php makes sure it is never
- * the development one). Every test restores whatever the theme table held
- * beforehand, so a run leaves no trace — the theme is site-wide state, and a
+ * the development one). Every test restores whatever the theme table and the
+ * palettes held beforehand, so a run leaves no trace — the theme is site-wide state, and a
  * test that forgot to clean up would change how every other test's pages
  * render.
  */
@@ -25,11 +32,16 @@ final class ThemePersistenceTest extends TestCase
     /** @var array<string, string> */
     private array $before = [];
 
+    /** @var list<array<string, mixed>> */
+    private array $palettes = [];
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->before = (new ThemeSettingRepository())->findAll();
+        $this->palettes = ColorPaletteFixture::snapshot();
+        ColorPaletteFixture::only();
         ThemeSettings::clearCache();
     }
 
@@ -42,6 +54,7 @@ final class ThemePersistenceTest extends TestCase
             $repository->upsertMany($this->before);
         }
 
+        ColorPaletteFixture::restore($this->palettes);
         ThemeSettings::clearCache();
         ThemeSettings::overrideForTests(null);
 
@@ -95,11 +108,12 @@ final class ThemePersistenceTest extends TestCase
         $repository->deleteKeys(ThemeSettings::keys());
         ThemeSettings::clearCache();
 
-        ThemeSettings::save(['primary_color' => 'url(https://example.com/x.png)']);
+        ThemeSettings::save(['primary_color' => 'url(https://example.com/x.png)', 'button_shape' => 'x;}a{b:c']);
         ThemeSettings::clearCache();
 
-        $this->assertArrayNotHasKey('primary_color', $repository->findAll());
+        $this->assertSame([], $repository->findAll());
         $this->assertSame(ThemeSettings::defaults()['primary_color'], ThemeSettings::get('primary_color'));
+        $this->assertSame(ThemeSettings::defaults()['primary_color'], ColorPaletteFixture::snapshot()[0]['primary_color']);
 
         // ... and a refused value never takes the place of a valid one
         // that is already stored.
@@ -107,8 +121,42 @@ final class ThemePersistenceTest extends TestCase
         ThemeSettings::save(['primary_color' => 'url(https://example.com/x.png)']);
         ThemeSettings::clearCache();
 
-        $this->assertSame(['primary_color' => '#2F6FED'], $repository->findAll());
+        $this->assertSame('#2F6FED', ColorPaletteFixture::snapshot()[0]['primary_color']);
         $this->assertSame('#2F6FED', ThemeSettings::get('primary_color'));
+    }
+
+    public function testAColourIsSavedIntoTheActivePaletteAndNeverIntoTheThemeTable(): void
+    {
+        (new ThemeSettingRepository())->deleteKeys(ThemeSettings::keys());
+        ThemeSettings::save(['primary_color' => '#2F6FED', 'font_pairing' => 'lora-montserrat']);
+
+        $this->assertSame(['font_pairing' => 'lora-montserrat'], (new ThemeSettingRepository())->findAll());
+        $palettes = ColorPaletteFixture::snapshot();
+        $this->assertCount(1, $palettes);
+        $this->assertSame('#2F6FED', $palettes[0]['primary_color']);
+        $this->assertSame(1, (int) $palettes[0]['is_active']);
+    }
+
+    public function testAnOldColourRowIsIgnoredWhileAPaletteIsActive(): void
+    {
+        // Migration 20261003100000 removes these rows; one that comes back
+        // (a hand edit, an old backup) must not become a second source.
+        (new ThemeSettingRepository())->upsertMany(['primary_color' => '#FF0000']);
+        ThemeSettings::clearCache();
+
+        $this->assertSame(ThemeSettings::defaults()['primary_color'], ThemeSettings::get('primary_color'));
+    }
+
+    public function testResetSetsTheActivePaletteBackAndLeavesTheOthers(): void
+    {
+        ThemeSettings::save(['primary_color' => '#2F6FED']);
+        $other = \App\Service\Theme\ColorPaletteService::create(['name' => 'ZZ Ander'] + ColorPaletteFixture::COLORS);
+
+        ThemeSettings::reset();
+        ThemeSettings::clearCache();
+
+        $this->assertTrue(ThemeSettings::isDefault());
+        $this->assertSame('#FF7518', \App\Service\Theme\ColorPaletteService::find($other)['primary_color']);
     }
 
     public function testAHandEditedRowThatIsNoLongerValidFallsBackRatherThanRendering(): void

@@ -27,6 +27,17 @@ use App\Repository\ThemeSettingRepository;
  * that a fresh install is already coherent before anybody has opened the
  * theme screen.
  *
+ * WHERE THE COLOURS COME FROM (Branding & Design 2.0): the five colours are
+ * the ACTIVE colour palette (App\Service\Theme\ColorPaletteService,
+ * table color_palettes); the font pairing and the button shape are rows of
+ * theme_settings. This class stays the one reader for everything that paints
+ * a page, so no consumer knows palettes exist and there is no second source:
+ * the colour rows left theme_settings in migration 20261003100000. Only
+ * while the palette table cannot be read at all (new code on a database whose
+ * migration has not run yet) are those old rows read, so a site in the middle
+ * of an update keeps its colours. No active palette means the shipped
+ * default, exactly like an absent row always did.
+ *
  * Every value is validated on the way in against a closed set — a hex colour
  * in one fixed shape, a pairing key, a shape key. Nothing an administrator
  * types can become a CSS declaration: no url(), no var(), no calc(), no
@@ -93,9 +104,28 @@ final class ThemeSettings
             error_log('[ThemeSettings] falling back to defaults: ' . $e->getMessage());
         }
 
+        // The colours: the active palette. Only when the palettes cannot be
+        // read at all do the pre-palette colour rows count (see above).
+        $palette = null;
+        $legacyColors = false;
+        try {
+            $palette = ColorPaletteService::activeColors();
+        } catch (\Throwable $e) {
+            $legacyColors = true;
+            error_log('[ThemeSettings] colour palettes unavailable: ' . $e->getMessage());
+        }
+
         $settings = self::DEFAULTS;
+        foreach ($palette ?? [] as $key => $value) {
+            $settings[$key] = $value;
+        }
+
         foreach ($stored as $key => $value) {
             if (!array_key_exists($key, self::DEFAULTS) || $value === '') {
+                continue;
+            }
+
+            if (!$legacyColors && in_array($key, self::COLOR_KEYS, true)) {
                 continue;
             }
 
@@ -198,6 +228,11 @@ final class ThemeSettings
      * method validates again anyway, because "the only writer is careful" is
      * not a property a storage layer should have to assume.
      *
+     * A colour goes into the ACTIVE palette
+     * (ColorPaletteService::saveActiveColors()), the font pairing and the
+     * button shape into theme_settings — so the Setup Wizard, which saves the
+     * appearance it asked for through here, changes what the website shows.
+     *
      * @param array<string, mixed> $values
      */
     public static function save(array $values): void
@@ -208,7 +243,17 @@ final class ThemeSettings
             return;
         }
 
-        (new ThemeSettingRepository())->upsertMany($clean);
+        $colors = array_intersect_key($clean, array_flip(self::COLOR_KEYS));
+        $rest = array_diff_key($clean, $colors);
+
+        if ($rest !== []) {
+            (new ThemeSettingRepository())->upsertMany($rest);
+        }
+
+        if ($colors !== []) {
+            ColorPaletteService::saveActiveColors($colors);
+        }
+
         self::clearCache();
     }
 
@@ -221,10 +266,15 @@ final class ThemeSettings
      * reachable from here at all, which is exactly why the two live in
      * separate tables: "restore theme defaults" can never take a company
      * address, a logo or an invoice footer with it.
+     *
+     * The colours are the active palette's: those are set back to the
+     * shipped default (ColorPaletteService::resetActiveColors()). The other
+     * palettes are designs of their own and stay as they are.
      */
     public static function reset(): void
     {
         (new ThemeSettingRepository())->deleteKeys(array_keys(self::DEFAULTS));
+        ColorPaletteService::resetActiveColors();
         self::clearCache();
     }
 
@@ -232,6 +282,7 @@ final class ThemeSettings
     public static function clearCache(): void
     {
         self::$cache = null;
+        ColorPaletteService::forgetActive();
     }
 
     /**
@@ -248,7 +299,7 @@ final class ThemeSettings
     public static function overrideForTests(?array $values): void
     {
         if ($values === null) {
-            self::$cache = null;
+            self::clearCache();
 
             return;
         }

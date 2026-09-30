@@ -127,6 +127,8 @@ final class AdminThemePersistenceTest extends TestCase
     public function testRestoringTheWebsiteAppearanceLeavesTheDashboardThemeAlone(): void
     {
         $themeRowsBefore = (new ThemeSettingRepository())->findAll();
+        // A reset also sets the active colour palette back to the default.
+        $palettesBefore = \Tests\Support\ColorPaletteFixture::snapshot();
 
         AdminTheme::save('ocean');
 
@@ -139,6 +141,7 @@ final class AdminThemePersistenceTest extends TestCase
             if ($themeRowsBefore !== []) {
                 (new ThemeSettingRepository())->upsertMany($themeRowsBefore);
             }
+            \Tests\Support\ColorPaletteFixture::restore($palettesBefore);
             ThemeSettings::clearCache();
         }
     }

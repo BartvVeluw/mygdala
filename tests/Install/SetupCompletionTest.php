@@ -223,13 +223,18 @@ final class SetupCompletionTest extends TestCase
             $theme[(string) $row['setting_key']] = (string) $row['setting_value'];
         }
 
-        $this->assertSame('#2B6CB0', $theme['primary_color']);
         $this->assertSame('poppins-inter', $theme['font_pairing']);
         $this->assertSame('rounded', $theme['button_shape']);
 
-        // Only what was actually chosen: an unchosen colour keeps meaning
-        // "the shipped default" (THEMING.md).
-        $this->assertArrayNotHasKey('surface_color', $theme);
+        // The colours are the active colour palette (Branding & Design 2.0,
+        // THEMING.md "Kleurenpaletten"), not theme_settings rows: the chosen
+        // one changed, an unchosen one keeps the shipped default.
+        $this->assertArrayNotHasKey('primary_color', $theme);
+        $palettes = $this->install()->rows('SELECT name, primary_color, surface_color, is_active FROM color_palettes');
+        $this->assertCount(1, $palettes);
+        $this->assertSame('#2B6CB0', $palettes[0]['primary_color']);
+        $this->assertSame(\App\Service\Theme\ThemeSettings::defaults()['surface_color'], $palettes[0]['surface_color']);
+        $this->assertSame(1, (int) $palettes[0]['is_active']);
 
         $this->assertArrayNotHasKey(
             'primary_color',

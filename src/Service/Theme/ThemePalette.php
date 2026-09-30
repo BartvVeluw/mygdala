@@ -48,44 +48,108 @@ final class ThemePalette
     private const SCRIM_TOWARDS_BLACK = 0.85;
 
     /**
-     * Every derived value, keyed by the CSS custom property that carries it.
+     * THE FORMULAS, as data: every derived property and how it is made, in
+     * the order derive() returns them. One definition with two readers —
+     * derive() below, and the live preview of the palette editor
+     * (admin/assets/theme-admin.js, MygdalaTheme.derive()), which gets this
+     * list from the page (recipe()) instead of carrying formulas of its own.
+     * So the preview cannot compute a tint the website would not.
+     *
+     * An expression is one of:
+     *   'primary' | 'background' | 'surface' | 'text'   a chosen colour
+     *   '--color-…'                                     a property above it
+     *   '#RRGGBB'                                       a literal colour
+     *   ['lighten', expr, delta]                        shiftLightness()
+     *   ['mix', expr, expr, weight]                     mix()
+     *   ['channels', expr]                              channels(): 'r, g, b'
+     *
      * The keys match the derived defaults in assets/css/core.css one for one,
      * so a test can prove the two lists never drift apart.
+     */
+    private const RECIPE = [
+        '--color-primary-rgb' => ['channels', 'primary'],
+        '--color-primary-bright' => ['lighten', 'primary', self::BRIGHT_LIFT],
+        '--color-primary-bright-rgb' => ['channels', '--color-primary-bright'],
+        '--color-primary-deep' => ['lighten', 'primary', -self::DEEP_DROP],
+        '--color-primary-deep-rgb' => ['channels', '--color-primary-deep'],
+        '--color-text-rgb' => ['channels', 'text'],
+        '--color-bg-deep' => ['lighten', 'background', -self::GROUND_DROP],
+        '--color-bg-gradient-end' => ['lighten', 'background', -self::GRADIENT_DROP],
+        '--color-scrim-rgb' => ['channels', ['mix', 'background', '#000000', self::SCRIM_TOWARDS_BLACK]],
+        // The translucent veils are the ground and a raised panel seen
+        // through blur, and the media scrim is the ground bleeding over a
+        // photograph. All three therefore follow their own role rather
+        // than getting darker: on a light theme they become light, which
+        // is what keeps the text on top of them readable.
+        '--color-bg-veil-rgb' => ['channels', 'background'],
+        '--color-media-scrim-rgb' => ['channels', 'background'],
+        '--color-surface-veil-rgb' => ['channels', 'surface'],
+        '--color-surface-hover' => ['mix', 'surface', 'primary', self::SURFACE_HOVER_TOWARDS_PRIMARY],
+        '--color-surface-2' => ['mix', 'surface', 'background', self::SURFACE_2_TOWARDS_BG],
+    ];
+
+    /** The four chosen colours an expression may name. */
+    public const ROLES = ['primary', 'background', 'surface', 'text'];
+
+    /**
+     * Every derived value, keyed by the CSS custom property that carries it:
+     * RECIPE, evaluated for these four colours.
      *
      * @param array{primary: string, background: string, surface: string, text: string} $colors
      * @return array<string, string>
      */
     public static function derive(array $colors): array
     {
-        $primary = $colors['primary'];
-        $background = $colors['background'];
-        $surface = $colors['surface'];
-        $text = $colors['text'];
+        $out = [];
 
-        $bright = self::shiftLightness($primary, self::BRIGHT_LIFT);
-        $deep = self::shiftLightness($primary, -self::DEEP_DROP);
+        foreach (self::RECIPE as $property => $expression) {
+            $out[$property] = self::evaluate($expression, $colors, $out);
+        }
 
-        return [
-            '--color-primary-rgb' => self::channels($primary),
-            '--color-primary-bright' => $bright,
-            '--color-primary-bright-rgb' => self::channels($bright),
-            '--color-primary-deep' => $deep,
-            '--color-primary-deep-rgb' => self::channels($deep),
-            '--color-text-rgb' => self::channels($text),
-            '--color-bg-deep' => self::shiftLightness($background, -self::GROUND_DROP),
-            '--color-bg-gradient-end' => self::shiftLightness($background, -self::GRADIENT_DROP),
-            '--color-scrim-rgb' => self::channels(self::mix($background, '#000000', self::SCRIM_TOWARDS_BLACK)),
-            // The translucent veils are the ground and a raised panel seen
-            // through blur, and the media scrim is the ground bleeding over a
-            // photograph. All three therefore follow their own role rather
-            // than getting darker: on a light theme they become light, which
-            // is what keeps the text on top of them readable.
-            '--color-bg-veil-rgb' => self::channels($background),
-            '--color-media-scrim-rgb' => self::channels($background),
-            '--color-surface-veil-rgb' => self::channels($surface),
-            '--color-surface-hover' => self::mix($surface, $primary, self::SURFACE_HOVER_TOWARDS_PRIMARY),
-            '--color-surface-2' => self::mix($surface, $background, self::SURFACE_2_TOWARDS_BG),
-        ];
+        return $out;
+    }
+
+    /**
+     * The formulas for a reader outside PHP (the live preview), as plain
+     * data that json_encode() prints: [[property, expression], …] in order.
+     *
+     * @return list<array{0: string, 1: mixed}>
+     */
+    public static function recipe(): array
+    {
+        $list = [];
+        foreach (self::RECIPE as $property => $expression) {
+            $list[] = [$property, $expression];
+        }
+
+        return $list;
+    }
+
+    /**
+     * @param array<string, string> $colors
+     * @param array<string, string> $done the properties computed so far
+     */
+    private static function evaluate(mixed $expression, array $colors, array $done): string
+    {
+        if (is_string($expression)) {
+            if (in_array($expression, self::ROLES, true)) {
+                return $colors[$expression];
+            }
+
+            return $done[$expression] ?? $expression;
+        }
+
+        [$op] = $expression;
+
+        return match ($op) {
+            'lighten' => self::shiftLightness(self::evaluate($expression[1], $colors, $done), (float) $expression[2]),
+            'mix' => self::mix(
+                self::evaluate($expression[1], $colors, $done),
+                self::evaluate($expression[2], $colors, $done),
+                (float) $expression[3]
+            ),
+            'channels' => self::channels(self::evaluate($expression[1], $colors, $done)),
+        };
     }
 
     /**

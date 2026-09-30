@@ -106,6 +106,37 @@ final class ThemeCss
     }
 
     /**
+     * The COMPLETE colour token set of five colours, in a stable order: the
+     * five chosen roles, then every tint ThemePalette derives from them. What
+     * a page theme restates inside its scope (PageAppearance::declarations())
+     * and what the palette editor's preview starts from
+     * (admin/color-palette-preview.php); the preview's script sets the same
+     * properties from the same recipe (ThemePalette::recipe()).
+     *
+     * @param array<string, string> $colors ThemeSettings::COLOR_KEYS => #RRGGBB, already validated
+     * @return array<string, string>
+     */
+    public static function paletteDeclarations(array $colors): array
+    {
+        $out = [];
+
+        foreach (self::DIRECT as $key => $property) {
+            $out[$property] = $colors[$key];
+        }
+
+        $roles = [];
+        foreach (self::ROLES as $key => $role) {
+            $roles[$role] = $colors[$key];
+        }
+
+        foreach (ThemePalette::derive($roles) as $property => $value) {
+            $out[$property] = $value;
+        }
+
+        return array_filter($out, static fn (string $value): bool => self::isSafeValue($value));
+    }
+
+    /**
      * The override block, or an empty string when there is nothing to
      * override. Includes the trailing newline so the <head> stays readable.
      */

@@ -25,6 +25,22 @@ final class ThemeColor
     public const MIN_TEXT_CONTRAST = 4.5;
 
     /**
+     * The pairs of theme colours that must stay readable together: text on
+     * its ground, text on a card, the label on a filled button, and a link on
+     * the ground. First the foreground, then the background. The same four
+     * for every editor that picks the five colours — a website palette
+     * (admin/color-palette.php) and a page theme (admin/page-theme.php).
+     *
+     * @var list<array{0: string, 1: string}>
+     */
+    public const CONTRAST_PAIRS = [
+        ['text_color', 'background_color'],
+        ['text_color', 'surface_color'],
+        ['on_primary_color', 'primary_color'],
+        ['primary_color', 'background_color'],
+    ];
+
+    /**
      * Accepts #RGB and #RRGGBB, with or without the hash, in either case,
      * and returns the single canonical form #RRGGBB in uppercase.
      *
@@ -52,7 +68,7 @@ final class ThemeColor
     /**
      * The WCAG 2.x relative luminance of a #RRGGBB colour, 0 (black) to 1
      * (white). admin/assets/page-theme-admin.js carries the same formula for
-     * the live warning in the editor; the server-rendered warning uses this.
+     * the live warning in the editors; the server-rendered warning uses this.
      */
     public static function relativeLuminance(string $hex): float
     {
@@ -78,5 +94,34 @@ final class ThemeColor
         $lb = self::relativeLuminance($b);
 
         return (max($la, $lb) + 0.05) / (min($la, $lb) + 0.05);
+    }
+
+    /**
+     * The CONTRAST_PAIRS below MIN_TEXT_CONTRAST. A warning, never a refusal:
+     * an editor shows it and still saves. A pair with a colour that does not
+     * validate is skipped (the save itself refuses that colour).
+     *
+     * @param array<string, string> $colors keyed by ThemeSettings::COLOR_KEYS
+     * @return list<array{foreground: string, background: string, ratio: float}>
+     */
+    public static function contrastWarnings(array $colors): array
+    {
+        $warnings = [];
+
+        foreach (self::CONTRAST_PAIRS as [$foreground, $background]) {
+            $fg = self::normalise((string) ($colors[$foreground] ?? ''));
+            $bg = self::normalise((string) ($colors[$background] ?? ''));
+
+            if ($fg === null || $bg === null) {
+                continue;
+            }
+
+            $ratio = self::contrastRatio($fg, $bg);
+            if ($ratio < self::MIN_TEXT_CONTRAST) {
+                $warnings[] = ['foreground' => $foreground, 'background' => $background, 'ratio' => round($ratio, 2)];
+            }
+        }
+
+        return $warnings;
     }
 }

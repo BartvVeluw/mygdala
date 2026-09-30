@@ -89,20 +89,7 @@ final class PageAppearance
      */
     public function declarations(): array
     {
-        $out = [];
-
-        foreach (ThemeCss::DIRECT as $key => $property) {
-            $out[$property] = $this->colors[$key];
-        }
-
-        $roles = [];
-        foreach (ThemeCss::ROLES as $key => $role) {
-            $roles[$role] = $this->colors[$key];
-        }
-
-        foreach (ThemePalette::derive($roles) as $property => $value) {
-            $out[$property] = $value;
-        }
+        $out = ThemeCss::paletteDeclarations($this->colors);
 
         $pairing = ThemeFonts::pairing($this->fontPairing);
         $out['--font-display'] = $pairing['heading'];

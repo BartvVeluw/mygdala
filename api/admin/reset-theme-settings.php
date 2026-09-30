@@ -5,7 +5,8 @@
  *
  * "Restore theme defaults": deletes the stored theme rows so every visual
  * setting falls back to what App\Service\Theme\ThemeSettings declares in
- * code.
+ * code, and sets the ACTIVE colour palette's colours back to that default
+ * (ThemeSettings::reset()). Every other palette is kept as it is.
  *
  * WHAT IT DOES NOT DO, on purpose. It does not touch the site name, the
  * logo, the alternate logo, the favicon, the default social image, the

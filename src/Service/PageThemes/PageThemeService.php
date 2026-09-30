@@ -47,18 +47,13 @@ final class PageThemeService
     public const MAX_NAME_LENGTH = 80;
 
     /**
-     * The pairs of colours that must stay readable together: text on its
-     * ground, text on a card, the label on a filled button, and a link on
-     * the ground. First the foreground, then the background.
+     * The pairs of colours that must stay readable together. Core's list
+     * (App\Service\Theme\ThemeColor::CONTRAST_PAIRS), shared with the
+     * website's colour palettes.
      *
      * @var list<array{0: string, 1: string}>
      */
-    public const CONTRAST_PAIRS = [
-        ['text_color', 'background_color'],
-        ['text_color', 'surface_color'],
-        ['on_primary_color', 'primary_color'],
-        ['primary_color', 'background_color'],
-    ];
+    public const CONTRAST_PAIRS = ThemeColor::CONTRAST_PAIRS;
 
     /** @var array<int, array<string, mixed>|null> per-request cache, by id */
     private static array $themes = [];
@@ -303,23 +298,7 @@ final class PageThemeService
      */
     public static function contrastWarnings(array $colors): array
     {
-        $warnings = [];
-
-        foreach (self::CONTRAST_PAIRS as [$foreground, $background]) {
-            $fg = ThemeColor::normalise((string) ($colors[$foreground] ?? ''));
-            $bg = ThemeColor::normalise((string) ($colors[$background] ?? ''));
-
-            if ($fg === null || $bg === null) {
-                continue;
-            }
-
-            $ratio = ThemeColor::contrastRatio($fg, $bg);
-            if ($ratio < ThemeColor::MIN_TEXT_CONTRAST) {
-                $warnings[] = ['foreground' => $foreground, 'background' => $background, 'ratio' => round($ratio, 2)];
-            }
-        }
-
-        return $warnings;
+        return ThemeColor::contrastWarnings($colors);
     }
 
     /** @return array<string, mixed>|null */
