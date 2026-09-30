@@ -554,3 +554,44 @@ het blok geen hoogte heeft. De tweede afbeelding van een Hover-kaart is een
 andere blik, geen tweede plek om in te stellen. En de Kaarten-carrousel kiest
 één beeldverhouding voor al zijn kaarten in een rij, niet per kaart: een rij
 kaarten met verschillende vormen staat scheef.
+
+## Responsive Media 3.0: zoom rond het punt, en een editor die pas wakker wordt als hij in beeld komt
+
+Een punt kiest welk deel van een foto in het kader blijft, maar niet hoe
+dichtbij. Een zoom erbij, in dezelfde waarde, in hetzelfde veld: geen tweede
+beeldeditor.
+
+**Hele procenten, 100–200.** Zoals het punt: een getal dat een redacteur
+leest ("125%") en dat zonder omrekenen opgeslagen, gevalideerd en getest
+wordt, in een `TINYINT`. 100 is precies wat `cover` al deed, dus een
+bestaand beeld hoeft niets en verandert niets. Boven 200% wordt de thumbnail
+in de editor te grof en de foto op de site zelden nog mooi.
+
+**CSS `scale` rond het punt, geen transform per blok en geen canvas.**
+`transform-origin` op het focuspunt houdt het punt op zijn plaats, en omdat
+het vergrote beeld altijd zijn hele eigen box bedekt, ontstaat er bij geen
+enkel punt een lege rand; een aparte "pan"-waarde naast het punt was dus niet
+nodig, en het punt en de negen voorinstellingen betekenen bij elke zoom
+hetzelfde. `scale` in plaats van `transform`, zodat het inzoomen van een
+Hover-kaart bij aanwijzen er gewoon bovenop komt. Een cropper met canvas
+had een tweede weergave gemaakt die van de site kan afwijken, en een
+externe bibliotheek; nu is de preview letterlijk de CSS van de site.
+
+**De zoom hoort bij het punt, ook op een telefoon.** Een telefoon met een
+eigen punt (eigen foto of eigen punt) krijgt een eigen zoom; een telefoon die
+het desktoppunt volgt, volgt ook de desktopzoom. Een aparte telefoonzoom bij
+een gedeeld punt zou een vierde schakelaar in het telefoondeel vragen voor
+een keuze die bijna niemand maakt.
+
+**Contain bewaart de zoom.** De zoomrij verdwijnt en de site negeert hem,
+maar de waarde blijft opgeslagen: wie even *Hele afbeelding* probeert en
+terugschakelt, verliest niets.
+
+**Lui laden en lui wekken, gemeten.** De meting vooraf wees uit dat niet het
+script duur was (de listeners waren al gedelegeerd, slepen al per frame),
+maar de beelden: elke preview laadde meteen, ook in ingeklapte rijen en
+verborgen telefoonkaders, en een gelinkt product, project of bericht toonde
+zijn origineel (±400 KB) in een kader van 20rem. Dus: de thumbnail van de
+bibliotheek als preview, `loading="lazy"`, en een veld dat pas gewekt wordt
+als het in de buurt van het beeld komt. De server print de hele staat, dus
+een ongewekt veld is niet kapot maar alleen nog niet interactief.

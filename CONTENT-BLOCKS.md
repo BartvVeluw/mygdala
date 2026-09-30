@@ -367,10 +367,12 @@ product is een eigen instantie en kan dus niet van betekenis veranderen.
 - **Focuspunt per galerij-item** (v0.1.13): een galerij-item staat in een
   vierkant (`object-fit: cover`), dus welk deel zichtbaar is, is een keuze van
   dat item. Het is een plek van Responsive Media (`MEDIA.md`,
-  `DetailSectionContent::imageSlot()`: alleen een focuspunt, geen weergave,
+  `DetailSectionContent::imageSlot()`: een focuspunt en sinds v0.1.14 een
+  zoom (`image_zoom`), geen weergave,
   geen telefoonhoogte, geen telefoonafbeelding) met de gedeelde editor per
   rij, zonder telefoondeel: de strook op een telefoon toont hetzelfde vierkant
-  met hetzelfde punt. Opgeslagen op de galerijrij (`image_focus_x/y`),
+  met hetzelfde punt en dezelfde zoom. Opgeslagen op de galerijrij
+  (`image_focus_x/y`, `image_zoom`),
   nooit op het bibliotheekitem of op het product, project of bericht: krijgt
   dat item later een andere foto, dan staat die meteen in beeld met het punt
   van hier. Het kader in de editor volgt de bron van de rij meteen, zonder

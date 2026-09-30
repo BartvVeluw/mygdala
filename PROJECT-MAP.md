@@ -206,7 +206,7 @@ zelf om zijn bestanden. Er is geen globale `style.css`/`main.js` meer.
 | **Blog** | `assets/css/blog/blog.css` | Alleen `/blog` en de berichten/archieven eronder; gevraagd door die routes, nooit door de schil |
 | **Gedeeld** | `assets/js/lightbox.js` | Een pagina met een zoombare kaart of een Portfolio-projectpagina; gevraagd door de blokken en `portfolio-detail.php`, nooit door de schil |
 | **Gedeeld (mediareeks)** | `assets/js/media-sequence.js`, `assets/css/media-sequence.css` | Een pagina met een Paginakop of Mediabanner; gevraagd door `PageHeroBlock` en `MediaBannerBlock`, nooit door de schil |
-| **Gedeeld (Responsive Media)** | `assets/css/responsive-media.css` | Een pagina met een blok dat een beeld via `partials/responsive-image.php` print; gevraagd als eerste stylesheet door die blokken (Kaarten-carrousel, Tekst met afbeelding, Paginakop, Oproep met knop, Mediabanner, Hover kaarten, Homepage-hero), nooit door de schil |
+| **Gedeeld (Responsive Media)** | `assets/css/responsive-media.css` | Een pagina met een blok dat een beeld via `partials/responsive-image.php` print; gevraagd als eerste stylesheet door die blokken (Kaarten-carrousel, Tekst met afbeelding, Paginakop, Oproep met knop, Mediabanner, Hover kaarten, Homepage-hero, Detailsectie), nooit door de schil. Punt en zoom (3.0) op een telefoon |
 | **Route** | `assets/js/personalization.js` | Alleen die route |
 | **Thema** | `<style id="site-theme">`, server-gerenderd | Ná alle stylesheets, en alléén als de vormgeving van de standaard afwijkt (`THEMING.md`) |
 

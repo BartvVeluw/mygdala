@@ -524,8 +524,14 @@ de regels `.admin-rm` in `admin.css`. Het staat op een kaart van de
 Kaarten-carrousel, een item van Tekst met afbeelding, de Paginakop, de
 achtergrond van een Oproep met knop, de Mediabanner, een kaart van Hover
 kaarten (de hoofdafbeelding), de Homepage-hero (alleen bij een afbeelding) en
-elk galerij-item van een Detailsectie (alleen het focuspunt, `'mobile' =>
+elk galerij-item van een Detailsectie (alleen focuspunt en zoom, `'mobile' =>
 false`, legend *Focuspunt*).
+
+Compact per kader: het voorbeeld, de negen punten, de schuiven *Horizontaal*,
+*Verticaal* en *Zoom* met hun waarde, en één knop *Afbeelding resetten*. De
+korte hint staat onder de schuiven; de langere uitleg (slepen = welk deel van
+de foto centraal staat, zoom = hoe ver je inzoomt, resetten = midden en 100%)
+zit achter de helpknop van het veld.
 
 - **Focuspunt.** Het voorbeeld is een kader met de vorm van de plek
   (`--admin-rm-desktop-ratio`, gezet door het scherm of met `:has()` uit de
@@ -535,8 +541,10 @@ false`, legend *Focuspunt*).
   `touch-action: none`, zodat een vinger niet de pagina schuift; de pointer
   wordt vastgehouden tot hij loslaat, en het kader tekent hoogstens één keer
   per animatieframe. Alleen de richting waarin de afbeelding groter is dan het
-  kader beweegt iets. Ernaast staan de negen punten van één klik, elk met
-  `aria-pressed`.
+  kader beweegt iets; bij een zoom boven 100% is het beeld in beide richtingen
+  groter dan het kader, dus beweegt het in beide, en een pixel slepen is
+  een pixel beeld. Ernaast staan de negen punten van één klik, elk met
+  `aria-pressed`; ze werken bij elke zoom.
 - **De twee schuiven zijn de waarde.** *Horizontaal* en *Verticaal*, 0–100 in
   stappen van 1, met `aria-valuetext` ("37%"). Het toetsenbord en een
   schermlezer gebruiken die (pijltjestoetsen, Page Up/Down, Home/End); het
@@ -544,6 +552,17 @@ false`, legend *Focuspunt*).
   (`aria-live="polite"`). Slepen en de negen punten zetten alleen de schuiven
   en sturen dezelfde `input` en `change`, dus de opslagbalk hoort één gewone
   wijziging.
+- **Zoom** (Responsive Media 3.0): een derde schuif, 100–200% in stappen van
+  1, met de waarde ernaast (`<output>`, "125%") en als `aria-valuetext`. Het
+  voorbeeld verandert direct, zonder verzoek naar de server: dezelfde CSS
+  `scale` rond het punt als de site (`MEDIA.md`, "Zoom"), in een kader dat
+  afknipt. *Afbeelding resetten* (een tekstknop, pas zichtbaar met het
+  script) zet het punt op 50/50 en de zoom op 100%, als één gewone wijziging.
+  Bij *Hele afbeelding* verdwijnt de zoomrij (`.is-contained .admin-rm__zoom`);
+  de waarde blijft in het formulier en wordt gewoon opgeslagen, dus terug
+  naar *Vullen* brengt de oude zoom terug. Het telefoonkader heeft zijn eigen
+  zoom, die hoort bij het eigen telefoonpunt. Wiel- of knijpzoom is bewust
+  niet gebouwd: de schuif is voorspelbaar en toegankelijk.
 - **Weergave in het kader**, waar de plek die heeft: *Vullen* of *Hele
   afbeelding* als `.admin-segmented`. Bij *Hele afbeelding* toont het kader
   de hele afbeelding en valt er niets te slepen.
@@ -563,7 +582,12 @@ false`, legend *Focuspunt*).
   script. Er is geen animatie in het veld: slepen volgt de pointer direct, dus
   *minder beweging* vraagt hier niets extra.
 - **Een rij die later komt** (*Item toevoegen*, *Kaart toevoegen*): het script
-  is gedelegeerd en tekent een nieuw veld bij `row-list:added`.
+  is gedelegeerd en wekt een nieuw veld bij `row-list:added`.
+- **Licht op een lang scherm.** Het voorbeeld is de thumbnail, met
+  `loading="lazy"`; het script wekt een veld pas als het binnen één
+  schermhoogte komt (`IntersectionObserver`, `data-rm-ready`) of als iemand
+  het eerder bereikt, en alle velden delen één set listeners op `document`
+  (`MEDIA.md`, "Licht in het CMS").
 - **Een beeld dat niet uit een mediakiezer komt** (de foto van een product,
   project of blogbericht in een Detailsectie-galerij): een ander script
   (`admin/assets/gallery-source.js`, dat de foto live opvraagt bij
@@ -571,7 +595,8 @@ false`, legend *Focuspunt*).
   `rm:picture`-event met de URL in `detail.src`; het kader toont hem, of
   verbergt zich bij `''`.
 - **Teksten** komen uit `media.responsive.*` (Nederlands en Engels); het
-  script heeft geen eigen woorden (`data-rm-value-template`).
+  script heeft geen eigen woorden (`data-rm-value-template`,
+  `data-rm-zoom-template`).
 - **Een melding** staat per onderdeel bij het veld (`presentation.<onderdeel>`
   in de foutenlijst van het scherm).
 

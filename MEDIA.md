@@ -494,17 +494,25 @@ Hoe een beeld in zijn kader valt is een keuze van de plek die het toont, niet
 van het bibliotheekitem: dezelfde foto kan in een carrouselkaart op een gezicht
 gericht staan en in een banner op de horizon. Sinds Responsive Media 2.0 heeft
 elke plek die een beeld bijsnijdt dezelfde keuzes, in één veld in de editor,
-*Afbeeldingsweergave* (`ADMIN-UI.md`):
+*Afbeeldingsweergave* (`ADMIN-UI.md`). Responsive Media 3.0 (v0.1.14) voegde
+de zoom toe:
 
 | Keuze | Opslag | Standaard |
 |---|---|---|
 | Focuspunt | `<prefix>focus_x`, `<prefix>focus_y`: hele procenten 0–100, precies wat CSS `object-position` betekent | 50 / 50, het midden |
+| Zoom | `<prefix>zoom`: hele procenten 100–200 (`ResponsiveImage::ZOOM_MIN`/`ZOOM_MAX`), `TINYINT UNSIGNED NOT NULL` | 100: het kader precies gevuld zoals `cover` het vult |
 | Afbeelding op een telefoon | `<prefix>mobile_media_id`, een afbeelding uit de bibliotheek, `ON DELETE RESTRICT` | `NULL`: de desktopafbeelding |
 | Focuspunt op een telefoon | `<prefix>mobile_focus_x`, `<prefix>mobile_focus_y` | `NULL`: volgt het desktoppunt |
+| Zoom op een telefoon | `<prefix>mobile_zoom`, alleen samen met het eigen telefoonpunt | `NULL` zolang de telefoon het desktoppunt volgt; een telefoonpunt zonder zoom (van vóór 3.0) leest als 100 |
 | Weergave in het kader | `<prefix>fit`: `cover` (vullen, bijsnijden) of `contain` (de hele afbeelding); `<prefix>mobile_fit` | `cover`; op een telefoon `NULL`: zoals op een groot scherm |
 | Hoogte op een telefoon | `<prefix>mobile_height`: `compact`, `normal` of `large` | `NULL`: de eigen hoogte van het blok |
 
 De acht plekken, en welke keuzes ze hebben:
+
+Elke plek heeft een zoom: ze snijden allemaal bij met `object-fit: cover` in
+een kader van het blok zelf (de audit van 3.0 vond geen plek met een
+natuurlijke, onbijgesneden verhouding). Waar een redacteur *Hele afbeelding*
+koos, doet de zoom niets (hieronder).
 
 | Plek | Tabel, prefix | Weergave | Telefoonhoogte |
 |---|---|---|---|
@@ -527,7 +535,9 @@ migratie `20260928220000` zette elke opgeslagen sleutel om in precies zijn
 punt (0, 50 of 100 per as; iets anders werd het midden) en haalde de
 sleutelkolom weg: één waarheid per beeld. `20260928230000` voegde de
 telefoonkolommen toe, voor een bestaande rij allemaal `NULL` of de
-standaard: zoals het was.
+standaard: zoals het was. `20261002100000` voegde op alle acht plekken
+`<prefix>zoom` (100) en `<prefix>mobile_zoom` (`NULL`) toe, direct na het
+telefoonpunt: elk bestaand beeld blijft precies wat het was.
 
 **Eén breekpunt.** Een telefoon is ten hoogste 640px breed
 (`ResponsiveImage::MOBILE_MAX_WIDTH`). Hetzelfde getal staat in de
@@ -565,20 +575,58 @@ geen derde afbeelding, en elk ander blok houdt 640px.
   downloadt één van de twee, nooit allebei, en de alt-tekst staat alleen op
   de `<img>`: het is dezelfde inhoud. `.rm-picture` heeft `display: contents`,
   dus elke regel van een blok voor "de afbeelding in dit kader" blijft werken;
-- een eigen punt of weergave op een telefoon als custom property
-  (`--rm-mobile-position`, `--rm-mobile-fit`) plus een data-attribuut dat hem
-  onder het breekpunt aanzet. Daar is `!important` nodig, omdat de
-  desktopwaarde inline staat; het geldt alleen voor een `<img>` met dat
-  attribuut, en dat attribuut staat er alleen als een telefoon echt iets
-  anders toont.
+- een eigen punt, weergave of zoom op een telefoon als custom property
+  (`--rm-mobile-position`, `--rm-mobile-fit`, `--rm-mobile-zoom`) plus een
+  data-attribuut dat hem onder het breekpunt aanzet. Daar is `!important`
+  nodig, omdat de desktopwaarde inline staat; het geldt alleen voor een
+  `<img>` met dat attribuut, en dat attribuut staat er alleen als een telefoon
+  echt iets anders toont;
+- een zoom als de CSS-eigenschap `scale` op diezelfde `<img>`, met
+  `transform-origin` op het focuspunt (hieronder).
 
-Geen andere partial print een `<source>` of een `object-position`, en elk blok
-dat deze partial gebruikt vraagt `assets/css/responsive-media.css` als eerste
-stylesheet aan (`App\Service\PageAssets`).
+Geen andere partial print een `<source>`, een `object-position` of een zoom,
+en elk blok dat deze partial gebruikt vraagt `assets/css/responsive-media.css`
+als eerste stylesheet aan (`App\Service\PageAssets`).
+
+**Zoom.** Een zoom vergroot het beeld rond het focuspunt: `scale: 1.5;
+transform-origin: <punt>`. Daardoor blijft het punt op zijn plaats en bedekt
+het vergrote beeld bij elk punt het hele kader, ook bij 0/0 of 100/100 op
+200%: er ontstaat nooit een lege rand. De negen voorinstellingen werken bij
+elke zoom (linksboven + 150% zoomt in op de linkerbovenhoek). Het is `scale`
+en niet `transform`, zodat een eigen `transform` van een blok (het inzoomen
+van *Hover kaarten* bij aanwijzen) er gewoon bovenop komt. Bij 100% print de
+partial niets nieuws: de `<img>` is teken voor teken die van vóór 3.0.
+
+- **Geen layout shift.** De zoom verandert de box van de `<img>` niet; elk
+  kader waarin een beeld met een punt staat knipt af (`overflow: hidden`):
+  `.orbit-card__media` (sinds 3.0), `.text-image__media`, `.page-hero__media`
+  en `.page-hero__figure`, `.cta-band__media`, `.media-banner` en
+  `.media-sequence`, `.hover-card__frame`, `.hero__media-frame`, en het
+  galerij-item van de Detailsectie zelf (sinds 3.0 het kader: rand, schaduw
+  en afronding staan op `.service-detail__gallery-item`, het beeld is een
+  kaal vierkant, en de focusring van een gelinkt item hoort bij het item).
+  `Tests\Service\ResponsiveMediaZoomContractTest` houdt die lijst vast.
+- **Cover en contain.** Alleen `cover` zoomt. Bij `contain` print de partial
+  geen zoom (`ResponsiveImage::zoomFor()`), maar de opgeslagen waarde blijft
+  staan: terug naar *Vullen* en de oude zoom is terug. Een telefoon die de
+  afbeelding heel toont krijgt `--rm-mobile-zoom: 1`.
+- **Telefoon.** De zoom hoort bij het punt. Heeft een telefoon een eigen punt
+  (een eigen telefoonafbeelding, of *Mobiel focuspunt apart instellen*), dan
+  heeft hij ook een eigen zoom (`<prefix>mobile_zoom`, in het telefoonkader
+  van de editor). Gebruikt de telefoon het desktoppunt, dan ook de
+  desktopzoom; er komt geen extra bediening bij. De Kaarten-carrousel schakelt
+  de telefoonzoom op zijn eigen compacte breedte (699px), zoals het punt; een
+  compacte plek (`ResponsiveImage::compact()`) toont de telefoonzoom overal.
+  Een dia van een reeks houdt het desktoppunt en dus ook de desktopzoom.
+- **Klikbaar.** Een gelinkt beeld (een gelinkt Detailsectie-item, een Hover
+  kaart met link) blijft één link: het vergrote beeld zit binnen de link en
+  binnen het kader, dus elk punt van het kader raakt de link.
 
 **Validatie.** `ResponsiveImage::fromRequest()`: een punt dat een getal is
-wordt geklemd op 0–100 (een schuif kan niet meer sturen, een nagemaakt
-verzoek wel); al het andere wordt geweigerd met een zin bij het veld: een
+wordt geklemd op 0–100 en een zoom op 100–200 (een schuif kan niet meer
+sturen, een nagemaakt verzoek wel); een zoom die geen getal is (`NaN`, `INF`,
+`1e3`, `150%`, een lijst) wordt geweigerd, net als al het andere met een zin
+bij het veld: een
 woord buiten zijn gesloten lijst, en een telefoonafbeelding die geen
 afbeelding uit de bibliotheek is. Dat laatste is strenger dan
 `MediaService::findImage()` (die alleen een video weigert): een
@@ -622,14 +670,58 @@ niet op de site zelf.
    `ResponsiveImage::fromRow($row, $slot)->forRender($image)` naast het beeld.
 3. Partial: `render_responsive_image()`, met een terugval voor een inhoud
    zonder weergave (het voorbeeld in de blokkenbibliotheek); het blok vraagt
-   `assets/css/responsive-media.css` als eerste aan.
+   `assets/css/responsive-media.css` als eerste aan, en het kader van het beeld
+   knipt af (`overflow: hidden`), anders loopt een zoom erbuiten.
 4. Editor: `responsive_image_field()`, de vorm van de plek als
    `--admin-rm-desktop-ratio` en `--admin-rm-mobile-ratio`, en één keer
-   `responsive_image_field_script()`.
+   `responsive_image_field_script()`. Als preview de kleine versie
+   (`MediaItem::displayPath()`, bij een gelinkt item
+   `LinkedImages::resolve()['preview_path']`). Een rij-editor geeft de velden
+   van een opgeslagen rij door als `ResponsiveImage::fromRow()->toRow()`,
+   nooit met de hand: zo komt elke kolom van het slot (ook de zoom) in het
+   formulier.
 5. Endpoint: `ResponsiveImage::fromRequest()`, fouten als
-   `presentation.<onderdeel>`, schrijven in dezelfde transactie.
+   `presentation.<onderdeel>`, schrijven in dezelfde transactie. Een lijst met
+   rijen zet `presentation`, `focus_x`, `focus_y`, `zoom` (en waar de
+   telefoon er is `mobile_source`, `mobile_focus_x/y`, `mobile_zoom`, `fit`,
+   `mobile_fit`) in de preset van `EditorChildList`: die velden komen
+   ingevuld mee en maken een lege nieuwe rij geen rij.
 6. Een tak voor `<prefix>mobile_media_id` in `ContentBlockMediaUsage`.
-7. De plek in `ResponsiveMediaContractTest` en in de tabel hierboven.
+7. De plek in `ResponsiveMediaContractTest`, het kader in
+   `ResponsiveMediaZoomContractTest::FRAMES` en de plek in de tabel hierboven.
+
+### Licht in het CMS
+
+Een scherm met veel beelden (een Detailsectie met 24 galerij-items) mag door
+focus en zoom niet zwaarder worden. Het contract, vastgelegd in
+`ResponsiveMediaZoomContractTest` en gemeten in v0.1.14 (`TESTING.md`,
+"Performance van de editor"):
+
+- **Kleine previews.** Het kader toont de thumbnail van de bibliotheek (480px
+  lange zijde), ook voor een gelinkt product, project of bericht
+  (`LinkedImages::resolve()['preview_path']`, en zo ook het antwoord van
+  `api/admin/linked-image-preview.php`); nooit het origineel alleen om een
+  kader van 20rem te vullen. Alleen een beeld van vóór de bibliotheek zonder
+  kleinere versie toont zijn eigen pad.
+- **Lui laden.** Elke preview heeft `loading="lazy" decoding="async"`: een
+  kader ver onder de vouw, in een ingeklapte rij of in het dichte deel *Op een
+  telefoon* downloadt niets tot het bijna in beeld komt.
+- **Lui wekken.** `admin/assets/responsive-image.js` wekt een veld pas als het
+  binnen één schermhoogte van het beeld komt (`IntersectionObserver`), als een
+  rijlijst het toevoegt, of als iemand het eerder met muis of Tab bereikt; een
+  gewekt veld heeft `data-rm-ready`. De server print de staat al, dus een
+  ongewekt veld ziet er goed uit en post goed. Zonder `IntersectionObserver`
+  wekt het script alles meteen, zoals vroeger.
+- **Vaste listeners.** Eén set gedelegeerde listeners op `document` (elf),
+  hoeveel velden er ook zijn; geen listener op een veld, kader of beeld. Een
+  rij die een rijlijst uit de DOM haalt meldt dat eerst (`row-list:removed`),
+  en het script laat dan de waarneming los. Blok-editors verwijderen een rij
+  pas bij opslaan (de schakelaar *Verwijderen*); daar valt niets op te ruimen.
+- **Eén tekening per frame.** Slepen tekent hoogstens één keer per
+  animatieframe (`requestAnimationFrame`); een schuif tekent direct, en dat
+  kost minder dan 0,02 ms.
+- **Geen canvas, geen library.** Zoom is CSS (`scale`) op het bestaande
+  `<img>`, in de editor en op de site.
 
 ## Waar wordt dit gebruikt?
 

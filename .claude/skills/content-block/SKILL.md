@@ -105,8 +105,9 @@ en `GenericBlockDefaultsTest` bewaken beide.
   Responsive Media (`MEDIA.md`, "Een plek aansluiten"): een
   `ResponsiveImageSlot`, `render_responsive_image()` in de partial,
   `responsive_image_field()` in de editor en de plek in
-  `ResponsiveMediaContractTest`. Nooit een eigen `object-position` of
-  `<picture>`.
+  `ResponsiveMediaContractTest`. Het kader knipt af (`overflow: hidden`, en
+  het kader in `ResponsiveMediaZoomContractTest::FRAMES`), anders loopt een
+  zoom erbuiten. Nooit een eigen `object-position`, `scale` of `<picture>`.
 - **Eén blok, meer kiezerkaarten?** Implementeer `OffersPickerPresets`
   (presets, zoals de galerij als Collectiegalerij en Portfoliogalerij), nooit
   een tweede bloktype met dezelfde tabel of editor (`PAGE-EDITOR.md`).

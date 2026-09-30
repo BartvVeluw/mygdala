@@ -1029,9 +1029,9 @@ afbeelding of de flyouts van het menu** (`hover_card_grid`,
                         wegwerpdatabases mygdala_scratch_hover_sequence_*)
 ```
 
-**Wijziging aan de weergave van een beeld: focuspunt, telefoonafbeelding,
-vullen of hele afbeelding, beeldverhouding op een rij** (Responsive Media,
-`MEDIA.md`)
+**Wijziging aan de weergave van een beeld: focuspunt, zoom,
+telefoonafbeelding, vullen of hele afbeelding, beeldverhouding op een rij**
+(Responsive Media, `MEDIA.md`)
 
 ```
 --testsuite fast        ResponsiveImageTest en ResponsiveImageRenderTest
@@ -1048,6 +1048,22 @@ vullen of hele afbeelding, beeldverhouding op een rij** (Responsive Media,
                         ResponsiveMediaMigrationTest (ook in migration en
                         migration-backfill: vers en na een upgrade, met
                         wegwerpdatabases mygdala_scratch_responsive_media_*)
+--testsuite fast        (3.0, v0.1.14) ResponsiveImageZoomTest (ook in unit
+                        en blocks): de zoom zonder database, klemmen en
+                        weigeren, telefoonzoom bij het eigen punt, 100% is
+                        de oude <img>; ResponsiveMediaZoomContractTest (ook
+                        in contract en blocks): elk kader knipt af, alleen de
+                        partial zoomt, het zoomveld, lui wekken, vaste
+                        listeners, thumbnails als preview
+--testsuite blocks      ResponsiveImageZoomHttpTest (BuiltInServer: een
+                        kaart met zoom en telefoonzoom, klemmen en weigeren,
+                        contain en terug, een getuige per plek (alle acht)
+                        op pagina en in de editor, de vier bronnen van een
+                        Detailsectie, een lege nieuwe rij, geen nieuw
+                        gebruik); ResponsiveMediaZoomMigrationTest (ook in
+                        migration: vers en na een upgrade, 100 en NULL, niets
+                        anders veranderd, opnieuw draaien, met
+                        wegwerpdatabases mygdala_scratch_rm_zoom_*)
 ```
 
 **Wijziging aan de koppen van een blok met kaarten**
@@ -1118,6 +1134,33 @@ lijst bij. `ContentBlockMediaUsageOwnerHttpTest` (de links in het mediagebruik
 voor een Pagina-, Shop-, Portfolio- en super-admin; `blocks` en `shop`) en
 `LinkedImagePreviewHttpTest` (de live foto van een galerijbron voor het
 focuskader, wat niet openbaar is, wie mag vragen; `blocks`).
+
+### Performance van de editor (Responsive Media 3.0)
+
+De focus- en zoomeditor mag een scherm met veel beelden niet zwaarder maken.
+Het contract staat in `ResponsiveMediaZoomContractTest`; de meting die het
+onderbouwt is geen PHPUnit-test, want een browser moet renderen. Ze is in
+v0.1.14 zo gedaan, en zo te herhalen:
+
+- een wegwerpcontainer van het image met `php -S` op de worktree én een op de
+  hoofduitchecking (de code van vóór de wijziging), beide op dezelfde
+  wegwerpdatabase met een zware testpagina: een Detailsectie met 24
+  galerij-items (12 bibliotheek, 4 product, 4 project, 4 bericht), Hover
+  kaarten met 12 en Tekst met afbeelding met 8 items (4 met een eigen
+  telefoonafbeelding), echte JPEG's van 3000×2000 door de echte uploader;
+- headless Chrome over het DevTools-protocol met een eigen tijdelijk profiel,
+  elke meting in een eigen browsercontext (eigen renderer, lege cache), base
+  en na om en om, vijf keer, de mediaan;
+- per scherm: beeldverzoeken en bytes bij het laden, gewekte velden,
+  listeners op `document` en binnen de velden
+  (`DOMDebugger.getEventListeners`), heap na een GC, DOMContentLoaded en load,
+  dan scrollen door het hele scherm (frames, lange taken), een invoer tot het
+  volgende frame, een ingeklapte rij openen, een rij toevoegen en markeren
+  voor verwijderen, en consolefouten.
+
+Het Browser-paneel van de app is hiervoor ongeschikt zolang het verborgen is:
+dan draait er geen `requestAnimationFrame` en laadt geen enkele luie
+afbeelding.
 
 ### Labels, focuspunten en de menuboom (v0.1.13)
 
