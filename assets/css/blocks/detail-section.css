@@ -32,9 +32,12 @@
 .service-detail__gallery-item:has(.service-detail__gallery-link:hover){ border-color: var(--color-line-strong); }
 
 /* A LINKED ITEM WITHOUT A MAIN PICTURE yet (Detailsectie 2.1): the same
-   square in the site's own wash, its name on it in the text colour instead
-   of white on a shadow. */
-.service-detail__gallery-blank{ display: block; aspect-ratio: 1; background: var(--color-primary-wash); }
+   square as a card of its own, the surface colour under the site's wash, its
+   name on it in the text colour instead of white on a shadow. The wash alone
+   is 10% of the primary over the page background, which on a dark palette or
+   page theme left a square hardly lighter than the page, read as a missing
+   picture. */
+.service-detail__gallery-blank{ display: block; aspect-ratio: 1; background: linear-gradient(var(--color-primary-wash), var(--color-primary-wash)), var(--color-surface); }
 .service-detail__gallery-item--name .service-detail__gallery-caption{ background: none; color: var(--color-text); }
 
 .service-detail__gallery-controls{ display: none; }

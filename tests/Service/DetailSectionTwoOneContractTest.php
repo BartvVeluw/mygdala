@@ -79,6 +79,11 @@ final class DetailSectionTwoOneContractTest extends TestCase
 
         $css = self::source('assets/css/blocks/detail-section.css');
         $this->assertStringContainsString('.service-detail__gallery-blank{ display: block; aspect-ratio: 1;', $css, 'the same square');
+        $this->assertMatchesRegularExpression(
+            '~\.service-detail__gallery-blank\{[^}]*var\(--color-primary-wash\)\), var\(--color-surface\); \}~',
+            $css,
+            'a card of its own: the wash alone on a dark palette is hardly lighter than the page'
+        );
     }
 
     private static function source(string $path): string
