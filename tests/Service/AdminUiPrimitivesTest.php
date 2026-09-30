@@ -343,6 +343,19 @@ final class AdminUiPrimitivesTest extends TestCase
                 }
 
                 $includers = array_filter($screens, static fn (string $source): bool => str_contains($source, "/{$file}'"));
+
+                // Included by another shared include instead (the Extra
+                // vormgeving panel inside the block list): then the screens
+                // that include THAT one render it.
+                if ($includers === []) {
+                    foreach ((array) glob(self::root() . '/admin/_*.php') as $partialPath) {
+                        $partial = basename((string) $partialPath);
+                        if ($partial !== $file && str_contains((string) file_get_contents((string) $partialPath), "/{$file}'")) {
+                            $includers += array_filter($screens, static fn (string $source): bool => str_contains($source, "/{$partial}'"));
+                        }
+                    }
+                }
+
                 $this->assertNotSame([], $includers, 'admin/' . $file . ' uses a help component but no screen includes it');
                 foreach ($includers as $screen => $source) {
                     $this->assertStringContainsString("/_header.php'", $source, 'admin/' . $screen . ' includes admin/' . $file . ' without the shell that drives its help');

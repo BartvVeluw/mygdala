@@ -86,6 +86,8 @@ final class AdminAccessControlTest extends TestCase
         'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php', 'update-project-info.php',
         'update-rich-text-section.php', 'update-spacer.php', 'update-stat-strip.php', 'update-step-list-section.php',
         'update-text-image-split-section.php',
+        // Extra vormgeving of one block instance, for every block type.
+        'update-block-appearance.php',
         // Reads, never writes: the live picture of a gallery source for the
         // focus frame, for who may edit that list.
         'linked-image-preview.php',
@@ -214,6 +216,11 @@ final class AdminAccessControlTest extends TestCase
         // editor's own ?section=. Annuleren posts
         // api/admin/discard-block-draft.php, which guards itself.
         '_block_editor.php',
+        // The Extra vormgeving panel of one block row (Contentblock Styling
+        // 1.0): an output function printed inside _content_blocks.php's rows,
+        // behind the list's own check. Its form posts
+        // api/admin/update-block-appearance.php, which guards itself.
+        '_block_appearance.php',
         // Where a gallery item's picture comes from (Detailsectie 2.0): an
         // output function over the Destination Picker's own choices, printed
         // by admin/detail-section.php behind its pages.manage check. The

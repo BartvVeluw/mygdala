@@ -443,10 +443,12 @@ final class PageBuilderScreenTest extends TestCase
         // The state is written on the row, not only coloured.
         $hiddenRow = $this->one($xpath, '//*[@id="blok-' . $hidden . '"]');
         $this->assertContains('is-hidden-section', explode(' ', $hiddenRow->getAttribute('class')));
-        $this->assertStringContainsString('Verborgen', $this->one($xpath, './/summary', $hiddenRow)->textContent);
+        // The row's own summary: the row also holds the folded Extra
+        // vormgeving panel, a <details> of its own.
+        $this->assertStringContainsString('Verborgen', $this->one($xpath, './details/summary', $hiddenRow)->textContent);
 
         $visibleRow = $this->one($xpath, '//*[@id="blok-' . $visible . '"]');
-        $this->assertStringNotContainsString('Verborgen', $this->one($xpath, './/summary', $visibleRow)->textContent);
+        $this->assertStringNotContainsString('Verborgen', $this->one($xpath, './details/summary', $visibleRow)->textContent);
     }
 
     public function testTheRowsOwnFormHidesTheBlockAndShowsItAgain(): void
