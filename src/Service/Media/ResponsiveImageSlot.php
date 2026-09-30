@@ -6,7 +6,7 @@ namespace App\Service\Media;
 
 /**
  * ONE PLACE FOR A PICTURE on a content block's row, and what Responsive Media
- * 2.0 offers there (App\Service\Media\ResponsiveImage, MEDIA.md "Responsive
+ * 3.0 offers there (App\Service\Media\ResponsiveImage, MEDIA.md "Responsive
  * Media"): the card of a Kaarten-carrousel, an item of Tekst met afbeelding,
  * the picture of a Paginakop, and so on.
  *
@@ -23,11 +23,17 @@ namespace App\Service\Media;
  *   mobileHeight  whether the block has a height a phone can choose
  *                 (compact, normal, large) instead of its own
  *
+ * EVERY SLOT HAS A ZOOM. Each of them crops its picture with object-fit:
+ * cover in a frame of the block's own shape (the audit of Responsive Media
+ * 3.0, MEDIA.md), so "how far in" is as meaningful as "which point"; where an
+ * editor chose contain, the editor hides the zoom and the page ignores it.
+ *
  * THE COLUMNS ARE THE SAME EVERYWHERE, only the prefix differs, and a slot
  * without `fit` or `mobileHeight` simply has no such columns — so a block
  * never stores a setting its editor does not offer. The list lives here and
  * nowhere else in the application; the migrations that added the columns
- * spell them out once each (db/migrations/20260928220000 and 20260928230000).
+ * spell them out once each (db/migrations/20260928220000, 20260928230000 and
+ * 20261002100000 for the zoom).
  *
  * NOT HERE: which table the row is in (the repository's) and where the
  * editor puts the field (the block editor's). A slot is a value, made by the
@@ -65,6 +71,8 @@ final class ResponsiveImageSlot
             $this->column('mobile_media_id'),
             $this->column('mobile_focus_x'),
             $this->column('mobile_focus_y'),
+            $this->column('zoom'),
+            $this->column('mobile_zoom'),
         ];
 
         if ($this->fit) {

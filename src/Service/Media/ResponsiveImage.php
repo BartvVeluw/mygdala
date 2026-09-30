@@ -7,7 +7,7 @@ namespace App\Service\Media;
 use App\Service\Language\AdminTranslator;
 
 /**
- * THE RESPONSIVE MEDIA CONTRACT (Responsive Media 2.0, MEDIA.md "Responsive
+ * THE RESPONSIVE MEDIA CONTRACT (Responsive Media 3.0, MEDIA.md "Responsive
  * Media"): how one picture of a content block is shown on a large screen and
  * on a phone. One value per picture, the same for every block that has one;
  * a block only says which parts it offers (App\Service\Media\ResponsiveImageSlot).
@@ -17,12 +17,26 @@ use App\Service\Language\AdminTranslator;
  *                     object-position means. 50/50 (the middle) is the default
  *                     and what the browser does by itself. The nine points an
  *                     editor can pick with one click are App\Service\Media\ImageFocus.
+ *   zoom              how far the picture is enlarged inside its frame, as a
+ *                     whole percentage ZOOM_MIN-ZOOM_MAX (100-200): 100 is the
+ *                     frame filled exactly as object-fit: cover fills it (the
+ *                     default, and what every picture showed before zoom
+ *                     existed); 150 shows two thirds of that crop, enlarged
+ *                     around the focus point, which therefore stays where it
+ *                     is. Only with cover: a contained picture ignores it,
+ *                     and it stays stored, so going back to cover brings it
+ *                     back.
  *   mobile image      optional: another Media Library picture for a phone.
  *                     None means "the desktop picture", so nothing changes for
  *                     a block that never chose one.
  *   mobile focus x/y  optional: the phone's own point. None means "follow the
  *                     desktop focus"; a mobile image of its own always has its
  *                     own point (the middle until an editor moves it).
+ *   mobile zoom       the zoom of the phone's own point, and only of that: it
+ *                     is stored with mobile focus x/y and is none whenever
+ *                     they are. A phone that follows the desktop point
+ *                     follows the desktop zoom too; a phone point stored
+ *                     before zoom existed reads as 100.
  *   fit               cover (fill the frame, crop the rest; the default and
  *                     what every block did) or contain (the whole picture,
  *                     leaving the frame's own background around it) — only
@@ -56,6 +70,13 @@ final class ResponsiveImage
     /** The middle, on both axes: the browser's own choice, and every picture's start. */
     public const DEFAULT_FOCUS = 50;
 
+    /** No zoom: the frame filled exactly as object-fit: cover fills it. */
+    public const DEFAULT_ZOOM = 100;
+
+    public const ZOOM_MIN = 100;
+
+    public const ZOOM_MAX = 200;
+
     public const FIT_COVER = 'cover';
 
     public const FIT_CONTAIN = 'contain';
@@ -80,6 +101,9 @@ final class ResponsiveImage
 
     public const SOURCE_OWN = 'own';
 
+    /** The zoom of the phone's own point, or none while a phone follows the desktop. */
+    public readonly ?int $mobileZoom;
+
     public function __construct(
         public readonly int $focusX = self::DEFAULT_FOCUS,
         public readonly int $focusY = self::DEFAULT_FOCUS,
@@ -89,6 +113,8 @@ final class ResponsiveImage
         public readonly string $fit = self::FIT_COVER,
         public readonly ?string $mobileFit = null,
         public readonly ?string $mobileHeight = null,
+        public readonly int $zoom = self::DEFAULT_ZOOM,
+        ?int $mobileZoom = null,
     ) {
         foreach ([$focusX, $focusY] as $percent) {
             if ($percent < 0 || $percent > 100) {
@@ -105,9 +131,20 @@ final class ResponsiveImage
         if ($mobileHeight !== null && !in_array($mobileHeight, self::MOBILE_HEIGHTS, true)) {
             throw new \InvalidArgumentException('A phone\'s height is one of MOBILE_HEIGHTS, or none.');
         }
+        if ($zoom < self::ZOOM_MIN || $zoom > self::ZOOM_MAX
+            || ($mobileZoom !== null && ($mobileZoom < self::ZOOM_MIN || $mobileZoom > self::ZOOM_MAX))) {
+            throw new \InvalidArgumentException('A zoom is a percentage from ZOOM_MIN to ZOOM_MAX.');
+        }
+        if ($mobileZoom !== null && $mobileFocusX === null) {
+            throw new \InvalidArgumentException('A phone\'s own zoom belongs to its own focus point.');
+        }
         if ($mobileMediaId !== null && $mobileMediaId < 1) {
             throw new \InvalidArgumentException('A mobile picture is a Media Library id, or none.');
         }
+
+        // One value per meaning: a phone point of its own always has a zoom
+        // (100 unless one was given), and without one there is none.
+        $this->mobileZoom = $mobileFocusX === null ? null : ($mobileZoom ?? self::DEFAULT_ZOOM);
     }
 
     // ------------------------------------------------------------ the row
@@ -139,6 +176,8 @@ final class ResponsiveImage
             fit: $slot->fit ? (self::fitOrNull($row[$slot->column('fit')] ?? null) ?? self::FIT_COVER) : self::FIT_COVER,
             mobileFit: $slot->fit ? self::fitOrNull($row[$slot->column('mobile_fit')] ?? null) : null,
             mobileHeight: $slot->mobileHeight ? self::mobileHeightOrNull($row[$slot->column('mobile_height')] ?? null) : null,
+            zoom: self::zoomOrNull($row[$slot->column('zoom')] ?? null) ?? self::DEFAULT_ZOOM,
+            mobileZoom: $mobileX === null ? null : self::zoomOrNull($row[$slot->column('mobile_zoom')] ?? null),
         );
     }
 
@@ -155,6 +194,8 @@ final class ResponsiveImage
             $slot->column('mobile_media_id') => $this->mobileMediaId,
             $slot->column('mobile_focus_x') => $this->mobileFocusX,
             $slot->column('mobile_focus_y') => $this->mobileFocusY,
+            $slot->column('zoom') => $this->zoom,
+            $slot->column('mobile_zoom') => $this->mobileFocusX === null ? null : $this->ownMobileZoom(),
         ];
 
         if ($slot->fit) {
@@ -172,7 +213,7 @@ final class ResponsiveImage
     /** The same value with another desktop focus point. */
     public function withFocus(int $x, int $y): self
     {
-        return new self(self::clamp($x), self::clamp($y), $this->mobileMediaId, $this->mobileFocusX, $this->mobileFocusY, $this->fit, $this->mobileFit, $this->mobileHeight);
+        return new self(self::clamp($x), self::clamp($y), $this->mobileMediaId, $this->mobileFocusX, $this->mobileFocusY, $this->fit, $this->mobileFit, $this->mobileHeight, $this->zoom, $this->mobileZoom);
     }
 
     /**
@@ -183,7 +224,7 @@ final class ResponsiveImage
      */
     public function coverOnly(): self
     {
-        return new self($this->focusX, $this->focusY, $this->mobileMediaId, $this->mobileFocusX, $this->mobileFocusY, self::FIT_COVER, null, $this->mobileHeight);
+        return new self($this->focusX, $this->focusY, $this->mobileMediaId, $this->mobileFocusX, $this->mobileFocusY, self::FIT_COVER, null, $this->mobileHeight, $this->zoom, $this->mobileZoom);
     }
 
     // --------------------------------------------------------- the request
@@ -207,7 +248,9 @@ final class ResponsiveImage
      * choice outside its closed list, or a mobile picture that is not a
      * picture of the Media Library is refused with a sentence for the editor,
      * keyed by part: focus, mobile_media, mobile_focus, fit, mobile_fit,
-     * mobile_height. A part the form does not carry keeps what is stored.
+     * mobile_height, zoom, mobile_zoom. A zoom that is a number is clamped to
+     * ZOOM_MIN-ZOOM_MAX, as a point is to 0-100. A part the form does not
+     * carry keeps what is stored.
      *
      * @param array<string, mixed> $input the fields of this one picture (the
      *                                    request, or one row of a row list)
@@ -234,6 +277,17 @@ final class ResponsiveImage
             }
         }
 
+        // How far the picture is enlarged.
+        $zoom = $stored->zoom;
+        if (array_key_exists($field('zoom'), $input)) {
+            $posted = self::postedZoom($input[$field('zoom')]);
+            if ($posted === null) {
+                $errors['zoom'] = AdminTranslator::trans('media.responsive.error_zoom');
+            } else {
+                $zoom = $posted;
+            }
+        }
+
         // The phone's picture.
         $mobileMediaId = $stored->mobileMediaId;
         $source = $input[$field('mobile_source')] ?? null;
@@ -257,6 +311,7 @@ final class ResponsiveImage
         // when the switch says so.
         $mobileFocusX = $stored->mobileFocusX;
         $mobileFocusY = $stored->mobileFocusY;
+        $mobileZoom = $stored->mobileFocusX === null ? null : $stored->ownMobileZoom();
         if ($present) {
             $own = $mobileMediaId !== null || ($input[$field('mobile_focus_own')] ?? null) === '1';
             if (!$own) {
@@ -271,7 +326,20 @@ final class ResponsiveImage
                     $mobileFocusX = $x;
                     $mobileFocusY = $y;
                 }
+
+                $postedZoom = self::postedZoom($input[$field('mobile_zoom')] ?? (string) $stored->ownMobileZoom());
+                if ($postedZoom === null) {
+                    $errors['mobile_zoom'] = AdminTranslator::trans('media.responsive.error_zoom');
+                } else {
+                    $mobileZoom = $postedZoom;
+                }
             }
+        }
+        // A phone's zoom lives with its own point, never without one.
+        if ($mobileFocusX === null) {
+            $mobileZoom = null;
+        } elseif ($mobileZoom === null) {
+            $mobileZoom = self::DEFAULT_ZOOM;
         }
 
         // Cover or contain, where the picture has a frame of its own.
@@ -314,7 +382,7 @@ final class ResponsiveImage
         }
 
         return [
-            new self($focusX, $focusY, $mobileMediaId, $mobileFocusX, $mobileFocusY, $fit, $mobileFit, $mobileHeight),
+            new self($focusX, $focusY, $mobileMediaId, $mobileFocusX, $mobileFocusY, $fit, $mobileFit, $mobileHeight, $zoom, $mobileZoom),
             $errors,
         ];
     }
@@ -328,9 +396,11 @@ final class ResponsiveImage
      * picture. A mobile picture that is no longer in the library is simply no
      * mobile picture: the desktop one shows everywhere, as before it was chosen.
      *
-     * `mobile_position` and `mobile_fit` are only there when a phone shows
-     * something else than a large screen, so a picture without mobile
-     * settings prints exactly the <img> it always did.
+     * `mobile_position`, `mobile_fit` and `mobile_zoom` are only there when a
+     * phone shows something else than a large screen, so a picture without
+     * mobile settings prints exactly the <img> it always did. `zoom` and
+     * `mobile_zoom` are what a frame shows: 100 wherever the picture is
+     * contained, whatever is stored (zoomFor()).
      *
      * @param array{image_path?: string, src?: string, alt?: string, width?: int|null, height?: int|null} $image
      * @param bool $withMobileImage false where a phone keeps the desktop
@@ -339,7 +409,8 @@ final class ResponsiveImage
      *
      * @return array{src: string, alt: string, width: int|null, height: int|null,
      *               mobile: array{src: string, width: int|null, height: int|null}|null,
-     *               position: string, mobile_position: string|null, fit: string, mobile_fit: string|null}
+     *               position: string, mobile_position: string|null, fit: string, mobile_fit: string|null,
+     *               zoom: int, mobile_zoom: int|null}
      */
     public function forRender(array $image, bool $withMobileImage = true): array
     {
@@ -363,6 +434,19 @@ final class ResponsiveImage
         $mobilePoint = $this->mobileMediaId !== null && $mobile === null ? null : $this->mobileFocus($mobile !== null);
         $mobilePosition = $mobilePoint === null ? null : self::objectPosition($mobilePoint[0], $mobilePoint[1]);
 
+        // The zoom goes with the point: the phone's own with its own point,
+        // else the desktop one; none on a contained picture.
+        if ($mobilePoint === null) {
+            $mobileStored = $this->zoom;
+        } elseif ($this->mobileFocusX === null) {
+            // A phone picture of its own, never given a point: the middle, unzoomed.
+            $mobileStored = self::DEFAULT_ZOOM;
+        } else {
+            $mobileStored = $this->ownMobileZoom();
+        }
+        $zoom = self::zoomFor($this->fit, $this->zoom);
+        $mobileZoom = self::zoomFor($this->effectiveMobileFit(), $mobileStored);
+
         return [
             'src' => (string) ($image['src'] ?? $image['image_path'] ?? ''),
             'alt' => (string) ($image['alt'] ?? ''),
@@ -373,7 +457,32 @@ final class ResponsiveImage
             'mobile_position' => $mobilePosition !== null && $mobilePosition !== $position ? $mobilePosition : null,
             'fit' => $this->fit,
             'mobile_fit' => $this->mobileFit !== null && $this->mobileFit !== $this->fit ? $this->mobileFit : null,
+            'zoom' => $zoom,
+            'mobile_zoom' => $mobileZoom !== $zoom ? $mobileZoom : null,
         ];
+    }
+
+    /** The zoom of the phone's own point: its own, 100 for one stored before zoom existed. */
+    public function ownMobileZoom(): int
+    {
+        return $this->mobileZoom ?? self::DEFAULT_ZOOM;
+    }
+
+    /**
+     * What a frame shows of a stored zoom: the zoom itself with cover, none
+     * (100) with contain, where the whole picture is the point.
+     */
+    public static function zoomFor(string $fit, int $zoom): int
+    {
+        return $fit === self::FIT_CONTAIN ? self::DEFAULT_ZOOM : $zoom;
+    }
+
+    /** The CSS scale of a zoom percentage: 125 -> "1.25", 200 -> "2". */
+    public static function scale(int $zoom): string
+    {
+        $zoom = max(self::ZOOM_MIN, min(self::ZOOM_MAX, $zoom));
+
+        return rtrim(rtrim(sprintf('%.2F', $zoom / 100), '0'), '.');
     }
 
     /**
@@ -428,6 +537,8 @@ final class ResponsiveImage
             'mobile_position' => null,
             'fit' => (string) ($picture['mobile_fit'] ?? $picture['fit']),
             'mobile_fit' => null,
+            'zoom' => (int) ($picture['mobile_zoom'] ?? $picture['zoom'] ?? self::DEFAULT_ZOOM),
+            'mobile_zoom' => null,
         ];
     }
 
@@ -498,6 +609,30 @@ final class ResponsiveImage
     private static function postedPercent(mixed $value): ?int
     {
         return is_string($value) || is_int($value) ? self::percentOrNull($value) : null;
+    }
+
+    /** A stored zoom, clamped to ZOOM_MIN-ZOOM_MAX, or null for none or not a number. */
+    private static function zoomOrNull(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return max(self::ZOOM_MIN, min(self::ZOOM_MAX, $value));
+        }
+
+        if (is_string($value) && preg_match('/^\s*-?\d+(\.\d+)?\s*$/', $value) === 1) {
+            return max(self::ZOOM_MIN, min(self::ZOOM_MAX, (int) round((float) $value)));
+        }
+
+        if (is_float($value) && is_finite($value)) {
+            return max(self::ZOOM_MIN, min(self::ZOOM_MAX, (int) round($value)));
+        }
+
+        return null;
+    }
+
+    /** A posted zoom: a number (clamped), or null for anything that is not one. */
+    private static function postedZoom(mixed $value): ?int
+    {
+        return is_string($value) || is_int($value) ? self::zoomOrNull($value) : null;
     }
 
     private static function fitOrNull(mixed $value): ?string
