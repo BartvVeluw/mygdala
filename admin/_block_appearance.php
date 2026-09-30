@@ -21,9 +21,10 @@ use App\Service\Blocks\BlockDefinitions;
  * chosen, so a closed panel still tells the editor the block has a look.
  *
  * The form is its own, posting to api/admin/update-block-appearance.php with
- * the row's page_sections id. It is kept out of the screen's save bar
- * (data-no-dirty-track): the bar saves the page form, and a change here is
- * saved with the panel's own button.
+ * the row's page_sections id. The screen's save bar watches it like any other
+ * form (admin/assets/save-bar.js): a changed look marks the screen unsaved,
+ * leaving warns, and the bar's Opslaan or the panel's own button saves it
+ * once. The endpoint answers with `saved=<id>`, the marker the bar accepts.
  *
  * @param array<string, mixed> $pageSection one page_sections row of the list (never a draft: a draft is not in the list)
  */
@@ -65,7 +66,7 @@ function block_appearance_panel(array $pageSection, string $csrfToken): void
       <span class="block-appearance-panel__title"><?= admin_te('appearance.panel_title') ?></span>
       <span class="block-appearance-panel__current"><?= $h(BlockAppearance::summary($values)) ?></span>
     </summary>
-    <form method="post" action="/api/admin/update-block-appearance.php" class="block-appearance-panel__form" data-no-dirty-track>
+    <form method="post" action="/api/admin/update-block-appearance.php" class="block-appearance-panel__form" data-save-name="<?= $h(admin_t('appearance.panel_title')) ?>">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="id" value="<?= $id ?>">
       <p class="block-appearance-panel__intro admin-text-muted"><?= admin_help_text(admin_t('appearance.panel_intro')) ?></p>

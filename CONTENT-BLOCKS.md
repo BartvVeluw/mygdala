@@ -1360,8 +1360,12 @@ rij op (404 als die ontbreekt), en laat de pagina van die rij het recht
 bepalen (`requirePageForApi()`: van een pagina, product of project). Een blok
 zonder ondersteuning geeft 422. Een geweigerde waarde stuurt terug naar
 `#blok-<id>` met de melding. Een opslag landt als na een blok-editor:
-`?saved=<id>#blok-<id>`. Het paneel valt buiten de opslagbalk
-(`data-no-dirty-track`) en heeft een eigen knop *Vormgeving opslaan*.
+`?saved=<id>#blok-<id>`. Het paneel heeft een eigen knop *Vormgeving
+opslaan*, en de opslagbalk van het scherm bewaakt het als elk ander
+formulier: een wijziging maakt het scherm *Niet-opgeslagen*, weggaan
+waarschuwt, en *Opslaan* in de balk verstuurt het paneel via hetzelfde
+endpoint. Tot v0.1.14-rc stond het erbuiten (`data-no-dirty-track`), en ging
+een niet-opgeslagen vormgeving zonder waarschuwing verloren.
 
 **Levensloop.** Een nieuw blok is een draft zonder `page_sections`-rij
 ("De levensloop van een nieuw blok"). Het staat dus nog niet in de lijst en

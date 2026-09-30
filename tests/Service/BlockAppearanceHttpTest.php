@@ -120,7 +120,12 @@ final class BlockAppearanceHttpTest extends TestCase
             $this->assertStringContainsString('id="block-appearance-' . $text . '-' . $field . '" name="' . $field . '"', $body, $field);
         }
         $this->assertStringContainsString('<option value="sparks">Vallende bolletjes</option>', $body);
-        $this->assertStringContainsString('data-no-dirty-track', $body, 'kept out of the page\'s save bar');
+        $this->assertMatchesRegularExpression(
+            '~<form method="post" action="/api/admin/update-block-appearance\.php" class="block-appearance-panel__form" data-save-name="Extra vormgeving">~',
+            $body,
+            'watched by the page\'s save bar, so an unsaved look warns before leaving'
+        );
+        $this->assertDoesNotMatchRegularExpression('~update-block-appearance\.php"[^>]*data-no-dirty-track~', $body);
     }
 
     public function testSavingOneBlocksLookChangesOnlyThatBlockAndBackToStandaardRestoresThePage(): void
