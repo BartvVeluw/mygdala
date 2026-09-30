@@ -41,7 +41,8 @@ use App\Repository\CtaBandRepository;
  *
  * FIVE CARDS, one per question (CTA 2.0, CONTENT-BLOCKS.md): Inhoud,
  * Weergave (alignment, lead width, full width), Achtergrond (the picture from
- * the Media Library, its focus point and overlay), Tekstvlak, and Knoppen.
+ * the Media Library, its focus point and overlay, and the minimum height of
+ * the band on a large screen and on a phone), Tekstvlak, and Knoppen.
  * Every presentation choice is a segmented choice from a closed list
  * (CtaBandContent), never a free value.
  *
@@ -52,7 +53,8 @@ use App\Repository\CtaBandRepository;
  * inside a field of the FIRST group, so it hides while the first button is
  * "Geen knop": there is no second button without a first. The focus point and
  * the overlay show only with a picture, the panel's opacity only with the
- * panel on (admin/assets/cta-band.js). The server prints the same `hidden`
+ * panel on, an own height's pixels only with Eigen hoogte chosen
+ * (admin/assets/cta-band.js). The server prints the same `hidden`
  * for what is stored, the form always posts everything, and the endpoint
  * decides what a value means.
  */
@@ -135,6 +137,26 @@ foreach ($fieldErrors as $errorField => $errorMessage) {
         $backgroundErrors[substr((string) $errorField, 13)] = (string) $errorMessage;
     }
 }
+// The minimum height on screen: as handed back (the pixels as typed, so a
+// refused number is there to correct), else as stored.
+$storedHeight = CtaBandContent::minHeight($row);
+$minHeight = [
+    'height' => is_array($old) ? CtaBandContent::choice(CtaBandContent::HEIGHTS, $old['min_height'] ?? null) : $storedHeight['height'],
+    'height_px' => is_array($old) ? (string) ($old['min_height_px'] ?? '') : (string) ($storedHeight['height_px'] ?? ''),
+    'mobile_height' => is_array($old) ? CtaBandContent::choice(CtaBandContent::MOBILE_HEIGHTS, $old['mobile_min_height'] ?? null) : $storedHeight['mobile_height'],
+    'mobile_height_px' => is_array($old) ? (string) ($old['mobile_min_height_px'] ?? '') : (string) ($storedHeight['mobile_height_px'] ?? ''),
+];
+// The focus frames in the band's shape, so the point is set on the shape the
+// page shows: a band about 1152px wide and 400px tall with its words alone,
+// 343 by 480 on a phone; a minimum only ever makes it taller.
+$frameHeight = CtaBandContent::minHeight([
+    'min_height' => $minHeight['height'],
+    'min_height_px' => $minHeight['height_px'],
+    'mobile_min_height' => $minHeight['mobile_height'],
+    'mobile_min_height_px' => $minHeight['mobile_height_px'],
+]);
+$desktopFrame = max(400, $frameHeight['height'] === 'custom' ? (int) $frameHeight['height_px'] : (CtaBandContent::HEIGHT_PX[$frameHeight['height']] ?? 0));
+$mobileFrame = max(480, (int) CtaBandContent::phonePixels($frameHeight));
 $fullWidth = !empty($source['full_width']);
 $textPanel = !empty($source['text_panel']);
 $backgroundId = (string) ($source['background_media_id'] ?? '');
@@ -187,6 +209,24 @@ $choice = static function (string $name, string $legendKey, string $helpKey, arr
         </div>
         <?php editor_field_error($fieldErrors, $name); ?>
       </fieldset>
+    <?php
+};
+
+/**
+ * An own minimum height: a number of pixels within its range, shown only with
+ * Eigen hoogte.
+ *
+ * @param array{int, int} $range
+ */
+$pixelsField = static function (string $name, string $labelKey, array $range, string $value, bool $shown) use ($h, $fieldErrors): void {
+    $id = 'cta-' . str_replace('_', '-', $name);
+    ?>
+      <div class="admin-field" data-cta-needs-custom="<?= $h($name) ?>"<?= $shown ? '' : ' hidden' ?>>
+        <?= admin_field_label($id, admin_t($labelKey)) ?>
+        <input type="number" id="<?= $h($id) ?>" name="<?= $h($name) ?>" min="<?= $range[0] ?>" max="<?= $range[1] ?>" step="1" inputmode="numeric" value="<?= $h($value) ?>" aria-describedby="<?= $h($id) ?>-range"<?= editor_field_invalid($fieldErrors, $name) ?>>
+        <p class="admin-text-muted" id="<?= $h($id) ?>-range"><?= admin_te('block_cta.height_px_range', ['v1' => (string) $range[0], 'v2' => (string) $range[1]]) ?></p>
+        <?php editor_field_error($fieldErrors, $name); ?>
+      </div>
     <?php
 };
 
@@ -315,10 +355,20 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
             'preview' => $background !== null ? $background->displayPath() : '',
             'picker' => 'background_media_id',
             'mobile_media' => MediaService::find($backgroundPresentation->mobileMediaId),
-            'frame' => ['desktop' => '1152 / 400', 'mobile' => '343 / 480'],
+            'frame' => ['desktop' => '1152 / ' . $desktopFrame, 'mobile' => '343 / ' . $mobileFrame],
             'errors' => $backgroundErrors,
         ]); ?>
         <?php $choice('background_overlay', 'block_cta.background_overlay', 'help.block_cta.background_overlay', CtaBandContent::OVERLAYS, $overlay); ?>
+      </div>
+
+      <?php /* The minimum height of the band, with or without a picture: the
+               box that carries the background. */ ?>
+      <div data-cta-height data-cta-height-px="<?= $h((string) json_encode(['desktop' => CtaBandContent::HEIGHT_PX, 'phone' => CtaBandContent::PHONE_HEIGHT_PX])) ?>">
+        <?php $choice('min_height', 'block_cta.min_height', 'help.block_cta.min_height', CtaBandContent::HEIGHTS, $minHeight['height']); ?>
+        <?php $pixelsField('min_height_px', 'block_cta.min_height_px', CtaBandContent::MIN_HEIGHT_RANGE, $minHeight['height_px'], $minHeight['height'] === 'custom'); ?>
+        <?php $choice('mobile_min_height', 'block_cta.mobile_min_height', 'help.block_cta.mobile_min_height', CtaBandContent::MOBILE_HEIGHTS, $minHeight['mobile_height']); ?>
+        <?php $pixelsField('mobile_min_height_px', 'block_cta.mobile_min_height_px', CtaBandContent::MOBILE_MIN_HEIGHT_RANGE, $minHeight['mobile_height_px'], $minHeight['mobile_height'] === 'custom'); ?>
+        <p class="admin-text-muted"><?= admin_te('block_cta.min_height_uitleg') ?></p>
       </div>
     </section>
 

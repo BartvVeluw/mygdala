@@ -25,6 +25,14 @@
  * exists (MediaService::findImage()); a number that matches nothing, or a
  * video, is refused.
  *
+ * THE MINIMUM HEIGHT (CONTENT-BLOCKS.md, "De hoogte van het achtergrondvlak")
+ * is a word of CtaBandContent::HEIGHTS on a large screen and of
+ * ::MOBILE_HEIGHTS on a phone, refused like every word above. Only 'custom'
+ * takes pixels: whole digits within MIN_HEIGHT_RANGE / MOBILE_MIN_HEIGHT_RANGE,
+ * anything else (a unit, a sign, a decimal, too small, too large, empty) is
+ * refused at its field. Every other word stores no pixels, whatever the
+ * hidden number field still holds.
+ *
  * THE BUTTONS follow the rule every block button follows
  * (App\Service\Routing\LinkChoice, admin/_link_target_field.php): "Geen knop",
  * a page, a blog post, a product, or an own address. A button with a
@@ -118,6 +126,32 @@ foreach ($choices as $name => [$list, $current, $message]) {
     $presentation[$name] = $value;
 }
 $presentation['full_width'] = isset($_POST['full_width']);
+
+// The minimum height, on a large screen and on a phone.
+$storedHeight = CtaBandContent::minHeight($section);
+$heights = [
+    'min_height' => [CtaBandContent::HEIGHTS, CtaBandContent::MIN_HEIGHT_RANGE, $storedHeight['height'], $storedHeight['height_px']],
+    'mobile_min_height' => [CtaBandContent::MOBILE_HEIGHTS, CtaBandContent::MOBILE_MIN_HEIGHT_RANGE, $storedHeight['mobile_height'], $storedHeight['mobile_height_px']],
+];
+foreach ($heights as $name => [$list, $range, $currentWord, $currentPx]) {
+    $word = array_key_exists($name, $_POST) ? (string) $_POST[$name] : $currentWord;
+    if (!in_array($word, $list, true)) {
+        $fieldErrors[$name] = AdminTranslator::trans('block_cta.error_' . $name);
+        $word = $currentWord;
+    }
+
+    $px = null;
+    if ($word === 'custom') {
+        $postedPx = array_key_exists($name . '_px', $_POST) ? $_POST[$name . '_px'] : $currentPx;
+        $px = CtaBandContent::pixels($postedPx, $range);
+        if ($px === null) {
+            $fieldErrors[$name . '_px'] = AdminTranslator::trans('block_cta.error_height_px', ['v1' => (string) $range[0], 'v2' => (string) $range[1]]);
+        }
+    }
+
+    $presentation[$name] = $word;
+    $presentation[$name . '_px'] = $px;
+}
 $presentation['text_panel'] = isset($_POST['text_panel']);
 
 // The background picture: empty is none, anything else must name a picture.
@@ -222,6 +256,10 @@ $old = [
     'background_media_id' => $backgroundPosted,
     'background_presentation' => $backgroundPresentation->toRow($backgroundSlot),
 ] + $words + $presentation;
+// The pixels as typed, so a refused number is there to correct.
+foreach (['min_height_px', 'mobile_min_height_px'] as $name) {
+    $old[$name] = is_scalar($_POST[$name] ?? null) ? (string) $_POST[$name] : (string) ($old[$name] ?? '');
+}
 foreach (['primary', 'secondary'] as $button) {
     $old[$button . '_link_type'] = $linkTypes[$button];
     $old[$button . '_link_target'] = array_map('intval', array_filter($postedTargets[$button], 'is_scalar'));

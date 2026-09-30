@@ -472,6 +472,7 @@
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
             <file>tests/Install/CtaBandMigrationTest.php</file>
+            <file>tests/Install/CtaBandHeightMigrationTest.php</file>
             <file>tests/Install/MediaBannerMigrationTest.php</file>
             <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/HoverCardsAndMediaSequenceMigrationTest.php</file>
@@ -548,6 +549,7 @@
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
             <file>tests/Install/CtaBandMigrationTest.php</file>
+            <file>tests/Install/CtaBandHeightMigrationTest.php</file>
             <file>tests/Install/MediaBannerMigrationTest.php</file>
             <file>tests/Install/TextImageItemsMigrationTest.php</file>
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
@@ -561,6 +563,8 @@
             <file>tests/Service/SimpleBlocksPolishHttpTest.php</file>
             <file>tests/Service/CtaBandRenderTest.php</file>
             <file>tests/Service/CtaBandHttpTest.php</file>
+            <file>tests/Service/CtaBandHeightTest.php</file>
+            <file>tests/Service/CtaBandHeightHttpTest.php</file>
             <file>tests/Service/MediaBannerRenderTest.php</file>
             <file>tests/Service/MediaBannerHttpTest.php</file>
             <file>tests/Service/FeaturedProductBlockTest.php</file>
