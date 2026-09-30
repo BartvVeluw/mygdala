@@ -12,6 +12,7 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -152,6 +153,7 @@ $itemRows = editor_rows_on_screen(
             'button_link_type' => LinkChoice::storedType($item['button_link_type'] ?? null, (string) ($item['button_url'] ?? '')),
             'button_link_target' => (string) (int) ($item['button_link_target_id'] ?? 0),
             'button_url' => (string) ($item['button_url'] ?? ''),
+            'button_style_id' => (string) (int) ($item['button_style_id'] ?? 0),
         ] + TextImageSplitContent::layout($item) + ResponsiveImage::fromRow($item, $imageSlot)->toRow($imageSlot);
 
         foreach (array_keys(BlockLocalization::fields('text_image_split_items')) as $field) {
@@ -275,6 +277,15 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
     ]);
     echo '<div data-nav-link-field="' . $h(link_target_shown_kinds($storedType)) . '">';
     editor_row_text('items', $key, 'button_label', admin_t('block_textimage.knoptekst'), 150, $fields, $fieldErrors, $hint);
+    // Button Styles 2.0: this item's button's own choice, or the default.
+    echo admin_button_style_field(
+        editor_row_id('items', $key, 'button-style'),
+        editor_row_name('items', $key, 'button_style_id'),
+        \App\Service\Theme\ButtonStyles::storedChoice($fields['button_style_id'] ?? null),
+        'primary',
+        '',
+        $fieldErrors['items.' . $key . '.button_style_id'] ?? null
+    );
     echo '</div>';
     echo '</div>';
     editor_row_close(true);

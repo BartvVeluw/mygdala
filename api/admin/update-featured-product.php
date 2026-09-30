@@ -44,6 +44,8 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Database;
 use App\Repository\FeaturedProductRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -141,6 +143,13 @@ foreach (array_keys(FeaturedProductContent::SWITCHES) as $name) {
 }
 $settings['product_id'] = $productId;
 
+// The "Bekijk product" button's style (Button Styles 2.0): '' = the default,
+// else a style that exists; a forged id is refused at its field.
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($section['button_style_id'] ?? null));
+if ($buttonStyleError !== null) {
+    $fieldErrors['button_style_id'] = $buttonStyleError;
+}
+
 $errors = [];
 
 if (!$languageIsWritable) {
@@ -157,6 +166,7 @@ array_push($errors, ...array_values($fieldErrors));
 // reopens on what was chosen and typed.
 $old = ['language_code' => $languageCode] + $words + $settings;
 $old['product_id'] = $productPosted;
+$old['button_style_id'] = is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '';
 
 $redirect = '/admin/featured-product.php?section=' . urlencode($sectionParam);
 
@@ -175,6 +185,7 @@ try {
     $db->beginTransaction();
 
     $repository->update($sectionId, $settings);
+    (new ButtonStyleRepository())->saveChoice(FeaturedProductContent::TABLE, 'button_style_id', $sectionId, $buttonStyle);
     BlockLocalization::save(FeaturedProductContent::TABLE, $sectionId, $languageCode, $words);
 
     $db->commit();

@@ -6,6 +6,7 @@ use App\Repository\ContactCardRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Content for the "Contactkaart" block (partials/section-contact-card.php) —
@@ -104,6 +105,8 @@ class ContactCardContent
         }
 
         $content['button_url'] = self::resolveButtonUrl((string) ($row['button_url'] ?? ''));
+        // Button Styles 2.0: the button's choice, null = the default.
+        $content['button_style'] = ButtonStyles::storedChoice($row['button_style_id'] ?? null);
         $content['state'] = self::STATE_ACTIVE;
 
         return self::$cache[$cacheKey] = $content;
@@ -149,6 +152,6 @@ class ContactCardContent
             $content[$field] = '';
         }
 
-        return $content + ['button_url' => ''];
+        return $content + ['button_url' => '', 'button_style' => null];
     }
 }

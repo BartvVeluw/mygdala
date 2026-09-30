@@ -10,6 +10,7 @@ use App\Service\Media\MediaService;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Content for the dedicated "Homepage Hero" section (`.hero` on index.php) —
@@ -286,6 +287,9 @@ class HomepageHeroContent
             'media_type' => (string) ($row['media_type'] ?? ''),
             'video_path' => self::videoPath($row),
             'layout' => (string) ($row['layout'] ?? ''),
+            // Button Styles 2.0: each button's choice, null = the default.
+            'primary_button_style' => ButtonStyles::storedChoice($row['primary_button_style_id'] ?? null),
+            'secondary_button_style' => ButtonStyles::storedChoice($row['secondary_button_style_id'] ?? null),
         ];
 
         // A secondary button only renders when it has both a label and a
@@ -603,6 +607,8 @@ class HomepageHeroContent
             'media_type' => self::MEDIA_TYPE_IMAGE,
             'video_path' => '',
             'layout' => self::LAYOUT_MEDIA_RIGHT,
+            'primary_button_style' => null,
+            'secondary_button_style' => null,
             'stats' => [],
         ];
     }

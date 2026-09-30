@@ -16,6 +16,7 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_admin_collapse.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Repository\FeaturedProductRepository;
 use App\Repository\ProductRepository;
@@ -354,6 +355,7 @@ $cardEnd = static function (): void {
         <input type="text" id="featured-product-link-label" name="<?= FeaturedProductContent::LINK_LABEL ?>" maxlength="150" value="<?= $h($word(FeaturedProductContent::LINK_LABEL)) ?>" placeholder="<?= $h($linkPlaceholder) ?>"<?= editor_field_invalid($fieldErrors, FeaturedProductContent::LINK_LABEL) ?>>
         <?php editor_field_error($fieldErrors, FeaturedProductContent::LINK_LABEL); ?>
       </div>
+      <?= admin_button_style_field('featured-product-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old['button_style_id'] ?? null) : ($section['button_style_id'] ?? null)), 'secondary', '', $fieldErrors['button_style_id'] ?? null) ?>
     <?php $cardEnd(); ?>
 
     <?php $cardStart('layout', 'block_featured_product.group_layout'); ?>

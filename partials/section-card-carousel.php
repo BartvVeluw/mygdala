@@ -184,13 +184,16 @@ function render_section_card_carousel(array $content): void
                       </div>
                       <?php endif; ?>
                       <?php if ($card['link_url'] !== ''): ?>
+                      <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($card['button_style'] ?? null), ['btn', 'btn--ghost', 'btn--sm']); ?>
                       <a
                         href="<?= $h($card['link_url']) ?>"
-                        class="btn btn--ghost btn--sm"
+                        class="<?= $h($button['class']) ?>"
                         tabindex="-1"
                        
                         ><?= $h($card['link_label']) ?>
+                        <?php if ($button['legacy_icon']): ?>
                         <svg
+                          class="btn__arrow"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -201,6 +204,7 @@ function render_section_card_carousel(array $content): void
                         >
                           <path d="M5 12h14M13 6l6 6-6 6" />
                         </svg>
+                        <?php endif; ?>
                       </a>
                       <?php endif; ?>
                     </div>

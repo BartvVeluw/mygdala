@@ -53,7 +53,8 @@ function render_section_contact_card(array $card): void
         <p style="color:var(--color-text-muted); font-size:0.92rem; margin-bottom:<?= $hasButton ? '1rem' : '0' ?>;"><?= $h($text('body')) ?></p>
         <?php endif; ?>
         <?php if ($hasButton): ?>
-        <a href="<?= $h((string) $card['button_url']) ?>" class="btn btn--ghost btn--block"><?= $h($text('button_label')) ?></a>
+        <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($card['button_style'] ?? null), ['btn', 'btn--ghost'], ['btn--block']); ?>
+        <a href="<?= $h((string) $card['button_url']) ?>" class="<?= $h($button['class']) ?>"><?= $h($text('button_label')) ?></a>
         <?php endif; ?>
       </div>
     </div>

@@ -39,7 +39,10 @@
  * top padding in assets/css/blocks/rich-text.css, so they do not stack two
  * paddings.
  *
- * @param array{state: string, body: string, align?: string, width?: string, button_label?: string, button_href?: string} $section
+ * THE BUTTON has the website's default look, or the button style the editor
+ * chose (Button Styles 2.0, App\Service\Theme\ButtonStyles::classes()).
+ *
+ * @param array{state: string, body: string, align?: string, width?: string, button_label?: string, button_href?: string, button_style?: int|null} $section
  */
 function render_section_rich_text(array $section, bool $tightTop = false): void
 {
@@ -66,7 +69,8 @@ function render_section_rich_text(array $section, bool $tightTop = false): void
         <div class="rich-content"><?= $visible ?></div>
         <?php endif; ?>
         <?php if ($hasButton): ?>
-        <p class="rich-text__actions"><a href="<?= $h($href) ?>" class="btn"><?= $h($label) ?></a></p>
+        <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($section['button_style'] ?? null), ['btn']); ?>
+        <p class="rich-text__actions"><a href="<?= $h($href) ?>" class="<?= $h($button['class']) ?>"><?= $h($label) ?></a></p>
         <?php endif; ?>
       </div>
     </section>

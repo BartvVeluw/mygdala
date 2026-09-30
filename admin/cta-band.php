@@ -11,6 +11,7 @@ require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_responsive_image_field.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -152,6 +153,8 @@ foreach (['primary', 'secondary'] as $button) {
         'type' => is_array($old) ? (string) ($old[$button . '_link_type'] ?? '') : $storedType,
         'targets' => $targets,
         'url' => is_array($old) ? (string) ($old[$button . '_url'] ?? '') : (string) ($row[$button . '_url'] ?? ''),
+        // Button Styles 2.0: '' / NULL = the default.
+        'style' => \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old[$button . '_button_style_id'] ?? null) : ($row[$button . '_button_style_id'] ?? null)),
     ];
 }
 $primaryIsButton = !in_array($buttons['primary']['type'], ['', LinkChoice::NONE], true);
@@ -207,6 +210,9 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
         <?= admin_field_label('cta-' . $button . '-label', admin_t('block_cta.knoptekst'), admin_t('help.block_cta.knoptekst')) ?>
         <input type="text" id="cta-<?= $h($button) ?>-label" name="<?= $h($button) ?>_label" maxlength="150" value="<?= $h($word($button . '_label')) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?><?= editor_field_invalid($fieldErrors, $button . '_label') ?>>
         <?php editor_field_error($fieldErrors, $button . '_label'); ?>
+      </div>
+      <div data-nav-link-field="<?= $h(link_target_shown_kinds($state['stored_type'])) ?>">
+        <?= admin_button_style_field('cta-' . $button . '-style', $button . '_button_style_id', $state['style'], $button, '', $fieldErrors[$button . '_button_style_id'] ?? null) ?>
       </div>
     <?php
 };

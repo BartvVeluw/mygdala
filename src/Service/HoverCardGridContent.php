@@ -239,6 +239,8 @@ final class HoverCardGridContent
         if ($card['href'] === '') {
             $card['link_label'] = '';
         }
+        // Button Styles 2.0: null = the card's own text link.
+        $card['button_style'] = \App\Service\Theme\ButtonStyles::storedChoice($item['button_style_id'] ?? null);
 
         return $card;
     }

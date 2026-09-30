@@ -10,6 +10,7 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_link_target_field.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -100,6 +101,7 @@ if (!is_array($old) && !in_array($buttonStoredType, [LinkChoice::NONE, LinkChoic
 }
 $buttonType = is_array($old) ? (string) ($old['button_link_type'] ?? '') : $buttonStoredType;
 $buttonUrl = is_array($old) ? (string) ($old['button_url'] ?? '') : (string) ($section['button_url'] ?? '');
+$buttonStyle = \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old['button_style_id'] ?? null) : ($section['button_style_id'] ?? null));
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -195,6 +197,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <?= admin_field_label('rich-text-button-label', admin_t('block_richtext.knoptekst')) ?>
           <input type="text" id="rich-text-button-label" name="<?= $h(RichTextContent::BUTTON_LABEL) ?>" maxlength="150" value="<?= $h($buttonLabel) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?><?= editor_field_invalid($fieldErrors, RichTextContent::BUTTON_LABEL) ?>>
           <?php editor_field_error($fieldErrors, RichTextContent::BUTTON_LABEL); ?>
+        </div>
+        <div data-nav-link-field="<?= $h(link_target_shown_kinds($buttonStoredType)) ?>">
+          <?= admin_button_style_field('rich-text-button-style', 'button_style_id', $buttonStyle, 'primary', '', $fieldErrors['button_style_id'] ?? null) ?>
         </div>
       </div>
     </section>

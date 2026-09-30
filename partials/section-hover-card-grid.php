@@ -142,7 +142,13 @@ function render_section_hover_card_grid(array $content, string $revealGroup = 'h
                     <?php if ($body !== ''): ?>
                     <p class="hover-card__text"><?= $h($body) ?></p>
                     <?php endif; ?>
-                    <?php if ($label !== ''): ?>
+                    <?php if ($label !== '' && \App\Service\Theme\ButtonStyles::storedChoice($card['button_style'] ?? null) !== null): ?>
+                    <?php /* A chosen button style (Button Styles 2.0): the words
+                             are that .btn, drawn on a span inside the card-wide
+                             link, which keeps its ::after over the whole card. */ ?>
+                    <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($card['button_style'] ?? null), []); ?>
+                    <a class="hover-card__cta hover-card__cta--button hover-card__link" href="<?= $h($href) ?>"><span class="<?= $h($button['class']) ?>"><?= $h($label) ?></span><?php if ($title !== ''): ?><span class="visually-hidden">: <?= $h($title) ?></span><?php endif; ?></a>
+                    <?php elseif ($label !== ''): ?>
                     <a class="hover-card__cta hover-card__link" href="<?= $h($href) ?>"><?= $h($label) ?><?php if ($title !== ''): ?><span class="visually-hidden">: <?= $h($title) ?></span><?php endif; ?><?= $arrow ?></a>
                     <?php endif; ?>
                   </div>

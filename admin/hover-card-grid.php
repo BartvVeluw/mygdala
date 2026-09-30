@@ -12,6 +12,7 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_admin_collapse.php';
 require_once __DIR__ . '/_responsive_image_field.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Repository\HoverCardGridRepository;
 use App\Service\AdminAuth;
@@ -116,6 +117,7 @@ $cardRows = editor_rows_on_screen(
             'link_type' => LinkChoice::storedType($item['link_type'] ?? null, (string) ($item['link_url'] ?? '')),
             'link_target' => (string) (int) ($item['link_target_id'] ?? 0),
             'link_url' => (string) ($item['link_url'] ?? ''),
+            'button_style_id' => (string) (int) ($item['button_style_id'] ?? 0),
         ] + ResponsiveImage::fromRow($item, $imageSlot)->toRow($imageSlot);
 
         foreach (array_keys(BlockLocalization::fields(HoverCardGridContent::ITEMS)) as $field) {
@@ -252,6 +254,16 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
     echo '<div data-nav-link-field="' . $h(link_target_shown_kinds($storedType)) . '">';
     editor_row_text('cards', $key, 'link_label', admin_t('block_hover_cards.link_label'), 150, $fields, $fieldErrors, $optional);
     echo '<p class="admin-text-muted">' . admin_te('block_hover_cards.link_label_help') . '</p>';
+    // Button Styles 2.0: "Standaard" keeps the card's own text link; a style
+    // draws the link text as that button.
+    echo admin_button_style_field(
+        editor_row_id('cards', $key, 'button-style'),
+        editor_row_name('cards', $key, 'button_style_id'),
+        \App\Service\Theme\ButtonStyles::storedChoice($fields['button_style_id'] ?? null),
+        'primary',
+        '',
+        $fieldErrors['cards.' . $key . '.button_style_id'] ?? null
+    );
     echo '</div>';
     echo '</div>';
     editor_row_close(true);

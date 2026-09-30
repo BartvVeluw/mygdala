@@ -96,6 +96,8 @@ use App\Service\SectionImageUploader;
 use App\Service\SectionVideoUploader;
 use App\Repository\HomepageHeroRepository;
 use App\Repository\ResponsiveImageRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -280,6 +282,20 @@ if ($languageIsWritable) {
     }
 }
 
+// Each button's style (Button Styles 2.0): '' = the default, else a style
+// that exists; a forged id is refused at its field and the stored choice kept.
+$buttonStyles = [];
+foreach (['primary', 'secondary'] as $button) {
+    [$buttonStyles[$button], $styleError] = ButtonStyles::choiceFromRequest(
+        $_POST,
+        $button . '_button_style_id',
+        ButtonStyles::storedChoice($current[$button . '_button_style_id'] ?? null)
+    );
+    if ($styleError !== null) {
+        $fieldErrors[$button . '_button_style_id'] = $styleError;
+    }
+}
+
 $errors = [];
 
 if (!$languageIsWritable) {
@@ -335,6 +351,8 @@ $old = ['language_code' => $languageCode, 'image_alt' => $submittedAlt] + $words
     'remove_legacy_video' => isset($_POST['remove_legacy_video']) ? '1' : '',
     'presentation' => $presentation->toRow($imageSlot),
     'stats' => $stats->old(),
+    'primary_button_style_id' => is_scalar($_POST['primary_button_style_id'] ?? null) ? (string) $_POST['primary_button_style_id'] : '',
+    'secondary_button_style_id' => is_scalar($_POST['secondary_button_style_id'] ?? null) ? (string) $_POST['secondary_button_style_id'] : '',
 ];
 
 /** Back to the screen with everything as typed. */
@@ -380,6 +398,9 @@ try {
     );
     BlockLocalization::save('homepage_hero', $heroId, $languageCode, $words);
     (new ResponsiveImageRepository())->save('homepage_hero', $heroId, $imageSlot, $presentation);
+    foreach ($buttonStyles as $button => $buttonStyle) {
+        (new ButtonStyleRepository())->saveChoice('homepage_hero', $button . '_button_style_id', $heroId, $buttonStyle);
+    }
 
     $stats->save(
         $languageCode,

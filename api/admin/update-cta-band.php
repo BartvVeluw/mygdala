@@ -55,6 +55,8 @@ use App\Repository\ResponsiveImageRepository;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Repository\CtaBandRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -156,6 +158,20 @@ foreach (['primary', 'secondary'] as $button) {
     );
 }
 
+// Each button's style (Button Styles 2.0): '' = the default, else a style
+// that exists; a forged id is refused at its field and the stored choice kept.
+$buttonStyles = [];
+foreach (['primary', 'secondary'] as $button) {
+    [$buttonStyles[$button], $styleError] = ButtonStyles::choiceFromRequest(
+        $_POST,
+        $button . '_button_style_id',
+        ButtonStyles::storedChoice($section[$button . '_button_style_id'] ?? null)
+    );
+    if ($styleError !== null) {
+        $fieldErrors[$button . '_button_style_id'] = $styleError;
+    }
+}
+
 // No first button, no second one: whatever was posted for it is hidden with
 // the first button's group and is not a button.
 if ($links['primary']['link_type'] === null) {
@@ -210,6 +226,7 @@ foreach (['primary', 'secondary'] as $button) {
     $old[$button . '_link_type'] = $linkTypes[$button];
     $old[$button . '_link_target'] = array_map('intval', array_filter($postedTargets[$button], 'is_scalar'));
     $old[$button . '_url'] = $postedUrls[$button];
+    $old[$button . '_button_style_id'] = is_scalar($_POST[$button . '_button_style_id'] ?? null) ? (string) $_POST[$button . '_button_style_id'] : '';
 }
 
 $redirect = '/admin/cta-band.php?section=' . urlencode($sectionParam);
@@ -230,6 +247,9 @@ try {
 
     $repository->upsertSection($slug, $sectionKey, $settings);
     (new ResponsiveImageRepository())->save('cta_bands', $sectionId, $backgroundSlot, $backgroundPresentation);
+    foreach ($buttonStyles as $button => $buttonStyle) {
+        (new ButtonStyleRepository())->saveChoice('cta_bands', $button . '_button_style_id', $sectionId, $buttonStyle);
+    }
     BlockLocalization::save('cta_bands', $sectionId, $languageCode, $words);
 
     $db->commit();

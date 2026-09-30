@@ -167,7 +167,8 @@ function render_section_featured_product(array $content, string $revealGroup): v
                      links, not two times "Bekijk product". */ ?>
             <?php if (!empty($content['show_product_link']) && $url !== '' && $linkLabel !== ''): ?>
             <p class="featured-product__link">
-              <a class="btn btn--ghost" href="<?= $h($url) ?>"><?= $h($linkLabel) ?><?php if ($name !== ''): ?><span class="visually-hidden">: <?= $h($name) ?></span><?php endif; ?></a>
+              <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($content['button_style'] ?? null), ['btn', 'btn--ghost']); ?>
+              <a class="<?= $h($button['class']) ?>" href="<?= $h($url) ?>"><?= $h($linkLabel) ?><?php if ($name !== ''): ?><span class="visually-hidden">: <?= $h($name) ?></span><?php endif; ?></a>
             </p>
             <?php endif; ?>
           </div>

@@ -98,8 +98,11 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
               <div class="rich-content text-image__body<?= $item['title'] === '' ? ' text-image__body--lead' : '' ?>"><?= $item['body'] ?></div>
               <?php endif; ?>
               <?php if ($item['button_label'] !== ''): ?>
-              <a href="<?= $h($item['button_url']) ?>" class="btn text-image__button"><?= $h($item['button_label']) ?>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($item['button_style'] ?? null), ['btn'], ['text-image__button']); ?>
+              <a href="<?= $h($item['button_url']) ?>" class="<?= $h($button['class']) ?>"><?= $h($item['button_label']) ?>
+                <?php if ($button['legacy_icon']): ?>
+                <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                <?php endif; ?>
               </a>
               <?php endif; ?>
             </div>

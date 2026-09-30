@@ -85,6 +85,8 @@ use App\Service\Media\ResponsiveImage;
 use App\Repository\ResponsiveImageRepository;
 use App\Service\Routing\LinkTargets;
 use App\Repository\DetailSectionRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -330,8 +332,17 @@ if ($urlProblem !== null) {
     $fieldErrors['cta_url'] = $urlProblem;
 }
 
+// The button's style (Button Styles 2.0): '' = the default, else a style that
+// exists; a forged id is refused at its field.
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($section['button_style_id'] ?? null));
+if ($buttonStyleError !== null) {
+    $errors[] = $buttonStyleError;
+    $fieldErrors['button_style_id'] = $buttonStyleError;
+}
+
 $old = ['language_code' => $languageCode] + $words + [
     'label_mode' => is_string($_POST['label_mode'] ?? null) ? $_POST['label_mode'] : $labelMode,
+    'button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '',
 ] + $settings + [
     'main_media_id' => $mainPosted,
     'remove_legacy_main_image' => isset($_POST['remove_legacy_main_image']),
@@ -360,6 +371,7 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, $settings);
+    (new ButtonStyleRepository())->saveChoice('detail_sections', 'button_style_id', $sectionId, $buttonStyle);
 
     if ($mainChosen['media_id'] !== null) {
         $repository->updateMainImage($sectionId, [

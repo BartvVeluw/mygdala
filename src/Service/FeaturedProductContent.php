@@ -159,6 +159,8 @@ final class FeaturedProductContent
         return self::$cache[$cacheKey] = ['state' => self::STATE_ACTIVE] + $settings + [
             'intro' => BlockLocalization::text(self::TABLE, $id, self::INTRO),
             'link_label' => $storedLabel !== '' ? $storedLabel : self::defaultLinkLabel(),
+            // Button Styles 2.0: the button's choice, null = the default.
+            'button_style' => \App\Service\Theme\ButtonStyles::storedChoice($row['button_style_id'] ?? null),
             'product' => $product,
         ];
     }
@@ -171,7 +173,7 @@ final class FeaturedProductContent
      */
     public static function emptyContent(string $state = self::STATE_FALLBACK): array
     {
-        return ['state' => $state] + self::settings([]) + ['intro' => '', 'link_label' => '', 'product' => null];
+        return ['state' => $state] + self::settings([]) + ['intro' => '', 'link_label' => '', 'button_style' => null, 'product' => null];
     }
 
     /**

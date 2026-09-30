@@ -74,14 +74,21 @@ function render_section_homepage_hero(array $hero): void
                    escaped here. */ ?>
           <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%"><?= $heroTitle ?></h1>
           <p class="lead hero__lead"><?= $h($hero['lead']) ?></p>
+          <?php
+          // Button Styles 2.0: the default look, or the style each button chose.
+          $primaryButton = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($hero['primary_button_style'] ?? null), ['btn']);
+          $secondaryButton = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($hero['secondary_button_style'] ?? null), ['btn', 'btn--ghost']);
+          ?>
           <div class="hero__actions">
             <?php if ((string) $hero['primary_label'] !== '' && (string) $hero['primary_url'] !== ''): ?>
-            <a href="<?= $h((string) $hero['primary_url']) ?>" class="btn"><?= $h($hero['primary_label']) ?>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            <a href="<?= $h((string) $hero['primary_url']) ?>" class="<?= $h($primaryButton['class']) ?>"><?= $h($hero['primary_label']) ?>
+              <?php if ($primaryButton['legacy_icon']): ?>
+              <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              <?php endif; ?>
             </a>
             <?php endif; ?>
             <?php if ($hero['secondary_label'] !== ''): ?>
-            <a href="<?= $h((string) $hero['secondary_url']) ?>" class="btn btn--ghost"><?= $h($hero['secondary_label']) ?></a>
+            <a href="<?= $h((string) $hero['secondary_url']) ?>" class="<?= $h($secondaryButton['class']) ?>"><?= $h($hero['secondary_label']) ?></a>
             <?php endif; ?>
           </div>
           <div class="hero__meta">

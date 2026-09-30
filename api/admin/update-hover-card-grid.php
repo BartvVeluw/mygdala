@@ -67,6 +67,8 @@ use App\Service\Language\SiteLanguages;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Routing\LinkChoice;
 use App\Repository\ResponsiveImageRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -152,7 +154,7 @@ $post = ['cards' => $postedCards] + $_POST;
 // The kind of link and the picture's presentation arrive already chosen on
 // a new card: alone they do not make it a card.
 $imageSlot = HoverCardGridContent::imageSlot();
-$preset = ['link_type'];
+$preset = ['link_type', 'button_style_id'];
 foreach (['presentation', 'focus_x', 'focus_y', 'zoom', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'mobile_zoom', 'fit', 'mobile_fit'] as $part) {
     $preset[] = $imageSlot->column($part);
 }
@@ -200,9 +202,27 @@ $pictureId = static function (mixed $posted): ?int {
     return ctype_digit($posted) ? HoverCardGridContent::picture((int) $posted)?->id : null;
 };
 
+/**
+ * The link's button style (Button Styles 2.0): '' = the card's own text link,
+ * else a style that exists. A forged id comes back with an error and the
+ * stored choice.
+ *
+ * @return array{0: ?int, 1: ?string}
+ */
+$styleOf = static function (array $row) use ($storedCards): array {
+    $storedCard = $storedCards[$row['id']] ?? [];
+
+    return ButtonStyles::choiceFromRequest($row['fields'], 'button_style_id', ButtonStyles::storedChoice($storedCard['button_style_id'] ?? null));
+};
+
 /** A card's own checks besides its words' lengths: its pictures, their presentation and its link. */
-$cardProblems = static function (array $row) use ($pictureId, $linkOf, $presentationOf, $languageCode, $defaultLanguage): array {
+$cardProblems = static function (array $row) use ($pictureId, $linkOf, $presentationOf, $styleOf, $languageCode, $defaultLanguage): array {
     $problems = [];
+
+    $styleError = $styleOf($row)[1];
+    if ($styleError !== null) {
+        $problems['button_style_id'] = $styleError;
+    }
 
     if ($pictureId($row['fields']['media_id'] ?? '') === null) {
         $problems['media_id'] = AdminTranslator::trans('block_hover_cards.error_image');
@@ -303,17 +323,20 @@ try {
     BlockLocalization::save(HoverCardGridContent::TABLE, $gridId, $languageCode, $words);
 
     $presentationRepository = new ResponsiveImageRepository();
+    $styleRepository = new ButtonStyleRepository();
     $cards->save(
         $languageCode,
-        static function (array $row) use ($repository, $gridId, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): int {
+        static function (array $row) use ($repository, $gridId, $valuesOf, $presentationRepository, $imageSlot, $presentationOf, $styleRepository, $styleOf): int {
             $id = $repository->createItem($gridId, $valuesOf($row));
             $presentationRepository->save(HoverCardGridContent::ITEMS, $id, $imageSlot, $presentationOf($row)[0]);
+            $styleRepository->saveChoice(HoverCardGridContent::ITEMS, 'button_style_id', $id, $styleOf($row)[0]);
 
             return $id;
         },
-        static function (int $id, array $row) use ($repository, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): void {
+        static function (int $id, array $row) use ($repository, $valuesOf, $presentationRepository, $imageSlot, $presentationOf, $styleRepository, $styleOf): void {
             $repository->updateItem($id, $valuesOf($row));
             $presentationRepository->save(HoverCardGridContent::ITEMS, $id, $imageSlot, $presentationOf($row)[0]);
+            $styleRepository->saveChoice(HoverCardGridContent::ITEMS, 'button_style_id', $id, $styleOf($row)[0]);
         },
         static fn (int $id) => $repository->deleteItem($id),
         static fn (array $order) => $repository->reorderItems($gridId, $order)

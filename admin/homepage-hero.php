@@ -11,6 +11,7 @@ require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_responsive_image_field.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockDefinitions;
@@ -154,6 +155,8 @@ $button = static function (string $button) use ($old, $hero): array {
         'type' => is_array($old) ? (string) ($old[$button . '_link_type'] ?? '') : $storedType,
         'targets' => $targets,
         'url' => is_array($old) ? (string) ($old[$button . '_url'] ?? '') : (string) ($hero[$button . '_url'] ?? ''),
+        // Button Styles 2.0: '' / NULL = the default.
+        'style' => \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old[$button . '_button_style_id'] ?? null) : ($hero[$button . '_button_style_id'] ?? null)),
     ];
 };
 $primary = $button('primary');
@@ -271,6 +274,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
           'invalid' => editor_field_invalid($fieldErrors, 'primary_url'),
           'error' => static fn () => editor_field_error($fieldErrors, 'primary_url'),
       ]); ?>
+      <?= admin_button_style_field('hero-primary-style', 'primary_button_style_id', $primary['style'], 'primary', '', $fieldErrors['primary_button_style_id'] ?? null) ?>
 
       <?php /* The secondary button's label only matters while it is a button,
                so it sits in the button's own group and hides with "Geen knop"
@@ -291,6 +295,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
         ]); ?>
         <div data-nav-link-field="<?= $h(link_target_shown_kinds($secondary['stored_type'])) ?>">
           <?php $field('secondary_label', admin_t('block_hero.label_3'), 150, $placeholder); ?>
+          <?= admin_button_style_field('hero-secondary-style', 'secondary_button_style_id', $secondary['style'], 'secondary', '', $fieldErrors['secondary_button_style_id'] ?? null) ?>
         </div>
       </div>
     </section>

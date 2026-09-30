@@ -40,6 +40,8 @@ use App\Service\ItemGallerySelection;
 use App\Service\ItemGallerySources;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 use App\Repository\PageSectionRepository;
 
 AdminAuth::requireLoginForApi();
@@ -195,7 +197,15 @@ if ($languageIsWritable && (($defaultButtonLabel !== '') !== $buttonUrlSet || ($
     $errors[] = AdminTranslator::trans('validation.vul_zowel_knoplabel_knop_url');
 }
 
+// The button's style (Button Styles 2.0): '' = the default, else a style that
+// exists; a forged id is refused.
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($section['button_style_id'] ?? null));
+if ($buttonStyleError !== null) {
+    $errors[] = $buttonStyleError;
+}
+
 $old = ['language_code' => $languageCode] + $words + $fields
+    + ['button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '']
     + ($selection !== null && $selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
 
 if ($errors !== []) {
@@ -212,6 +222,7 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, $fields);
+    (new ButtonStyleRepository())->saveChoice('item_galleries', 'button_style_id', $sectionId, $buttonStyle);
     BlockLocalization::save('item_galleries', $sectionId, $languageCode, $words);
     if ($selection !== null && $selection['selected'] !== null) {
         ItemGallerySources::saveSelection($selectionSource, $sectionId, $selection['selected']);

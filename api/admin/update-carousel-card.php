@@ -83,6 +83,8 @@ use App\Service\Media\ResponsiveImage;
 use App\Repository\ResponsiveImageRepository;
 use App\Service\Routing\LinkChoice;
 use App\Repository\CardCarouselRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -224,6 +226,13 @@ foreach ($tagRows as $row) {
     }
 }
 
+// The button's style (Button Styles 2.0): '' = the default, else a style that
+// exists; a forged id is refused at its field.
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($card['button_style_id'] ?? null));
+if ($buttonStyleError !== null) {
+    $fieldErrors['button_style_id'] = $buttonStyleError;
+}
+
 // ---------------------------------------------------------------- the words
 
 $errors = [];
@@ -252,6 +261,7 @@ $old = ['language_code' => $languageCode, 'link_type' => $linkType, 'link_url' =
     'link_target' => array_map('intval', array_filter($postedTargets, 'is_scalar')),
     'tags' => [],
     'presentation' => $presentation->toRow($imageSlot),
+    'button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '',
 ];
 foreach ($tagRows as $row) {
     $old['tags'][$row['key']] = $row['fields']['label'] ?? '';
@@ -272,6 +282,7 @@ try {
 
     $repository->updateCard($cardId, $settings);
     (new ResponsiveImageRepository())->save('carousel_cards', $cardId, $imageSlot, $presentation);
+    (new ButtonStyleRepository())->saveChoice('carousel_cards', 'button_style_id', $cardId, $buttonStyle);
 
     if ($chosen['media_id'] !== null) {
         $repository->updateCardImage($cardId, $chosen);

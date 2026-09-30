@@ -204,7 +204,8 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
 
       <?php if ($hasButton): ?>
       <div class="text-center" style="margin-top: var(--sp-5)">
-        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost"><?= $h($text('button_label')) ?></a>
+        <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($content['button_style'] ?? null), ['btn', 'btn--ghost']); ?>
+        <a href="<?= $h($content['button_url']) ?>" class="<?= $h($button['class']) ?>"><?= $h($text('button_label')) ?></a>
       </div>
       <?php endif; ?>
     </div>

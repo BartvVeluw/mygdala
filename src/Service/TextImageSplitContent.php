@@ -280,6 +280,8 @@ class TextImageSplitContent
             'body' => $hasBody ? $words['body'] : '',
             'button_label' => $words['button_label'],
             'button_url' => $buttonUrl,
+            // Button Styles 2.0: this item's button's choice, null = the default.
+            'button_style' => \App\Service\Theme\ButtonStyles::storedChoice($item['button_style_id'] ?? null),
             'image' => $image,
         ];
     }

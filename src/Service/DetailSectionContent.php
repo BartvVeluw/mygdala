@@ -12,6 +12,7 @@ use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Content for the "Detailsectie" page-builder block
@@ -414,6 +415,8 @@ class DetailSectionContent
             : 'image_right';
         $content['label_mode'] = self::labelMode($row['label_mode'] ?? null);
         $content['cta_url'] = TypedLink::href((string) ($row['cta_url'] ?? ''));
+        // Button Styles 2.0: the button's choice, null = the default.
+        $content['button_style'] = ButtonStyles::storedChoice($row['button_style_id'] ?? null);
 
         // A CTA only renders when it has both a label in the default language
         // and a URL — a half-filled optional CTA would be a broken/dead link,
@@ -445,6 +448,7 @@ class DetailSectionContent
             'image_position' => 'image_right',
             'label_mode' => LabelMode::PADDED,
             'cta_url' => '',
+            'button_style' => null,
             'points' => [],
             'images' => [],
         ];

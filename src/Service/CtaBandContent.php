@@ -9,6 +9,7 @@ use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Content for the "CTA band" block (`.cta-band`) — the eyebrow/H2/lead/
@@ -280,6 +281,9 @@ class CtaBandContent
         }
 
         $content += self::presentation($row);
+        // Button Styles 2.0: each button's choice, null = the default.
+        $content['primary_button_style'] = ButtonStyles::storedChoice($row['primary_button_style_id'] ?? null);
+        $content['secondary_button_style'] = ButtonStyles::storedChoice($row['secondary_button_style_id'] ?? null);
         $content['state'] = self::STATE_ACTIVE;
 
         return $content;
@@ -295,6 +299,6 @@ class CtaBandContent
             $content[$field] = '';
         }
 
-        return $content + ['primary_url' => '', 'secondary_url' => ''] + self::presentation([]);
+        return $content + ['primary_url' => '', 'secondary_url' => '', 'primary_button_style' => null, 'secondary_button_style' => null] + self::presentation([]);
     }
 }

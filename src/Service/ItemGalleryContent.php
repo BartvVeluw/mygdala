@@ -6,6 +6,7 @@ use App\Repository\ItemGalleryRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Content for the "Portfolio-/collectiegalerij" block
@@ -263,6 +264,8 @@ class ItemGalleryContent
             // (App\Service\Routing\TypedLink).
             'fallback_link_url' => TypedLink::href((string) ($row['fallback_link_url'] ?? '')),
             'button_url' => TypedLink::href((string) ($row['button_url'] ?? '')),
+            // Button Styles 2.0: the button's choice, null = the default.
+            'button_style' => ButtonStyles::storedChoice($row['button_style_id'] ?? null),
             'background' => $background,
             'tight_top' => (bool) $row['tight_top'],
             // Only a source that HAS a taxonomy can offer a filter bar; a
@@ -320,6 +323,7 @@ class ItemGalleryContent
             'enable_lightbox' => false,
             'fallback_link_url' => '',
             'button_url' => '',
+            'button_style' => null,
             'background' => 'default',
             'tight_top' => false,
             'filter_categories' => [],

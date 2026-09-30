@@ -13,6 +13,7 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_gallery_source_field.php';
 require_once __DIR__ . '/_label_mode_field.php';
 require_once __DIR__ . '/_responsive_image_field.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -308,6 +309,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
         <?= admin_field_label('detail-cta-url', admin_t('block_detail.cta_knop_url'), admin_t('help.block_detail.cta')) ?>
         <input type="text" id="detail-cta-url" name="cta_url" maxlength="255" value="<?= $h($setting('cta_url')) ?>" placeholder="Bijv. contact.php — leeg = geen knop">
       </div>
+      <?= admin_button_style_field('detail-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old['button_style_id'] ?? null) : ($section['button_style_id'] ?? null)), 'primary', '', $fieldErrors['button_style_id'] ?? null) ?>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>

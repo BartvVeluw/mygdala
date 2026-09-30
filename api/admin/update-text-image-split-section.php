@@ -72,6 +72,8 @@ use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
 use App\Service\Media\ResponsiveImage;
 use App\Repository\ResponsiveImageRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 use App\Service\Routing\LinkChoice;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
@@ -164,7 +166,7 @@ if (is_array($post['items'])) {
 // item: they alone do not make it an item.
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $imageSlot = TextImageSplitContent::imageSlot();
-$preset = ['image_side', 'image_column', 'image_height', 'button_link_type'];
+$preset = ['image_side', 'image_column', 'image_height', 'button_link_type', 'button_style_id'];
 // The picture's presentation arrives filled in on a new item too.
 foreach (['presentation', 'focus_x', 'focus_y', 'zoom', 'mobile_source', 'mobile_focus_x', 'mobile_focus_y', 'mobile_zoom', 'fit', 'mobile_fit', 'mobile_height'] as $part) {
     $preset[] = $imageSlot->column($part);
@@ -228,8 +230,20 @@ $linkOf = static function (array $row) use (&$links, $storedItems): array {
     );
 };
 
+/**
+ * The button's style (Button Styles 2.0): '' = the default, else a style that
+ * exists. A forged id comes back with an error and the stored choice.
+ *
+ * @return array{0: ?int, 1: ?string}
+ */
+$styleOf = static function (array $row) use ($storedItems): array {
+    $storedItem = $storedItems[$row['id']] ?? [];
+
+    return ButtonStyles::choiceFromRequest($row['fields'], 'button_style_id', ButtonStyles::storedChoice($storedItem['button_style_id'] ?? null));
+};
+
 /** An item's own checks besides its words: a known picture, its presentation, a valid button, and something to show. */
-$itemProblems = static function (array $row) use ($pictureOf, $linkOf, $presentationOf, $languageCode, $defaultLanguage): array {
+$itemProblems = static function (array $row) use ($pictureOf, $linkOf, $presentationOf, $styleOf, $languageCode, $defaultLanguage): array {
     $posted = $row['fields']['media_id'] ?? '';
     if ($posted !== '' && $posted !== '0' && BlockImage::fromRequest($posted)['media_id'] === null) {
         return ['media_id' => AdminTranslator::trans('editor_rows.error_media_unknown')];
@@ -254,6 +268,11 @@ $itemProblems = static function (array $row) use ($pictureOf, $linkOf, $presenta
     $link = $linkOf($row);
     if ($link['error'] !== null) {
         return ['button_url' => $link['error']];
+    }
+
+    $styleError = $styleOf($row)[1];
+    if ($styleError !== null) {
+        return ['button_style_id' => $styleError];
     }
 
     // A chosen destination is a button, and a button needs its words in the
@@ -340,17 +359,20 @@ try {
     }
 
     $presentationRepository = new ResponsiveImageRepository();
+    $styleRepository = new ButtonStyleRepository();
     $items->save(
         $languageCode,
-        static function (array $row) use ($repository, $sectionId, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): int {
+        static function (array $row) use ($repository, $sectionId, $valuesOf, $presentationRepository, $imageSlot, $presentationOf, $styleRepository, $styleOf): int {
             $id = $repository->createItem($sectionId, $valuesOf($row));
             $presentationRepository->save('text_image_split_items', $id, $imageSlot, $presentationOf($row)[0]);
+            $styleRepository->saveChoice('text_image_split_items', 'button_style_id', $id, $styleOf($row)[0]);
 
             return $id;
         },
-        static function (int $id, array $row) use ($repository, $valuesOf, $presentationRepository, $imageSlot, $presentationOf): void {
+        static function (int $id, array $row) use ($repository, $valuesOf, $presentationRepository, $imageSlot, $presentationOf, $styleRepository, $styleOf): void {
             $repository->updateItem($id, $valuesOf($row));
             $presentationRepository->save('text_image_split_items', $id, $imageSlot, $presentationOf($row)[0]);
+            $styleRepository->saveChoice('text_image_split_items', 'button_style_id', $id, $styleOf($row)[0]);
         },
         static fn (int $id) => $repository->deleteItem($id),
         static fn (array $order) => $repository->reorderItems($sectionId, $order)

@@ -286,6 +286,9 @@ class CardCarouselContent
             $result['link_label'] = '';
         }
 
+        // Button Styles 2.0: the button's choice, null = the default.
+        $result['button_style'] = \App\Service\Theme\ButtonStyles::storedChoice($card['button_style_id'] ?? null);
+
         $result['tags'] = [];
         foreach ($tags as $tag) {
             $tagId = (int) $tag['id'];

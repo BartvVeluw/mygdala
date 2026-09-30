@@ -260,6 +260,11 @@
   color: var(--color-primary-bright);
 }
 .hover-card__cta svg{ width: 1rem; height: 1rem; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out); }
+/* A chosen button style (Button Styles 2.0): the link's words are that .btn,
+   a span inside the card-wide link. The card is what is pointed at and
+   focused, so the card's reached state (below) gives the button its hover,
+   from the same --btn-* properties core.css's .btn:hover reads. */
+.hover-card__cta--button .btn{ white-space: normal; text-align: center; max-width: 100%; }
 
 .hover-card--open-text .hover-card__more{ grid-template-rows: 1fr; }
 .hover-card--open-text .hover-card__more-inner{ opacity: 1; }
@@ -295,6 +300,16 @@
 .hover-card:focus-within .hover-card__more{ grid-template-rows: 1fr; }
 .hover-card:focus-within .hover-card__more-inner{ opacity: 1; }
 .hover-card:focus-within .hover-card__cta svg{ transform: translateX(4px); }
+.hover-card:focus-within .hover-card__cta--button .btn{
+  transform: translateY(var(--btn-hover-lift));
+  box-shadow: var(--btn-hover-shadow);
+  filter: var(--btn-hover-filter);
+  background: var(--btn-hover-bg);
+  color: var(--btn-hover-fg);
+  border-color: var(--btn-hover-border-color);
+}
+.hover-card:focus-within .hover-card__cta--button .btn::before,
+.hover-card:focus-within .hover-card__cta--button .btn::after{ transform: translateX(var(--btn-icon-shift)); }
 
 @media (hover: hover){
   .hover-card:hover .hover-card__inner{ transform: translateY(var(--hover-card-lift)); }
@@ -309,6 +324,16 @@
   .hover-card--linked:hover .hover-card__more{ grid-template-rows: 1fr; }
   .hover-card--linked:hover .hover-card__more-inner{ opacity: 1; }
   .hover-card:hover .hover-card__cta svg{ transform: translateX(4px); }
+  .hover-card:hover .hover-card__cta--button .btn{
+    transform: translateY(var(--btn-hover-lift));
+    box-shadow: var(--btn-hover-shadow);
+    filter: var(--btn-hover-filter);
+    background: var(--btn-hover-bg);
+    color: var(--btn-hover-fg);
+    border-color: var(--btn-hover-border-color);
+  }
+  .hover-card:hover .hover-card__cta--button .btn::before,
+  .hover-card:hover .hover-card__cta--button .btn::after{ transform: translateX(var(--btn-icon-shift)); }
 }
 
 /* ==========================================================================
@@ -451,14 +476,20 @@
   /* The same selectors as the reached state above, later, so they win. */
   .hover-card:focus-within .hover-card__inner,
   .hover-card:focus-within .hover-card__image,
-  .hover-card:focus-within .hover-card__cta svg{ transform: none; }
+  .hover-card:focus-within .hover-card__cta svg,
+  .hover-card:focus-within .hover-card__cta--button .btn,
+  .hover-card:focus-within .hover-card__cta--button .btn::before,
+  .hover-card:focus-within .hover-card__cta--button .btn::after{ transform: none; }
   .hover-card:focus-within .hover-card__frame{ border-radius: var(--hover-card-radius); }
   .hover-cards--organic .hover-card:focus-within .hover-card__visual::before{ border-radius: var(--hover-card-blob); rotate: none; }
 }
 @media (prefers-reduced-motion: reduce) and (hover: hover){
   .hover-card:hover .hover-card__inner,
   .hover-card:hover .hover-card__image,
-  .hover-card:hover .hover-card__cta svg{ transform: none; }
+  .hover-card:hover .hover-card__cta svg,
+  .hover-card:hover .hover-card__cta--button .btn,
+  .hover-card:hover .hover-card__cta--button .btn::before,
+  .hover-card:hover .hover-card__cta--button .btn::after{ transform: none; }
   .hover-card:hover .hover-card__frame{ border-radius: var(--hover-card-radius); }
   .hover-cards--organic .hover-card:hover .hover-card__visual::before{ border-radius: var(--hover-card-blob); rotate: none; }
 }

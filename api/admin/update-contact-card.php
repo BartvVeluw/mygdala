@@ -32,6 +32,8 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Repository\ContactCardRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -106,7 +108,16 @@ if ($urlProblem !== null) {
     $errors[] = $urlProblem;
 }
 
-$old = ['language_code' => $languageCode] + $words + $settings;
+// The button's style (Button Styles 2.0): '' = the default, else a style that
+// exists; a forged id is refused.
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($section['button_style_id'] ?? null));
+if ($buttonStyleError !== null) {
+    $errors[] = $buttonStyleError;
+}
+
+$old = ['language_code' => $languageCode] + $words + $settings + [
+    'button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '',
+];
 $redirect = '/admin/contact-card.php?section=' . urlencode($sectionParam);
 
 if ($errors !== []) {
@@ -123,6 +134,7 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, $settings);
+    (new ButtonStyleRepository())->saveChoice('contact_cards', 'button_style_id', $sectionId, $buttonStyle);
     BlockLocalization::save('contact_cards', $sectionId, $languageCode, $words);
 
     $db->commit();

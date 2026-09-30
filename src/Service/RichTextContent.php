@@ -6,6 +6,7 @@ use App\Repository\RichTextRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Content for the "Rich text" page-builder section — an ordinary long-form
@@ -148,6 +149,8 @@ class RichTextContent
             'width' => self::width($width),
             self::BUTTON_LABEL => $href !== '' ? $label : '',
             'button_href' => $label !== '' ? $href : '',
+            // Button Styles 2.0: the button's choice, null = the default.
+            'button_style' => ButtonStyles::storedChoice($row['button_style_id'] ?? null),
         ];
     }
 
@@ -164,9 +167,9 @@ class RichTextContent
         BlockLocalization::clearCache();
     }
 
-    /** @return array{state: string, body: string, align: string, width: string, button_label: string, button_href: string} */
+    /** @return array{state: string, body: string, align: string, width: string, button_label: string, button_href: string, button_style: null} */
     private static function emptyContent(string $state): array
     {
-        return ['state' => $state, self::BODY => '', 'align' => 'left', 'width' => self::width(''), self::BUTTON_LABEL => '', 'button_href' => ''];
+        return ['state' => $state, self::BODY => '', 'align' => 'left', 'width' => self::width(''), self::BUTTON_LABEL => '', 'button_href' => '', 'button_style' => null];
     }
 }

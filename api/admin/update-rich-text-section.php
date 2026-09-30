@@ -34,6 +34,8 @@ use App\Service\Language\SiteLanguages;
 use App\Service\RichTextContent;
 use App\Service\Routing\LinkChoice;
 use App\Repository\RichTextRepository;
+use App\Repository\ButtonStyleRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -101,7 +103,12 @@ $old = [
     'button_link_type' => $buttonType,
     'button_link_target' => $buttonTargets,
     'button_url' => $buttonUrl,
+    'button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '',
 ];
+
+// The button's style (Button Styles 2.0): '' = the default, else a style that
+// exists; a forged id is refused at its field.
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($section['button_style_id'] ?? null));
 
 $errors = [];
 $fieldErrors = [];
@@ -118,6 +125,10 @@ if (!$languageIsWritable) {
 
     if ($link['error'] !== null) {
         $fieldErrors['button_url'] = $link['error'];
+    }
+
+    if ($buttonStyleError !== null) {
+        $fieldErrors['button_style_id'] = $buttonStyleError;
     }
 
     // A button needs words in the default language; a translation may stay
@@ -155,6 +166,7 @@ try {
         // with an address reads as an address (LinkChoice::storedType()).
         'button_url' => $hasButton ? $buttonUrl : '',
     ]);
+    (new ButtonStyleRepository())->saveChoice('rich_text_sections', 'button_style_id', (int) $section['id'], $buttonStyle);
     BlockLocalization::save('rich_text_sections', (int) $section['id'], $languageCode, [
         RichTextContent::BODY => $body,
         RichTextContent::BUTTON_LABEL => $buttonLabel,

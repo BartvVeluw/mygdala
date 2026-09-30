@@ -4,6 +4,7 @@ require_once __DIR__ . '/eyebrow.php';
 require_once __DIR__ . '/responsive-image.php';
 
 use App\Service\CtaBandContent;
+use App\Service\Theme\ButtonStyles;
 
 /**
  * Renders the CTA Band section (App\Service\CtaBandContent) — identical
@@ -54,6 +55,9 @@ function render_section_cta_band(array $cta): void
     $background = is_array($cta['background'] ?? null) && (string) ($cta['background']['image_path'] ?? '') !== '' ? $cta['background'] : null;
     $hasPrimary = $text('primary_label') !== '' && $text('primary_url') !== '';
     $hasSecondary = $hasPrimary && $text('secondary_label') !== '' && $text('secondary_url') !== '';
+    // Button Styles 2.0: the default look, or the style each button chose.
+    $primaryButton = ButtonStyles::classes(ButtonStyles::storedChoice($cta['primary_button_style'] ?? null), ['btn']);
+    $secondaryButton = ButtonStyles::classes(ButtonStyles::storedChoice($cta['secondary_button_style'] ?? null), ['btn', 'btn--ghost']);
 
     $media = static function () use ($background, $overlay, $cta, $h): void {
         if ($background === null) {
@@ -96,11 +100,13 @@ function render_section_cta_band(array $cta): void
             <?php endif; ?>
             <?php if ($hasPrimary): ?>
             <div class="cta-band__actions">
-              <a href="<?= $h($text('primary_url')) ?>" class="btn"><?= $h($text('primary_label')) ?>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              <a href="<?= $h($text('primary_url')) ?>" class="<?= $h($primaryButton['class']) ?>"><?= $h($text('primary_label')) ?>
+                <?php if ($primaryButton['legacy_icon']): ?>
+                <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                <?php endif; ?>
               </a>
               <?php if ($hasSecondary): ?>
-              <a href="<?= $h($text('secondary_url')) ?>" class="btn btn--ghost"><?= $h($text('secondary_label')) ?></a>
+              <a href="<?= $h($text('secondary_url')) ?>" class="<?= $h($secondaryButton['class']) ?>"><?= $h($text('secondary_label')) ?></a>
               <?php endif; ?>
             </div>
             <?php endif; ?>

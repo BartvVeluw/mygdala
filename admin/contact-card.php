@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -133,6 +134,7 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
         </label>
       </div>
       <p class="admin-text-muted"><?= admin_t('block_contactcard.laat_url_leeg_mailen', ['v1' => $h($siteEmail)]) ?></p>
+      <?= admin_button_style_field('contact-card-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old['button_style_id'] ?? null) : ($section['button_style_id'] ?? null)), 'secondary') ?>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>

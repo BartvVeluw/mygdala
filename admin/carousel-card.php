@@ -23,6 +23,7 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_responsive_image_field.php';
 require_once __DIR__ . '/_link_target_field.php';
 require_once __DIR__ . '/_label_mode_field.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 /**
  * Editor for ONE card of a "Kaarten-carrousel" (?card_id=...): whether it is
@@ -374,6 +375,9 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
         <?= admin_field_label('card-link-label', admin_t('block_carousel.knoptekst'), admin_t('help.block_carousel.knoptekst')) ?>
         <input type="text" id="card-link-label" name="link_label" maxlength="150" value="<?= $h($cardWord('link_label')) ?>"<?= $optional ?><?= $invalid('link_label') ?>>
         <?php $fieldError('link_label'); ?>
+      </div>
+      <div data-nav-link-field="<?= $h(link_target_shown_kinds($storedLinkType)) ?>">
+        <?= admin_button_style_field('card-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice(is_array($old) ? ($old['button_style_id'] ?? null) : ($card['button_style_id'] ?? null)), 'secondary', '', $fieldErrors['button_style_id'] ?? null) ?>
       </div>
     </section>
 

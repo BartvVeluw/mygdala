@@ -73,8 +73,11 @@ function render_section_detail_section(array $content, array $markers, string $r
           <div class="rich-content service-detail__body"><?= $body ?></div>
           <?php endif; ?>
           <?php if ($content['cta_label'] !== ''): ?>
-          <a href="<?= $h($content['cta_url']) ?>" class="btn" style="margin-top:0.5rem;"><?= $h($content['cta_label']) ?>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <?php $button = \App\Service\Theme\ButtonStyles::classes(\App\Service\Theme\ButtonStyles::storedChoice($content['button_style'] ?? null), ['btn']); ?>
+          <a href="<?= $h($content['cta_url']) ?>" class="<?= $h($button['class']) ?>" style="margin-top:0.5rem;"><?= $h($content['cta_label']) ?>
+            <?php if ($button['legacy_icon']): ?>
+            <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <?php endif; ?>
           </a>
           <?php endif; ?>
         </div>

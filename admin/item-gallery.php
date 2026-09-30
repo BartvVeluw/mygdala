@@ -7,6 +7,7 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_gallery_selection.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -84,6 +85,7 @@ $values = $old ?? [
     'enable_lightbox' => (bool) $section['enable_lightbox'],
     'fallback_link_url' => (string) ($section['fallback_link_url'] ?? ''),
     'button_url' => (string) ($section['button_url'] ?? ''),
+    'button_style_id' => $section['button_style_id'] ?? null,
     'background' => (string) $section['background'],
     'tight_top' => (bool) $section['tight_top'],
     'is_active' => (bool) $section['is_active'],
@@ -308,6 +310,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Bijvoorbeeld /portfolio.php">
         </label>
       </div>
+      <?= admin_button_style_field('gallery-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice($values['button_style_id'] ?? null), 'secondary') ?>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
