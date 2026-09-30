@@ -67,7 +67,9 @@ en `GenericBlockDefaultsTest` bewaken beide.
   (`App\Service\Blocks\AnchorNavigation`, vorm via `AnchorName`). Laat een
   blok een product, project of bericht als gelinkte afbeelding tonen, gebruik
   dan `App\Service\Media\LinkedImages` en `admin/_gallery_source_field.php`,
-  nooit een eigen `if shop`/`if blog`.
+  nooit een eigen `if shop`/`if blog`. Het formulier draagt dan
+  `data-nav-item-form`, anders staan alle bronpanelen tegelijk open
+  (`CONTENT-BLOCKS.md`, "Detailsectie 2.1").
 - **Een blok staat niet alleen op pagina's.** Een product en een project
   hebben een inhoudspagina met dezelfde blokken (`CONTENT-BLOCKS.md`, "Blokken
   op een product of project"). Een gewoon blok hoeft daar niets voor te doen.

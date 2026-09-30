@@ -1250,6 +1250,16 @@ modulegrens van `LinkedImages`, de ene ankernavigatie, het mobiele menu) in
 `contract` en `fast`; `DetailSectionSourcesMigrationTest` in `migration` en
 `blocks`.
 
+Detailsectie 2.1 (`CONTENT-BLOCKS.md`, "Detailsectie 2.1"):
+`DetailSectionTwoOneTest` (database: automatische hoofdafbeelding van product
+en project, links per taal, een nieuwe hoofdafbeelding volgt, de naamtegel
+zonder afbeelding, focus en zoom per item, module uit, vervalste bron, Blog,
+escaping) en `DetailSectionTwoOneHttpTest` (eigen `php -S`: één bronkeuze
+zonder tweede afbeelding, inklapbare items op hun rij-id, de preview met
+`picture`, rechten en CSRF, concept tot de eerste opslag) zitten in `blocks`;
+`DetailSectionTwoOneContractTest` (de haak `data-nav-item-form`, de inklapbare
+rij, het script, geen `<img>` zonder bron) in `contract`, `fast` en `blocks`.
+
 ### Zoeken
 
 De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):

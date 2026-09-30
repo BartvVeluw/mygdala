@@ -751,6 +751,15 @@ blogbericht toont (`App\Service\Media\LinkedImages`, `CONTENT-BLOCKS.md`,
 afbeelding van dat item, live, en die telt mee bij dat item (de productfoto,
 de hoofdfoto van het project, de uitgelichte afbeelding van het bericht).
 
+**Een afbeeldingsbron** (Detailsectie 2.1, `CONTENT-BLOCKS.md`) is precies
+dat: de Mediabibliotheek, of een soort item waarvan de module een
+hoofdafbeelding aanlevert (`ModuleDefinition::linkedImages()`). Opgeslagen
+wordt alleen de bron (`source_type`, `source_id`), nooit een kopie; focus en
+zoom horen bij het galerij-item en veranderen de bronafbeelding niet.
+`LinkedImages::item()` geeft ook een openbaar item zonder hoofdafbeelding
+(lege `image_path`, een naamtegel op de website); `LinkedImages::resolve()`
+alleen een item met afbeelding.
+
 Een blok op de pagina-inhoud van een product of project
 (`CONTENT-BLOCKS.md`, "Blokken op een product of project") staat in dezelfde
 bloktabellen en telt dus vanzelf mee. Het label noemt dan de eigenaar in plaats

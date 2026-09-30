@@ -540,12 +540,13 @@ deze titel aan", de startkop van een Oproep met knop) tellen als inhoud.
   van hier. Het kader in de editor volgt de bron van de rij meteen, zonder
   opslaan: `admin/assets/gallery-source.js` vraagt de foto van een gekozen
   item aan `api/admin/linked-image-preview.php`, dat dezelfde live
-  `LinkedImages::resolve()` gebruikt als de website (en het recht van de
+  `LinkedImages::item()` gebruikt als de website (en het recht van de
   bloklijst controleert), en stuurt hem als `rm:picture`-event naar het
   kader. Het script noemt geen module. Een item dat een bezoeker niet ziet
   (inactief, concept, verwijderd, module uit) geeft geen foto en de regel
-  *Dit item is nu niet openbaar of heeft geen afbeelding …*; nooit een foto
-  die alleen de beheerder zou zien. Er wordt geen pad opgeslagen.
+  *Dit item is nu niet openbaar …*; nooit een foto die alleen de beheerder
+  zou zien. Een openbaar item zonder hoofdafbeelding: zie "Detailsectie 2.1".
+  Er wordt geen pad opgeslagen.
 - **Galerijbronnen.** Een galerij-item is een afbeelding uit de
   Mediabibliotheek, of een product, portfolioproject of blogbericht dat zijn
   eigen afbeelding en naam toont en naar zijn pagina linkt
@@ -569,6 +570,78 @@ deze titel aan", de startkop van een Oproep met knop) tellen als inhoud.
   altijd.
 - **Uitleg** staat in de help-knop van het veld en in de infobalk van een
   kaart, niet meer als alinea onder elk veld.
+
+## Detailsectie 2.1: afbeeldingsbron en inklapbare items
+
+v0.1.14. Geen migratie: de opslag van 2.0 (`source_type` + `source_id` op
+`detail_section_images`) was al genoeg; wat ontbrak zat in de editor en in de
+weergave.
+
+- **Wat een afbeeldingsbron is.** Per galerij-item één keuze,
+  *Afbeeldingsbron*: *Mediabibliotheek*, of een soort item van de site
+  (*Product*, *Portfolioproject*, en zolang de Blog aan staat *Blogbericht*).
+  Alleen het paneel van de gekozen bron staat in beeld. Bij de
+  Mediabibliotheek kies je zelf een afbeelding met alt-tekst; een gekoppeld
+  item heeft verder niets nodig, er is geen tweede, verplichte afbeelding.
+- **Waarom dat eerst misging.** Het formulier van `admin/detail-section.php`
+  miste `data-nav-item-form`, de haak van `admin/assets/navigation-item.js`.
+  Dat script stopte dus meteen, en álle panelen stonden tegelijk open: de
+  mediakiezer ("Afbeelding*") én de lijst van elke soort. Wie een product koos
+  maar de bron op *Afbeelding* liet staan, bewaarde een bibliotheekitem: het
+  endpoint eiste een afbeelding, en een opgeslagen item linkte nergens heen.
+  De architectuur zelf (`LinkedImages`, `LinkTargets`, het endpoint, de
+  partial) was in orde. `DetailSectionTwoOneContractTest` bewaakt de haak.
+- **Automatisch de hoofdafbeelding.** Een gekoppeld item toont bij elke
+  weergave de hoofdafbeelding die zijn module aanlevert
+  (`ModuleDefinition::linkedImages()`: de eerste productfoto, de hoofdfoto van
+  het project, de uitgelichte afbeelding van het bericht). Er wordt alleen een
+  bronreferentie bewaard, nooit een kopie of pad; krijgt het product een
+  nieuwe hoofdafbeelding, dan staat die meteen op de website. In de editor
+  toont het focuskader bij het kiezen direct de thumbnail uit de
+  Mediabibliotheek (`api/admin/linked-image-preview.php`), zonder opslaan of
+  herladen.
+- **Automatische links.** Het adres komt van de bestemmingskiezer:
+  `LinkTargets::href()`, dus de module zelf, in de taal van het verzoek.
+  Een product linkt naar `/product.php?id=<id>` (in het Engels
+  `/en/product.php?id=<id>`, `ProductSeo::publicPath()`), een project naar
+  `/portfolio/<slug>` via `LocalizedUrl`. Niet openbaar (inactief, verborgen,
+  concept), verwijderd of een module die uit staat: geen adres, en het item
+  blijft weg; de rest van de sectie rendert gewoon. De partial zet één `<a>`
+  om beeld en naam; het naamlabel is geen overlay die de klik tegenhoudt, en
+  er zijn geen geneste links.
+- **Een item zonder hoofdafbeelding.** `LinkedImages::item()` geeft een
+  openbaar item ook zonder afbeelding terug (`image_path` `''`);
+  `LinkedImages::resolve()` blijft alleen items mét afbeelding geven. De
+  website toont zo'n item als hetzelfde vierkant met alleen zijn naam, nog
+  steeds klikbaar (`.service-detail__gallery-item--name`), en nooit een
+  `<img>` zonder bron. De editor zegt het met een waarschuwing
+  (`gallery_source.no_picture`) en vraagt niets extra. Een bibliotheekitem
+  waarvan het bestand weg is, laat de website weg.
+- **Focus en zoom** zijn presentatie van het galerij-item, niet van de bron:
+  opgeslagen op de galerijrij (`image_focus_x/y`, `image_zoom`), dezelfde voor
+  een bibliotheekfoto en voor een gekoppeld item, en ze blijven staan als de
+  bron een andere hoofdafbeelding krijgt. Geen telefoondeel: de strook op een
+  telefoon toont hetzelfde vierkant met hetzelfde punt.
+- **Inklapbare items.** Elk galerij-item is een inklapbare rij
+  (`editor_row_open()` met `$collapse`, `PAGE-EDITOR.md`, "Inklapbare rijen"):
+  "Item 3 — Product: Houten naambordje", "Item 1 — Mediabibliotheek: Foto 03".
+  Opgeslagen items beginnen dicht; een nieuw item, een item met een melding en
+  een enkel item beginnen open. De open/dicht-stand wordt per sectie
+  onthouden op de sleutel van de rij (haar id), dus toevoegen of verschuiven
+  opent nooit het verkeerde item. ↑, ↓ en *Verwijderen* staan buiten de
+  inklapbare kop. De kopregel volgt de bron en de keuze op het scherm
+  (`admin/assets/gallery-source.js`). De kenmerken blijven open rijen: twee
+  korte velden, inklappen maakt dat niet overzichtelijker.
+- **Een nieuwe bron aansluiten** (bijvoorbeeld Artikelen): de module levert
+  een bestemming in `linkTargets()` (label, keuzes, `href`, `title`) en een
+  afbeelding in `linkedImages()` (een callable `id => BlockImage`-array of
+  null). Dan staat hij vanzelf in *Afbeeldingsbron*, met live afbeelding,
+  naam, adres en de module-uit-afhandeling. Niets in de Detailsectie, de
+  editor of `LinkedImages` noemt een module.
+- **Levenscyclus.** Een nieuwe Detailsectie is een concept tot de eerste
+  opslag (`ContentBlockDrafts`), ook met alleen een productitem; *Annuleren*
+  laat niets op de pagina achter; na opslaan terug naar de lijst van de
+  eigenaar. Geen uitzondering voor dit blok.
 
 ## Een blok toevoegen
 

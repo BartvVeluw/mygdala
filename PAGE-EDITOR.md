@@ -17,7 +17,7 @@ document, dan heeft de code gelijk.
 | Onderdeel | Bestanden |
 |---|---|
 | Tabbladen (herbruikbaar) | `admin/_admin_tabs.php`, `admin/assets/admin-tabs.js`, CSS in `admin/assets/admin.css` (`.admin-tabs*`). Gebruikt door `admin/page.php` en `admin/settings.php` |
-| Inklapbare rijen (herbruikbaar) | `admin/_admin_collapse.php`, `admin/assets/admin-collapse.js`, CSS `.admin-collapse*`. Gebruikt door de blokkenlijst op `admin/page.php` en door de items van Tekst met afbeelding (`editor_row_open()` met `$collapse`, `admin/_editor_rows.php`). Een **boom** inklappen is iets anders: de paginaboom (`admin/assets/page-tree.js`) en het menu van Header & navigatie (`admin/assets/navigation-tree.js`, `HEADER-FOOTER.md`) onthouden per browser welke takken dicht zijn |
+| Inklapbare rijen (herbruikbaar) | `admin/_admin_collapse.php`, `admin/assets/admin-collapse.js`, CSS `.admin-collapse*`. Gebruikt door de blokkenlijst op `admin/page.php` en door de items van Tekst met afbeelding, Kenmerken in kaartjes, Hover kaarten grid en de galerij van de Detailsectie (`editor_row_open()` met `$collapse`, `admin/_editor_rows.php`). Een **boom** inklappen is iets anders: de paginaboom (`admin/assets/page-tree.js`) en het menu van Header & navigatie (`admin/assets/navigation-tree.js`, `HEADER-FOOTER.md`) onthouden per browser welke takken dicht zijn |
 | Presentatie-metadata van een blok | `src/Service/Blocks/BlockDefinition.php` (`label()`, `description()`, `category()`, `icon()`, `preview()`, `useCases()`, `sampleContent()`, `renderSample()`), `BlockCategories.php`, `BlockPreview.php`, `BlockSamples.php` |
 | Blokkenkiezer | `admin/_block_picker.php`, `admin/assets/block-picker.js`, gebruikt door `admin/page.php` |
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
@@ -644,7 +644,7 @@ tegenhouden; de server controleert).
 
 **Inklapbare rijen.** Een lijst met lange rijen (de items van Tekst met
 afbeelding, de kaarten van Kenmerken in kaartjes en van de Hover kaarten
-grid) geeft `editor_row_open()` een `$collapse` mee. Dan vouwen de
+grid, de galerij-items van de Detailsectie) geeft `editor_row_open()` een `$collapse` mee. Dan vouwen de
 velden weg achter dezelfde `<details class="admin-collapse">` als de
 blokkenlijst hierboven, dus geen tweede accordion. De kopregel is de knop:
 "Item 2 — Over ons", met het nummer dat `row-list.js` na elke verschuiving
