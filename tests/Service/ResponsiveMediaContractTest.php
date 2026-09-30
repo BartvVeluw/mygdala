@@ -14,6 +14,7 @@ use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\MediaBannerContent;
 use App\Service\PageHeroContent;
+use App\Service\ReviewsContent;
 use App\Service\TextImageSplitContent;
 use PHPUnit\Framework\TestCase;
 
@@ -50,6 +51,8 @@ final class ResponsiveMediaContractTest extends TestCase
             'homepage_hero' => [HomepageHeroContent::imageSlot(), 'homepage_hero', 'partials/section-homepage-hero.php'],
             // v0.1.13: a Detailsectie gallery item's focus point in its square.
             'detail_section_images' => [DetailSectionContent::imageSlot(), 'detail_section', 'partials/section-detail-section.php'],
+            // v0.1.14 Reviews 1.0: a review's portrait in its round frame.
+            'review_block_items' => [ReviewsContent::imageSlot(), 'reviews', 'partials/section-reviews.php'],
         ];
     }
 
@@ -144,7 +147,7 @@ final class ResponsiveMediaContractTest extends TestCase
         $repository = self::read('src/Repository/ResponsiveImageRepository.php');
         preg_match('/private const TABLES = \[(.*?)\];/s', $repository, $list);
         preg_match_all("/'([a-z_]+)'/", $list[1] ?? '', $tables);
-        self::assertSame(array_keys(self::places()), $tables[1], 'the repository writes exactly the eight places');
+        self::assertSame(array_keys(self::places()), $tables[1], 'the repository writes exactly these places');
 
         $usage = self::read('src/Service/Media/Usage/ContentBlockMediaUsage.php');
         foreach (self::places() as $table => [$slot]) {
@@ -171,11 +174,17 @@ final class ResponsiveMediaContractTest extends TestCase
             self::assertStringContainsString("'" . $column . "' => [", $gallery, $column);
         }
 
-        // The zoom (Responsive Media 3.0) came to all eight places at once,
-        // each with its own prefix, next to the columns every slot has.
+        // The zoom (Responsive Media 3.0) came to the first eight places at
+        // once, each with its own prefix, next to the columns every slot has.
         $zoom = self::read('db/migrations/20261002100000_give_block_images_a_zoom.php');
-        foreach (self::places() as $table => [$slot]) {
+        foreach (array_slice(self::places(), 0, 8, true) as $table => [$slot]) {
             self::assertStringContainsString("'" . $table . "' => '" . $slot->prefix . "',", $zoom, $table);
+        }
+
+        // Reviews 1.0 was born with every column of its slot.
+        $reviews = self::read('db/migrations/20261009100000_create_review_blocks.php');
+        foreach (ReviewsContent::imageSlot()->columns() as $column) {
+            self::assertStringContainsString("->addColumn('" . $column . "',", $reviews, $column);
         }
         self::assertStringContainsString("\$prefix . 'zoom' =>", $zoom);
         self::assertStringContainsString("\$prefix . 'mobile_zoom' =>", $zoom);

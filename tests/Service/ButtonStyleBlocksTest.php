@@ -51,6 +51,7 @@ final class ButtonStyleBlocksTest extends TestCase
         'contact_card' => ['fields' => ['button_style']],
         'item_gallery' => ['fields' => ['button_style']],
         'featured_product' => ['fields' => ['button_style']],
+        'reviews' => ['fields' => ['button_style']],
         'text_image_split' => ['rows' => ['items', 'button_style']],
         'card_carousel' => ['rows' => ['cards', 'button_style']],
         'hover_card_grid' => ['rows' => ['cards', 'button_style'], 'span' => true],

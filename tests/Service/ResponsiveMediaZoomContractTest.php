@@ -47,6 +47,7 @@ final class ResponsiveMediaZoomContractTest extends TestCase
         'hover_card_grid_items' => [['assets/css/blocks/hover-card-grid.css', '.hover-card__frame']],
         'homepage_hero' => [['assets/css/core.css', '.hero__media-frame']],
         'detail_section_images' => [['assets/css/blocks/detail-section.css', '.service-detail__gallery-item']],
+        'review_block_items' => [['assets/css/blocks/reviews.css', '.review__portrait']],
     ];
 
     private static function read(string $relative): string

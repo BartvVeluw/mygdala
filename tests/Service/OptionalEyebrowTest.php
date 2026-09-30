@@ -65,7 +65,7 @@ final class OptionalEyebrowTest extends TestCase
         sort($types);
 
         self::assertSame(
-            ['card_carousel', 'cta_band', 'faq', 'feature_grid', 'homepage_hero', 'hover_card_grid', 'item_gallery', 'page_hero', 'project_cards', 'step_list', 'text_image_split'],
+            ['card_carousel', 'cta_band', 'faq', 'feature_grid', 'homepage_hero', 'hover_card_grid', 'item_gallery', 'page_hero', 'project_cards', 'reviews', 'step_list', 'text_image_split'],
             $types
         );
     }

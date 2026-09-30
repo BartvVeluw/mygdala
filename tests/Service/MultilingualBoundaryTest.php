@@ -1151,6 +1151,10 @@ final class MultilingualBoundaryTest extends TestCase
             'src/Service/Blocks/DetailSectionBlock.php', 'src/Repository/DetailSectionRepository.php', 'src/Service/DetailSectionContent.php',
             'partials/section-detail-section.php', 'admin/detail-section.php', 'api/admin/update-detail-section.php',
         ],
+        'reviews' => [
+            'src/Service/Blocks/ReviewsBlock.php', 'src/Repository/ReviewsRepository.php', 'src/Service/ReviewsContent.php',
+            'partials/section-reviews.php', 'admin/reviews.php', 'api/admin/update-reviews.php',
+        ],
         'card_carousel' => [
             'src/Service/Blocks/CardCarouselBlock.php', 'src/Repository/CardCarouselRepository.php', 'src/Service/CardCarouselContent.php',
             'partials/section-card-carousel.php', 'admin/card-carousel.php', 'api/admin/update-card-carousel.php',
@@ -1193,6 +1197,7 @@ final class MultilingualBoundaryTest extends TestCase
         'detail_section_points' => ['api/admin/update-detail-section.php', 'points'],
         'detail_section_images' => ['api/admin/update-detail-section.php', 'images'],
         'hover_card_grid_items' => ['api/admin/update-hover-card-grid.php', 'cards'],
+        'review_block_items' => ['api/admin/update-reviews.php', 'reviews'],
     ];
 
     /** Child tables whose rows are only ever deleted with their parent, or by an endpoint listed with the next wave. */

@@ -54,6 +54,9 @@ final class BlockAppearanceContractTest extends TestCase
         'detail_section' => [true, true, true, ['glow', 'pattern']],
         'featured_product' => [true, true, true, ['glow', 'pattern']],
         'form' => [true, true, true, ['glow', 'pattern']],
+        // Reviews 1.0: every effect; the carousel's stylesheet leaves the
+        // sparks out behind its moving strip (reviews.css).
+        'reviews' => [true, true, true, ['sparks', 'glow', 'pattern']],
         'media_banner' => [true, true, true, []],
         'marquee' => [true, true, false, []],
     ];
