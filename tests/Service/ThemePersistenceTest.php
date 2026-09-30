@@ -7,8 +7,10 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\ThemeSettingRepository;
 use App\Service\SiteSettings;
+use App\Service\Theme\ButtonStyles;
 use App\Service\Theme\ThemeSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\ButtonStyleFixture;
 use Tests\Support\ColorPaletteFixture;
 
 /**
@@ -19,7 +21,9 @@ use Tests\Support\ColorPaletteFixture;
  * (color_palettes) and the font pairing and button shape stay in
  * theme_settings; ThemeSettings is still the one reader and writer of both,
  * which is what these tests hold it to. The palettes themselves are
- * ColorPaletteTest's.
+ * ColorPaletteTest's. Since Button Styles 2.0 the button shape is a facade
+ * over the two default button styles, so those are snapshot, started on the
+ * default shape and restored too.
  *
  * Runs against the test database (tests/bootstrap.php makes sure it is never
  * the development one). Every test restores whatever the theme table and the
@@ -35,6 +39,9 @@ final class ThemePersistenceTest extends TestCase
     /** @var list<array<string, mixed>> */
     private array $palettes = [];
 
+    /** @var array{styles: list<array<string, mixed>>, defaults: list<array<string, mixed>>} */
+    private array $buttonStyles = ['styles' => [], 'defaults' => []];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -42,6 +49,8 @@ final class ThemePersistenceTest extends TestCase
         $this->before = (new ThemeSettingRepository())->findAll();
         $this->palettes = ColorPaletteFixture::snapshot();
         ColorPaletteFixture::only();
+        $this->buttonStyles = ButtonStyleFixture::snapshot();
+        ButtonStyles::saveDefaultShape(ThemeSettings::defaults()['button_shape']);
         ThemeSettings::clearCache();
     }
 
@@ -55,6 +64,7 @@ final class ThemePersistenceTest extends TestCase
         }
 
         ColorPaletteFixture::restore($this->palettes);
+        ButtonStyleFixture::restore($this->buttonStyles);
         ThemeSettings::clearCache();
         ThemeSettings::overrideForTests(null);
 

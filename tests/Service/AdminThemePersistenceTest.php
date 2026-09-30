@@ -129,6 +129,8 @@ final class AdminThemePersistenceTest extends TestCase
         $themeRowsBefore = (new ThemeSettingRepository())->findAll();
         // A reset also sets the active colour palette back to the default.
         $palettesBefore = \Tests\Support\ColorPaletteFixture::snapshot();
+        // And the button shape of the two default button styles (Button Styles 2.0).
+        $buttonStylesBefore = \Tests\Support\ButtonStyleFixture::snapshot();
 
         AdminTheme::save('ocean');
 
@@ -142,6 +144,7 @@ final class AdminThemePersistenceTest extends TestCase
                 (new ThemeSettingRepository())->upsertMany($themeRowsBefore);
             }
             \Tests\Support\ColorPaletteFixture::restore($palettesBefore);
+            \Tests\Support\ButtonStyleFixture::restore($buttonStylesBefore);
             ThemeSettings::clearCache();
         }
     }
