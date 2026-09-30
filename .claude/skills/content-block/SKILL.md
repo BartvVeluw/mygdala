@@ -126,6 +126,16 @@ en `GenericBlockDefaultsTest` bewaken beide.
   `ContentBlockAccess::listUrl($page)`, en beide bestanden in de lijsten van
   `AdminAccessControlTest` (`CONTENT-BLOCKS.md`, "Wie mag welke blokken
   beheren").
+- **Een nieuw blok is een draft tot zijn eerste opslag.** Het endpoint zet
+  in zijn transactie, als laatste schrijfactie,
+  `$placed = ContentBlockDrafts::place('<type>', $id);` en landt na de commit
+  op `ContentBlockAccess::afterSaveUrl($placed, $redirect)`; de editor zet zijn
+  terug-link in `block_editor_draft_notice('<type>', $csrfToken)`. Nooit een
+  terugkeeradres uit het request (`CONTENT-BLOCKS.md`, "De levensloop van een
+  nieuw blok").
+- **Kan je blok leeg zijn?** Implementeer `App\Service\Blocks\InspectsContent`
+  (`hasContent()`, dezelfde regel als je partial), of zet het met reden in
+  `ContentBlockLifecycleContractTest::NEVER_EMPTY` (decoratief of dynamisch).
 - **Een nummer of label boven een titel?** Gebruik `App\Service\Blocks\LabelMode`
   en het veld `admin/_label_mode_field.php`; een nummer is een plek, nooit
   opgeslagen.

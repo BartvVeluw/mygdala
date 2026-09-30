@@ -1175,6 +1175,30 @@ voor een Pagina-, Shop-, Portfolio- en super-admin; `blocks` en `shop`) en
 `LinkedImagePreviewHttpTest` (de live foto van een galerijbron voor het
 focuskader, wat niet openbaar is, wie mag vragen; `blocks`).
 
+### De levensloop van een nieuw blok (v0.1.14)
+
+Contentblokken UX & Lifecycle 1.0 (`CONTENT-BLOCKS.md`, "De levensloop van een
+nieuw blok" en "Een leeg blok herkennen") heeft drie eigen testklassen:
+
+| Test | Suite | Wat |
+|---|---|---|
+| `ContentBlockLifecycleContractTest` | `contract`, `fast`, `blocks` | Elk blok dat als draft opent: editor met `block_editor_draft_notice()`, endpoint met `ContentBlockDrafts::place()` in de transactie en `afterSaveUrl()`; elk toe te voegen blok implementeert `InspectsContent` of staat in `NEVER_EMPTY`; de guards van `discard-block-draft.php`; geen terugkeeradres uit het request |
+| `ContentBlockLifecycleTest` | `blocks`, `cms` | Op de database: een draft staat op geen pagina, `place()` onderaan en één keer, een teruggedraaide opslag plaatst niets, een tweede draft van een type met maximum één wordt geweigerd, annuleren raakt geen ander blok en nooit een geplaatst blok, opruimen na 48 uur, een pagina verwijderen neemt de drafts mee, de inhoudspagina van een product verdwijnt met zijn geannuleerde eerste blok; de lege-blokregels |
+| `ContentBlockLifecycleHttpTest` | `blocks`, `cms` | Over echte HTTP (eigen `php -S`, Shop en Portfolio aan): kiezen, annuleren, teruggaan, opslaan, dubbel opslaan, validatiefout, bestaand blok, geneste pagina, product, project, CSRF, vervalste eigenaar, vervalst type, te weinig rechten, een vervalst terugkeeradres, de waarschuwing in de paginabouwer en niet op de website |
+
+**Een blok-save landt niet meer op zijn editor.** Een test die "is het
+opgeslagen?" vraagt, gebruikt `Tests\Support\SavedRedirect::PATTERN`: het
+nieuwe `saved=<id>#blok-<id>` van een blok en het oude `saved=1` van elk ander
+scherm. Een kale `assertStringContainsString('saved=1', …)` slaagt per ongeluk
+op `saved=12#blok-12` en faalt op `saved=7#blok-7`. Een test die na het opslaan
+de editor opnieuw wil zien, vraagt die editor zelf op in plaats van de redirect
+te volgen.
+
+**Een nieuw blok in een test**: `ContentBlockDrafts::open()` gevolgd door
+`place()` is precies wat de kiezer en de eerste opslag doen. De oude
+`SectionRegistry::create()` + `PageSectionRepository::create()` blijft geldig
+voor een blok "zoals de oude flow het achterliet" (een leeg legacyblok).
+
 ### Performance van de editor (Responsive Media 3.0)
 
 De focus- en zoomeditor mag een scherm met veel beelden niet zwaarder maken.

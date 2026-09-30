@@ -365,6 +365,135 @@ structured data of deelafbeelding veranderen. Die blijven van `ProductSeo` en
 terug kunnen komen, geen gedeelde bibliotheek met verwijzingen; een blok op een
 product is een eigen instantie en kan dus niet van betekenis veranderen.
 
+## De levensloop van een nieuw blok
+
+Contentblokken UX & Lifecycle 1.0 (v0.1.14). Een blok kiezen in de
+blokkenkiezer zette het vroeger meteen op de pagina: `add-page-section.php`
+maakte de inhoudsrij én de `page_sections`-rij, en wie daarna zonder opslaan
+terugging, hield een leeg blok tussen de andere over. Nu is een nieuw blok een
+**draft** tot zijn eerste geslaagde opslag.
+
+| Stap | Wat er gebeurt | Waar |
+|---|---|---|
+| Kiezen | De inhoudsrij wordt gemaakt (`SectionRegistry::create()`, met startinhoud), plus één rij in `content_block_drafts`. **Geen** `page_sections`-rij: geen plek in de lijst, geen positie, niets op de website. Bij een product of project wordt de inhoudspagina gemaakt als die er nog niet is (de editor heeft haar nodig) | `api/admin/add-page-section.php` → `ContentBlockDrafts::open()` |
+| Bewerken | De gewone editor, met bovenaan één regel "Nieuw blok. Het staat nog niet op de pagina…" en **Annuleren** | `admin/_block_editor.php` (`block_editor_draft_notice()`) |
+| Opslaan | Het endpoint valideert zoals altijd. Pas daarna, als laatste schrijfactie **in de transactie van de opslag**, zet `ContentBlockDrafts::place()` het blok onderaan de lijst en haalt de draftrij weg. Faalt iets, dan rolt alles terug en blijft de redacteur met zijn invoer in de editor | elk `api/admin/update-<type>.php` |
+| Annuleren | De inhoud gaat zoals bij verwijderen (bestanden, woorden, kindrijen, de rij), een Mediabibliotheek-item nooit. Een inhoudspagina die alleen voor dit blok gemaakt was, gaat mee. De lijst ziet er daarna uit als ervóór | `api/admin/discard-block-draft.php` → `ContentBlockDrafts::discard()` |
+| Terugknop of tabblad dicht | Het blok staat nergens; `ContentBlockDrafts::purgeStale()` ruimt een draft na 48 uur op, bij de volgende blokkeuze | `add-page-section.php` |
+
+**Waarom een draft en geen niet-opgeslagen editor.** Elke editor heeft een rij
+nodig: de woorden staan per taal onder het rij-id in `block_translations`, en
+kaarten, items, galerij-afbeeldingen en uploads hangen aan die rij. Twintig
+editors en endpoints herschrijven naar een "nog-geen-rij"-modus was de grote
+verbouwing; de koppeling uitstellen is de kleine. Een CMS-breed concept- en
+publicatiesysteem is het nadrukkelijk niet.
+
+**Waarom een tabel.** `content_block_drafts` (migratie 20261006100000) is het
+enige bewijs dat een losse inhoudsrij een draft is. `place()` zet alleen zo'n
+rij op een pagina, nooit een rij van een andere herkomst; `purgeStale()` vindt
+alleen zo'n rij terug. `page_id` is een echte foreign key met CASCADE;
+`PageService::delete()` en `ContentPages::deleteFor()` ruimen de inhoud van de
+drafts van een pagina eerst zelf op.
+
+**Wat `place()` bewaakt.**
+
+- De draftrij wordt vergrendeld (`FOR UPDATE`): een dubbele klik of een
+  vernieuwde POST plaatst het blok één keer; de tweede opslag vindt de
+  `page_sections`-rij en werkt die gewoon bij.
+- De pagina wordt vergrendeld: twee drafts die tegelijk geplaatst worden,
+  krijgen niet dezelfde positie.
+- De beschikbaarheid wordt opnieuw gevraagd (`SectionRegistry::availableForPage()`):
+  een tweede draft van een type met een maximum van één (het
+  Offerte-/contactformulier) wordt geweigerd, en de opslag faalt dan net als
+  elke mislukte opslag.
+- De positie is de onderkant van de lijst **op het moment van opslaan**.
+
+**Welke blokken.** Elk blok met een eigen editor (`BlockDefinition::opensAsDraft()`,
+standaard `true`). Niet: de Paginakop en de Homepage Hero (hun `create()`
+schrijft de ene rij van hun pagina, geen nieuwe instantie die Annuleren kan
+terugnemen) en een blok zonder editor (Productraster, Collecties), dat meteen
+geplaatst wordt zoals vroeger en in de lijst oplicht (`added=`).
+
+**Een bestaand blok** komt hier nooit langs. Annuleren of teruggaan in zijn
+editor is weggaan zonder opslaan; `discard-block-draft.php` verwijdert alleen
+een draft op die lijst, met dat type en die sleutel, en doet voor een geplaatst
+blok niets.
+
+### Na het opslaan: terug naar de lijst
+
+Een geslaagde opslag in een blok-editor landt op de lijst waar het blok in
+staat, met het blok genoemd:
+
+| Blok staat op | Landt op |
+|---|---|
+| een pagina (ook een geneste) | `admin/page.php?id=<pagina>&saved=<id>#blok-<id>` |
+| een product | `admin/product-form.php?id=<product>&tab=inhoud&saved=<id>#blok-<id>` |
+| een project | `admin/portfolio-item.php?id=<project>&tab=inhoud&saved=<id>#blok-<id>` |
+
+`ContentBlockAccess::afterSaveUrl()` leidt het adres af van de
+`page_sections`-rij van het blok en de pagina daarvan: **er is geen
+terugkeerparameter**, dus niets om te vervalsen of te misbruiken als open
+redirect, en de lijst is precies de lijst waarvoor de opslag het recht al
+controleerde. Wie een blok rechtstreeks opent (een link uit het mediagebruik),
+landt dus ook op de lijst van de echte eigenaar. De lijst noemt het blok alleen
+als `saved` een rij van díe lijst is (`content_blocks_saved_section()`).
+
+Op de lijst: een succesmelding, het blok klapt open, licht één keer op en
+draagt het label *Opgeslagen*; `admin-collapse.js` opent het tabblad en scrolt
+ernaar (`data-admin-collapse-focus`). `admin/page.php` opent het tabblad
+*Inhoud*; een inhoudspagina geeft `saved` door aan haar eigenaar.
+
+Een **geweigerde** opslag (een validatiefout) blijft in de editor, met de
+invoer terug, zoals altijd. Een rij die op geen pagina staat en geen draft is,
+houdt het oude gedrag: terug naar de editor met `saved=1`.
+
+**Een nieuw endpoint** doet twee dingen: in de transactie, als laatste
+schrijfactie, `$placed = ContentBlockDrafts::place('<type>', $id);`, en na de
+commit `header('Location: ' . ContentBlockAccess::afterSaveUrl($placed, $redirect));`.
+De editor zet de terug-link in `block_editor_draft_notice('<type>', $csrfToken)`.
+`Tests\Service\ContentBlockLifecycleContractTest` controleert beide voor elk
+blok dat als draft opent.
+
+## Een leeg blok herkennen
+
+Een blok dat niets laat zien, draagt in de bloklijst een rustig label
+*Leeg blok*, en opengeklapt de zin "Dit contentblok bevat nog geen inhoud en is
+daarom niet te zien op de website." met een link naar de editor. Het is een
+hulpmiddel in het CMS: niets wordt verwijderd, en de website verandert niet.
+
+**Leeg is niet "geen tekst".** Elk blok beantwoordt de vraag zelf
+(`App\Service\Blocks\InspectsContent::hasContent()`), vanuit zijn eigen
+leesmodel en dezelfde regel als zijn partial: wat die partial niet zou tonen, is
+leeg. `SectionRegistry::isEmpty()` vraagt het alleen aan een blok dat de
+interface heeft, niet aan een blok dat in de paginabouwer verborgen is, en een
+fout is nooit een waarschuwing.
+
+| Blok | Heeft inhoud als |
+|---|---|
+| Tekstblok | een tekst met iets erin (een lege alinea telt niet), of een knop |
+| Tekst met afbeelding | minstens één item |
+| Kenmerken in kaartjes, FAQ, Stappenplan | een kop of minstens één item |
+| Cijferbalk, Woordenband | minstens één item |
+| Kaarten-carrousel, Hover kaarten grid | minstens één kaart |
+| Contactkaart | een titel of een tekst |
+| Oproep met knop | een titel of een knop |
+| Mediabanner | een afbeelding of video |
+| Detailsectie | een van zijn woorden, zijn afbeelding, een punt of een galerijafbeelding |
+| Uitgelicht product | een product om te tonen |
+| Formulier | een formulier dat getoond kan worden |
+| Galerij, Projecten | items, **of** een bron die ze kan geven (`ItemGalleryContent::isConfigured()`): een dynamisch blok wordt op zijn configuratie beoordeeld, niet op wat de bron vandaag bevat |
+
+Nooit beoordeeld, met reden (`ContentBlockLifecycleContractTest::NEVER_EMPTY`):
+Witruimte (decoratief), Productraster, Collecties en Projectinformatie
+(dynamisch), het Offerte-/contactformulier (toont altijd de contactkaart), de
+Paginakop en de Homepage Hero.
+
+**Een nieuw blok** implementeert `InspectsContent`, of komt met reden in
+`NEVER_EMPTY`; de contracttest faalt op een blok dat geen van beide doet.
+
+Nog niet gedaan: startwoorden die niemand aanpaste ("Nieuwe carrousel — pas
+deze titel aan", de startkop van een Oproep met knop) tellen als inhoud.
+
 ## Detailsectie 2.0
 
 - **Anker.** Eén vorm (`App\Service\Blocks\AnchorName`): kleine letters,
@@ -483,7 +612,12 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    bloklijst controleert, én inhoudsrij moeten bestaan), repository, cache
    legen, PRG-redirect met session-flash. De editor doet hetzelfde met
    `requireAny()` en `pageForKey()`; zet beide bestanden in de lijsten van
-   `AdminAccessControlTest` (*Wie mag welke blokken beheren*).
+   `AdminAccessControlTest` (*Wie mag welke blokken beheren*). Een nieuw blok
+   opent als draft: het endpoint roept in zijn transactie
+   `ContentBlockDrafts::place()` aan en landt via
+   `ContentBlockAccess::afterSaveUrl()` op de lijst; de editor zet zijn
+   terug-link in `block_editor_draft_notice()` (*De levensloop van een nieuw
+   blok*).
 7. **Blokdefinitie** — `src/Service/Blocks/<Type>Block.php`, extends
    `BlockDefinition`. Dit is het integratiecontract, niet de logica: het
    koppelt de bestanden hierboven aan het CMS. Alle methodes zijn `abstract`,
@@ -1616,7 +1750,8 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 |---|---|
 | Nieuw blok | `fast` → `blocks`; plus `cms` als je aan pagina's/registratie zat, en `modules` als het blok van een module is |
 | Blok met een formulier erin | ook `fast` → `cms` (`FORMS.md`) |
-| Blok-editor of endpoint | `fast` → `blocks` (`PageBuilderSecurityTest` bewaakt de guards) |
+| Blok-editor of endpoint | `fast` → `blocks` (`PageBuilderSecurityTest` bewaakt de guards, `ContentBlockLifecycleContractTest` de draft en de terugweg) |
+| Kiezen, annuleren, opslaan en terugkeren; de lege-blokwaarschuwing | `fast` → `ContentBlockLifecycleTest` en `ContentBlockLifecycleHttpTest` → `blocks` |
 | De bestemmingskiezer, `LinkChoice`, `LinkTargets` of `SafeUrl` | `fast` → `blocks` (`DestinationPickerTest`, `Routing\SafeUrlTest`) → `modules` |
 | Een knop, of de knopstijl van een blok | `fast` (`ButtonStyleBlocksTest`, `ButtonStyleCssTest`) → `blocks` (`ButtonStylesHttpTest`) |
 | Alleen rendering | `blocks`; de HTTP-tests daarin hebben de `php_test`-container nodig |
