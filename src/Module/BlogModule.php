@@ -279,6 +279,12 @@ final class BlogModule extends ModuleDefinition
         return ['post' => new \App\Service\Blog\BlogSearchProvider()];
     }
 
+    /** A blog post is the first kind on the Publishing Engine (docs/publishing/ARCHITECTURE.md). */
+    public function publishables(): array
+    {
+        return [\App\Service\Blog\BlogPostPublishable::TYPE => new \App\Service\Blog\BlogPostPublishable()];
+    }
+
     public function sitemapCollectors(): array
     {
         return [

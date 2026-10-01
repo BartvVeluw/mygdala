@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Service\Language\AdminTranslator;
+use App\Service\Publishing\PublicationStatus;
+use App\Service\Publishing\PublicationVisibility;
 
 /**
  * The three states a blog post can be in, and the one rule that turns a
@@ -34,12 +36,18 @@ use App\Service\Language\AdminTranslator;
  * value against the clock that wrote it is the only comparison that cannot be
  * an hour wrong, so every query takes `now` as a bound parameter from
  * App\Service\Blog\BlogClock.
+ *
+ * SINCE v0.1.15 the Blog is the first kind on the Publishing Engine
+ * (docs/publishing/ARCHITECTURE.md): these values are App\Service\Publishing\PublicationStatus's,
+ * and isPublic()/isPending() are PublicationVisibility's "listed" rule. The
+ * Blog offers three of its four states; `archived` reads as a draft here
+ * until Blog 2.0 offers it.
  */
 final class BlogPostStatus
 {
-    public const DRAFT = 'draft';
-    public const PUBLISHED = 'published';
-    public const SCHEDULED = 'scheduled';
+    public const DRAFT = PublicationStatus::DRAFT;
+    public const PUBLISHED = PublicationStatus::PUBLISHED;
+    public const SCHEDULED = PublicationStatus::SCHEDULED;
 
     /** @var list<string> */
     public const ALL = [self::DRAFT, self::PUBLISHED, self::SCHEDULED];
@@ -84,17 +92,7 @@ final class BlogPostStatus
      */
     public static function isPublic(array $post, ?\DateTimeImmutable $now = null): bool
     {
-        if (self::normalize($post['status'] ?? null) === self::DRAFT) {
-            return false;
-        }
-
-        $publishedAt = BlogClock::parse($post['published_at'] ?? null);
-
-        if ($publishedAt === null) {
-            return false;
-        }
-
-        return $publishedAt <= ($now ?? BlogClock::now());
+        return PublicationVisibility::isListed(self::normalize($post['status'] ?? null), $post['published_at'] ?? null, $now);
     }
 
     /**
@@ -106,10 +104,6 @@ final class BlogPostStatus
      */
     public static function isPending(array $post, ?\DateTimeImmutable $now = null): bool
     {
-        if (self::normalize($post['status'] ?? null) === self::DRAFT) {
-            return false;
-        }
-
-        return !self::isPublic($post, $now);
+        return PublicationVisibility::isPending(self::normalize($post['status'] ?? null), $post['published_at'] ?? null, $now);
     }
 }

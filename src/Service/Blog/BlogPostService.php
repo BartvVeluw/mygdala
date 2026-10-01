@@ -6,6 +6,7 @@ namespace App\Service\Blog;
 
 use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
+use App\Service\Publishing\PublicationRules;
 use App\Service\Redirects\SlugChangeRedirects;
 
 /**
@@ -70,16 +71,12 @@ final class BlogPostService
             }
         }
 
-        $status = (string) ($values['status'] ?? '');
-        if (!BlogPostStatus::isValid($status)) {
-            $errors[] = 'Ongeldige status.';
-        }
-
-        // A scheduled post without a moment to go out at would sit invisible
-        // for ever while claiming to be scheduled, which is the one state an
-        // editor cannot debug from the overview.
-        if ($status === BlogPostStatus::SCHEDULED && trim((string) ($values['published_at'] ?? '')) === '') {
-            $errors[] = 'Een ingepland bericht heeft een publicatiedatum nodig.';
+        // Status and date are the Publishing Engine's rules, shared with every
+        // kind that publishes: a status this kind offers, a real moment when
+        // one is typed, and a moment for a scheduled post — which would
+        // otherwise sit invisible for ever while claiming to be scheduled.
+        foreach (PublicationRules::validate($values['status'] ?? '', $values['published_at'] ?? '', BlogPostStatus::ALL) as $error) {
+            $errors[] = $error;
         }
 
         return $errors;
@@ -99,17 +96,7 @@ final class BlogPostService
      */
     public static function resolvePublishedAt(string $status, mixed $submitted): ?string
     {
-        $typed = BlogClock::fromFormInput($submitted);
-
-        if ($typed !== null) {
-            return $typed;
-        }
-
-        if (BlogPostStatus::normalize($status) === BlogPostStatus::PUBLISHED) {
-            return BlogClock::nowForSql();
-        }
-
-        return null;
+        return PublicationRules::resolvePublishedAt(BlogPostStatus::normalize($status), $submitted);
     }
 
     /**

@@ -3,12 +3,13 @@
 namespace App\Repository;
 
 use App\Service\Blog\BlogPostStatus;
+use App\Service\Publishing\PublicationVisibility;
 
 /**
  * All `blog_posts` SQL, plus the two link tables that connect a post to its
  * categories and tags.
  *
- * THE VISIBILITY RULE LIVES HERE ONCE, as PUBLIC_WHERE below: not a draft,
+ * THE VISIBILITY RULE LIVES HERE ONCE, as publicWhere() below: not a draft,
  * with a publication moment that is set and has passed. Every public read —
  * the listing, the detail route, the archives, related posts, the sitemap
  * collector and the RSS feed — goes through a method that applies it, so
@@ -29,12 +30,21 @@ use App\Service\Blog\BlogPostStatus;
 class BlogPostRepository extends Repository
 {
     /**
-     * The one public-visibility predicate. Uses the named parameter :now,
-     * which every caller binds exactly once (PDO runs with emulation off, so
-     * a repeated name would be an error rather than a convenience).
+     * The one public-visibility predicate: the Publishing Engine's "listed"
+     * rule (App\Service\Publishing\PublicationVisibility::listedSql()),
+     * shared with every other kind that publishes. Uses the named parameter
+     * :now, which every caller binds exactly once (PDO runs with emulation
+     * off, so a repeated name would be an error rather than a convenience).
+     *
+     * Since v0.1.15 it names the statuses that list (published, scheduled)
+     * instead of excluding a draft: a row whose status is not a known value
+     * was public here but a draft to BlogPostStatus::isPublic(). For every
+     * valid row the result is the same.
      */
-    private const PUBLIC_WHERE = "p.status <> '" . BlogPostStatus::DRAFT
-        . "' AND p.published_at IS NOT NULL AND p.published_at <= :now";
+    private static function publicWhere(): string
+    {
+        return PublicationVisibility::listedSql('p');
+    }
 
     /** Newest first, with the id as a stable tie-breaker for equal moments. */
     private const PUBLIC_ORDER = 'p.published_at DESC, p.id DESC';
@@ -81,7 +91,7 @@ class BlogPostRepository extends Repository
     public function findPublicById(int $id, string $now): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.* FROM blog_posts p WHERE p.id = :id AND ' . self::PUBLIC_WHERE . ' LIMIT 1'
+            'SELECT p.* FROM blog_posts p WHERE p.id = :id AND ' . self::publicWhere() . ' LIMIT 1'
         );
         $stmt->execute(['id' => $id, 'now' => $now]);
         $row = $stmt->fetch();
@@ -111,7 +121,7 @@ class BlogPostRepository extends Repository
         }
 
         $stmt = $this->db->prepare(
-            'SELECT p.* FROM blog_posts p WHERE p.id IN (:' . implode(', :', array_keys($named)) . ') AND ' . self::PUBLIC_WHERE
+            'SELECT p.* FROM blog_posts p WHERE p.id IN (:' . implode(', :', array_keys($named)) . ') AND ' . self::publicWhere()
             . ' ORDER BY ' . self::PUBLIC_ORDER
         );
         $stmt->execute($named + ['now' => $now]);
@@ -122,7 +132,7 @@ class BlogPostRepository extends Repository
     public function findPublicBySlug(string $slug, string $now): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.* FROM blog_posts p WHERE p.slug = :slug AND ' . self::PUBLIC_WHERE . ' LIMIT 1'
+            'SELECT p.* FROM blog_posts p WHERE p.slug = :slug AND ' . self::publicWhere() . ' LIMIT 1'
         );
         $stmt->execute(['slug' => $slug, 'now' => $now]);
         $row = $stmt->fetch();
@@ -193,7 +203,7 @@ class BlogPostRepository extends Repository
             // `id` travels along since Multilingual 2.0 phase 6: a post's
             // addresses per language hang off its id, and without it the
             // sitemap could only ever list the default language's URL.
-            'SELECT p.id, p.slug, p.updated_at, p.noindex, p.status, p.published_at FROM blog_posts p WHERE ' . self::PUBLIC_WHERE
+            'SELECT p.id, p.slug, p.updated_at, p.noindex, p.status, p.published_at FROM blog_posts p WHERE ' . self::publicWhere()
             . ' ORDER BY ' . self::PUBLIC_ORDER
         );
         $stmt->execute(['now' => $now]);
@@ -210,7 +220,7 @@ class BlogPostRepository extends Repository
     public function findPublicForFeed(string $now, int $limit): array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.* FROM blog_posts p WHERE ' . self::PUBLIC_WHERE
+            'SELECT p.* FROM blog_posts p WHERE ' . self::publicWhere()
             . ' ORDER BY ' . self::PUBLIC_ORDER
             . ' LIMIT ' . max(1, min(100, $limit))
         );
@@ -243,7 +253,7 @@ class BlogPostRepository extends Repository
         $order = $direction === 'next' ? 'p.published_at ASC, p.id ASC' : self::PUBLIC_ORDER;
 
         $stmt = $this->db->prepare(
-            'SELECT p.* FROM blog_posts p WHERE ' . self::PUBLIC_WHERE . ' AND ' . $comparison
+            'SELECT p.* FROM blog_posts p WHERE ' . self::publicWhere() . ' AND ' . $comparison
             . ' ORDER BY ' . $order . ' LIMIT 1'
         );
         $stmt->execute([
@@ -311,7 +321,7 @@ class BlogPostRepository extends Repository
         $sql = 'SELECT p.*, COUNT(*) AS overlap'
             . ' FROM blog_posts p'
             . ' INNER JOIN (' . implode(' UNION ALL ', $unions) . ') AS shared ON shared.post_id = p.id'
-            . ' WHERE ' . self::PUBLIC_WHERE . ' AND p.id <> :self'
+            . ' WHERE ' . self::publicWhere() . ' AND p.id <> :self'
             . ' GROUP BY p.id'
             . ' ORDER BY overlap DESC, ' . self::PUBLIC_ORDER
             . ' LIMIT ' . max(1, min(12, $limit));
@@ -446,6 +456,17 @@ class BlogPostRepository extends Repository
     }
 
     /**
+     * Only the publication facts, for the Publishing Engine's own change
+     * (App\Service\Blog\BlogPostPublishable::savePublication()): every
+     * other column, and every word, stays as it was.
+     */
+    public function updatePublication(int $id, string $status, ?string $publishedAt): void
+    {
+        $this->db->prepare('UPDATE blog_posts SET status = :status, published_at = :published_at, updated_at = NOW() WHERE id = :id')
+            ->execute(['status' => $status, 'published_at' => $publishedAt, 'id' => $id]);
+    }
+
+    /**
      * Removes the post and, through the link tables' ON DELETE CASCADE, its
      * category and tag relationships. Media items it referenced are NOT
      * touched: a featured image belongs to the Media Library and may be on
@@ -557,7 +578,7 @@ class BlogPostRepository extends Repository
             'SELECT pc.category_id, COUNT(*) AS total
              FROM blog_post_categories pc
              INNER JOIN blog_posts p ON p.id = pc.post_id
-             WHERE ' . self::PUBLIC_WHERE . '
+             WHERE ' . self::publicWhere() . '
              GROUP BY pc.category_id'
         );
         $stmt->execute(['now' => $now]);
@@ -581,7 +602,7 @@ class BlogPostRepository extends Repository
             'SELECT pt.tag_id, COUNT(*) AS total
              FROM blog_post_tags pt
              INNER JOIN blog_posts p ON p.id = pt.post_id
-             WHERE ' . self::PUBLIC_WHERE . '
+             WHERE ' . self::publicWhere() . '
              GROUP BY pt.tag_id'
         );
         $stmt->execute(['now' => $now]);
@@ -619,7 +640,7 @@ class BlogPostRepository extends Repository
     private function publicFilter(string $now, ?int $categoryId, ?int $tagId): array
     {
         $join = '';
-        $where = self::PUBLIC_WHERE;
+        $where = self::publicWhere();
         $params = ['now' => $now];
 
         if ($categoryId !== null && $categoryId > 0) {
