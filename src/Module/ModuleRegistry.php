@@ -386,6 +386,7 @@ final class ModuleRegistry
         \App\Service\ItemGallerySources::reset();
         \App\Service\Media\MediaUsageRegistry::reset();
         \App\Service\PageAssets::reset();
+        \App\Service\Publishing\Publishables::reset();
         \App\Service\ReservedRoutes::reset();
         \App\Service\RouteRegistry::reset();
         \App\Service\Routing\RouteSegments::reset();

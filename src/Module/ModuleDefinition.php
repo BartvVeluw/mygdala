@@ -310,6 +310,20 @@ abstract class ModuleDefinition
     }
 
     /**
+     * The kinds of content this module publishes through the Publishing
+     * Engine (docs/publishing/ARCHITECTURE.md), keyed by their closed type ("blog_post"): one
+     * App\Service\Publishing\Publishable each, answering for its own tables.
+     * Read only while the module is enabled, so a kind whose module is off
+     * does not exist to the engine (App\Service\Publishing\Publishables).
+     *
+     * @return array<string, \App\Service\Publishing\Publishable>
+     */
+    public function publishables(): array
+    {
+        return [];
+    }
+
+    /**
      * Content-block types this module owns, in App\Service\Blocks\BlockDefinitions'
      * shape: type key => definition class.
      *
