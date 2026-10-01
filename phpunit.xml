@@ -199,6 +199,7 @@
             <file>tests/Service/PersonalizationFrontendContractTest.php</file>
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/PortfolioTwoContractTest.php</file>
+            <file>tests/Service/ProjectImagesBlockContractTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
@@ -352,6 +353,7 @@
             <file>tests/Service/PersonalizationFrontendContractTest.php</file>
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/PortfolioTwoContractTest.php</file>
+            <file>tests/Service/ProjectImagesBlockContractTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
@@ -449,6 +451,7 @@
         <testsuite name="migration">
             <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
+            <file>tests/Install/ProjectImagesBlockMigrationTest.php</file>
             <file>tests/Install/LabelModesAndGalleryFocusMigrationTest.php</file>
             <file>tests/Install/AdminAccountMigrationTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
@@ -559,6 +562,7 @@
         <testsuite name="blocks">
             <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
+            <file>tests/Install/ProjectImagesBlockMigrationTest.php</file>
             <file>tests/Install/LabelModesAndGalleryFocusMigrationTest.php</file>
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
@@ -634,6 +638,7 @@
             <file>tests/Service/OptionalEyebrowTest.php</file>
             <file>tests/Service/ContentOwnerPagesTest.php</file>
             <file>tests/Service/ProductPortfolioContentPagesHttpTest.php</file>
+            <file>tests/Service/ProjectImagesBlockHttpTest.php</file>
             <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
             <file>tests/Service/DetailSectionTwoTest.php</file>
             <file>tests/Service/DetailSectionTwoContractTest.php</file>
@@ -853,6 +858,7 @@
             <file>tests/Service/PageUsageTest.php</file>
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/PortfolioTwoContractTest.php</file>
+            <file>tests/Service/ProjectImagesBlockContractTest.php</file>
             <file>tests/Service/PortfolioItemContentTest.php</file>
             <file>tests/Service/PortfolioItemEditingHttpTest.php</file>
             <file>tests/Service/PortfolioPageLinkTest.php</file>
