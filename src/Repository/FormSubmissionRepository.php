@@ -20,6 +20,14 @@ namespace App\Repository;
 class FormSubmissionRepository extends Repository
 {
     /**
+     * Rows per page of Beheer → Inzendingen. "Alles selecteren" there means
+     * this page and nothing more, so it is also the most a normal bulk
+     * request carries (App\Service\Forms\FormSubmissionBulk::MAX_IDS is
+     * deliberately larger).
+     */
+    public const PAGE_SIZE = 25;
+
+    /**
      * Writes the submission and all of its values in ONE transaction: a
      * half-written enquiry is worse than none, because the owner would reply
      * to it missing whatever did not land.
@@ -116,8 +124,53 @@ class FormSubmissionRepository extends Repository
      */
     public function findAllForAdmin(?int $formId = null, ?string $readState = null): array
     {
-        $sql = 'SELECT s.*, (SELECT COUNT(*) FROM form_submission_attachments a WHERE a.submission_id = s.id) AS attachment_count
-                  FROM form_submissions s';
+        [$where, $params] = $this->adminFilter($formId, $readState);
+
+        $stmt = $this->db->prepare(
+            'SELECT s.*, (SELECT COUNT(*) FROM form_submission_attachments a WHERE a.submission_id = s.id) AS attachment_count
+               FROM form_submissions s' . $where . '
+              ORDER BY s.created_at DESC, s.id DESC'
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * One page of the admin overview, in the same order as findAllForAdmin()
+     * and under the same two filters, plus how many rows the filters match
+     * in all. A page past the last one comes back empty; the screen decides
+     * what to show instead.
+     *
+     * @return array{rows: array<int, array<string, mixed>>, total: int}
+     */
+    public function findPageForAdmin(?int $formId, ?string $readState, int $page): array
+    {
+        [$where, $params] = $this->adminFilter($formId, $readState);
+
+        $count = $this->db->prepare('SELECT COUNT(*) FROM form_submissions s' . $where);
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+
+        $offset = (max(1, $page) - 1) * self::PAGE_SIZE;
+        $stmt = $this->db->prepare(
+            'SELECT s.* FROM form_submissions s' . $where . '
+              ORDER BY s.created_at DESC, s.id DESC
+              LIMIT ' . self::PAGE_SIZE . ' OFFSET ' . $offset
+        );
+        $stmt->execute($params);
+
+        return ['rows' => $stmt->fetchAll(), 'total' => $total];
+    }
+
+    /**
+     * The overview's WHERE clause. Read state is a closed pair; anything
+     * else is "all".
+     *
+     * @return array{0: string, 1: array<string, int>}
+     */
+    private function adminFilter(?int $formId, ?string $readState): array
+    {
         $where = [];
         $params = [];
 
@@ -131,16 +184,7 @@ class FormSubmissionRepository extends Repository
             $params['is_read'] = $readState === 'read' ? 1 : 0;
         }
 
-        if ($where !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $where);
-        }
-
-        $sql .= ' ORDER BY s.created_at DESC, s.id DESC';
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-
-        return $stmt->fetchAll();
+        return [$where === [] ? '' : ' WHERE ' . implode(' AND ', $where), $params];
     }
 
     /**
@@ -274,6 +318,97 @@ class FormSubmissionRepository extends Repository
         $stmt->execute(['id' => $id]);
 
         return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * The form each of these submissions belongs to, for the ids that exist,
+     * locked for the rest of the caller's transaction so nothing changes
+     * between checking a bulk selection and acting on it
+     * (App\Service\Forms\FormSubmissionBulk). An id that does not exist is
+     * simply absent; a submission whose form was deleted maps to null.
+     *
+     * @param list<int> $ids
+     * @return array<int, int|null> keyed by submission id
+     */
+    public function formIdsForUpdate(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT id, form_id FROM form_submissions WHERE id IN (' . $this->placeholders($ids) . ') FOR UPDATE'
+        );
+        $stmt->execute($ids);
+
+        $forms = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $forms[(int) $row['id']] = $row['form_id'] === null ? null : (int) $row['form_id'];
+        }
+
+        return $forms;
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    public function setReadStateForMany(array $ids, bool $isRead): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $stmt = $this->db->prepare(
+            'UPDATE form_submissions SET is_read = ?, updated_at = NOW() WHERE id IN (' . $this->placeholders($ids) . ')'
+        );
+        $stmt->execute([$isRead ? 1 : 0, ...$ids]);
+    }
+
+    /**
+     * Every file of these submissions, read before they are deleted: the
+     * cascade removes the rows, never the files (delete()).
+     *
+     * @param list<int> $ids
+     * @return list<array<string, mixed>>
+     */
+    public function attachmentsForMany(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT * FROM form_submission_attachments WHERE submission_id IN (' . $this->placeholders($ids) . ') ORDER BY id ASC'
+        );
+        $stmt->execute($ids);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * delete() for a whole selection, in one statement. Values and
+     * attachment rows cascade; the files are the caller's job.
+     *
+     * @param list<int> $ids
+     */
+    public function deleteMany(array $ids): int
+    {
+        if ($ids === []) {
+            return 0;
+        }
+
+        $stmt = $this->db->prepare('DELETE FROM form_submissions WHERE id IN (' . $this->placeholders($ids) . ')');
+        $stmt->execute($ids);
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    private function placeholders(array $ids): string
+    {
+        return implode(',', array_fill(0, count($ids), '?'));
     }
 
     public function countForForm(int $formId): int
