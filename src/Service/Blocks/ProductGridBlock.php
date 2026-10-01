@@ -18,17 +18,19 @@ require_once dirname(__DIR__, 3) . '/partials/section-product-grid.php';
  * again. The storefront page keeps the grid it has; nothing is copied or
  * moved.
  *
- * NO CONTENT ROW. The grid has no settings of its own, so there is nothing to
- * create or delete behind it. Its page_sections row still needs a
- * `section_id` that is unique per type (UNIQUE(section_type, section_id)); with
- * at most one grid per page the page's own id is exactly that, and the
- * historical storefront row keeps the 0 it always had.
+ * ITS OWN ROW, FOR ITS HEAD ONLY (ShopListingBlock): an optional eyebrow,
+ * title and text above the grid, per website language, and "Actief". Which
+ * products show, their names, pictures and prices stay the Shop's: the grid
+ * is filled live, and nothing of a product is ever copied into the block or
+ * into the site search's copy of the page. Without a head it renders exactly
+ * what it always did (db/migrations/20261015100000 gave every existing grid
+ * its row and changed nothing else).
  *
  * Belongs to the Shop module: with the Shop off the type is not registered, so
  * it is neither offered nor rendered (MODULES.md, "Blokken van een
  * uitgeschakelde module").
  */
-final class ProductGridBlock extends BlockDefinition
+final class ProductGridBlock extends ShopListingBlock
 {
     public function type(): string
     {
@@ -46,7 +48,7 @@ final class ProductGridBlock extends BlockDefinition
             'deletable' => true,
             'kind' => self::KIND_DYNAMIC,
             'badge_label' => 'Beheerd via Producten',
-            'note' => 'Toont alle producten van de shop. Producten, foto\'s en prijzen beheer je bij Producten, niet als paginatekst.',
+            'note' => 'Toont alle producten van de shop. Hier geef je het blok desgewenst een bovenkop, titel en tekst; producten, foto\'s en prijzen beheer je bij Producten.',
         ];
     }
 
@@ -93,53 +95,18 @@ final class ProductGridBlock extends BlockDefinition
     }
 
     /**
-     * Nothing to create: the grid has no settings. The row's section_id is the
-     * page's own id (see the class docblock), which the one-per-page rule
-     * keeps unique.
+     * The grid, under the block's head if it has one. A row switched off in
+     * its editor renders nothing; no row at all (shop.php's storefront, which
+     * has no page section) is the grid without a head.
      */
-    public function create(string $pageSlug): array
-    {
-        $page = (new \App\Repository\PageRepository())->findByContentKey($pageSlug);
-
-        if ($page === null) {
-            throw new \RuntimeException('A product grid can only be added to an existing page.');
-        }
-
-        return [(int) $page['id'], null];
-    }
-
-    /** Nothing of its own to delete: removing the block removes only its page_sections row. */
-    public function deleteContent(array $pageSection): void
-    {
-    }
-
-    /**
-     * No editor of its own: products are edited under Producten. Adding the
-     * block therefore lands back on the page, on the new row, rather than in
-     * the product list.
-     */
-    public function editUrl(array $pageSection): ?string
-    {
-        return null;
-    }
-
-    public function clearCache(): void
-    {
-    }
-
-    public function contentTable(): ?string
-    {
-        return null;
-    }
-
-    public function translatableFields(): array
-    {
-        return [];
-    }
-
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
-        render_section_product_grid();
+        $content = $this->listingContent($pageSection);
+        if ($content['state'] === \App\Service\ShopListingContent::STATE_HIDDEN) {
+            return;
+        }
+
+        render_section_product_grid($content);
     }
 
     /**
@@ -153,11 +120,5 @@ final class ProductGridBlock extends BlockDefinition
     public function sampleContent(BlockSamples $samples): ?array
     {
         return null;
-    }
-
-    /** Placed at once: no editor of its own: nothing to save, so it is placed at once. */
-    public function opensAsDraft(): bool
-    {
-        return false;
     }
 }

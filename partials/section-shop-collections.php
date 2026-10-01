@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/section-head.php';
+
 /**
  * Renders the Shop's collection tiles (App\Service\CollectionContent) —
  * extracted verbatim from shop.php when the page builder became one ordered
@@ -16,29 +18,39 @@
  * order stays managed via Collecties, not as page content — this block only
  * decides WHERE on the page the tiles render.
  *
- * NO HEADING OF ITS OWN. It used to print a fixed "Collecties" above the
- * tiles, words no editor had typed and none could change or remove. The block
- * has no title field, so it prints no title at all (Content Blocks Polish 1);
- * an editor who wants one puts a Tekstblok above it. For the same reason a
- * tile's name is an h2, never an h3 under a heading that is not there
- * (App\Service\Blocks\CardHeading); `.collection-tile__name` keeps its look.
+ * ITS OWN HEAD, OPTIONAL. It used to print a fixed "Collecties" above the
+ * tiles, words no editor had typed and none could change or remove (gone
+ * since Content Blocks Polish 1). Now the editor may give it an eyebrow, a
+ * title and a text of its own (App\Service\Blocks\BlockHead,
+ * partials/section-head.php). Without any, the block prints exactly what it
+ * always did: no head wrapper and no top spacing. With a head it is an
+ * ordinary section with its own room above that head. Only the block's own
+ * words are in that head: never a collection's name or description, which
+ * stay on the tiles. A tile's name is an h3 under a title of the block, else
+ * an h2 (App\Service\Blocks\CardHeading); `.collection-tile__name` keeps its
+ * look either way.
  *
  * The collections arrive as an argument, read by
  * App\Service\Blocks\ShopCollectionsBlock::render(), so this file only
- * renders and the block library can show it with sample tiles.
+ * renders and the block library can show it with sample tiles. With no
+ * collection to show the block renders nothing, head included: a heading
+ * over nothing is no content.
  *
  * @param list<array<string, mixed>> $shopCollections see CollectionContent::activeForShop()
+ * @param array<string, mixed> $head 'eyebrow', 'title', 'lead' (App\Service\ShopListingContent); none = no head
  */
-function render_section_shop_collections(array $shopCollections): void
+function render_section_shop_collections(array $shopCollections, array $head = []): void
 {
     if ($shopCollections === []) {
         return;
     }
 
-    $cardHeading = \App\Service\Blocks\CardHeading::under(false);
+    $hasHead = \App\Service\Blocks\BlockHead::has($head);
+    $cardHeading = \App\Service\Blocks\CardHeading::under(trim((string) ($head['title'] ?? '')) !== '');
     ?>
-  <section style="padding-top:0;">
+  <section<?= $hasHead ? '' : ' style="padding-top:0;"' ?>>
     <div class="container">
+<?php render_section_head($head); ?>
       <div class="collection-tiles">
         <?php foreach ($shopCollections as $shopCollection): ?>
           <?php

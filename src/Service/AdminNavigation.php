@@ -196,9 +196,11 @@ class AdminNavigation
                     // guarded by pages.manage like the rest (the Portfolio's
                     // Projecten). While its module is off it answers 404.
                     'project-cards.php',
-                    // The Shop's Uitgelicht product; while the Shop is off
+                    // The Shop's Uitgelicht product, and the head of its
+                    // Productgrid and Collectie-tegels; while the Shop is off
                     // App\Module\ModuleGuard answers with the no-access page.
                     'featured-product.php',
+                    'shop-listing.php',
                 ],
             ],
             [

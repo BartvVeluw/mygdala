@@ -17,15 +17,17 @@ require_once dirname(__DIR__, 3) . '/partials/section-shop-collections.php';
  * to be a fixed block of the historical storefront page only; that page keeps
  * the tiles it has, nothing is copied or added.
  *
- * NO CONTENT ROW. The tiles have no settings of their own. The page_sections
- * row's `section_id` is the page's own id, unique per page under the one-per-
- * page rule and so under UNIQUE(section_type, section_id); a historical row
- * keeps the id it always had.
+ * ITS OWN ROW, FOR ITS HEAD ONLY (ShopListingBlock): an optional eyebrow,
+ * title and text above the tiles, per website language, and "Actief". The
+ * collections, their names, pictures and texts stay the Shop's, and are never
+ * copied into the block or into the site search's copy of the page. Without
+ * a head it renders exactly what it always did (db/migrations/20261015100000
+ * gave every existing strip its row and changed nothing else).
  *
  * Belongs to the Shop module: with the Shop off the type is not registered, so
  * it is neither offered nor rendered.
  */
-final class ShopCollectionsBlock extends BlockDefinition
+final class ShopCollectionsBlock extends ShopListingBlock
 {
     public function type(): string
     {
@@ -43,7 +45,7 @@ final class ShopCollectionsBlock extends BlockDefinition
             'deletable' => true,
             'kind' => self::KIND_DYNAMIC,
             'badge_label' => 'Beheerd via Collecties',
-            'note' => 'Alleen actieve collecties met minstens één actief product verschijnen hier. De collecties zelf beheer je bij Collecties.',
+            'note' => 'Alleen actieve collecties met minstens één actief product verschijnen hier. Hier geef je het blok desgewenst een bovenkop, titel en tekst; de collecties zelf beheer je bij Collecties.',
         ];
     }
 
@@ -82,56 +84,23 @@ final class ShopCollectionsBlock extends BlockDefinition
     }
 
     /**
-     * Nothing to create: the tiles have no settings. The row's section_id is
-     * the page's own id (see the class docblock).
+     * The tiles, under the block's head if it has one. A row switched off in
+     * its editor renders nothing.
      */
-    public function create(string $pageSlug): array
-    {
-        $page = (new \App\Repository\PageRepository())->findByContentKey($pageSlug);
-
-        if ($page === null) {
-            throw new \RuntimeException('Collection tiles can only be added to an existing page.');
-        }
-
-        return [(int) $page['id'], null];
-    }
-
-    /** Nothing of its own to delete: removing the block removes only its page_sections row. */
-    public function deleteContent(array $pageSection): void
-    {
-    }
-
-    /**
-     * No editor of its own: collections are edited under Collecties. Adding
-     * the block therefore lands back on the page, on the new row.
-     */
-    public function editUrl(array $pageSection): ?string
-    {
-        return null;
-    }
-
-    public function clearCache(): void
-    {
-    }
-
-    public function contentTable(): ?string
-    {
-        return null;
-    }
-
-    public function translatableFields(): array
-    {
-        return [];
-    }
-
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
-        render_section_shop_collections(CollectionContent::activeForShop());
+        $content = $this->listingContent($pageSection);
+        if ($content['state'] === \App\Service\ShopListingContent::STATE_HIDDEN) {
+            return;
+        }
+
+        render_section_shop_collections(CollectionContent::activeForShop(), $content);
     }
 
     /**
-     * Tiles in the shape CollectionContent hands them over. The picture path
-     * is stored without its leading slash, which the partial adds.
+     * Tiles in the shape CollectionContent hands them over, under the head's
+     * sample words in ShopListingContent's shape. The picture path is stored
+     * without its leading slash, which the partial adds.
      */
     public function sampleContent(BlockSamples $samples): ?array
     {
@@ -149,17 +118,11 @@ final class ShopCollectionsBlock extends BlockDefinition
             ];
         }
 
-        return ['collections' => $collections];
+        return ['collections' => $collections] + self::sampleHead($samples);
     }
 
     public function renderSample(array $content, string $revealGroup): void
     {
-        render_section_shop_collections($content['collections']);
-    }
-
-    /** Placed at once: no editor of its own: nothing to save, so it is placed at once. */
-    public function opensAsDraft(): bool
-    {
-        return false;
+        render_section_shop_collections($content['collections'], $content);
     }
 }
