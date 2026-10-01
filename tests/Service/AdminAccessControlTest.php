@@ -232,6 +232,12 @@ final class AdminAccessControlTest extends TestCase
         // closed list App\Service\Blocks\LabelMode and the shared Media
         // picker. Each editor's own endpoint checks and stores the choice.
         '_label_mode_field.php',
+        // How the cards inside a block look (Kaartweergave, Card
+        // Presentation 2.0): an output function printed by
+        // admin/project-cards.php and admin/item-gallery.php behind their own
+        // guard, over the closed list App\Service\Blocks\CardPresentation.
+        // Each editor's own endpoint checks and stores the choice.
+        '_card_presentation_field.php',
         // The schematic drawing and icon on a block card, shared by the
         // picker and the Contentblokken catalogue. Two output functions over
         // constant, first-party markup; no URL, no data, nothing to guard.
