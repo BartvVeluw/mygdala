@@ -3,31 +3,31 @@
 /**
  * POST /api/admin/update-item-gallery.php
  *
- * Saves one Portfolio-/collectiegalerij block
- * (admin/item-gallery.php?section=<page>:<key>). Same guard order and
+ * Saves one Collectiegalerij block
+ * (admin/item-gallery.php?section=<page>:<key>), a block of the Shop. Same guard order and
  * PRG/session-flash pattern as api/admin/update-contact-card.php, and the
  * same "a page-builder-attached section is valid only when the page AND its
  * content row already exist" gate — an arbitrary page_slug:section_key pair
  * from the request is never trusted beyond that.
  *
- * The content source is validated against the closed list in
- * App\Service\ItemGalleryContent::SOURCES (and the collection against the
- * collections table) before it is stored: an unknown source is REFUSED with
- * an error, never written and never executed. Same for the section
- * background, and for how the cards look (`card_presentation`, checked by
- * App\Service\Blocks\CardPresentation against what this block offers).
+ * THE SHOP FIRST: App\Module\ModuleGuard refuses before anything else while
+ * the Shop is off, since the editor's permission is a Core one.
  *
- * WHICH ITEMS (Projecten 2.0): for a source whose items can be chosen
- * (ItemGallerySources::selectionSource()) the scope, the category, the order
- * and the picked items are read and checked by App\Service\ItemGallerySelection,
- * exactly as for the Projecten block, and the picked items are stored through
- * ItemGallerySources::saveSelection() in the same transaction. With no such
- * source on (its module switched off), the stored choice is kept as it is.
+ * The content source is validated against the closed list of the sources
+ * THIS block may show (App\Service\ItemGallerySources::availableFor()) and
+ * the collection against the collections table before it is stored: any
+ * other source — portfolio items, which are the Projecten block's, included
+ * — is REFUSED with an error, never written and never executed. Same for the
+ * section background, and for how the cards look (`card_presentation`,
+ * checked by App\Service\Blocks\CardPresentation against what this block
+ * offers). The scope, category and order of a row stay as stored: a
+ * collection reads none of them.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+\App\Module\ModuleGuard::requireApi('shop');
 
 use App\Database;
 use App\Service\Language\AdminTranslator;
@@ -39,7 +39,6 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\ItemGalleryContent;
-use App\Service\ItemGallerySelection;
 use App\Service\ItemGallerySources;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
@@ -84,21 +83,18 @@ if ($section === null
 $rawCollectionId = trim((string) ($_POST['collection_id'] ?? ''));
 $rawMaxItems = trim((string) ($_POST['max_items'] ?? ''));
 
-// Which items: checked by the choice both gallery editors share, for the
-// source whose items can be chosen; without one, what is stored stays.
-$selectionSource = ItemGallerySources::selectionSource();
-$selection = $selectionSource !== '' ? ItemGallerySelection::fromRequest($_POST, $selectionSource, $section) : null;
-
 $fields = [
-    'source_type' => trim((string) ($_POST['source_type'] ?? '')),
-    'portfolio_scope' => $selection['values']['portfolio_scope'] ?? (string) $section['portfolio_scope'],
-    'portfolio_category_id' => $selection !== null
-        ? $selection['values']['portfolio_category_id']
-        : (($section['portfolio_category_id'] ?? null) === null ? null : (int) $section['portfolio_category_id']),
-    'item_sort' => $selection['values']['item_sort'] ?? (string) ($section['item_sort'] ?? 'source'),
+    // The form sends the block's one source; a form without it means the
+    // block's first source. Checked below against this block's closed list.
+    'source_type' => trim((string) ($_POST['source_type'] ?? ItemGallerySources::defaultSourceFor('item_gallery'))),
+    'portfolio_scope' => (string) $section['portfolio_scope'],
+    'portfolio_category_id' => ($section['portfolio_category_id'] ?? null) === null ? null : (int) $section['portfolio_category_id'],
+    'item_sort' => (string) ($section['item_sort'] ?? 'source'),
     'collection_id' => $rawCollectionId === '' ? null : (int) $rawCollectionId,
     'max_items' => $rawMaxItems === '' ? null : (int) $rawMaxItems,
-    'show_filter_bar' => isset($_POST['show_filter_bar']),
+    // A collection has no categories, so no filter bar; the stored value
+    // stays as it is (it draws nothing for this source).
+    'show_filter_bar' => (bool) $section['show_filter_bar'],
     'enable_lightbox' => isset($_POST['enable_lightbox']),
     'fallback_link_url' => trim((string) ($_POST['fallback_link_url'] ?? '')),
     'button_url' => trim((string) ($_POST['button_url'] ?? '')),
@@ -136,27 +132,14 @@ if (!$languageIsWritable) {
 }
 
 /**
- * The source is validated against the CLOSED list of sources this deployment
- * currently offers (App\Service\ItemGallerySources) — request input can still
- * only hit or miss a key of that list, never become a table or class name.
- *
- * One exception, and only one: the value already stored on this row. A block
- * set to a source whose module has since been switched off must be able to
- * save its title and its display settings without that save silently
- * rewriting its source; the editor renders it as a locked option and says so.
- * The value is compared against what the database holds, never taken from the
- * request on trust.
+ * The source is validated against the CLOSED list of sources this block may
+ * show (App\Service\ItemGallerySources::availableFor('item_gallery')) —
+ * request input can only hit or miss a key of that list, never become a table
+ * or class name, and never the Portfolio's source: a forged `portfolio` is
+ * refused here like any unknown word, even on a row that still stores it.
  */
-$storedSource = (string) ($section['source_type'] ?? '');
-
-if (!ItemGalleryContent::isSource($fields['source_type'])
-    && !($fields['source_type'] !== '' && $fields['source_type'] === $storedSource)
-) {
+if (!ItemGalleryContent::isSource('item_gallery', $fields['source_type'])) {
     $errors[] = AdminTranslator::trans('validation.kies_geldige_inhoudsbron');
-}
-
-if ($selection !== null) {
-    array_push($errors, ...$selection['errors']);
 }
 
 if (!ItemGalleryContent::isBackground($fields['background'])) {
@@ -220,8 +203,7 @@ if ($buttonStyleError !== null) {
 
 $old = ['language_code' => $languageCode] + $words + $fields
     + ['card_presentation' => $cardPresentation ?? CardPresentation::stored($section['card_presentation'] ?? null)]
-    + ['button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '']
-    + ($selection !== null && $selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
+    + ['button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : ''];
 
 if ($errors !== []) {
     $_SESSION['admin_item_gallery_errors'] = $errors;
@@ -240,9 +222,6 @@ try {
     $repository->saveCardPresentation($sectionId, $cardPresentation);
     (new ButtonStyleRepository())->saveChoice('item_galleries', 'button_style_id', $sectionId, $buttonStyle);
     BlockLocalization::save('item_galleries', $sectionId, $languageCode, $words);
-    if ($selection !== null && $selection['selected'] !== null) {
-        ItemGallerySources::saveSelection($selectionSource, $sectionId, $selection['selected']);
-    }
 
     // A new block joins its page now, in this save's transaction
     // (App\Service\Blocks\ContentBlockDrafts); an existing one is found.

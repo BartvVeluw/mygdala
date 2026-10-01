@@ -13,9 +13,10 @@ use App\Service\ItemGallerySources;
 /**
  * THE CHOICE OF ITEMS of a gallery block on screen (Projecten 2.0,
  * CONTENT-BLOCKS.md): which items a block shows and in what order. The
- * Projecten block (admin/project-cards.php) and the gallery block
- * (admin/item-gallery.php) print it; App\Service\ItemGallerySelection reads it
- * back, for both. It names no source: its categories and its items come from
+ * Projecten block (admin/project-cards.php) prints it, the only block since
+ * v0.1.15 whose source has a choice of items (the Collectiegalerij shows a
+ * whole collection); App\Service\ItemGallerySelection reads it back. It names
+ * no source: its categories and its items come from
  * App\Service\ItemGallerySources.
  *
  *   Bron       all visible items, the items of one category, or a

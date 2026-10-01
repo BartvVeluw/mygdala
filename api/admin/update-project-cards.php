@@ -32,8 +32,13 @@
  * relation, stored through ItemGallerySources::saveSelection(), and only when
  * the picker was on the form (`items_submitted`).
  *
- * ONE WEBSITE LANGUAGE (Multilingual 2.0): the title and lead are the words of
- * the language named in `language_code`, which must be an active language of
+ * THE BUTTON under the projects is the gallery's: a label (a word of each
+ * language) and an address (SafeUrl, the same in every language), both or
+ * neither, with an optional button style (ButtonStyles, a forged id refused).
+ * A legacy `tight_top` stays as stored (ProjectCardsBlock::rowValues()).
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, title, lead, closing
+ * text and button label are the words of the language named in `language_code`, which must be an active language of
  * the website registry, and only that language is written, through
  * ProjectCardsBlock::rowWords() and App\Service\Blocks\BlockLocalization, in
  * the same transaction as the settings and the picked projects.
@@ -58,7 +63,9 @@ use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySelection;
 use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
+use App\Repository\ButtonStyleRepository;
 use App\Repository\ItemGalleryRepository;
+use App\Service\Theme\ButtonStyles;
 
 AdminAuth::requireLoginForApi();
 \App\Service\ContentOwners\ContentBlockAccess::requireAnyForApi();
@@ -104,6 +111,9 @@ $selection = ItemGallerySelection::fromRequest($_POST, PortfolioModule::GALLERY_
 $fields = $selection['values'] + [
     'max_items' => $maxItems,
     'show_filter_bar' => isset($_POST['show_filter_bar']),
+    'button_url' => trim((string) ($_POST['button_url'] ?? '')),
+    // Legacy, not on the form: what is stored stays (ProjectCardsBlock::rowValues()).
+    'tight_top' => (bool) ($section['tight_top'] ?? false),
     // Not in the form any more (the background is Extra vormgeving now,
     // admin/_block_appearance.php): a request without it keeps what is stored.
     'background' => array_key_exists('background', $_POST) ? trim((string) $_POST['background']) : (string) ($section['background'] ?? 'default'),
@@ -118,11 +128,12 @@ $cardPresentation = CardPresentation::choiceFromRequest($_POST, BlockDefinitions
 $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
 
-// Only the two words this block's editor offers; rowWords() empties the rest.
-$words = ProjectCardsBlock::rowWords([
-    'title' => trim((string) ($_POST['title'] ?? '')),
-    'lead' => trim((string) ($_POST['lead'] ?? '')),
-]);
+// The five words this block's editor offers, never a name from the request.
+$typed = [];
+foreach (['eyebrow', 'title', 'lead', 'footer_note', 'button_label'] as $field) {
+    $typed[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+$words = ProjectCardsBlock::rowWords($typed);
 
 $errors = [];
 
@@ -144,7 +155,33 @@ if ($cardPresentation === null) {
     $errors[] = AdminTranslator::trans('validation.card_presentation_unknown');
 }
 
-$old = ['language_code' => $languageCode, 'title' => $words['title'], 'lead' => $words['lead']] + $fields
+// The one rule for a typed address (App\Service\Routing\SafeUrl).
+$urlProblem = \App\Service\Routing\SafeUrl::optionalFieldMessage($fields['button_url']);
+if ($urlProblem !== null) {
+    $errors[] = $urlProblem;
+}
+
+// A label without an address is a button that goes nowhere, an address
+// without a label an invisible one. The label that counts is the default
+// language's, the one every other language falls back to (as in the gallery).
+$sectionId = (int) $section['id'];
+$isDefaultLanguage = $languageIsWritable && $languageCode === BlockLocalization::defaultLanguage();
+$defaultButtonLabel = $isDefaultLanguage
+    ? $words['button_label']
+    : BlockLocalization::raw('item_galleries', $sectionId, 'button_label', BlockLocalization::defaultLanguage());
+$buttonUrlSet = $fields['button_url'] !== '';
+
+if ($languageIsWritable && (($defaultButtonLabel !== '') !== $buttonUrlSet || ($words['button_label'] !== '' && !$buttonUrlSet))) {
+    $errors[] = AdminTranslator::trans('validation.vul_zowel_knoplabel_knop_url');
+}
+
+[$buttonStyle, $buttonStyleError] = ButtonStyles::choiceFromRequest($_POST, 'button_style_id', ButtonStyles::storedChoice($section['button_style_id'] ?? null));
+if ($buttonStyleError !== null) {
+    $errors[] = $buttonStyleError;
+}
+
+$old = ['language_code' => $languageCode] + $words + $fields
+    + ['button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '']
     + ['card_presentation' => $cardPresentation ?? CardPresentation::stored($section['card_presentation'] ?? null)]
     + ($selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
 
@@ -164,6 +201,7 @@ try {
 
     $repository->upsertSection($pageSlug, $sectionKey, ProjectCardsBlock::rowValues($fields));
     $repository->saveCardPresentation((int) $section['id'], $cardPresentation);
+    (new ButtonStyleRepository())->saveChoice('item_galleries', 'button_style_id', (int) $section['id'], $buttonStyle);
     BlockLocalization::save('item_galleries', (int) $section['id'], $languageCode, $words);
     if ($selection['selected'] !== null) {
         ItemGallerySources::saveSelection(PortfolioModule::GALLERY_SOURCE, (int) $section['id'], $selection['selected']);

@@ -52,16 +52,16 @@ final class ContentBlockDrafts
     /**
      * Opens a new block of $type as a draft on $page and returns it in the
      * shape of a page_sections row (id 0), ready for its editor URL. The
-     * caller has validated $type (and $preset) against
+     * caller has validated $type against
      * SectionRegistry::availableForPage() and the page's permission.
      *
      * @param array<string, mixed> $page a real `pages` row
      *
      * @return array<string, mixed>
      */
-    public static function open(array $page, string $type, ?string $preset = null): array
+    public static function open(array $page, string $type): array
     {
-        [$sectionId, $sectionKey] = SectionRegistry::create($type, (string) $page['content_key'], $preset);
+        [$sectionId, $sectionKey] = SectionRegistry::create($type, (string) $page['content_key']);
 
         $draft = [
             'id' => 0,

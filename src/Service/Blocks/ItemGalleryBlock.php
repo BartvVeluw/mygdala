@@ -5,32 +5,32 @@ namespace App\Service\Blocks;
 use App\Repository\ItemGalleryRepository;
 use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
-use App\Service\Language\AdminTranslator;
 
 require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
 
 /**
- * ONE gallery block whose content source is a setting (phase 4): portfolio
- * items, or the products of one collection. The Portfolio grid and the
- * homepage's "greep uit eerder werk" are two instances of it, which is why it
- * knows nothing about "portfolio" and is allowed everywhere.
+ * The Shop's Collectiegalerij: the products of one collection as a picture
+ * grid, with an optional zoom, a link for cards without a page of their own,
+ * a head, a closing text and a button.
  *
- * Its filter bar, lightbox and item cap are settings of the instance. The
- * source list itself stays a CLOSED whitelist in App\Service\ItemGallerySources,
- * every entry of it contributed by the module that owns the content —
- * a security boundary, not a style choice: a stored source key that is not on
- * that list renders nothing rather than reaching a table of its own choosing.
+ * SHOP ONLY. Registered by App\Module\ShopModule::blockDefinitions(), so with
+ * the Shop off it is neither offered nor rendered (its rows stay). Its source
+ * is a closed list too (App\Service\ItemGallerySources), and every source
+ * there belongs to one block type: this block only ever gets the Shop's
+ * collection source. Until v0.1.15 it was Core and also showed portfolio
+ * items, with a second picker card "Portfoliogalerij"; Portfolio items are
+ * the Projecten block's now (ProjectCardsBlock), and
+ * db/migrations/20261015110000 turned every gallery on portfolio items into
+ * one, in place. A stored row whose source belongs to another block renders
+ * nothing here, and its editor refuses to save one.
  *
- * The items behind it are not its content: they belong to Portfolio and
- * Collecties, which keep their own CRUD and uploaded media, so deleting this
- * block deletes only the placement and its settings.
- *
- * IN THE PICKER it is one card per available source (OffersPickerPresets):
- * "Collectiegalerij" under Shop and "Portfoliogalerij" under Portfolio, each
- * starting with its source chosen. Still this one type; its own category
- * below is what the Contentblokken catalogue shows.
+ * The products behind it are not its content: they belong to Collecties and
+ * Producten, which keep their own CRUD and media, so deleting this block
+ * deletes only the placement and its settings. It shares item_galleries,
+ * its content class and its partial with Projecten; which block a row is,
+ * is the page section that placed it.
  */
-final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPresets, InspectsContent, PresentsCards
+final class ItemGalleryBlock extends BlockDefinition implements InspectsContent, PresentsCards
 {
     public function type(): string
     {
@@ -40,27 +40,24 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
     public function meta(): array
     {
         return [
-            'label' => 'Portfolio-/collectiegalerij',
-            // Offered only while an enabled module has a source for it: with
-            // the Portfolio and the Shop both off there is nothing it could
-            // show. Instances that already exist are left exactly as they are.
-            'manual_add' => ItemGallerySources::available() !== [],
+            'label' => 'Collectiegalerij',
+            'manual_add' => true,
             'allow_multiple' => true,
             'max_instances' => null,
             'allowed_pages' => null,
             'deletable' => true,
-            'note' => 'Kies zelf wat dit blok toont: portfolio-items of de producten van één collectie. Filterbalk, lightbox en maximum aantal items zijn instellingen van dit blok; de items zelf beheer je via Portfolio of Collecties.',
+            'note' => 'Kies welke collectie dit blok toont. Vergroting, maximum aantal items, kop, slottekst en knop zijn instellingen van dit blok; de producten zelf beheer je bij Collecties en Producten.',
         ];
     }
 
     public function description(): string
     {
-        return 'Een raster met beeld uit je portfolio of uit een collectie, met optioneel een filterbalk en een vergroting bij het aanklikken.';
+        return 'De producten van één collectie als raster met beeld, met optioneel een vergroting bij het aanklikken. Welke collectie kies je in het blok.';
     }
 
     public function category(): string
     {
-        return BlockCategories::MEDIA;
+        return BlockCategories::SHOP;
     }
 
     public function icon(): string
@@ -76,14 +73,13 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
     public function useCases(): array
     {
         return [
-            'een portfolio-overzicht',
-            'uitgelicht werk op de homepage',
             'beeld uit een collectie tonen',
+            'een collectie tussen je eigen tekst en beeld',
         ];
     }
 
     /**
-     * The block's own words, per website language; the source and every
+     * The block's own words, per website language; the collection and every
      * display setting are the same in every language and stay in
      * item_galleries. ProjectCardsBlock shares the table and this declaration.
      * The lengths are the ones the editor always allowed.
@@ -117,66 +113,13 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
         ];
     }
 
+    /**
+     * A new Collectiegalerij on the Shop's collection source, without a
+     * collection yet (its editor asks which) and with zoom on.
+     */
     public function create(string $pageSlug): array
     {
-        // Defaults to the block in its most familiar shape: the first source
-        // an enabled module offers — portfolio items while the Portfolio runs
-        // — with a filter bar and zoom.
-        return $this->createWithSource($pageSlug, ItemGallerySources::defaultSource());
-    }
-
-    /**
-     * One card per source an ENABLED module offers, in the sources' own
-     * order, each under the category the module names for it: a collection
-     * of the Shop under Shop ("Collectiegalerij"), portfolio items under
-     * Portfolio ("Portfoliogalerij"). The words come from the module's
-     * contribution (App\Service\ItemGallerySources, `picker`), in the
-     * editor's CMS language when the catalogue has them. A source without a
-     * `picker` entry still gets a card: the block's name with the source's,
-     * under the block's own category, so no source is ever unreachable.
-     */
-    public function pickerPresets(): array
-    {
-        $presets = [];
-
-        foreach (ItemGallerySources::available() as $source => $contribution) {
-            $source = (string) $source;
-            $picker = is_array($contribution['picker'] ?? null) ? $contribution['picker'] : [];
-            $category = (string) ($picker['category'] ?? '');
-            $useCases = [];
-
-            foreach (array_values((array) ($picker['use_cases'] ?? [])) as $index => $case) {
-                $useCases[] = self::presetWord($source, 'use_case_' . ($index + 1), (string) $case);
-            }
-
-            $presets[$source] = [
-                'label' => self::presetWord($source, 'label', (string) ($picker['label'] ?? $this->label() . ' — ' . ItemGallerySources::label($source))),
-                'description' => self::presetWord($source, 'description', (string) ($picker['description'] ?? $this->describedFor())),
-                'category' => BlockCategories::has($category) ? $category : $this->category(),
-                'use_cases' => $useCases,
-            ];
-        }
-
-        return $presets;
-    }
-
-    public function createFromPreset(string $pageSlug, string $preset): array
-    {
-        if (!ItemGallerySources::isAvailable($preset)) {
-            throw new \RuntimeException("Gallery preset \"{$preset}\" is not an available source.");
-        }
-
-        return $this->createWithSource($pageSlug, $preset);
-    }
-
-    /** A preset's words in the reader's CMS language, the module's Dutch otherwise. */
-    private static function presetWord(string $source, string $suffix, string $fallback): string
-    {
-        $key = 'block.item_gallery.preset.' . $source . '.' . $suffix;
-        // trans() answers the key itself when no catalogue knows it.
-        $word = AdminTranslator::trans($key);
-
-        return $word === $key ? $fallback : $word;
+        return $this->createWithSource($pageSlug, ItemGallerySources::defaultSourceFor($this->type()));
     }
 
     /** @return array{0: int, 1: string} */
@@ -188,7 +131,8 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
         $repository->upsertSection($pageSlug, $key, [
             'source_type' => $source,
             'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
-            'show_filter_bar' => true,
+            // A collection has no categories, so no filter bar to switch on.
+            'show_filter_bar' => false,
             'enable_lightbox' => true,
             'background' => 'default',
             'is_active' => true,
@@ -206,6 +150,14 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
     {
         $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
         if ($content['state'] === ItemGalleryContent::STATE_HIDDEN) {
+            return;
+        }
+
+        // Only this block's own source. A row whose source belongs to another
+        // block (Projecten's portfolio items) was not written by this
+        // block's editor, and shows nothing rather than somebody else's
+        // content. A missing row has no source and no items either.
+        if (!ItemGallerySources::belongsTo((string) $content['source_type'], $this->type())) {
             return;
         }
 
@@ -270,9 +222,8 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
     }
 
     /**
-     * Its own title if it has one, otherwise what it shows — "Portfolio-items"
-     * / a collection's name — so two galleries on one page stay tellable apart
-     * even when neither carries a heading.
+     * Its own title if it has one, otherwise what it shows, so two galleries
+     * on one page stay tellable apart even when neither carries a heading.
      */
     public function instanceTitle(array $pageSection): string
     {
@@ -309,7 +260,8 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
 
     /**
      * Every shared card presentation (App\Service\Blocks\CardPresentation):
-     * the cards of this block are content cards, the same in every source.
+     * a product of a collection is a picture card here, the same card as a
+     * project in Projecten, not the Shop's product card with a price.
      */
     public function cardPresentations(): array
     {

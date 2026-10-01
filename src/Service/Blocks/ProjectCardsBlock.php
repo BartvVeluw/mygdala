@@ -31,11 +31,23 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * project, builds a card or resolves a link, and none of that belongs here.
  * Why it is a block type of its own at all: docs/content-blocks/DECISIONS.md.
  *
- * What it leaves out is the point of it. The gallery editor asks for a source
- * and offers settings a project does nothing with: a collection, zoom, a link
- * for cards without a page of their own, a closing text and a button.
- * rowValues() stores those fixed, so a project without a page of its own is a
- * card without a button, whose picture still zooms.
+ * What it leaves out is the point of it: a source to choose, a collection,
+ * a zoom switch and a link for cards without a page of their own — settings a
+ * project does nothing with, since a project's picture always zooms and its
+ * card links only to its own page. rowValues() stores those fixed. What it
+ * has besides the projects is the gallery's words: an optional head
+ * (eyebrow, title, text) and an optional closing text with a button, such as
+ * "Bekijk al het werk" under a selection on the homepage.
+ *
+ * THE PORTFOLIO'S ONLY WAY TO SHOW PROJECTS IN A BLOCK (v0.1.15). The gallery
+ * used to offer portfolio items as a source too ("Portfoliogalerij"); that
+ * block is the Shop's Collectiegalerij now, and
+ * db/migrations/20261015110000 turned every gallery on portfolio items into
+ * this block, in place: same row, same page position, visibility, Extra
+ * vormgeving, card presentation, choice of projects and words. A legacy
+ * "sluit aan op de sectie erboven" (`tight_top`) is kept as stored, and
+ * rendered, though this editor does not offer it: like most blocks, this one
+ * already drops its top room under a hero by itself.
  *
  * WHICH PROJECTS (Projecten 2.0): all visible ones, one category's, or picked
  * by hand, in the Portfolio's own order, newest or oldest first, by title, or
@@ -74,7 +86,7 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
         return 'Je projecten uit Portfolio als kaarten met foto en titel. Heeft een project een eigen pagina, dan klikt de bezoeker daarheen door.';
     }
 
-    /** The Portfolio's own drawer, next to the gallery's Portfoliogalerij card. */
+    /** The Portfolio's own drawer. */
     public function category(): string
     {
         return BlockCategories::PORTFOLIO;
@@ -103,8 +115,8 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
     /**
      * The gallery's own declaration, word for word: both blocks keep their
      * words on the same item_galleries rows, and a table has one set of
-     * fields (BlockDefinitionContractTest). This block's editor offers only
-     * the title and the lead; rowWords() keeps the others empty.
+     * fields (BlockDefinitionContractTest). This block's editor offers all
+     * five: the head, the closing text and the button's label.
      */
     public function translatableFields(): array
     {
@@ -159,7 +171,7 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
         // source says otherwise was changed outside both editors, and shows
         // nothing rather than somebody else's content. A missing row has no
         // source and no items either.
-        if ($content['source_type'] !== PortfolioModule::GALLERY_SOURCE) {
+        if (!ItemGallerySources::belongsTo((string) $content['source_type'], $this->type())) {
             return;
         }
 
@@ -203,7 +215,7 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
         return [
             'id' => 0,
             ...$content,
-            'eyebrow' => $samples->none(),
+            'eyebrow' => $samples->localized('eyebrow'),
             'title' => $samples->localized('title'),
             'lead' => $samples->localized('lead'),
             'footer_note' => $samples->none(),
@@ -301,14 +313,17 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
      * this block does not have, fixed. create() and
      * api/admin/update-project-cards.php both store through here, so no
      * request can set the source, and no save leaves a setting behind that
-     * this block's editor does not show: a zoom, a fallback link or a button
-     * nobody could switch off again. The words go through rowWords().
+     * this block's editor does not show: a zoom or a fallback link nobody
+     * could switch off again. One exception: `tight_top`, a legacy setting
+     * of galleries that became Projecten, is what the caller hands over (the
+     * endpoint: what is stored), never a request's. The words go through
+     * rowWords().
      *
      * Validating $editable is the caller's job, before it gets here
      * (App\Service\ItemGallerySelection and ItemGalleryContent::isBackground()),
      * as for every write through ItemGalleryRepository.
      *
-     * @param array<string, mixed> $editable portfolio_scope, portfolio_category_id, item_sort, max_items, show_filter_bar, background, is_active
+     * @param array<string, mixed> $editable portfolio_scope, portfolio_category_id, item_sort, max_items, show_filter_bar, button_url, background, tight_top, is_active
      *
      * @return array<string, string|bool|int|null> in ItemGalleryRepository::upsertSection()'s shape
      */
@@ -326,33 +341,31 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
             'show_filter_bar' => (bool) ($editable['show_filter_bar'] ?? false),
             'enable_lightbox' => false,
             'fallback_link_url' => '',
-            'button_url' => '',
+            'button_url' => (string) ($editable['button_url'] ?? ''),
             'background' => (string) ($editable['background'] ?? 'default'),
-            'tight_top' => false,
+            'tight_top' => (bool) ($editable['tight_top'] ?? false),
             'is_active' => (bool) ($editable['is_active'] ?? true),
         ];
     }
 
     /**
      * The words of one language a Projecten save stores, for
-     * BlockLocalization::save(): the title and the lead from $editable, and
-     * the gallery's other words empty, so a save never keeps an eyebrow, a
-     * closing text or a button label in that language this block's editor
-     * does not show.
+     * BlockLocalization::save(): every field of item_galleries, each from
+     * $editable or empty, so a save writes exactly the words its editor
+     * shows and nothing else.
      *
-     * @param array<string, string> $editable title, lead
+     * @param array<string, string> $editable eyebrow, title, lead, footer_note, button_label
      *
      * @return array<string, string> every field of item_galleries
      */
     public static function rowWords(array $editable): array
     {
-        return [
-            'eyebrow' => '',
-            'title' => (string) ($editable['title'] ?? ''),
-            'lead' => (string) ($editable['lead'] ?? ''),
-            'footer_note' => '',
-            'button_label' => '',
-        ];
+        $words = [];
+        foreach (['eyebrow', 'title', 'lead', 'footer_note', 'button_label'] as $field) {
+            $words[$field] = (string) ($editable[$field] ?? '');
+        }
+
+        return $words;
     }
 
     /**

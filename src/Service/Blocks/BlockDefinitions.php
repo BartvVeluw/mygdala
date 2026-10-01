@@ -60,7 +60,6 @@ final class BlockDefinitions
         'contact_card' => ContactCardBlock::class,
         'detail_section' => DetailSectionBlock::class,
         'card_carousel' => CardCarouselBlock::class,
-        'item_gallery' => ItemGalleryBlock::class,
         'media_banner' => MediaBannerBlock::class,
         'hover_card_grid' => HoverCardGridBlock::class,
         'reviews' => ReviewsBlock::class,

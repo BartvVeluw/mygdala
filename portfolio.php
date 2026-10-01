@@ -84,10 +84,10 @@ if ($builtin) {
 <?php
 // Frontend assets for this page: App\Service\PageAssets always puts Core
 // and the site shell first, and this page adds whatever it needs on top.
-// The module's own overview asks for the gallery block's files, which it
-// draws through the same partial.
+// The module's own overview asks for the Projecten block's files, which it
+// draws through the same partial (the gallery partial both blocks share).
 if ($builtin) {
-    $galleryBlock = \App\Service\Blocks\BlockDefinitions::get('item_gallery');
+    $galleryBlock = \App\Service\Blocks\BlockDefinitions::get('project_cards');
     foreach ($galleryBlock?->styles() ?? [] as $style) {
         \App\Service\PageAssets::requireStyle($style);
     }

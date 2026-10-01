@@ -14,7 +14,6 @@ use App\Service\Blocks\ContributesAnchor;
 use App\Service\Blocks\InspectsContent;
 use App\Service\Blocks\RendersAnchorNavigation;
 use App\Service\Blocks\CarriesBreadcrumb;
-use App\Service\Blocks\OffersPickerPresets;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\ContentOwners\OwnerContentGuard;
 use App\Service\Search\BlockSearchIndex;
@@ -381,42 +380,13 @@ class SectionRegistry
      *
      * @return array{0: int, 1: ?string}
      */
-    public static function create(string $type, string $pageSlug, ?string $preset = null): array
+    public static function create(string $type, string $pageSlug): array
     {
         if (!self::isManuallyAddable($type)) {
             throw new \RuntimeException("Section type \"{$type}\" cannot be created from the page builder.");
         }
 
-        $definition = self::definition($type);
-
-        if ($preset === null) {
-            return $definition->create($pageSlug);
-        }
-
-        // A picker card that starts the block with one setting chosen
-        // (App\Service\Blocks\OffersPickerPresets): still this one type.
-        if (!self::offersPreset($type, $preset) || !$definition instanceof OffersPickerPresets) {
-            throw new \RuntimeException("Section type \"{$type}\" offers no preset \"{$preset}\".");
-        }
-
-        return $definition->createFromPreset($pageSlug, $preset);
-    }
-
-    /**
-     * Whether the block picker shows $preset as a card of $type right now: a
-     * key from the block's own closed list (OffersPickerPresets), which is
-     * what api/admin/add-page-section.php checks a posted preset against.
-     */
-    public static function offersPreset(string $type, string $preset): bool
-    {
-        if (!BlockDefinitions::has($type)) {
-            return false;
-        }
-
-        $definition = self::definition($type);
-
-        return $definition instanceof OffersPickerPresets
-            && array_key_exists($preset, $definition->pickerPresets());
+        return self::definition($type)->create($pageSlug);
     }
 
     /**

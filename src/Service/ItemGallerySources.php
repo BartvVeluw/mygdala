@@ -7,9 +7,11 @@ namespace App\Service;
 use App\Module\ModuleRegistry;
 
 /**
- * The closed list of content sources the "Portfolio-/collectiegalerij" block
+ * The closed list of content sources the blocks built on item_galleries
  * (App\Service\ItemGalleryContent) can show, and the one place that turns a
- * chosen source into items.
+ * chosen source into items: the Shop's Collectiegalerij (`item_gallery`, a
+ * collection's products) and the Portfolio's Projecten (`project_cards`,
+ * portfolio items).
  *
  * WHY IT IS ITS OWN CLASS. The list used to be a constant on
  * ItemGalleryContent with a `switch` underneath it, which meant a Core content
@@ -27,11 +29,24 @@ use App\Module\ModuleRegistry;
  * name or a query. Do not replace this with a query builder or an "entity +
  * filters" abstraction; see CONTENT-BLOCKS.md.
  *
+ * EVERY SOURCE BELONGS TO ONE BLOCK TYPE (`block`). A source is offered,
+ * stored and rendered only by that block: a collection is the Shop's
+ * Collectiegalerij, portfolio items are the Portfolio's Projecten. So the
+ * Shop's gallery can never be set to show projects, and Projecten never
+ * shows products — enforced here, at write time and at read time, not by an
+ * `if` in each editor. Until v0.1.15 the gallery offered both sources and
+ * the picker showed it twice (Collectiegalerij, Portfoliogalerij);
+ * db/migrations/20261015110000 turned every portfolio gallery into a
+ * Projecten block.
+ *
  * A SOURCE IS UP TO ELEVEN THINGS:
  *
+ *   block             the one block type that shows it (`item_gallery`,
+ *                     `project_cards`).
  *   label             what the editor picks in the admin.
  *   order             where it sits in that choice. The first AVAILABLE source
- *                     is what a new gallery block starts with (defaultSource()).
+ *                     of a block is what a new one starts with
+ *                     (defaultSourceFor()).
  *   needs_collection  whether the block also has to store a collection id.
  *   needs_scope       optional: whether the block's choice of items applies —
  *                     all of them, one category, or picked by hand, in an
@@ -45,11 +60,6 @@ use App\Module\ModuleRegistry;
  *   filter_categories callable(): list<array> — optional. Only a source with
  *                     a taxonomy can offer a filter bar; a collection has
  *                     none, so a collection-backed block simply has no bar.
- *   picker            optional: the source's own card in the block picker,
- *                     {category, label, description, use_cases} — the
- *                     gallery started on this source, filed under the
- *                     module's category (App\Service\Blocks\ItemGalleryBlock,
- *                     OffersPickerPresets). Presentation only.
  *
  * and, for a source whose items an editor may choose (needs_scope), what the
  * block editors need to let them (admin/_gallery_selection.php), all four or
@@ -72,9 +82,9 @@ use App\Module\ModuleRegistry;
  * A source whose module is switched off is still KNOWN — a stored block keeps
  * naming it, and nothing rewrites that row — but it is not AVAILABLE: it
  * cannot be picked for a new block and it yields no items, so the block
- * renders empty instead of silently showing somebody else's content. With no
- * available source at all the block is not offered in the picker
- * (App\Service\Blocks\ItemGalleryBlock::meta()).
+ * renders empty instead of silently showing somebody else's content. A block
+ * of a module that is off is not registered at all, so it is neither offered
+ * nor rendered.
  */
 final class ItemGallerySources
 {
@@ -126,14 +136,44 @@ final class ItemGallerySources
     }
 
     /**
-     * What a new gallery block starts with: the first source an enabled module
-     * offers, or '' when none does — and then the block is not offered at all.
+     * The sources one block type may show right now, in their own `order`.
+     *
+     * @return array<string, array<string, mixed>>
      */
-    public static function defaultSource(): string
+    public static function availableFor(string $blockType): array
     {
-        $keys = array_keys(self::available());
+        return array_filter(
+            self::available(),
+            static fn (array $source): bool => (string) ($source['block'] ?? '') === $blockType
+        );
+    }
+
+    /**
+     * What a new block of this type starts with: its first available source,
+     * or '' when none is on.
+     */
+    public static function defaultSourceFor(string $blockType): string
+    {
+        $keys = array_keys(self::availableFor($blockType));
 
         return $keys === [] ? '' : (string) $keys[0];
+    }
+
+    /** Whether an editor of this block type may pick this source right now. */
+    public static function isAvailableFor(string $blockType, string $source): bool
+    {
+        return array_key_exists($source, self::availableFor($blockType));
+    }
+
+    /**
+     * Whether a stored source is one of this block type's own — known, its
+     * module on or off. What a block checks before it renders a row: a row
+     * whose source belongs to another block was not written by its editor,
+     * and shows nothing rather than somebody else's content.
+     */
+    public static function belongsTo(string $source, string $blockType): bool
+    {
+        return (string) (self::known()[$source]['block'] ?? '') === $blockType;
     }
 
     /** Whether an editor may pick this source for a block right now. */
@@ -171,21 +211,6 @@ final class ItemGallerySources
 
         return $definition !== null
             && isset($definition['category_choices'], $definition['item_choices'], $definition['selected_items'], $definition['save_selection']);
-    }
-
-    /**
-     * The first available source whose items can be chosen, or '' when none
-     * is: the one the gallery editor's choice of items is about.
-     */
-    public static function selectionSource(): string
-    {
-        foreach (array_keys(self::available()) as $source) {
-            if (self::supportsSelection((string) $source)) {
-                return (string) $source;
-            }
-        }
-
-        return '';
     }
 
     /**

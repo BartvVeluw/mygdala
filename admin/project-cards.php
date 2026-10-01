@@ -9,6 +9,8 @@ require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_gallery_selection.php';
 require_once __DIR__ . '/_card_presentation_field.php';
+require_once __DIR__ . '/_block_head_fields.php';
+require_once __DIR__ . '/_button_style_field.php';
 
 use App\Module\PortfolioModule;
 use App\Service\AdminAuth;
@@ -83,6 +85,8 @@ $values = $old ?? [
     'item_sort' => (string) ($section['item_sort'] ?? 'source'),
     'max_items' => $section['max_items'] === null ? null : (int) $section['max_items'],
     'show_filter_bar' => (bool) $section['show_filter_bar'],
+    'button_url' => (string) ($section['button_url'] ?? ''),
+    'button_style_id' => $section['button_style_id'] ?? null,
     'background' => (string) $section['background'],
     'card_presentation' => \App\Service\Blocks\CardPresentation::stored($section['card_presentation'] ?? null),
     'is_active' => (bool) $section['is_active'],
@@ -180,17 +184,25 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_projects.heading') ?></h2>
       <p class="admin-text-muted"><?= admin_te('block_projects.heading_hint') ?></p>
-      <?php admin_localized_bar($editLanguage); ?>
+      <?php admin_block_head_fields($word, $placeholder, $editLanguage); ?>
+
+      <h2 style="margin-top:2rem;"><?= admin_te('block_projects.below') ?></h2>
       <div class="admin-form-row">
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title" maxlength="255" value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
+        <label><?= admin_te('block_gallery.slottekst') ?>
+          <textarea name="footer_note" maxlength="600" rows="3"<?= $placeholder ?>><?= $h($word('footer_note')) ?></textarea>
         </label>
       </div>
       <div class="admin-form-row">
-        <label><?= admin_te('block_projects.intro_text') ?>
-          <textarea name="lead" maxlength="600" rows="3"<?= $placeholder ?>><?= $h($word('lead')) ?></textarea>
+        <label><?= admin_te('block_gallery.knoplabel') ?>
+          <input type="text" name="button_label" maxlength="150" value="<?= $h($word('button_label')) ?>"<?= $placeholder ?>>
         </label>
       </div>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_gallery.knop_url') ?>
+          <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Bijvoorbeeld /portfolio">
+        </label>
+      </div>
+      <?= admin_button_style_field('projects-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice($values['button_style_id'] ?? null), 'secondary') ?>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>

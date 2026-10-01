@@ -76,8 +76,7 @@ function block_library(array $definitions): void
 function block_library_card(string $type, BlockDefinition $definition, bool $hasSample): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    // A preset card of the picker names itself (admin/_block_picker.php).
-    $label ??= $definition->label();
+    $label = $definition->label();
     ?>
           <article class="admin-catalogue-card" data-block-library-card>
             <?php block_visual($definition); ?>
@@ -135,7 +134,6 @@ function block_library_preview_button(string $type, BlockDefinition $definition,
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $hasSample ??= $definition->sampleContent(new BlockSamples()) !== null;
-    // A preset card of the picker names itself (admin/_block_picker.php).
     $label ??= $definition->label();
     ?>
               <button type="button" class="<?= $h($class) ?>"

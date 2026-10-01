@@ -46,12 +46,12 @@ final class BlockCategories
     /** Blocks asking the visitor to do something: click, fill in, get in touch. */
     public const ACTION = 'action';
 
-    /** The Shop's blocks, and the gallery's Collectiegalerij card. */
+    /** The Shop's blocks, the Collectiegalerij among them. */
     public const SHOP = 'shop';
 
     /**
-     * The Portfolio's blocks (Projecten), and the gallery's Portfoliogalerij
-     * card. Like Shop, empty and therefore absent while its module is off.
+     * The Portfolio's blocks (Projecten). Like Shop, empty and therefore
+     * absent while its module is off.
      */
     public const PORTFOLIO = 'portfolio';
 

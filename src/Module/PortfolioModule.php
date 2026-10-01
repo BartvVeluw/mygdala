@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Module;
 
 use App\Service\AdminPermissions;
-use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioMediaUsage;
@@ -329,10 +328,10 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * Portfolio items as a source for the gallery block and the Projecten
-     * block. First in `order`, so a new gallery block still starts as the
-     * portfolio grid it always was while this module runs. It is the one
-     * source whose items a block chooses (Projecten 2.0: all visible
+     * Portfolio items as the source of the Projecten block (`block`), and of
+     * no other: the Shop's Collectiegalerij cannot be set to show them
+     * (db/migrations/20261015110000 turned the old Portfoliogalerij into
+     * Projecten). It is the one source whose items a block chooses (Projecten 2.0: all visible
      * projects, one category, or picked by hand, in an order of its own,
      * random included — PortfolioGalleryContent::galleryItems()), and the one
      * with a taxonomy for the filter bar. The four choice callables give the
@@ -343,19 +342,11 @@ final class PortfolioModule extends ModuleDefinition
     {
         return [
             self::GALLERY_SOURCE => [
+                'block' => 'project_cards',
                 'label' => 'Portfolio-items',
                 'order' => 10,
                 'needs_collection' => false,
                 'needs_scope' => true,
-                // Its card in the block picker: the gallery started on
-                // portfolio items, filed under Portfolio
-                // (App\Service\Blocks\ItemGalleryBlock).
-                'picker' => [
-                    'category' => BlockCategories::PORTFOLIO,
-                    'label' => 'Portfoliogalerij',
-                    'description' => 'Je portfolio-items als raster met beeld, met optioneel een filterbalk en een vergroting bij het aanklikken.',
-                    'use_cases' => ['een portfolio-overzicht', 'uitgelicht werk op de homepage'],
-                ],
                 'items' => static fn (array $settings): array => PortfolioGalleryContent::galleryItems($settings),
                 'filter_categories' => static fn (): array => PortfolioGalleryContent::filterCategories(),
                 'category_choices' => static fn (): array => PortfolioGalleryContent::categoryChoices(),

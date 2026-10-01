@@ -9,7 +9,6 @@ require_once __DIR__ . '/_block_library.php';
 
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
-use App\Service\Blocks\OffersPickerPresets;
 
 /**
  * The block picker: ONE button under the page's block list — or, while the
@@ -102,51 +101,28 @@ function block_picker_empty_state(bool $canAdd): void
 
 /**
  * The picker's cards, grouped in BlockCategories order with empty groups left
- * out: one card per block, or one per PRESET for a block that offers presets
- * (App\Service\Blocks\OffersPickerPresets) — the gallery shows as
- * "Collectiegalerij" under Shop and "Portfoliogalerij" under Portfolio, each
- * card its own category, words and starting setting, and all of them the one
- * type. A block whose presets are empty keeps its ordinary card.
- *
- * Only the picker expands presets. The Contentblokken catalogue describes
- * block types and groups them with BlockCategories::group(), so there the
- * gallery is one block under its own category.
+ * out: one card per block type, in the words of the editor's CMS language.
+ * One type is one card: a block that shows different content is a block of
+ * its own (the Shop's Collectiegalerij, the Portfolio's Projecten), never a
+ * second card of one type (PAGE-EDITOR.md).
  *
  * @param array<string, BlockDefinition> $available type => definition
  *
- * @return array<string, list<array{type: string, preset: ?string, definition: BlockDefinition, label: string, description: string, category: string, use_cases: list<string>}>>
+ * @return array<string, list<array{type: string, definition: BlockDefinition, label: string, description: string, category: string, use_cases: list<string>}>>
  */
 function block_picker_cards(array $available): array
 {
     $grouped = array_fill_keys(BlockCategories::keys(), []);
 
     foreach ($available as $type => $definition) {
-        $presets = $definition instanceof OffersPickerPresets ? $definition->pickerPresets() : [];
-
-        if ($presets === []) {
-            $grouped[$definition->category()][] = [
-                'type' => (string) $type,
-                'preset' => null,
-                'definition' => $definition,
-                'label' => $definition->label(),
-                'description' => $definition->describedFor(),
-                'category' => $definition->category(),
-                'use_cases' => $definition->useCasesFor(),
-            ];
-            continue;
-        }
-
-        foreach ($presets as $preset => $card) {
-            $grouped[$card['category']][] = [
-                'type' => (string) $type,
-                'preset' => (string) $preset,
-                'definition' => $definition,
-                'label' => $card['label'],
-                'description' => $card['description'],
-                'category' => $card['category'],
-                'use_cases' => $card['use_cases'],
-            ];
-        }
+        $grouped[$definition->category()][] = [
+            'type' => (string) $type,
+            'definition' => $definition,
+            'label' => $definition->label(),
+            'description' => $definition->describedFor(),
+            'category' => $definition->category(),
+            'use_cases' => $definition->useCasesFor(),
+        ];
     }
 
     return array_filter($grouped, static fn (array $cards): bool => $cards !== []);
@@ -248,12 +224,6 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken, ar
                           . ' ' . $categoryLabel
                           . ' ' . implode(' ', $useCases)
                       );
-                      // A preset card posts its type and preset together
-                      // (api/admin/add-page-section.php); an ordinary card
-                      // posts its type, as it always did.
-                      [$choiceName, $choiceValue] = $card['preset'] === null
-                          ? ['section_type', $type]
-                          : ['section_preset', $type . ':' . $card['preset']];
                     ?>
                     <?php /* The card is the submit button that adds the block, and a
                              button cannot hold another one: the preview is its
@@ -262,7 +232,7 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken, ar
                              sample and the same frame as the Contentblokken
                              library, and adds nothing. */ ?>
                     <div class="admin-block-card-slot" data-block-slot>
-                    <button type="submit" name="<?= $h($choiceName) ?>" value="<?= $h($choiceValue) ?>"
+                    <button type="submit" name="section_type" value="<?= $h($type) ?>"
                             class="admin-block-card" data-block-card
                             data-block-category="<?= $h($card['category']) ?>"
                             data-block-terms="<?= $h($terms) ?>">

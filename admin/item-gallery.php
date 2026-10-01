@@ -3,11 +3,16 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+// The Collectiegalerij belongs to the Shop (App\Module\ShopModule). The
+// screen is guarded by the permission of the list the block is on, a Core
+// permission held while the Shop is off, so the Shop is checked first.
+\App\Module\ModuleGuard::requireAdmin('shop');
+
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
-require_once __DIR__ . '/_gallery_selection.php';
+require_once __DIR__ . '/_block_head_fields.php';
 require_once __DIR__ . '/_button_style_field.php';
 require_once __DIR__ . '/_card_presentation_field.php';
 
@@ -22,21 +27,19 @@ use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
 
 /**
- * Editor for one Portfolio-/collectiegalerij block
- * (?section=<page content_key>:<section_key>) — the same `<page>:<key>`
- * addressing and the same "valid only when the page AND its content row
- * really exist" gate as every other repeater editor (admin/card-carousel.php,
- * admin/contact-card.php, ...). A page may carry several of these; each is
- * edited here under its own key, with its own source and its own display
- * settings.
+ * Editor for one Collectiegalerij block (?section=<page content_key>:<section_key>)
+ * — the same `<page>:<key>` addressing and the same "valid only when the page
+ * AND its content row really exist" gate as every other repeater editor
+ * (admin/card-carousel.php, admin/contact-card.php, ...). A page may carry
+ * several of these; each is edited here under its own key.
  *
- * The ITEMS themselves are not edited here: portfolio items stay in
- * Portfolio and products stay in Collecties/Producten. This screen only says
- * which of them this block shows, and how. For a source whose items can be
- * chosen (ItemGallerySources::supportsSelection(): all of them, one category,
- * or picked by hand, in an order of its own) that is the choice the Projecten
- * block has too (admin/_gallery_selection.php); a gallery that used to show
- * the homepage selection shows the projects it showed as a hand-picked list.
+ * SHOP ONLY. It shows the products of one collection: which collection, and
+ * how. The products stay in Collecties/Producten. Its source comes from the
+ * closed list of the sources this block may show
+ * (ItemGallerySources::availableFor('item_gallery'), today only the Shop's
+ * collection), so there is no choice of source on screen while there is only
+ * one, and never portfolio items: those are the Projecten block's
+ * (admin/project-cards.php).
  */
 
 AdminAuth::requireLogin();
@@ -111,33 +114,21 @@ $word = static function (string $field) use ($old, $oldInThisLanguage, $sectionI
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 
 /**
- * Which sources this deployment offers, and whether any of them needs a
- * collection or a scope picked. All of it comes from
- * App\Service\ItemGallerySources, so a module that is switched off takes its
- * source — and the picker belonging to it — off this form without this file
- * naming the module.
- *
- * A block already SET to a source that is no longer available keeps it: the
- * option is rendered, marked, and preselected, so saving the rest of the form
- * cannot silently rewrite the block's source to something else. The public
- * page renders that block empty in the meantime (ItemGallerySources::items()).
+ * The sources this block may show (App\Service\ItemGallerySources): a choice
+ * on screen only when there is more than one; otherwise the one there is
+ * goes along unseen. A stored source of another block — a row this editor
+ * did not write — is not offered: saving sets the block's own source, and
+ * the endpoint refuses any other.
  */
-$availableSources = ItemGallerySources::available();
-$storedSource = (string) $section['source_type'];
-$storedSourceUnavailable = $storedSource !== '' && !isset($availableSources[$storedSource]);
+$availableSources = ItemGallerySources::availableFor('item_gallery');
+if (!isset($availableSources[(string) ($values['source_type'] ?? '')])) {
+    $values['source_type'] = ItemGallerySources::defaultSourceFor('item_gallery');
+}
 
 $needsCollectionPicker = false;
 foreach ($availableSources as $source) {
     $needsCollectionPicker = $needsCollectionPicker || (bool) $source['needs_collection'];
 }
-
-// The source whose items this block may choose, if one is on (today the
-// Portfolio's), and what is picked: handed back after a refused save, else
-// stored.
-$selectionSource = ItemGallerySources::selectionSource();
-$selected = is_array($old['item_ids'] ?? null)
-    ? array_map('intval', $old['item_ids'])
-    : ($selectionSource !== '' ? ItemGallerySources::selectedItems($selectionSource, (int) $section['id']) : []);
 
 $collections = [];
 if ($needsCollectionPicker) {
@@ -174,9 +165,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $h(SectionRegistry::label('item_gallery')) ?> <?= admin_t('block_gallery.admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
-<?php if ($selectionSource !== ''): ?>
-<?php gallery_selection_script(); ?>
-<?php endif; ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -209,28 +197,19 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?= admin_localized_input($editLanguage) ?>
 
       <h2><?= admin_te('block_gallery.inhoudsbron') ?></h2>
-      <div class="admin-form-row admin-form-row--split">
+      <?php if (count($availableSources) > 1): ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_gallery.toon') ?>
           <select name="source_type">
             <?php foreach ($availableSources as $sourceKey => $source): ?>
             <option value="<?= $h($sourceKey) ?>" <?= ($values['source_type'] ?? '') === $sourceKey ? 'selected' : '' ?>><?= $h((string) $source['label']) ?></option>
             <?php endforeach; ?>
-            <?php if ($storedSourceUnavailable): ?>
-            <option value="<?= $h($storedSource) ?>" selected><?= $h(ItemGallerySources::label($storedSource)) ?> <?= admin_t('block_gallery.beschikbaar') ?></option>
-            <?php endif; ?>
           </select>
         </label>
-        <label><?= admin_te('block_gallery.maximum_aantal_items') ?>
-          <input type="number" name="max_items" min="1" max="200" value="<?= $h((string) ($values['max_items'] ?? '')) ?>" placeholder="Leeg = alles">
-        </label>
       </div>
-
-      <?php if ($selectionSource !== ''): ?>
-        <h3><?= admin_te('block_gallery.portfolio_items_welke') ?></h3>
-        <?php gallery_selection_fields($selectionSource, $values, $selected, 'gallery'); ?>
+      <?php else: ?>
+      <input type="hidden" name="source_type" value="<?= $h((string) ($values['source_type'] ?? '')) ?>">
       <?php endif; ?>
-      <?php /* No source whose items can be chosen is on: the endpoint keeps the
-               stored choice as it is, so saving the rest cannot change it. */ ?>
 
       <div class="admin-form-row admin-form-row--split">
         <?php if ($needsCollectionPicker): ?>
@@ -245,18 +224,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php else: ?>
           <input type="hidden" name="collection_id" value="<?= $h((string) ($values['collection_id'] ?? '')) ?>">
         <?php endif; ?>
+        <label><?= admin_te('block_gallery.maximum_aantal_items') ?>
+          <input type="number" name="max_items" min="1" max="200" value="<?= $h((string) ($values['max_items'] ?? '')) ?>" placeholder="Leeg = alles">
+        </label>
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_gallery.elke_bron_heeft_eigen') ?></p>
-      <?php if ($storedSourceUnavailable): ?>
-      <p class="admin-alert admin-alert--warning"><?= admin_te('block_gallery.ingestelde_inhoudsbron_hoort_onderdeel') ?></p>
-      <?php endif; ?>
+      <p class="admin-text-muted"><?= admin_te('block_gallery.collectie_concept_toont_niets') ?></p>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.weergave') ?></h2>
       <?php admin_card_presentation_field(\App\Service\Blocks\BlockDefinitions::get('item_gallery'), (string) ($values['card_presentation'] ?? ''), 'gallery-card-presentation'); ?>
-      <label class="admin-checkbox-label">
-        <input type="checkbox" class="admin-checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
-        <?= admin_te('block_gallery.filterbalk_tonen_alleen_portfolio') ?>
-      </label>
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="enable_lightbox" value="1" <?= ($values['enable_lightbox'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_gallery.lightbox_klik_kaart_zonder') ?>
@@ -271,7 +246,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <input type="text" name="fallback_link_url" maxlength="255" value="<?= $h((string) ($values['fallback_link_url'] ?? '')) ?>" placeholder="Leeg = geen link">
         </label>
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_gallery.laat_link_leeg_kaarten') ?></p>
+      <p class="admin-text-muted"><?= admin_te('block_gallery.laat_link_leeg_producten') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="tight_top" value="1" <?= ($values['tight_top'] ?? false) ? 'checked' : '' ?>>
@@ -279,22 +254,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </label>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.kop_optioneel') ?></h2>
-      <?php admin_localized_bar($editLanguage); ?>
-      <div class="admin-form-row">
-        <label><?= admin_te('block_gallery.bovenkop') ?>
-          <input type="text" name="eyebrow" maxlength="255" value="<?= $h($word('eyebrow')) ?>"<?= $placeholder ?>>
-        </label>
-      </div>
-      <div class="admin-form-row">
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title" maxlength="255" value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
-        </label>
-      </div>
-      <div class="admin-form-row">
-        <label><?= admin_te('block_gallery.introtekst') ?>
-          <textarea name="lead" maxlength="600" rows="3"<?= $placeholder ?>><?= $h($word('lead')) ?></textarea>
-        </label>
-      </div>
+      <?php admin_block_head_fields($word, $placeholder, $editLanguage); ?>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.onder_galerij_optioneel') ?></h2>
       <div class="admin-form-row">
@@ -309,7 +269,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
       <div class="admin-form-row">
         <label><?= admin_te('block_gallery.knop_url') ?>
-          <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Bijvoorbeeld /portfolio.php">
+          <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Bijvoorbeeld /collecties/zomer">
         </label>
       </div>
       <?= admin_button_style_field('gallery-button-style', 'button_style_id', \App\Service\Theme\ButtonStyles::storedChoice($values['button_style_id'] ?? null), 'secondary') ?>

@@ -7,11 +7,11 @@ namespace App\Service;
 use App\Service\Language\AdminTranslator;
 
 /**
- * THE CHOICE OF ITEMS of a gallery block, as its editors post it
- * (admin/_gallery_selection.php) — read and checked once, for both blocks
- * that share item_galleries: the gallery (api/admin/update-item-gallery.php)
- * and the Projecten block (api/admin/update-project-cards.php). Projecten 2.0,
- * CONTENT-BLOCKS.md.
+ * THE CHOICE OF ITEMS of a Projecten block, as its editor posts it
+ * (admin/_gallery_selection.php, api/admin/update-project-cards.php):
+ * Projecten 2.0, CONTENT-BLOCKS.md. The Collectiegalerij, which shares
+ * item_galleries, has no choice of items (a collection is shown whole), so
+ * since v0.1.15 Projecten is the only caller; the name stays the table's.
  *
  * WHAT IT READS, each against a closed list or the source's own choices:
  *
@@ -31,8 +31,7 @@ use App\Service\Language\AdminTranslator;
  *                    offers — a stale one (deleted meanwhile) is dropped, not
  *                    refused, the rule the Portfolio's category boxes follow
  *
- * and, on its own because the gallery editor keeps its number field for it,
- * maxItems(): empty (all), or a whole number 1 to 200 — the Projecten editor
+ * and, on its own, maxItems(): empty (all), or a whole number 1 to 200 — the Projecten editor
  * offers 3, 4, 6, 8, 12 and all (MAXIMUMS), plus a number stored before there
  * was a list, which must not be lost by saving.
  *

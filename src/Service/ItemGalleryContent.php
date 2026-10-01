@@ -10,10 +10,10 @@ use App\Service\Routing\TypedLink;
 use App\Service\Theme\ButtonStyles;
 
 /**
- * Content for the "Portfolio-/collectiegalerij" block
- * (partials/section-item-gallery.php) — the one reusable block that renders
- * the `.gallery-grid` > `.gallery-item` component over a CHOSEN content
- * source. Phase 4 of docs/content-blocks/ROADMAP.md: it replaces both
+ * Content for the blocks built on item_galleries — the Shop's Collectiegalerij
+ * (`item_gallery`) and the Portfolio's Projecten (`project_cards`) — drawn by
+ * partials/section-item-gallery.php, the `.gallery-grid` > `.gallery-item`
+ * component over a content source. Phase 4 of docs/content-blocks/ROADMAP.md: it replaces both
  * Portfolio-specific fixed blocks (`portfolio_gallery` on Portfolio and
  * `portfolio_teaser` on the homepage), which rendered the same component
  * over hardcoded item sets with hardcoded display settings.
@@ -128,10 +128,10 @@ class ItemGalleryContent
     /** Whether this request has already printed the shared lightbox overlay. */
     private static bool $lightboxOverlayClaimed = false;
 
-    /** Whether an editor may choose this source right now. */
-    public static function isSource(string $source): bool
+    /** Whether an editor of this block type may choose this source right now. */
+    public static function isSource(string $blockType, string $source): bool
     {
-        return ItemGallerySources::isAvailable($source);
+        return ItemGallerySources::isAvailableFor($blockType, $source);
     }
 
     public static function isPortfolioScope(string $scope): bool
@@ -200,13 +200,13 @@ class ItemGalleryContent
         // produces no items (ItemGallerySources::items()), so the block goes
         // quiet and the row is preserved intact for when the module comes
         // back. A source nothing declares at all can only come from a
-        // hand-edited database, and degrades to the source a new block would
-        // start with (ItemGallerySources::defaultSource()) — which is empty,
-        // and so shows nothing, when no enabled module offers one.
+        // hand-edited database, and shows nothing: no source is guessed for
+        // it, since every source belongs to one block type
+        // (ItemGallerySources::belongsTo()) and this row does not say which.
         $source = (string) ($row['source_type'] ?? '');
         if (!ItemGallerySources::isKnown($source)) {
             error_log('[ItemGalleryContent] unknown source_type "' . $source . '" on item_galleries #' . (int) ($row['id'] ?? 0));
-            $source = ItemGallerySources::defaultSource();
+            $source = '';
         }
 
         $scope = (string) ($row['portfolio_scope'] ?? self::SCOPE_ALL);

@@ -9,7 +9,6 @@ use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminPermissions;
 use App\Service\AppUrl;
-use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\FeaturedProductBlock;
 use App\Service\Blocks\ProductGridBlock;
 use App\Service\Blocks\ShopCollectionsBlock;
@@ -490,6 +489,10 @@ final class ShopModule extends ModuleDefinition
             'shop_collections' => ShopCollectionsBlock::class,
             'product_grid' => ProductGridBlock::class,
             'featured_product' => FeaturedProductBlock::class,
+            // The Collectiegalerij: a collection's products as a picture
+            // grid. Core until v0.1.15, when it still showed portfolio items
+            // too; now it shows only what this module owns.
+            'item_gallery' => \App\Service\Blocks\ItemGalleryBlock::class,
         ];
     }
 
@@ -502,23 +505,18 @@ final class ShopModule extends ModuleDefinition
         return ['featured_products' => ['button_style_id']];
     }
 
+    /**
+     * A collection's products as the source of the Collectiegalerij
+     * (`item_gallery`), the gallery's only source since v0.1.15.
+     */
     public function itemGallerySources(): array
     {
         return [
             self::GALLERY_SOURCE_COLLECTION => [
+                'block' => 'item_gallery',
                 'label' => 'Een collectie (producten)',
-                // After portfolio items (10): while the Portfolio runs, a new
-                // gallery block still starts as the portfolio grid it always was.
                 'order' => 20,
                 'needs_collection' => true,
-                // Its card in the block picker: the gallery started on a
-                // collection, filed under Shop (App\Service\Blocks\ItemGalleryBlock).
-                'picker' => [
-                    'category' => BlockCategories::SHOP,
-                    'label' => 'Collectiegalerij',
-                    'description' => 'De producten van één collectie als raster met beeld, met optioneel een vergroting bij het aanklikken. Welke collectie kies je in het blok.',
-                    'use_cases' => ['beeld uit een collectie tonen', 'een collectie tussen je eigen tekst en beeld'],
-                ],
                 'items' => static fn (array $settings): array => CollectionGalleryItems::forCollection(
                     $settings['collection_id'] ?? null
                 ),

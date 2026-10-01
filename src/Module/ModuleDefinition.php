@@ -336,11 +336,11 @@ abstract class ModuleDefinition
 
     /**
      * Item-gallery content sources, in App\Service\ItemGallerySources' shape.
-     * Every source the gallery block can show comes from a module — Core owns
-     * none — and the lowest `order` among the available ones is the source a
-     * new block starts with.
+     * Every source comes from a module — Core owns none — and belongs to one
+     * block type (`block`) of that module: the Shop's collection to its
+     * Collectiegalerij, the Portfolio's items to its Projecten.
      *
-     * @return array<string, array{label: string, order: int, needs_collection: bool, needs_scope?: bool, items: callable(array<string, mixed>): list<array<string, mixed>>, filter_categories?: callable(): list<array<string, mixed>>}>
+     * @return array<string, array{block: string, label: string, order: int, needs_collection: bool, needs_scope?: bool, items: callable(array<string, mixed>): list<array<string, mixed>>, filter_categories?: callable(): list<array<string, mixed>>}>
      */
     public function itemGallerySources(): array
     {
