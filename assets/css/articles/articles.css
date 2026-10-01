@@ -1,0 +1,174 @@
+/* ==========================================================================
+   Articles — the module's own frontend styling (App\Module\ArticlesModule).
+
+   Loaded only by articles.php and article.php through App\Service\PageAssets;
+   no other page downloads it. Every colour, space, radius and font is a
+   theme token (THEMING.md).
+
+   DELIBERATELY NOT THE BLOG'S LOOK. An article is evergreen: the listing is
+   a calm column of rows led by the picture and the title, the topic is the
+   eyebrow, and the date is a small, optional detail at the end of the meta
+   line rather than the first thing a visitor reads. The detail page keeps
+   to a reading column with an intro set as a lead.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Listing
+   -------------------------------------------------------------------------- */
+.article-list{
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.article-row{
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--dur-base) var(--ease-out),
+              background var(--dur-base) var(--ease-out);
+}
+.article-row:hover{
+  border-color: var(--color-line-strong);
+  background: var(--color-surface-hover);
+}
+
+/* One link per row: no second tab stop to the same place. */
+.article-row__link{
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  color: inherit;
+  min-height: 100%;
+}
+.article-row--text-only .article-row__link{ grid-template-columns: minmax(0, 1fr); }
+
+.article-row__media{
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--color-surface-2);
+}
+.article-row__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.article-row__body{
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: var(--sp-3) var(--sp-4);
+  justify-content: center;
+  min-width: 0;
+}
+
+.article-eyebrow{
+  color: var(--color-primary);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--fs-eyebrow);
+}
+
+.article-row__title{
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.2vw, 1.75rem);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.article-row__excerpt{
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  font-size: var(--fs-body);
+}
+
+.article-meta{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  font-size: var(--fs-small);
+  color: var(--color-text-faint);
+}
+
+@media (max-width: 700px){
+  .article-row__link{ grid-template-columns: minmax(0, 1fr); }
+  .article-row__media{ aspect-ratio: 16 / 9; }
+  .article-row__body{ padding: var(--sp-3); }
+}
+
+/* Topics: a row of links, every state its own URL. */
+.article-topics{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--sp-4);
+}
+.article-topic{
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-size: var(--fs-small);
+  color: var(--color-text-muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.article-topic:hover{
+  color: var(--color-text);
+  border-color: var(--color-line-strong);
+  background: var(--color-primary-wash);
+}
+.article-topic.is-active{
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  background: var(--color-primary-wash);
+}
+
+.article-pager{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+.article-pager__status{
+  color: var(--color-text-faint);
+  font-size: var(--fs-small);
+}
+
+/* --------------------------------------------------------------------------
+   Detail
+   -------------------------------------------------------------------------- */
+.article-head h1{ overflow-wrap: anywhere; }
+
+.article-head__lead{
+  margin-top: var(--sp-2);
+  font-size: clamp(1.1rem, 1.6vw, 1.3rem);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.article-head .article-meta{ margin-top: var(--sp-2); }
+
+.article-figure{
+  margin: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface-2);
+}
+.article-figure img{
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.article-footer{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
