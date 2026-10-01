@@ -8,6 +8,7 @@ require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_gallery_selection.php';
+require_once __DIR__ . '/_card_presentation_field.php';
 
 use App\Module\PortfolioModule;
 use App\Service\AdminAuth;
@@ -30,8 +31,9 @@ use App\Repository\ItemGalleryRepository;
  * (ProjectCardsBlock::rowValues() stores them fixed). What is left: which
  * projects — all visible ones, one category's, or picked by hand
  * (admin/_gallery_selection.php, Projecten 2.0) — in what order, how many
- * (3, 4, 6, 8, 12 or all), the filter buttons, the background, an optional
- * title and introduction, and whether the block shows.
+ * (3, 4, 6, 8, 12 or all), how the cards look (Kaartweergave,
+ * admin/_card_presentation_field.php), the filter buttons, an optional title
+ * and introduction, and whether the block shows.
  *
  * The projects are not edited here, and neither is where a card links to:
  * that is each project's own page, chosen in admin/portfolio-item.php.
@@ -82,6 +84,7 @@ $values = $old ?? [
     'max_items' => $section['max_items'] === null ? null : (int) $section['max_items'],
     'show_filter_bar' => (bool) $section['show_filter_bar'],
     'background' => (string) $section['background'],
+    'card_presentation' => \App\Service\Blocks\CardPresentation::stored($section['card_presentation'] ?? null),
     'is_active' => (bool) $section['is_active'],
 ];
 
@@ -167,6 +170,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_projects.display') ?></h2>
+      <?php admin_card_presentation_field(\App\Service\Blocks\BlockDefinitions::get('project_cards'), (string) ($values['card_presentation'] ?? ''), 'projects-card-presentation'); ?>
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_projects.filter_bar') ?>

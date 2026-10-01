@@ -14,7 +14,8 @@
  * App\Service\ItemGalleryContent::SOURCES (and the collection against the
  * collections table) before it is stored: an unknown source is REFUSED with
  * an error, never written and never executed. Same for the section
- * background.
+ * background, and for how the cards look (`card_presentation`, checked by
+ * App\Service\Blocks\CardPresentation against what this block offers).
  *
  * WHICH ITEMS (Projecten 2.0): for a source whose items can be chosen
  * (ItemGallerySources::selectionSource()) the scope, the category, the order
@@ -31,7 +32,9 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\CardPresentation;
 use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
@@ -106,6 +109,11 @@ $fields = [
     'is_active' => isset($_POST['is_active']),
 ];
 
+// How the cards look (Card Presentation 2.0): one of the presentations this
+// block offers, the stored one when the form did not send the field, and a
+// refused save for any other word. Never a class or a style from the request.
+$cardPresentation = CardPresentation::choiceFromRequest($_POST, BlockDefinitions::get('item_gallery'), $section['card_presentation'] ?? null);
+
 $sectionId = (int) $section['id'];
 $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
@@ -153,6 +161,10 @@ if ($selection !== null) {
 
 if (!ItemGalleryContent::isBackground($fields['background'])) {
     $errors[] = AdminTranslator::trans('validation.kies_geldige_achtergrond');
+}
+
+if ($cardPresentation === null) {
+    $errors[] = AdminTranslator::trans('validation.card_presentation_unknown');
 }
 
 if ($fields['max_items'] !== null && ($fields['max_items'] < 1 || $fields['max_items'] > 200)) {
@@ -207,6 +219,7 @@ if ($buttonStyleError !== null) {
 }
 
 $old = ['language_code' => $languageCode] + $words + $fields
+    + ['card_presentation' => $cardPresentation ?? CardPresentation::stored($section['card_presentation'] ?? null)]
     + ['button_style_id' => is_scalar($_POST['button_style_id'] ?? null) ? (string) $_POST['button_style_id'] : '']
     + ($selection !== null && $selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
 
@@ -224,6 +237,7 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, $fields);
+    $repository->saveCardPresentation($sectionId, $cardPresentation);
     (new ButtonStyleRepository())->saveChoice('item_galleries', 'button_style_id', $sectionId, $buttonStyle);
     BlockLocalization::save('item_galleries', $sectionId, $languageCode, $words);
     if ($selection !== null && $selection['selected'] !== null) {

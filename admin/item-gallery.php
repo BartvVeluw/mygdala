@@ -9,6 +9,7 @@ require_once __DIR__ . '/_block_editor.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_gallery_selection.php';
 require_once __DIR__ . '/_button_style_field.php';
+require_once __DIR__ . '/_card_presentation_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -88,6 +89,7 @@ $values = $old ?? [
     'button_style_id' => $section['button_style_id'] ?? null,
     'background' => (string) $section['background'],
     'tight_top' => (bool) $section['tight_top'],
+    'card_presentation' => \App\Service\Blocks\CardPresentation::stored($section['card_presentation'] ?? null),
     'is_active' => (bool) $section['is_active'],
 ];
 
@@ -250,6 +252,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?php endif; ?>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.weergave') ?></h2>
+      <?php admin_card_presentation_field(\App\Service\Blocks\BlockDefinitions::get('item_gallery'), (string) ($values['card_presentation'] ?? ''), 'gallery-card-presentation'); ?>
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_gallery.filterbalk_tonen_alleen_portfolio') ?>

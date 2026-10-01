@@ -26,7 +26,9 @@
  * Portfolio's own categories and projects, reached through its gallery source
  * (App\Service\ItemGallerySources): nothing here names a project or a table
  * of the Portfolio. The background is checked against
- * App\Service\ItemGalleryContent. The picked projects are the source's own
+ * App\Service\ItemGalleryContent, how the cards look (`card_presentation`)
+ * against what this block offers (App\Service\Blocks\CardPresentation) and
+ * written in the same transaction. The picked projects are the source's own
  * relation, stored through ItemGallerySources::saveSelection(), and only when
  * the picker was on the form (`items_submitted`).
  *
@@ -45,7 +47,9 @@ use App\Database;
 use App\Module\PortfolioModule;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\CardPresentation;
 use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
@@ -106,6 +110,11 @@ $fields = $selection['values'] + [
     'is_active' => isset($_POST['is_active']),
 ];
 
+// How the cards look (Card Presentation 2.0): one of the presentations this
+// block offers, the stored one when the form did not send the field, and a
+// refused save for any other word. Never a class or a style from the request.
+$cardPresentation = CardPresentation::choiceFromRequest($_POST, BlockDefinitions::get('project_cards'), $section['card_presentation'] ?? null);
+
 $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
 
@@ -131,7 +140,12 @@ if (!ItemGalleryContent::isBackground($fields['background'])) {
     $errors[] = AdminTranslator::trans('validation.kies_geldige_achtergrond');
 }
 
+if ($cardPresentation === null) {
+    $errors[] = AdminTranslator::trans('validation.card_presentation_unknown');
+}
+
 $old = ['language_code' => $languageCode, 'title' => $words['title'], 'lead' => $words['lead']] + $fields
+    + ['card_presentation' => $cardPresentation ?? CardPresentation::stored($section['card_presentation'] ?? null)]
     + ($selection['selected'] !== null ? ['item_ids' => $selection['selected']] : []);
 
 if ($errors !== []) {
@@ -149,6 +163,7 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, ProjectCardsBlock::rowValues($fields));
+    $repository->saveCardPresentation((int) $section['id'], $cardPresentation);
     BlockLocalization::save('item_galleries', (int) $section['id'], $languageCode, $words);
     if ($selection['selected'] !== null) {
         ItemGallerySources::saveSelection(PortfolioModule::GALLERY_SOURCE, (int) $section['id'], $selection['selected']);
