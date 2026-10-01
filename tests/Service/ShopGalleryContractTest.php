@@ -275,6 +275,47 @@ final class ShopGalleryContractTest extends TestCase
         $this->assertStringContainsString('.focus();', $script);
     }
 
+    /**
+     * Pictures meant for variants only (v0.1.15 phase 12.1): their own list
+     * and field, a way between the two lists that keeps the ticks, and a
+     * variant's own "add" that makes a new picture variant-only.
+     */
+    public function testVariantOnlyPicturesHaveTheirOwnListAndWayBack(): void
+    {
+        $script = self::source('admin/assets/product-gallery.js');
+        $partial = self::source('admin/_product_gallery.php');
+
+        $this->assertStringContainsString('name="gallery_variant_only_submitted" value="1"', $partial);
+        $this->assertStringContainsString('name="gallery_variant_only[]"', $partial);
+        $this->assertStringContainsString('input.name = "gallery_variant_only[]";', $script);
+        $this->assertStringContainsString('data-variant-gallery-add', $partial);
+
+        // Moving between the lists never touches a variant's ticks; removing does.
+        $this->assertMatchesRegularExpression('/function setVariantOnly\(token, variantOnly\) \{(?:(?!variant\.tokens)[\s\S])*?\n    \}/', $script);
+        $this->assertMatchesRegularExpression('/function removePicture\(token\) \{[\s\S]*?variant\.tokens = variant\.tokens\.filter/', $script);
+
+        // "Alleen voor varianten" only while the product has a variant to show it.
+        $this->assertStringContainsString('if (!variantOnlyList || liveVariants().length === 0) return;', $script);
+        // Hoofdfoto and the section's count follow the general pictures only.
+        $this->assertStringContainsString('renderStrip(list, general, inputName, firstBadge, variantOnlyButton);', $script);
+        $this->assertStringContainsString('count.textContent = String(general.length);', $script);
+    }
+
+    /**
+     * After a save the editor draws its sections again one by one, and each
+     * redraw starts the gallery again from what is on the page — possibly
+     * cards this script drew itself. Those carry what the server's carry, or
+     * the second start would read pictures without a source.
+     */
+    public function testACardTheScriptDrawsDescribesItselfLikeTheServersCard(): void
+    {
+        $script = self::source('admin/assets/product-gallery.js');
+
+        $this->assertMatchesRegularExpression('/function describe\(item, picture\) \{\s*item\.setAttribute\("data-token", picture\.token\);\s*item\.setAttribute\("data-src", picture\.src \|\| ""\);\s*item\.setAttribute\("data-name", picture\.name \|\| ""\);/', $script);
+        $this->assertSame(2, substr_count($script, 'describe(item, picture);'), 'both the strips and the variants-only list');
+        $this->assertStringContainsString('src: item.getAttribute("data-src") || ""', $script);
+    }
+
     public function testThePickerHandsAListEveryChosenOrUploadedItem(): void
     {
         $picker = self::source('admin/assets/media-picker.js');

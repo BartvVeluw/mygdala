@@ -492,6 +492,7 @@
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
+            <file>tests/Install/VariantOnlyPicturesMigrationTest.php</file>
             <file>tests/Install/SecretSettingsMigrationTest.php</file>
             <file>tests/Install/PaymentModeMigrationTest.php</file>
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
@@ -952,6 +953,7 @@
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
+            <file>tests/Install/VariantOnlyPicturesMigrationTest.php</file>
             <file>tests/Install/SecretSettingsMigrationTest.php</file>
             <file>tests/Install/PaymentModeMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
@@ -979,6 +981,7 @@
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/ProductBreadcrumbTest.php</file>
             <file>tests/Service/ProductGalleryTest.php</file>
+            <file>tests/Service/ProductVariantOnlyPicturesTest.php</file>
             <file>tests/Service/VariantDescriptionTest.php</file>
             <file>tests/Service/ShopOverviewTest.php</file>
             <file>tests/Service/ProductLanguageSwitchTest.php</file>
@@ -999,6 +1002,7 @@
             <file>tests/Service/PublicRouteLanguageTest.php</file>
             <file>tests/Service/ProductVariantEditorTest.php</file>
             <file>tests/Service/ProductEditorHttpTest.php</file>
+            <file>tests/Service/ProductVariantOnlyPicturesHttpTest.php</file>
             <file>tests/Service/ProductGalleryTransitionHttpTest.php</file>
             <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Service/AdminSidebarMenuHttpTest.php</file>
