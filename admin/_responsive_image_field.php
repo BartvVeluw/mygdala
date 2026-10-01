@@ -7,6 +7,7 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_media_picker.php';
 
 use App\Service\Media\ImageFocus;
+use App\Service\Media\ImagePresentation;
 use App\Service\Media\MediaItem;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
@@ -51,10 +52,23 @@ use App\Service\Media\ResponsiveImageSlot;
  * and <prefix>mobile_focus_own: exactly what ResponsiveImage::fromRequest()
  * reads, for a single picture and for one row of a row list alike.
  *
- * THE FRAMES' SHAPES are the place's own: $field['frame'] gives the desktop
- * and the phone ratio as CSS aspect-ratio values; a choice elsewhere in the
- * same form or row that changes the shape carries data-rm-desktop-ratio or
- * data-rm-mobile-ratio on its input, and the script follows it.
+ * THE FRAMES' SHAPES are the place's own: $field['frame'] gives the desktop,
+ * the tablet and the phone ratio as CSS aspect-ratio values; a choice
+ * elsewhere in the same form or row that changes the shape carries
+ * data-rm-desktop-ratio or data-rm-mobile-ratio on its input, and the script
+ * follows it. A block whose picture has size steps (Compact, Normaal, Groot:
+ * App\Service\Media\ImagePresentation) passes $field['shapes'] instead: every
+ * frame its choices can give, worked out by the block's own Content class
+ * from the lengths its stylesheet uses, keyed by the values of the controls
+ * that decide it — so the preview never keeps a size table of its own.
+ *
+ * DESKTOP, TABLET, MOBIEL (Responsive Media 3.1). One switch above the focus
+ * frame shows the picture as it stands on each reference screen
+ * (ImagePresentation::VIEWPORTS): the same frame and picture, only its shape,
+ * its size and — on a phone with settings of its own — the phone's picture,
+ * point, zoom and fit change. No reload, no second copy of the picture. A
+ * tablet follows the large screen's settings, as the page does; the Tablet
+ * button is only there when the block knows its tablet shape.
  *
  * NOT HERE: choosing the desktop picture and its alt text (the block's own
  * picker and alt field, which stay where they are), and any block's size
@@ -69,7 +83,9 @@ use App\Service\Media\ResponsiveImageSlot;
  *     picker?: string,
  *     mobile?: bool,
  *     mobile_media?: MediaItem|null,
- *     frame?: array{desktop?: string, mobile?: string},
+ *     frame?: array{desktop?: string, tablet?: string, mobile?: string},
+ *     shapes?: array{controls: list<string>, shapes: array<string, array<string, string>>, current: string},
+ *     views?: list<string>,
  *     errors?: array<string, string>,
  *     legend?: string,
  *     help?: string,
@@ -86,7 +102,12 @@ use App\Service\Media\ResponsiveImageSlot;
  *        of the block's own under the phone part; part_attributes: extra
  *        attributes for the fit, mobile_fit and mobile_height choices, by
  *        name, for a block that shows one only in some of its layouts
- *        (the Paginakop's data-page-hero-part)
+ *        (the Paginakop's data-page-hero-part); shapes: the block's frames
+ *        by its controls (a CSS selector each, within the row or form; the
+ *        key is their values joined with "|", '' for none checked) and the
+ *        key of what is stored; views: the preview views when the block sets
+ *        their shapes in its own stylesheet rule (default: desktop, mobile,
+ *        and tablet when frame or shapes give one)
  */
 function responsive_image_field(array $field): void
 {
@@ -103,12 +124,27 @@ function responsive_image_field(array $field): void
     $mobileMedia = $field['mobile_media'] ?? null;
     $mobilePreview = $mobileMedia !== null && !$mobileMedia->isVideo() ? $mobileMedia->displayPath() : $preview;
     $ratios = [];
-    foreach (['desktop', 'mobile'] as $frame) {
+    foreach (ImagePresentation::VIEWS as $frame) {
         $ratio = (string) ($field['frame'][$frame] ?? '');
         if (preg_match('#^\d+(\.\d+)? / \d+(\.\d+)?$#', $ratio) === 1) {
             $ratios[] = '--admin-rm-' . $frame . '-ratio: ' . $ratio;
         }
     }
+    // The block's size steps: the frames of what is stored now, and every
+    // other one for the script.
+    $shapes = $field['shapes'] ?? null;
+    $shapeStyle = '';
+    if (is_array($shapes)) {
+        $shapeStyle = ImagePresentation::style($shapes['shapes'][$shapes['current']] ?? []);
+    }
+    $style = ($ratios !== [] ? implode('; ', $ratios) . ';' : '') . ($shapeStyle !== '' ? ($ratios !== [] ? ' ' : '') . $shapeStyle : '');
+    $views = $field['views'] ?? null;
+    if (!is_array($views)) {
+        $hasTablet = isset($field['frame']['tablet'])
+            || (is_array($shapes) && isset(($shapes['shapes'][$shapes['current']] ?? [])['--admin-rm-tablet-ratio']));
+        $views = $hasTablet ? ImagePresentation::VIEWS : [ImagePresentation::DESKTOP, ImagePresentation::MOBILE];
+    }
+    $views = array_values(array_intersect(ImagePresentation::VIEWS, $views));
     $partAttributes = $field['part_attributes'] ?? [];
     $legend = $field['legend'] ?? admin_t('media.responsive.legend');
     $help = $field['help'] ?? admin_t('help.media.responsive');
@@ -130,10 +166,27 @@ function responsive_image_field(array $field): void
     };
     $invalid = static fn (string $part): string => isset($errors[$part]) ? ' aria-invalid="true" aria-describedby="' . $h($id . '-' . $part . '-error') . '"' : '';
     ?>
-    <fieldset class="admin-rm" data-rm data-rm-picker="<?= $h((string) ($field['picker'] ?? '')) ?>"<?= $ratios !== [] ? ' style="' . $h(implode('; ', $ratios) . ';') . '"' : '' ?>
+    <fieldset class="admin-rm" data-rm data-rm-picker="<?= $h((string) ($field['picker'] ?? '')) ?>"<?= $style !== '' ? ' style="' . $h($style) . '"' : '' ?>
+              data-rm-view="desktop"
+              <?php if (is_array($shapes)): ?>data-rm-shapes="<?= $h((string) json_encode($shapes['shapes'], JSON_UNESCAPED_SLASHES)) ?>" data-rm-shape-controls="<?= $h((string) json_encode($shapes['controls'], JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>
               data-rm-value-template="<?= admin_te('media.responsive.value') ?>" data-rm-zoom-template="<?= admin_te('media.responsive.zoom_value') ?>">
       <legend><?= $h($legend) ?> <?= admin_help($legend, $help) ?></legend>
       <input type="hidden" name="<?= $h($name($slot->column('presentation'))) ?>" value="1">
+
+      <?php /* The preview's screen: only with the script, which draws it. */ ?>
+      <div class="admin-rm__views" data-rm-views hidden>
+        <span class="admin-rm__views-label" id="<?= $h($id) ?>-views-label"><?= admin_te('media.responsive.view') ?></span>
+        <div class="admin-segmented" role="group" aria-labelledby="<?= $h($id) ?>-views-label">
+          <?php foreach ($views as $view): ?>
+            <button type="button" class="admin-segmented__option admin-rm__view" data-rm-view-button="<?= $h($view) ?>" aria-pressed="<?= $view === ImagePresentation::DESKTOP ? 'true' : 'false' ?>"><?= admin_te('media.responsive.view_' . $view) ?></button>
+          <?php endforeach; ?>
+        </div>
+        <p class="admin-text-muted admin-rm__view-note" data-rm-view-note aria-live="polite"
+           data-desktop="<?= admin_te('media.responsive.view_note_desktop') ?>"
+           data-tablet="<?= admin_te('media.responsive.view_note_tablet') ?>"
+           data-mobile="<?= admin_te('media.responsive.view_note_mobile') ?>"
+           data-mobile-own="<?= admin_te('media.responsive.view_note_mobile_own') ?>"><?= admin_te('media.responsive.view_note_desktop') ?></p>
+      </div>
 
       <?php responsive_image_focus_editor([
           'id' => $id . '-desktop',

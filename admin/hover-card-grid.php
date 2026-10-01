@@ -226,6 +226,8 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
         'preview' => $mainMedia !== null ? $mainMedia->displayPath() : '',
         'picker' => editor_row_name('cards', $key, 'media_id'),
         'mobile_media' => MediaService::find($presentation->mobileMediaId),
+        // The same shape on every screen (admin.css); a tablet shows it too.
+        'views' => \App\Service\Media\ImagePresentation::VIEWS,
         'errors' => $presentationErrors,
         'note' => admin_t('block_hover_cards.presentation_note'),
     ]);

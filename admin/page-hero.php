@@ -331,8 +331,9 @@ function pageHeroOptions(array $labels, string $current): string
         <?php /* How the picture sits in its place, on a large screen and on a
                  phone: the shared field of every picture with a focus point
                  (Responsive Media 2.0, responsive_image_field()). Its frames
-                 take the shape of the chosen place from admin.css
-                 ([data-page-hero-form]); the fit is only offered beside the
+                 take the shape of the chosen place and height from
+                 PageHeroContent::editorFrames() (Responsive Media 3.1); the
+                 fit is only offered beside the
                  text and the phone height only behind it
                  (data-page-hero-part, admin/assets/page-hero.js). */ ?>
         <div data-page-hero-needs-image<?= $heroMedia !== null ? '' : ' hidden' ?>>
@@ -343,6 +344,7 @@ function pageHeroOptions(array $labels, string $current): string
               'preview' => $heroMedia !== null ? $heroMedia->displayPath() : '',
               'picker' => 'media_id',
               'mobile_media' => MediaService::find($presentation->mobileMediaId),
+              'shapes' => PageHeroContent::editorFrames() + ['current' => $heroHeight . '|' . $imageMode . '|' . ($presentation->mobileHeight ?? '')],
               'errors' => $presentationErrors,
               'note' => admin_t('media.responsive.sequence_note'),
               'part_attributes' => [

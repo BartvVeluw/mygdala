@@ -229,6 +229,8 @@ $reviewRow = static function (string $key, array $fields, int $position, int $co
         'preview' => $media !== null ? $media->displayPath() : '',
         'picker' => editor_row_name('reviews', $key, 'media_id'),
         'mobile_media' => MediaService::find($presentation->mobileMediaId),
+        // The same shape on every screen (admin.css); a tablet shows it too.
+        'views' => \App\Service\Media\ImagePresentation::VIEWS,
         'errors' => $presentationErrors,
         'note' => admin_t('block_reviews.presentation_note'),
     ]);

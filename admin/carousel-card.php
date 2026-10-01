@@ -191,6 +191,10 @@ $cardFrame = [
     'desktop' => $carouselIsRow && $flatFrame !== null
         ? $flatFrame
         : ['small' => '300 / 112', 'medium' => '300 / 148', 'large' => '300 / 208'][$carouselImageHeight],
+    // A 768px tablet: the ring's smaller card (card-carousel.css, 900px and less).
+    'tablet' => $carouselIsRow && $flatFrame !== null
+        ? $flatFrame
+        : ['small' => '240 / 96', 'medium' => '240 / 120', 'large' => '240 / 168'][$carouselImageHeight],
     'mobile' => $flatFrame ?? ['small' => '308 / 96', 'medium' => '308 / 120', 'large' => '308 / 168'][$carouselImageHeight],
 ];
 $presentationErrors = [];

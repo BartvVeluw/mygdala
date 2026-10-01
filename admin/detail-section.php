@@ -250,7 +250,8 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
         'preview' => $preview,
         'picker' => editor_row_name('images', $key, 'media_id'),
         'mobile' => false,
-        'frame' => ['desktop' => '1 / 1'],
+        // A square on every screen (detail-section.css).
+        'frame' => ['desktop' => '1 / 1', 'tablet' => '1 / 1', 'mobile' => '1 / 1'],
         'errors' => $presentationErrors,
         'legend' => admin_t('block_detail.focuspunt'),
         'help' => admin_t('help.block_detail.focuspunt'),

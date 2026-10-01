@@ -55,6 +55,18 @@
  * event the block's own script sends from inside the row, with the picture's
  * URL in detail.src ('' for none). Point and zoom stay what they are.
  *
+ * DESKTOP, TABLET, MOBIEL (Responsive Media 3.1). The switch above the
+ * focus frame (data-rm-view on the field) gives that one frame the shape and
+ * size of the picture on that screen: --admin-rm-<view>-ratio and -width,
+ * which the server printed and a block with size steps keeps up to date from
+ * its own table (data-rm-shapes, worked out by the block's Content class
+ * from the lengths of its stylesheet; this file computes no size). On
+ * Mobiel the frame shows what a phone shows: the phone's fit, and - when the
+ * phone has a point of its own - the phone's picture, point and zoom, as a
+ * picture to look at (is-mirror; the phone part's own frame is where that
+ * point moves). The same <img> changes, so a view costs no download except
+ * a phone picture of its own, which the phone part loads anyway.
+ *
  * This file holds no text of its own (ADMIN-UI.md): the words come from the
  * field's data attributes.
  */
@@ -102,6 +114,45 @@
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function viewOf(field) {
+    return field.getAttribute("data-rm-view") || "desktop";
+  }
+
+  /** Whether a phone shows a point (and picture) of its own rather than the desktop's. */
+  function phoneOwnsPoint(field) {
+    var source = field.querySelector("[data-rm-source]:checked");
+    var ownFocus = field.querySelector("[data-rm-own-focus]");
+    return (source ? source.value === "own" : false) || (ownFocus ? ownFocus.checked : false);
+  }
+
+  /** The desktop picture of a field, also while its frame shows the phone's. */
+  function desktopSource(field) {
+    var image = field.querySelector('[data-rm-focus="desktop"] [data-rm-preview]');
+    if (!image) return "";
+    return image.hasAttribute("data-rm-src") ? image.getAttribute("data-rm-src") || "" : image.getAttribute("src") || "";
+  }
+
+  /**
+   * What the desktop focus frame shows in the field's view: the desktop
+   * picture and point (a tablet follows the large screen), or on Mobiel the
+   * phone's fit and, when the phone has its own, its picture, point and zoom.
+   */
+  function shownIn(field, x, y, zoom) {
+    var view = viewOf(field);
+    var shown = { x: x, y: y, zoom: zoom, fit: fitFor(field, view === "mobile" ? "mobile" : "desktop"), src: desktopSource(field), mirror: false };
+    var phone = field.querySelector('[data-rm-focus="mobile"]');
+    if (view === "mobile" && phone && phoneOwnsPoint(field)) {
+      var own = axes(phone);
+      var image = phone.querySelector("[data-rm-preview]");
+      shown.x = clamp(Number(own.x.value));
+      shown.y = clamp(Number(own.y.value));
+      shown.zoom = zoomOf(phone);
+      shown.src = image ? image.getAttribute("src") || shown.src : shown.src;
+      shown.mirror = true;
+    }
+    return shown;
+  }
+
   /** Draws one focus editor from its sliders: the picture, the points, the words. */
   function draw(focus) {
     var inputs = axes(focus);
@@ -110,14 +161,26 @@
     var x = clamp(Number(inputs.x.value));
     var y = clamp(Number(inputs.y.value));
     var zoom = zoomOf(focus);
-    var contained = focus.classList.contains("is-contained");
+    var field = fieldOf(focus);
+    var part = focus.getAttribute("data-rm-focus");
+    var shown = field && part === "desktop"
+      ? shownIn(field, x, y, zoom)
+      : { x: x, y: y, zoom: zoom, fit: field ? fitFor(field, part) : "cover", src: null, mirror: false };
+    var contained = shown.fit === "contain";
     var preview = focus.querySelector("[data-rm-preview]");
     if (preview) {
-      preview.style.objectPosition = x + "% " + y + "%";
+      if (shown.src !== null && shown.src !== "" && preview.getAttribute("src") !== shown.src) {
+        if (!preview.hasAttribute("data-rm-src")) preview.setAttribute("data-rm-src", preview.getAttribute("src") || "");
+        preview.setAttribute("src", shown.src);
+      }
+      preview.style.objectFit = shown.fit;
+      preview.style.objectPosition = shown.x + "% " + shown.y + "%";
       // The page's own rendering (partials/responsive-image.php): scaled
       // around the point, nothing at 100% or when contained.
-      preview.style.scale = !contained && zoom !== ZOOM_MIN ? String(zoom / 100) : "";
-      preview.style.transformOrigin = !contained && zoom !== ZOOM_MIN ? x + "% " + y + "%" : "";
+      preview.style.scale = !contained && shown.zoom !== ZOOM_MIN ? String(shown.zoom / 100) : "";
+      preview.style.transformOrigin = !contained && shown.zoom !== ZOOM_MIN ? shown.x + "% " + shown.y + "%" : "";
+      var frame = preview.closest("[data-rm-frame]");
+      if (frame) frame.classList.toggle("is-mirror", shown.mirror);
     }
 
     inputs.x.setAttribute("aria-valuetext", x + "%");
@@ -128,7 +191,6 @@
       button.setAttribute("aria-pressed", pressed ? "true" : "false");
     });
 
-    var field = fieldOf(focus);
     var value = focus.querySelector("[data-rm-value]");
     if (value && field) {
       value.textContent = (field.getAttribute("data-rm-value-template") || "")
@@ -172,12 +234,65 @@
 
   function drawFit(field) {
     field.querySelectorAll("[data-rm-focus]").forEach(function (focus) {
-      var fit = fitFor(field, focus.getAttribute("data-rm-focus"));
-      var preview = focus.querySelector("[data-rm-preview]");
-      if (preview) preview.style.objectFit = fit;
-      focus.classList.toggle("is-contained", fit === "contain");
+      // The controls follow their own part's fit; the picture the view's (draw()).
+      focus.classList.toggle("is-contained", fitFor(field, focus.getAttribute("data-rm-focus")) === "contain");
       draw(focus);
     });
+  }
+
+  /** The switch and its words, and the frames, for the field's view. */
+  function drawView(field) {
+    var view = viewOf(field);
+    field.querySelectorAll("[data-rm-view-button]").forEach(function (button) {
+      button.setAttribute("aria-pressed", button.getAttribute("data-rm-view-button") === view ? "true" : "false");
+    });
+    var note = field.querySelector("[data-rm-view-note]");
+    if (note) {
+      var key = view === "mobile" && phoneOwnsPoint(field) ? "data-mobile-own" : "data-" + view;
+      note.textContent = note.getAttribute(key) || "";
+    }
+    field.querySelectorAll("[data-rm-focus]").forEach(draw);
+  }
+
+  /**
+   * A block with size steps: the frames of the choices on screen now, from
+   * the block's own table (data-rm-shapes), keyed by its controls' values.
+   */
+  function drawShape(field) {
+    var table = field.getAttribute("data-rm-shapes");
+    if (!table) return;
+    var shapes;
+    var controls;
+    try {
+      shapes = JSON.parse(table);
+      controls = JSON.parse(field.getAttribute("data-rm-shape-controls") || "[]");
+    } catch (error) {
+      return;
+    }
+    var scope = scopeOf(field);
+    var key = controls.map(function (selector) {
+      var value = "";
+      scope.querySelectorAll(selector).forEach(function (control) {
+        if (control.matches("select") || (control.checked && control.matches("input"))) value = control.value;
+      });
+      return value;
+    }).join("|");
+    var properties = shapes[key];
+    if (!properties) return;
+    Object.keys(properties).forEach(function (name) {
+      if (/^--admin-rm-[a-z]+-(ratio|width)$/.test(name)) field.style.setProperty(name, String(properties[name]));
+    });
+  }
+
+  /** Whether a control decides the shape of a field's frames. */
+  function shapesFollow(field, control) {
+    try {
+      return JSON.parse(field.getAttribute("data-rm-shape-controls") || "[]").some(function (selector) {
+        return control.matches(selector);
+      });
+    } catch (error) {
+      return false;
+    }
   }
 
   /** Which parts of the phone section apply, from its choices. */
@@ -203,6 +318,7 @@
     }
 
     drawMobilePicture(field);
+    drawView(field);
   }
 
   /** The phone's frame shows the phone's own picture, else the desktop one. */
@@ -217,7 +333,7 @@
     }
     if (src === "") {
       var desktop = field.querySelector('[data-rm-focus="desktop"] [data-rm-preview]');
-      src = desktop && !desktop.closest("[data-rm-frame]").hidden ? desktop.getAttribute("src") || "" : "";
+      src = desktop && !desktop.closest("[data-rm-frame]").hidden ? desktopSource(field) : "";
     }
 
     var image = frame.querySelector("[data-rm-preview]");
@@ -234,7 +350,8 @@
   }
 
   function drawAll(field) {
-    field.querySelectorAll("[data-rm-presets], [data-rm-reset-row]").forEach(function (part) { part.hidden = false; });
+    field.querySelectorAll("[data-rm-presets], [data-rm-reset-row], [data-rm-views]").forEach(function (part) { part.hidden = false; });
+    drawShape(field);
     drawFit(field);
     drawMobile(field);
   }
@@ -284,7 +401,9 @@
     wake(field);
     var image = frame.querySelector("[data-rm-preview]");
     if (!focus || !field || !image || !image.naturalWidth || !image.naturalHeight) return;
-    if (fitFor(field, focus.getAttribute("data-rm-focus")) === "contain") return;
+    // A contained picture has nothing to move, and the phone's own point
+    // shown on Mobiel moves in the phone part's frame.
+    if (image.style.objectFit === "contain" || frame.classList.contains("is-mirror")) return;
 
     // The picture as drawn: covering the frame (object-fit: cover), then
     // enlarged by the zoom. Measured on the frame, whose box the scale does
@@ -362,6 +481,17 @@
     var target = event.target instanceof Element ? event.target : null;
     if (!target) return;
 
+    var viewButton = target.closest("[data-rm-view-button]");
+    if (viewButton) {
+      var viewed = fieldOf(viewButton);
+      if (viewed) {
+        wake(viewed);
+        viewed.setAttribute("data-rm-view", viewButton.getAttribute("data-rm-view-button") || "desktop");
+        drawView(viewed);
+      }
+      return;
+    }
+
     var preset = target.closest("[data-rm-preset]");
     var reset = preset ? null : target.closest("[data-rm-reset]");
     var focus = (preset || reset) ? (preset || reset).closest("[data-rm-focus]") : null;
@@ -379,8 +509,9 @@
     var target = event.target;
     if (!(target instanceof Element) || !target.matches("[data-rm-axis]")) return;
 
-    var focus = target.closest("[data-rm-focus]");
-    if (focus) draw(focus);
+    // Both frames: the focus frame shows the phone's point on Mobiel.
+    var field = fieldOf(target);
+    if (field) field.querySelectorAll("[data-rm-focus]").forEach(draw);
   });
 
   document.addEventListener("change", function (event) {
@@ -388,6 +519,11 @@
     if (!(target instanceof Element)) return;
 
     var field = fieldOf(target);
+
+    // A choice that shapes the frames of a block with size steps.
+    scopeOf(target).querySelectorAll("[data-rm-shapes]").forEach(function (rm) {
+      if (shapesFollow(rm, target)) drawShape(rm);
+    });
 
     if (field && target.matches("[data-rm-fit]")) {
       drawFit(field);
@@ -418,6 +554,7 @@
     // The phone's own picker, inside a field.
     if (field) {
       drawMobilePicture(field);
+      drawView(field);
       return;
     }
 
@@ -435,10 +572,14 @@
     var frame = rm.querySelector('[data-rm-focus="desktop"] [data-rm-frame]');
     var image = frame ? frame.querySelector("[data-rm-preview]") : null;
     if (frame && image) {
-      if (src !== "") image.setAttribute("src", src);
+      if (src !== "") {
+        image.setAttribute("data-rm-src", src);
+        image.setAttribute("src", src);
+      }
       frame.hidden = src === "";
     }
     drawMobilePicture(rm);
+    drawView(rm);
   }
 
   // A picture chosen some other way than a Media picker (see above).

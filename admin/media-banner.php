@@ -240,6 +240,8 @@ $switch = static function (string $name, string $wordKey, bool $checked) use ($h
             'preview' => $isImage ? $media->displayPath() : '',
             'picker' => 'media_id',
             'mobile_media' => MediaService::find($presentation->mobileMediaId),
+            // The frames of every width and height (Responsive Media 3.1).
+            'shapes' => MediaBannerContent::editorFrames() + ['current' => $width . '|' . $height . '|' . ($presentation->mobileHeight ?? '')],
             'errors' => $presentationErrors,
             'note' => admin_t('media.responsive.sequence_note'),
         ]); ?>

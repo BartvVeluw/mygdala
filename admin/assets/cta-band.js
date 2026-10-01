@@ -70,6 +70,9 @@
     }
 
     frame.style.setProperty("--admin-rm-desktop-ratio", "1152 / " + Math.max(400, desktop));
+    // A tablet is wider than 640px: the large screen's height, on its 704px
+    // of content (ImagePresentation::contentWidth('tablet')).
+    frame.style.setProperty("--admin-rm-tablet-ratio", "704 / " + Math.max(400, desktop));
     frame.style.setProperty("--admin-rm-mobile-ratio", "343 / " + Math.max(480, phone));
   }
 

@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\PageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ImagePresentation;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Media\MediaSequence;
@@ -137,6 +138,52 @@ class PageHeroContent
     /** All valid `hero_height` values, for save-time and render-time validation. */
     public const HEIGHTS = [self::HEIGHT_SMALL, self::HEIGHT_MEDIUM, self::HEIGHT_LARGE];
 
+    /*
+     * THE LENGTHS of page-hero.css (Tests\Service\ImagePresentationContractTest
+     * pins them there), from which the CMS works out its preview frames
+     * (editorFrames(); Responsive Media 3.1). A band behind the text is the
+     * window wide and at least its step high: WIDE_HEIGHTS above
+     * NARROW_MAX_WIDTH, NARROW_HEIGHTS up to it, and on a phone a phone's
+     * own height, PHONE_OWN_HEIGHTS. A picture beside the text is a share
+     * of the row in FIGURE_RATIO, never taller than FIGURE_MAX, and above
+     * the text in FIGURE_RATIO_NARROW on a narrow screen.
+     */
+
+    /** Up to this window width the header is narrow: lower steps, a picture above the text. */
+    public const NARROW_MAX_WIDTH = 900;
+
+    /** @var array<string, string> --page-hero-height of a band, by step, on a wide screen */
+    public const WIDE_HEIGHTS = [
+        self::HEIGHT_SMALL => 'clamp(20rem, 40vh, 28rem)',
+        self::HEIGHT_MEDIUM => 'clamp(26rem, 55vh, 38rem)',
+        self::HEIGHT_LARGE => 'clamp(32rem, 75vh, 48rem)',
+    ];
+
+    /** @var array<string, string> --page-hero-height of a band, by step, on a narrow screen */
+    public const NARROW_HEIGHTS = [
+        self::HEIGHT_SMALL => 'clamp(18rem, 50vh, 22rem)',
+        self::HEIGHT_MEDIUM => 'clamp(24rem, 70vh, 32rem)',
+        self::HEIGHT_LARGE => 'clamp(26rem, 75vh, 36rem)',
+    ];
+
+    /** @var array<string, string> a phone's own band height (ResponsiveImage::MOBILE_HEIGHTS) */
+    public const PHONE_OWN_HEIGHTS = [
+        'compact' => 'clamp(16rem, 45vh, 20rem)',
+        'normal' => 'clamp(22rem, 60vh, 28rem)',
+        'large' => 'clamp(28rem, 80vh, 38rem)',
+    ];
+
+    public const FIGURE_RATIO = '4 / 3';
+
+    public const FIGURE_RATIO_NARROW = '16 / 10';
+
+    public const FIGURE_MAX = '32rem';
+
+    /** The picture's share of a row beside the text (5fr of 12), and the gap: var(--sp-6). */
+    public const FIGURE_SHARE = 5 / 12;
+
+    public const FIGURE_GAP = 64;
+
     /**
      * Known page slugs and their admin-facing label — the "Pages" list in
      * admin/pages.php. Only pages in this list have an editable Page Hero.
@@ -253,6 +300,66 @@ class PageHeroContent
     public static function imageSlot(): ResponsiveImageSlot
     {
         return new ResponsiveImageSlot('image_', 'media_id', fit: true, mobileHeight: true);
+    }
+
+    /**
+     * The size of the header's picture on a view's reference screen
+     * (ImagePresentation::VIEWPORTS), in px, from the stylesheet's own
+     * lengths: a band behind the text, or a picture beside it.
+     *
+     * @return array{0: float, 1: float} width, height
+     */
+    public static function frameSize(string $view, string $mode, string $height, ?string $mobileHeight = null): array
+    {
+        [$window] = ImagePresentation::viewport($view);
+        $narrow = $window <= self::NARROW_MAX_WIDTH;
+
+        if ($mode === self::IMAGE_LEFT || $mode === self::IMAGE_RIGHT) {
+            $content = (float) ImagePresentation::contentWidth($view);
+            if ($narrow) {
+                return [$content, $content / ImagePresentation::ratio(self::FIGURE_RATIO_NARROW)];
+            }
+            $across = ($content - self::FIGURE_GAP) * self::FIGURE_SHARE;
+
+            return [$across, min($across / ImagePresentation::ratio(self::FIGURE_RATIO), ImagePresentation::length(self::FIGURE_MAX, $view))];
+        }
+
+        $length = match (true) {
+            $window <= ResponsiveImage::MOBILE_MAX_WIDTH && $mobileHeight !== null && isset(self::PHONE_OWN_HEIGHTS[$mobileHeight]) => self::PHONE_OWN_HEIGHTS[$mobileHeight],
+            $narrow => self::NARROW_HEIGHTS[$height],
+            default => self::WIDE_HEIGHTS[$height],
+        };
+
+        return [(float) $window, ImagePresentation::length($length, $view)];
+    }
+
+    /**
+     * Every frame the CMS can show for the header's picture, keyed by its
+     * height, its place and a phone's own height ('' for automatic), for
+     * admin/_responsive_image_field.php's 'shapes'.
+     *
+     * @return array{controls: list<string>, shapes: array<string, array<string, string>>}
+     */
+    public static function editorFrames(): array
+    {
+        $shapes = [];
+        foreach (self::HEIGHTS as $height) {
+            foreach (self::IMAGE_MODES as $mode) {
+                foreach (array_merge([''], ResponsiveImage::MOBILE_HEIGHTS) as $mobile) {
+                    $properties = [];
+                    foreach (ImagePresentation::VIEWS as $view) {
+                        [$across, $tall] = self::frameSize($view, $mode, $height, $mobile === '' ? null : $mobile);
+                        $properties += ImagePresentation::frame($view, $across, $tall);
+                    }
+                    $shapes[$height . '|' . $mode . '|' . $mobile] = $properties;
+                }
+            }
+        }
+
+        return [
+            'controls' => ['[name="hero_height"]', 'select[name="image_mode"]', '[name="image_mobile_height"]'],
+            'shapes' => $shapes,
+        ];
     }
 
     /**

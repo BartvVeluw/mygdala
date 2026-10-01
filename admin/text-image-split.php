@@ -186,7 +186,11 @@ $heights = [
  *
  * @param array<string, mixed>|null $stored the stored row, null for a new item
  */
-$itemRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($placeholder, $fieldErrors, $h, $sides, $columns, $heights, $imageSlot): void {
+// Every frame an item's choices can give, from the block's own lengths
+// (Responsive Media 3.1, ImagePresentation): the same for every item.
+$frames = TextImageSplitContent::editorFrames();
+
+$itemRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($placeholder, $fieldErrors, $h, $sides, $columns, $heights, $imageSlot, $frames): void {
     [, $hint] = editor_row_word_hints($key, '', $placeholder);
     $layout = TextImageSplitContent::layout($fields);
 
@@ -237,9 +241,9 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
     echo '</div>';
     echo '<p class="admin-text-muted">' . admin_te('block_textimage.layout_uitleg') . '</p>';
 
-    // How the picture sits in its frame, on a large screen and on a phone
-    // (Responsive Media 2.0). The frames take the item's shape from its
-    // column and height choices (admin.css, .admin-tis-item).
+    // How the picture sits in its frame, on a large screen, a tablet and a
+    // phone (Responsive Media 2.0, 3.1). The frames take the item's shape
+    // from its column, height and phone height (editorFrames()).
     $presentation = ResponsiveImage::fromRow($fields, $imageSlot);
     $presentationErrors = [];
     foreach ($fieldErrors as $errorKey => $message) {
@@ -255,6 +259,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
         'preview' => $previewSrc,
         'picker' => editor_row_name('items', $key, 'media_id'),
         'mobile_media' => MediaService::find($presentation->mobileMediaId),
+        'shapes' => $frames + ['current' => $layout['image_column'] . '|' . $layout['image_height'] . '|' . ($presentation->mobileHeight ?? '')],
         'errors' => $presentationErrors,
     ]);
 

@@ -355,7 +355,7 @@ $buttonFields = static function (string $button, string $labelKey) use ($buttons
             'preview' => $background !== null ? $background->displayPath() : '',
             'picker' => 'background_media_id',
             'mobile_media' => MediaService::find($backgroundPresentation->mobileMediaId),
-            'frame' => ['desktop' => '1152 / ' . $desktopFrame, 'mobile' => '343 / ' . $mobileFrame],
+            'frame' => ['desktop' => '1152 / ' . $desktopFrame, 'tablet' => \App\Service\Media\ImagePresentation::contentWidth('tablet') . ' / ' . $desktopFrame, 'mobile' => '343 / ' . $mobileFrame],
             'errors' => $backgroundErrors,
         ]); ?>
         <?php $choice('background_overlay', 'block_cta.background_overlay', 'help.block_cta.background_overlay', CtaBandContent::OVERLAYS, $overlay); ?>

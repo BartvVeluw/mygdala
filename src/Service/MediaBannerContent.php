@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Repository\MediaBannerRepository;
+use App\Service\Media\ImagePresentation;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Media\MediaItem;
@@ -79,6 +80,39 @@ final class MediaBannerContent
     public const HEIGHTS = ['small', 'medium', 'large', 'xlarge'];
 
     public const DEFAULT_HEIGHT = 'medium';
+
+    /*
+     * THE HEIGHTS' LENGTHS, the literal values of media-banner.css
+     * (Tests\Service\ImagePresentationContractTest pins them there), from
+     * which the CMS works out its preview frames (editorFrames(); Responsive
+     * Media 3.1). Above MOBILE_MAX_WIDTH a height grows with the window up to
+     * a cap; on a phone each is a fixed, lower step, or the phone's own
+     * height. Small, medium and large are ImagePresentation's three steps;
+     * xlarge is one more, which a phone's own height has no counterpart for.
+     */
+
+    /** @var array<string, string> --media-banner-height-<height> above a phone */
+    public const WIDE_HEIGHTS = [
+        'small' => 'clamp(15rem, 22vw, 18.75rem)',
+        'medium' => 'clamp(18rem, 30vw, 25rem)',
+        'large' => 'clamp(22rem, 42vw, 35rem)',
+        'xlarge' => 'min(clamp(26rem, 52vw, 44rem), 90vh)',
+    ];
+
+    /** @var array<string, string> --media-banner-height-<height> on a phone */
+    public const PHONE_HEIGHTS = [
+        'small' => '12rem',
+        'medium' => '15rem',
+        'large' => '19rem',
+        'xlarge' => 'min(24rem, 80vh)',
+    ];
+
+    /** @var array<string, string> a phone's own height (ResponsiveImage::MOBILE_HEIGHTS) */
+    public const PHONE_OWN_HEIGHTS = [
+        'compact' => '12rem',
+        'normal' => '16rem',
+        'large' => 'min(26rem, 80vh)',
+    ];
 
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
@@ -208,6 +242,58 @@ final class MediaBannerContent
     public static function imageSlot(): ResponsiveImageSlot
     {
         return new ResponsiveImageSlot('image_', 'media_id', fit: true, mobileHeight: true);
+    }
+
+    /**
+     * The size of the banner on a view's reference screen
+     * (ImagePresentation::VIEWPORTS), in px, from the stylesheet's own
+     * lengths: inside the container or across the whole window.
+     *
+     * @return array{0: float, 1: float} width, height
+     */
+    public static function frameSize(string $view, string $width, string $height, ?string $mobileHeight = null): array
+    {
+        [$window] = ImagePresentation::viewport($view);
+        $across = $width === 'full' ? (float) $window : (float) ImagePresentation::contentWidth($view);
+
+        if ($window > ResponsiveImage::MOBILE_MAX_WIDTH) {
+            return [$across, ImagePresentation::length(self::WIDE_HEIGHTS[$height], $view)];
+        }
+
+        $length = $mobileHeight !== null && isset(self::PHONE_OWN_HEIGHTS[$mobileHeight])
+            ? self::PHONE_OWN_HEIGHTS[$mobileHeight]
+            : self::PHONE_HEIGHTS[$height];
+
+        return [$across, ImagePresentation::length($length, $view)];
+    }
+
+    /**
+     * Every frame the CMS can show for a banner, keyed by its width, its
+     * height and a phone's own height ('' for automatic), for
+     * admin/_responsive_image_field.php's 'shapes'.
+     *
+     * @return array{controls: list<string>, shapes: array<string, array<string, string>>}
+     */
+    public static function editorFrames(): array
+    {
+        $shapes = [];
+        foreach (self::WIDTHS as $width) {
+            foreach (self::HEIGHTS as $height) {
+                foreach (array_merge([''], ResponsiveImage::MOBILE_HEIGHTS) as $mobile) {
+                    $properties = [];
+                    foreach (ImagePresentation::VIEWS as $view) {
+                        [$across, $tall] = self::frameSize($view, $width, $height, $mobile === '' ? null : $mobile);
+                        $properties += ImagePresentation::frame($view, $across, $tall);
+                    }
+                    $shapes[$width . '|' . $height . '|' . $mobile] = $properties;
+                }
+            }
+        }
+
+        return [
+            'controls' => ['[name="width"]', '[name="height"]', '[name="image_mobile_height"]'],
+            'shapes' => $shapes,
+        ];
     }
 
     /**
