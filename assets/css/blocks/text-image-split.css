@@ -8,6 +8,16 @@
      --column-25 / --column-50 / -75     the picture's share of the row
      --height-small / -medium / -large   how high the picture is
 
+   THE HEIGHT STEPS are the three of App\Service\Media\ImagePresentation
+   (small = Compact, medium = Normaal, large = Groot), with one meaning on
+   every screen (Responsive Media 3.1, MEDIA.md "Compact, Normaal, Groot"):
+   side by side a height that grows with the window, in one column (a tablet
+   and a phone) a shape at the column's full width, so a step never turns into
+   a smaller one on a tablet. Every length below is also a constant of
+   App\Service\TextImageSplitContent, which the CMS preview works out its
+   frames from; Tests\Service\ImagePresentationContractTest keeps the two the
+   same.
+
    The picture fills its frame with object-fit: cover unless the item chose
    the whole picture; which part stays in view, and a phone's own choices,
    are the inline values partials/responsive-image.php prints (Responsive
@@ -23,12 +33,18 @@
    ========================================================================== */
 
 .text-image{
-  /* The picture heights. Wide screens scale with the viewport up to a cap;
+  /* Side by side: the picture heights scale with the viewport up to a cap;
      the large one, at half the row, is about the tall 4:5 frame one picture
-     used to have. Narrow screens get fixed, modest heights (below). */
+     used to have (TextImageSplitContent::WIDE_HEIGHTS). */
   --text-image-height-small: clamp(14rem, 24vw, 20rem);
   --text-image-height-medium: clamp(18rem, 36vw, 30rem);
   --text-image-height-large: clamp(22rem, 50vw, 42rem);
+  /* In one column: the shape of each step at the column's full width, never
+     taller than the large step side by side (STACKED_RATIOS, STACKED_MAX). */
+  --text-image-ratio-small: 16 / 9;
+  --text-image-ratio-medium: 4 / 3;
+  --text-image-ratio-large: 1 / 1;
+  --text-image-stacked-max: 42rem;
   --text-image-item-gap: var(--sp-6);
 }
 
@@ -37,6 +53,7 @@
 .text-image__item{
   --text-image-columns: minmax(0, 1fr) minmax(0, 1fr);
   --text-image-height: var(--text-image-height-medium);
+  --text-image-ratio: var(--text-image-ratio-medium);
   display: grid;
   grid-template-columns: var(--text-image-columns);
   gap: var(--sp-6);
@@ -60,8 +77,8 @@
 .text-image__item--text-only,
 .text-image__item--image-only{ grid-template-columns: minmax(0, 1fr); }
 
-.text-image__item--height-small{ --text-image-height: var(--text-image-height-small); }
-.text-image__item--height-large{ --text-image-height: var(--text-image-height-large); }
+.text-image__item--height-small{ --text-image-height: var(--text-image-height-small); --text-image-ratio: var(--text-image-ratio-small); }
+.text-image__item--height-large{ --text-image-height: var(--text-image-height-large); --text-image-ratio: var(--text-image-ratio-large); }
 
 .text-image__media{
   height: var(--text-image-height);
@@ -81,25 +98,27 @@
 .text-image__body--lead > p:first-child{ font-size: var(--fs-lead); max-width: 46ch; }
 .text-image__button{ margin-top: 1.5rem; }
 
-/* One column: the text leads, the picture follows at full width and a modest
-   fixed height, whatever was chosen for wide screens. */
+/* One column (TextImageSplitContent::STACK_MAX_WIDTH: a tablet and a phone):
+   the text leads, the picture follows at the column's full width in the
+   shape of its step. The same shape on a 768px tablet as on a 375px phone,
+   so Groot stays the largest and Compact the smallest; before Responsive
+   Media 3.1 these were fixed heights meant for a phone, which made every
+   step look a step smaller on a tablet. */
 @media (max-width: 860px){
-  .text-image{
-    --text-image-height-small: 12rem;
-    --text-image-height-medium: 16rem;
-    --text-image-height-large: 20rem;
-    --text-image-item-gap: var(--sp-5);
-  }
+  .text-image{ --text-image-item-gap: var(--sp-5); }
   .text-image .text-image__item{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
-  .text-image .text-image__item .text-image__media{ order: 0; }
+  /* width: 100%, not auto: an auto width would give way to the cap through
+     aspect-ratio and leave a capped picture narrower than its column. */
+  .text-image .text-image__item .text-image__media{ order: 0; width: 100%; height: auto; aspect-ratio: var(--text-image-ratio); max-height: var(--text-image-stacked-max); }
 }
 
 /* A phone's own height for one item's picture (Responsive Media 2.0,
-   text_image_split_items.image_mobile_height; none is "automatic": the
-   heights above, from the height chosen for a large screen). A phone is at
-   most 640px wide, the one breakpoint of assets/css/responsive-media.css. */
+   text_image_split_items.image_mobile_height; none is "automatic": the step
+   chosen for a large screen): the shape of that step, the same three as
+   above. A phone is at most 640px wide, the one breakpoint of
+   assets/css/responsive-media.css. */
 @media (max-width: 640px){
-  .text-image .text-image__item--mobile-compact{ --text-image-height: 12rem; }
-  .text-image .text-image__item--mobile-normal{ --text-image-height: 16rem; }
-  .text-image .text-image__item--mobile-large{ --text-image-height: 24rem; }
+  .text-image .text-image__item--mobile-compact{ --text-image-ratio: var(--text-image-ratio-small); }
+  .text-image .text-image__item--mobile-normal{ --text-image-ratio: var(--text-image-ratio-medium); }
+  .text-image .text-image__item--mobile-large{ --text-image-ratio: var(--text-image-ratio-large); }
 }

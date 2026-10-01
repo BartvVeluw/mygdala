@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ImagePresentation;
 use App\Service\Media\ResponsiveImage;
 use App\Service\Media\ResponsiveImageSlot;
 use App\Service\Routing\LinkChoice;
@@ -67,8 +68,51 @@ class TextImageSplitContent
     /** The picture's share of the row on a wide screen, in percent; the text has the rest. */
     public const COLUMNS = ['25', '50', '75'];
 
-    /** How high the picture is (CSS tokens in text-image-split.css). */
+    /**
+     * How high the picture is: the three steps of App\Service\Media\ImagePresentation
+     * (small is compact, medium normal, large large), with the lengths below.
+     */
     public const HEIGHTS = ['small', 'medium', 'large'];
+
+    /*
+     * THE STEPS' LENGTHS, the literal values of text-image-split.css
+     * (Tests\Service\ImagePresentationContractTest pins every one of them to
+     * the stylesheet), from which the CMS works out its preview frames
+     * (editorFrames()). Responsive Media 3.1, MEDIA.md "Compact, Normaal, Groot".
+     *
+     *   wide (more than STACK_MAX_WIDTH): text and picture side by side; the
+     *       picture is its share of the row wide and WIDE_HEIGHTS high
+     *   one column (STACK_MAX_WIDTH and less: a tablet and a phone): the
+     *       picture is the column's full width and has its step's shape,
+     *       STACKED_RATIOS, never taller than STACKED_MAX. A shape rather than
+     *       a fixed height, so a step looks the same on a 768px tablet as on
+     *       a 375px phone instead of a step smaller.
+     *   a phone's own height (ResponsiveImage::MOBILE_HEIGHTS) is the shape of
+     *       that step on a phone (MOBILE_MAX_WIDTH and less), nothing else.
+     */
+
+    /** Up to this window width an item is one column: its text, then its picture. */
+    public const STACK_MAX_WIDTH = 860;
+
+    /** The room between text and picture on a wide screen, in px: var(--sp-6). */
+    public const COLUMN_GAP = 64;
+
+    /** @var array<string, string> --text-image-height-<step> on a wide screen */
+    public const WIDE_HEIGHTS = [
+        'small' => 'clamp(14rem, 24vw, 20rem)',
+        'medium' => 'clamp(18rem, 36vw, 30rem)',
+        'large' => 'clamp(22rem, 50vw, 42rem)',
+    ];
+
+    /** @var array<string, string> --text-image-ratio-<step> in one column */
+    public const STACKED_RATIOS = [
+        'small' => '16 / 9',
+        'medium' => '4 / 3',
+        'large' => '1 / 1',
+    ];
+
+    /** --text-image-stacked-max: in one column never taller than the large step on a wide screen. */
+    public const STACKED_MAX = '42rem';
 
     /** What a new item starts with: picture on the right, as a new block always had it. */
     public const DEFAULTS = [
@@ -213,6 +257,82 @@ class TextImageSplitContent
     public static function imageSlot(): ResponsiveImageSlot
     {
         return new ResponsiveImageSlot('image_', 'media_id', fit: true, mobileHeight: true);
+    }
+
+    /**
+     * The size of an item's picture on a view's reference screen
+     * (ImagePresentation::VIEWPORTS), in px: from the same lengths the
+     * stylesheet uses, never from a table of its own.
+     *
+     * @param string      $column       one of COLUMNS
+     * @param string      $height       one of HEIGHTS
+     * @param string|null $mobileHeight a phone's own height (ResponsiveImage::MOBILE_HEIGHTS), null for automatic
+     *
+     * @return array{0: float, 1: float} width, height
+     */
+    public static function pictureSize(string $view, string $column, string $height, ?string $mobileHeight = null): array
+    {
+        [$window] = ImagePresentation::viewport($view);
+        $content = ImagePresentation::contentWidth($view);
+
+        if ($window > self::STACK_MAX_WIDTH) {
+            $width = ($content - self::COLUMN_GAP) * ((int) $column) / 100;
+
+            return [$width, ImagePresentation::length(self::WIDE_HEIGHTS[$height], $view)];
+        }
+
+        // One column. A phone's own height is the shape of its step there.
+        $step = $height;
+        if ($window <= ResponsiveImage::MOBILE_MAX_WIDTH && $mobileHeight !== null) {
+            $step = self::heightOfStep((string) ImagePresentation::step($mobileHeight)) ?? $height;
+        }
+
+        return [
+            (float) $content,
+            min($content / ImagePresentation::ratio(self::STACKED_RATIOS[$step]), ImagePresentation::length(self::STACKED_MAX, $view)),
+        ];
+    }
+
+    /**
+     * Every frame the CMS can show for an item, keyed by the choices that
+     * shape it — its column, its height and a phone's own height ('' for
+     * automatic) — for admin/_responsive_image_field.php's 'shapes', which
+     * follows those three choices on screen without a table of its own.
+     *
+     * @return array{controls: list<string>, shapes: array<string, array<string, string>>}
+     */
+    public static function editorFrames(): array
+    {
+        $shapes = [];
+        foreach (self::COLUMNS as $column) {
+            foreach (self::HEIGHTS as $height) {
+                foreach (array_merge([''], ResponsiveImage::MOBILE_HEIGHTS) as $mobile) {
+                    $properties = [];
+                    foreach (ImagePresentation::VIEWS as $view) {
+                        [$width, $tall] = self::pictureSize($view, $column, $height, $mobile === '' ? null : $mobile);
+                        $properties += ImagePresentation::frame($view, $width, $tall);
+                    }
+                    $shapes[$column . '|' . $height . '|' . $mobile] = $properties;
+                }
+            }
+        }
+
+        return [
+            'controls' => ['[data-tis-column]', '[data-tis-height]', '[data-rm-mobile-height]'],
+            'shapes' => $shapes,
+        ];
+    }
+
+    /** The HEIGHTS key of a step of ImagePresentation, or null. */
+    private static function heightOfStep(string $step): ?string
+    {
+        foreach (self::HEIGHTS as $height) {
+            if (ImagePresentation::step($height) === $step) {
+                return $height;
+            }
+        }
+
+        return null;
     }
 
     /**
