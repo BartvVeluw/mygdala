@@ -176,6 +176,7 @@
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
             <file>tests/Service/DashboardPageTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormSubmissionBulkContractTest.php</file>
             <file>tests/Service/FrontendAssetOwnershipTest.php</file>
             <file>tests/Service/HeaderFooterContractTest.php</file>
             <file>tests/Service/InvoiceAdminSecurityTest.php</file>
@@ -303,6 +304,7 @@
             <file>tests/Service/DashboardMetricsTest.php</file>
             <file>tests/Service/DashboardPageTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormSubmissionBulkContractTest.php</file>
             <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormFieldWidthTest.php</file>
@@ -753,9 +755,11 @@
             <file>tests/Service/FooterServiceTest.php</file>
             <file>tests/Service/FormAdminTest.php</file>
             <file>tests/Service/FormAdminHttpTest.php</file>
+            <file>tests/Service/FormSubmissionBulkHttpTest.php</file>
             <file>tests/Service/FormUploadHttpTest.php</file>
             <file>tests/Service/FormFieldEditorHttpTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormSubmissionBulkContractTest.php</file>
             <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormFieldWidthTest.php</file>

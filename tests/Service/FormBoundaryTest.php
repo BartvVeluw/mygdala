@@ -34,6 +34,7 @@ final class FormBoundaryTest extends TestCase
         'move-form-field.php' => 'forms.manage',
         'delete-form-field.php' => 'forms.manage',
         'delete-form-submission.php' => 'forms.submissions',
+        'bulk-form-submissions.php' => 'forms.submissions',
     ];
 
     /**
@@ -531,7 +532,7 @@ final class FormBoundaryTest extends TestCase
      */
     public function testEveryFormsDeletionAsksInTheCmsDialog(): void
     {
-        foreach (['admin/forms.php', 'admin/form.php', 'admin/form-field.php', 'admin/form-block.php', 'admin/form-submissions.php', 'admin/form-submission.php', 'admin/assets/forms-admin.js'] as $file) {
+        foreach (['admin/forms.php', 'admin/form.php', 'admin/form-field.php', 'admin/form-block.php', 'admin/form-submissions.php', 'admin/form-submission.php', 'admin/assets/forms-admin.js', 'admin/assets/form-submissions.js'] as $file) {
             $source = $this->read($file);
 
             $this->assertStringNotContainsString('onsubmit', $source, $file . ' has an inline handler');
