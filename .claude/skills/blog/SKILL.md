@@ -10,6 +10,9 @@ af en werkt identiek met de Shop aan en uit.
 
 **Blijf binnen de paden hieronder.** Open geen Shop-bestand.
 
+**Artikelen zijn niet de Blog.** Werk je aan `/artikelen`, roep dan `/articles`
+aan (`ARTICLES.md`).
+
 ## Lees dit eerst
 
 `BLOG.md`. Dat document is compleet voor dit domein; `MODULES.md` heb je

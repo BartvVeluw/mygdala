@@ -33,8 +33,9 @@ Start twee services:
   `Tests\Module\CmsOnlyHttpTest` en `Tests\Blog\BlogRoutingTest` praten
   ermee, en slaan zichzelf over als hij niet draait.
 
-`php_test` krijgt daarnaast `MODULE_BLOG_ENABLED=true` en
-`MODULE_PORTFOLIO_ENABLED=true` mee. De Blog en Portfolio staan standaard uit
+`php_test` krijgt daarnaast `MODULE_BLOG_ENABLED=true`,
+`MODULE_ARTICLES_ENABLED=true` en `MODULE_PORTFOLIO_ENABLED=true` mee (Artikelen
+staat net als de Blog standaard uit, `ARTICLES.md`). De Blog en Portfolio staan standaard uit
 (`MODULES.md`), dus zonder die regels zou elke `/blog`-test een 404 testen en
 zou een Portfolio-test afhangen van wat de testdatabase toevallig heeft
 opgeslagen. Het zijn dezelfde schakelaars die een site-eigenaar gebruikt, geen
@@ -175,7 +176,7 @@ aan:
 
 ```bash
 docker compose exec -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
-  -e MODULE_BLOG_ENABLED=true -e MODULE_PORTFOLIO_ENABLED=true \
+  -e MODULE_BLOG_ENABLED=true -e MODULE_ARTICLES_ENABLED=true -e MODULE_PORTFOLIO_ENABLED=true \
   -e MODULE_PAGE_THEMES_ENABLED=true php php vendor/bin/phpunit --testsuite fast
 ```
 
@@ -754,6 +755,12 @@ bloginstellingen (`BLOG.md`):
                         BlogTwoTest (gearchiveerd, contentmodus, blokken
                         op een bericht, omzetten, rechten) en
                         BlogContentBlocksMigrationTest (ook in migration;
+                        ScratchInstall, ongeveer een minuut)
+--testsuite modules     o.a. Artikelen: ArticlesTest (eigen ingebouwde
+                        server, module aan en uit: CMS, statussen,
+                        blokken, routes en redirects, onderwerpen,
+                        beveiliging, integraties, korte Blogregressie) en
+                        ArticlesMigrationTest (ook in migration;
                         ScratchInstall, ongeveer een minuut)
 --testsuite cms         als je aan de gedeelde SEO-, redirect- of
                         mediakant zat

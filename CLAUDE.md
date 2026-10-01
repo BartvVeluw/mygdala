@@ -39,6 +39,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Webshop: producten, varianten, collecties, bestellingen, betalingen, facturen, verzending | `/shop` | `MODULES.md` |
 | Een content-blok toevoegen of wijzigen | `/content-block` | `CONTENT-BLOCKS.md` |
 | Blog: berichten, categorieën, tags, publiceren, de feed | `/blog` | `BLOG.md` |
+| Artikelen: zelfstandige artikelen uit contentblokken, onderwerpen, de artikelenpagina (niet de Blog) | `/articles` | `ARTICLES.md` |
 | Formulieren: definities, velden, inzendingen, spam | `/forms` | `FORMS.md` |
 | Een admin-schrijfendpoint toevoegen of wijzigen | `/admin-endpoint` | — |
 | Schrijfstijl van code, commentaar en CMS-teksten | `/style` | `CODE-STYLE.md` |
@@ -59,7 +60,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
 | Pagina's onder elkaar zetten (geneste URL's), de paginaboom in het CMS, de beheergroep Service & juridisch | — | `docs/pages/NESTING.md` |
 | De ingebouwde updater, releases maken, een mislukte update herstellen | — | `docs/updates/ARCHITECTURE.md` |
-| Status, publicatiedatum, inplannen, archiveren en zichtbaarheid van redactionele content (Blog, later Artikelen), de Publishing Engine | `/blog` | `docs/publishing/ARCHITECTURE.md` |
+| Status, publicatiedatum, inplannen, archiveren en zichtbaarheid van redactionele content (Blog, Artikelen), de Publishing Engine | `/blog` | `docs/publishing/ARCHITECTURE.md` |
 | Een publieke route, de dispatcher, URL's en slugs per taal, canonical en hreflang per taal | — | `docs/multilingual/ROUTING.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |
 | Docker, database, lokaal draaien, meerdere installaties naast elkaar | — | `README.md` |

@@ -262,8 +262,8 @@ krijgt daarom een eigen `pages`-rij om zijn blokken te houden
 
 | Onderdeel | Wat |
 |---|---|
-| `pages.owner_type` | NULL voor elke gewone pagina; `product`, `portfolio_project` of `blog_post` (Blog 2.0) voor een inhoudspagina |
-| `product_content_pages`, `portfolio_content_pages`, `blog_post_content_pages` | eigenaar ↔ inhoudspagina, één op één, echte foreign keys aan beide kanten, `RESTRICT` |
+| `pages.owner_type` | NULL voor elke gewone pagina; `product`, `portfolio_project`, `blog_post` (Blog 2.0) of `article` (Artikelen) voor een inhoudspagina |
+| `product_content_pages`, `portfolio_content_pages`, `blog_post_content_pages`, `article_content_pages` | eigenaar ↔ inhoudspagina, één op één, echte foreign keys aan beide kanten, `RESTRICT` |
 | sleutel | `<kind>_<id>` (`product_12`, `portfolio_project_3`); een paginasleutel is een slug (a-z, 0-9, `-`), dus de underscore houdt ze voor altijd uit elkaar |
 | eigenaars | een gesloten lijst uit `ModuleDefinition::contentOwners()` (`App\Service\ContentOwners\ContentOwners`); Core noemt geen product of project |
 
@@ -306,6 +306,12 @@ krijgt daarom een eigen `pages`-rij om zijn blokken te houden
 | Paginakop (`page_hero`) | nee | nee | de kop van een gewone pagina met haar titel; een product en een project hebben hun eigen kop |
 | Homepage Hero, Diensten-snelmenu | nee | nee | al beperkt tot hun eigen pagina (`allowed_pages`) |
 | Projectinformatie (`project_info`) | nee | ja | toont het project waarop het staat |
+
+Een **artikel** (`article`, recht `articles.manage`, `ARTICLES.md`) heeft alleen
+blokken als inhoud. Voor zijn publicatieregel vraagt het
+`ContentPages::hasMeaningfulBlocks()`: een zichtbaar blok dat iets zegt, dus
+geen paginakop, geen decoratief blok (`BlockDefinition::isDecorative()`, alleen
+Witruimte) en geen blok dat zelf zegt leeg te zijn.
 
 Een **blogbericht** (Blog 2.0, `blog_post`, recht `blog.manage`) volgt dezelfde
 regels als een product: alle gewone blokken, geen Paginakop en geen

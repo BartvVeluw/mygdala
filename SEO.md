@@ -31,6 +31,7 @@ effectieve metadata        App\Service\SeoMetadata   (read-only)
 | Shop-producten | `src/Service/ProductSeo.php` |
 | Shop-collecties | `src/Service/CollectionContent.php` |
 | Blogberichten en -archieven | `src/Service/Blog/BlogSeo.php` (`BLOG.md`) |
+| Artikelen, het overzicht en onderwerpen | `src/Service/Articles/ArticleSeo.php` (`ARTICLES.md`): gearchiveerd = `noindex`, `Article`-JSON-LD |
 | Welke taal de `<head>` als zichtbare tekst draagt | `src/Service/Language/SiteText.php` (`MULTILINGUAL.md`) |
 | Gedeelde hulpjes | `src/Service/Seo.php` (titelconventies, plain text, absolute URL's) |
 | Basis-URL | `src/Service/AppUrl.php` — `APP_URL` uit `.env`, anders `site_settings.canonical_base_url` (`SETUP.md`) |

@@ -91,9 +91,10 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 | Een migratie, wat een verse of bestaande installatie krijgt | [`MIGRATIONS.md`](docs/multilingual/MIGRATIONS.md) | `migration` |
 | Het talenregister, de standaardtaal, `SiteLanguages`, de domein-API's per fase | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `migration` |
 | Paginatekst, blokwoorden, navigatie, footer, formulieren, gelokaliseerde instellingen per taal | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms`/`blocks` |
-| Woorden van een module per taal (`PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`), en waarom `OrderItemNameSnapshot` een momentopname is en geen vertaling | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → de suite van de module |
+| Woorden van een module per taal (`PortfolioLocalization`, `BlogLocalization`, `ArticleLocalization`, `ShopLocalization`), en waarom `OrderItemNameSnapshot` een momentopname is en geen vertaling | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → de suite van de module |
 | Welke test wat bewaakt, en hoe je ze draait | [`TESTS.md`](docs/multilingual/TESTS.md) | — |
 | De blokken van een blogbericht per taal (Blog 2.0): de gewone blokwoorden van zijn inhoudspagina; de klassieke tekst blijft per taal in `blog_post_translations`, en omzetten neemt elke taal mee | [`BLOG.md`](BLOG.md), "Klassieke tekst en contentblokken" | `fast` → `blog` |
+| Artikelen per taal: een taal heeft een versie als ze een adres en een titel heeft, **zonder terugval** van woorden of adres; het overzicht per taal toont alleen versies in die taal; blokwoorden volgen hun eigen contract | [`ARTICLES.md`](ARTICLES.md), "Routes en talen" | `fast` → `modules` |
 | Wat er per taal is aan iets dat publiceert (Publishing Engine): niets van de engine zelf; status, datum en byline zijn taalneutraal, slug en SEO-teksten staan per taal bij de eigenaar | [`docs/publishing/ARCHITECTURE.md`](docs/publishing/ARCHITECTURE.md), "Talen, slugs en URL's" | `fast` → `blog` |
 
 ## Raakt je taak meertaligheid?

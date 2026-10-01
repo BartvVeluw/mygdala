@@ -60,6 +60,7 @@ Core's `page` niet overschrijven.
 | `product` | `Service\ProductSearchProvider` | Shop | `active = 1`, dezelfde regel als `product.php` en de sitemap; ook een product dat niet in het winkeloverzicht staat | naam, beschrijving |
 | `project` | `Service\PortfolioSearchProvider` | Portfolio | `PortfolioSlug::isPublic()` (zichtbaar, projectpagina aan, een slug); een item dat naar een oude gekoppelde pagina doorverwijst, vindt de paginazoeker onder het adres van die pagina | titel, subtitel, intro |
 | `post` | `Service\Blog\BlogSearchProvider` | Blog | het ene publieke predicaat van `BlogPostRepository` (geen concept, `published_at` gezet en niet in de toekomst) en niet `noindex` | titel, samenvatting |
+| `article` | `Service\Articles\ArticleSearchProvider` | Artikelen | `PublicationVisibility::listedSql()` (niet gearchiveerd, niet ingepland in de toekomst) en niet `noindex`; alleen in een taal met een versie | titel, intro (niet de tekst van de blokken: Search 2.0) |
 
 Een provider:
 

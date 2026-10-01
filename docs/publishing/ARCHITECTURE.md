@@ -2,8 +2,9 @@
 
 De gedeelde publicatielaag voor redactionele content: alles wat een concept
 kan zijn, ingepland kan worden, verschijnt en weer uit beeld kan gaan. De
-eerste gebruiker is de Blog (`BLOG.md`). Blog 2.0 en Articles 1.0 komen er
-later op te staan. Gebouwd in v0.1.15, fase 4.
+eerste gebruiker is de Blog (`BLOG.md`, adapter op bestaande tabellen sinds
+fase 4, Blog 2.0 in fase 5); de tweede is Artikelen (`ARTICLES.md`, fase 6),
+de eerste soort die vanaf nul op de engine gebouwd is. Gebouwd in v0.1.15.
 
 Wijkt de code af van dit document, dan heeft de code gelijk.
 
@@ -22,7 +23,7 @@ taxonomie. **Er is geen centrale tabel en er is geen migratie.**
 | Onderdeel | Klasse | Wat |
 |---|---|---|
 | Status | `PublicationStatus` | `draft`, `published`, `scheduled`, `archived`, als gesloten lijst |
-| Tijd | `PublishingClock` | "nu", het parsen van een opgeslagen moment, strikte invoer uit een formulier, weergave (admin, RSS, ATOM), en een test-seam |
+| Tijd | `PublishingClock` | "nu", het parsen van een opgeslagen moment, strikte invoer uit een formulier, weergave (admin, RSS, ATOM, en `forReader()`: "3 maart 2026" voor een bezoeker), en een test-seam |
 | Zichtbaarheid | `PublicationVisibility` | `isListed()`, `isReachable()`, `isPending()` en de SQL-tweelingen `listedSql()`/`reachableSql()` |
 | Regels | `PublicationRules` | of een wijziging mag (status, datum, ingepland met datum, de eigen regel van de eigenaar) en welk moment er wordt opgeslagen |
 | Contract | `Publishable` | wat een soort content de engine vertelt |
@@ -181,7 +182,10 @@ nooit een klassenaam of tabelnaam. `find($type, $id)` koppelt een id aan zijn
 soort: het id van een blogbericht onder een ander type vindt niets.
 
 De Blog levert `App\Service\Blog\BlogPostPublishable`: een **adapter** op de
-bestaande tabellen.
+bestaande tabellen. Artikelen levert `App\Service\Articles\ArticlePublishable`
+(type `article`, `articles.manage`, alle vier statussen). Dat de tweede soort
+niets aan de engine hoefde te veranderen, is het bewijs dat hij generiek is:
+er kwam alleen `forReader()` bij, voor een datum op een publieke pagina.
 
 ## Een publicatie wijzigen
 
@@ -275,7 +279,17 @@ koppeling naar een CMS-gebruiker (`author_user_id`, optioneel naast de
 byline) is pas zinvol met een auteurspagina. Die is niet gebouwd, en er komt
 geen Author Management.
 
-## Taxonomie: alleen het contract
+## Taxonomie: besloten bij Artikelen
+
+**Er is geen gedeelde taxonomielaag, en die komt er voorlopig ook niet.**
+Artikelen hebben één optioneel *onderwerp* per artikel nodig (een eigen
+kleine tabel, `ARTICLES.md`, "Onderwerpen"), geen tags en geen primaire
+categorie. Wat Blog en Artikelen echt delen ("een naam, een omschrijving en
+een adres per taal", uniciteit per taal, redirects bij hernoemen) is al
+gedeeld via `EntityTranslations`, `LocalizedSlug` en `SlugChangeRedirects`.
+Een `ContentTaxonomy` wordt pas zinvol als een derde soort óók veel-op-veel
+indeling vraagt. Wat hieronder staat, was het contract vóór dat besluit en
+blijft de vorm als het ooit zover is.
 
 De categorieën en tags van de Blog zijn sterk Blog-eigen:
 
@@ -304,7 +318,13 @@ redirects, in Blog 2.0.
 
 ## Contentblokken
 
-Een bericht heeft nu rich text. Het owner-aware model
+Artikelen hebben alleen blokken (`ArticleContentOwner`, `article_content_pages`).
+Voor "mag dit naar buiten" vraagt een soort `ContentPages::hasMeaningfulBlocks()`:
+een zichtbaar, geregistreerd blok dat geen paginakop is, niet decoratief
+(`BlockDefinition::isDecorative()`) en niet zelf zegt leeg te zijn. De Blog
+eist dat (nog) niet.
+
+Het owner-aware model
 (`App\Service\ContentOwners`: `ContentOwner`, `ContentPages`,
 `ContentBlockAccess`, het draft-model van blokken en `SectionRegistry`) is
 generiek genoeg. Product en project gebruiken het al. Een soort die blokken
@@ -326,7 +346,8 @@ Search 2.0 kan per record alles uit de engine en de provider halen:
 | publicatiedatum | `PublishingClock::forAtom(published_at)` |
 
 De huidige site-zoekfunctie (`SearchProvider` per module) blijft zoals hij
-is. Er is geen index.
+is. Er is geen index. Artikelen leveren daar titel en intro van *listed*,
+indexeerbare artikelen, niet de tekst van hun blokken.
 
 ## Preview
 
@@ -359,6 +380,7 @@ login heeft, is een eigen ontwerp.
 | `Tests\Service\PublishingContractTest` | `contract`, `fast`, `blog` | Geen database. De statuslijst, de zichtbaarheidstabel op een vastgezette klok (gisteren, nu, over een minuut, een minuut geleden, gearchiveerd, onbekend), de SQL-tweeling en geweigerde aliassen, strikte datuminvoer, middernacht en zomertijd in Europe/Amsterdam, de regels en de eigen regel van de eigenaar, het register met de Blog aan en uit, en dat de engine in code geen soort noemt |
 | `Tests\Blog\BlogPublishingTest` | `blog` | De adapter op echte rijen, elke vervalste of te vroege wijziging geheel geweigerd, scheduled → draft → published, de sitemap met hreflang en canonical, het endpoint over echt HTTP (401/403/405/404, CSRF, redenen, opgeslagen), de editor met de gedeelde velden en een ge-escapete byline, en de kaart |
 | `Tests\Service\AdminAccessControlTest` | `contract` | De volgorde van de guards van `update-publication.php` |
+| `Tests\Module\ArticlesTest` | `modules` | De tweede soort: alle vier statussen op elk publiek oppervlak, de eigen publicatieregel (ook via `update-publication.php`), geplande publicatie zonder cron, vervalste types en ids |
 
 ## Implementatieroute
 
@@ -376,26 +398,24 @@ login heeft, is een eigen ontwerp.
    (`BLOG.md`, "Klassieke tekst en contentblokken").
 4. **Bewust uitgesteld.** De taxonomie blijft van de Blog (zie *Taxonomie*).
 
-### Articles 1.0
+### Articles 1.0 (gebouwd in v0.1.15, fase 6)
 
-Kopieer het Blog 2.0-model, niet de Blog 1-geschiedenis: een eigen
-`ContentOwner` en vanaf het begin alleen blokken. Een `content_mode` is dan
-niet nodig, omdat er geen klassieke tekst is om te bewaren.
+Gebouwd zoals hier stond, met drie bijstellingen (`ARTICLES.md`):
 
-1. Bouw een eigen module (`articles`, standaard uit) met eigen tabellen:
-   `articles` met `status`, `published_at`, `author_name`,
-   `featured_media_id`, `noindex`, en `article_translations` met `slug`,
-   `title`, `excerpt` en de SEO-teksten.
-2. Lever `ArticlePublishable` via `publishables()`, met type `article`,
-   permissie `articles.manage` en een eigen `publishErrors()`.
-3. Lees alles publieks via `listedSql()`/`reachableSql()` en bind één keer
-   `PublishingClock::nowForSql()`.
-4. Gebruik in de editor `admin_publication_fields()` en
-   `admin_publication_byline()`, en valideer met `PublicationRules`.
-5. Voor route, sitemap, `SeoMetadata`, `LinkTargets` en `linkedImages`:
-   kopieer de Blog en zet er de eigen segmenten op (`routeSegments()`).
-6. Gebruik taxonomie en contentblokken pas als Blog 2.0 ze gedeeld heeft
-   gemaakt.
+1. **Gedaan.** Module `articles` (standaard uit) met `articles`,
+   `article_translations` (geen neutrale slug, geen body), `article_topics`,
+   `article_topic_translations` en `article_content_pages`.
+2. **Gedaan.** `ArticlePublishable`, type `article`, `articles.manage`, alle
+   vier statussen, `publishErrors()` = titel en adres in de standaardtaal plus
+   een blok dat iets zegt.
+3. **Gedaan.** Publiek alleen via `listedSql()`/`reachableSql()`.
+4. **Gedaan.** De editor gebruikt de gedeelde velden en `PublicationRules`, en
+   beoordeelt de eigen regel binnen de transactie van de opslag.
+5. **Gedaan.** Route, sitemap, SEO, link targets, linked images, media en
+   zoeken als eigen bijdragen van de module.
+6. **Anders.** Contentblokken direct via het owner-model; taxonomie bewust
+   **niet** gedeeld (zie *Taxonomie*). En: een artikel valt in een andere
+   taal niet terug op de woorden van de standaardtaal.
 
 ## Bewust niet gebouwd
 
@@ -406,4 +426,3 @@ niet nodig, omdat er geen klassieke tekst is om te bewaren.
 - Author Management.
 - Een generieke taxonomy-engine.
 - Search 2.0.
-- Articles en Blog 2.0 zelf.

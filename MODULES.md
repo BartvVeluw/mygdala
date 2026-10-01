@@ -26,7 +26,7 @@ packages, geen microservices.
 | Configuratie | `src/Module/ModuleConfig.php` — dé volgorde: `MODULE_<KEY>_ENABLED` in `.env`, dan de opgeslagen voorkeur, dan aan |
 | Opgeslagen voorkeur | `src/Module/ModuleSettings.php` + tabel `module_settings` — wat de installatiewizard schrijft (`SETUP.md`) |
 | Guard | `src/Module/ModuleGuard.php` — het regeltje bovenaan een route of endpoint van een module |
-| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/PortfolioModule.php`, `src/Module/MultilingualModule.php`, `src/Module/PageThemesModule.php` |
+| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/ArticlesModule.php`, `src/Module/PortfolioModule.php`, `src/Module/MultilingualModule.php`, `src/Module/PageThemesModule.php` |
 
 Het register:
 
@@ -35,6 +35,7 @@ private const MAP = [
     'shop' => ShopModule::class,
     'personalization' => PersonalizationModule::class,
     'blog' => BlogModule::class,
+    'articles' => ArticlesModule::class,
     'portfolio' => PortfolioModule::class,
     'multilingual' => MultilingualModule::class,
     'page_themes' => PageThemesModule::class,
@@ -74,6 +75,8 @@ schrijft, en een lege blog op een levende `/blog`-URL erger is dan geen blog
 (`BLOG.md`). Dat is uitsluitend een uitspraak over een installatie die niets
 heeft gezegd: een omgevingsvariabele en een opgeslagen voorkeur worden allebei
 eerder gelezen.
+
+**Artikelen** start om dezelfde reden uit (`ARTICLES.md`).
 
 **Portfolio** start op een nieuwe installatie ook uit, om dezelfde reden: niet
 elke site toont eerder werk. Anders dan de Blog bestond Portfolio al, als
@@ -280,6 +283,7 @@ de volledige vorm):
 | Soort | Module | Adres |
 |---|---|---|
 | `blog_post` | Blog | het bericht |
+| `article` | Artikelen | het artikel, in de gelezen taal (anders de standaardtaal) |
 | `product` | Shop | `/product.php?id=` |
 | `collection` | Shop | `/collecties/<slug>` |
 | `portfolio_project` | Portfolio | `/portfolio/<slug>` |
@@ -1266,6 +1270,15 @@ CMS-pagina, en zijn metadata door dezelfde `SeoMetadata`. Zie `BLOG.md`.
 
 `Tests\Blog\BlogModuleTest` bewaakt de grens, net zoals `ShopDisabledTest`
 dat voor de Shop doet.
+
+### Artikelen (module `articles`)
+
+Eigen namespace (`App\Service\Articles`), eigen tabellen, eigen CMS-sectie
+(`admin/article*.php`), eigen routes (`articles.php`, `article.php`) en één
+eigen stylesheet. De tweede soort op de Publishing Engine, met contentblokken
+als enige inhoud en hoogstens één onderwerp per artikel. Hangt nergens van af
+en staat standaard **uit**. Een Articles-klasse noemt nooit een Blog-klasse.
+Zie `ARTICLES.md`, ook voor het verschil met de Blog.
 
 ### Personalisatie (module `personalization`)
 
