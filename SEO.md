@@ -354,6 +354,14 @@ module gebruikt wat er al is:
 - **gestructureerde data** — in dat eigen read model, want het hoort bij het
   domein.
 
+Redactionele content op de Publishing Engine (de Blog, later Artikelen) doet
+precies dit. De engine levert alleen de regel wie in de sitemap mag: listed,
+dus geen concept, niets wat nog moet verschijnen en niets gearchiveerds. Een
+gearchiveerd adres antwoordt wel, als `noindex`. Hreflang komt uit de echt
+bestaande taalversies van `Publishable::alternates()`
+([`docs/publishing/ARCHITECTURE.md`](docs/publishing/ARCHITECTURE.md), "SEO,
+sitemap en hreflang"). Er is geen tweede SEO-model.
+
 `Tests\Module\ShopDisabledTest` bewaakt dat `SeoMetadata`, `SeoDefaults`,
 `PageSeo`, `Robots`, `Sitemap` en `partials/seo-head.php` geen concrete
 Shop-klasse noemen.

@@ -106,12 +106,26 @@ scheduled  publiek zodra published_at bereikt is
 published  publiek zodra published_at nu of in het verleden ligt
 ```
 
-Dat is in de praktijk **één regel**: geen concept, én een publicatiemoment dat
-gezet is en gepasseerd. Hij staat op twee plekken die elkaars spiegelbeeld
-zijn — `BlogPostRepository::PUBLIC_WHERE` in SQL en
-`BlogPostStatus::isPublic()` in PHP — en het overzicht, de detailroute, de
-archieven, de gerelateerde berichten, de sitemap en de feed lezen allemaal
+**Sinds v0.1.15 staat de Blog op de Publishing Engine**
+([`docs/publishing/ARCHITECTURE.md`](docs/publishing/ARCHITECTURE.md)), als
+eerste soort, via een **adapter**: geen kolom en geen rij is verhuisd. De drie
+woorden hierboven zijn die van `PublicationStatus`. De engine kent ook
+`archived`, maar die biedt de Blog pas aan in Blog 2.0, en tot die tijd leest
+een gearchiveerde rij hier als concept.
+
+Dat is in de praktijk **één regel**: een publicerende status (`published` of
+`scheduled`), én een publicatiemoment dat gezet is en gepasseerd. Het is de
+"listed"-regel van de engine, op twee plekken die elkaars spiegelbeeld zijn:
+`BlogPostRepository::publicWhere()` (=
+`PublicationVisibility::listedSql('p')`) in SQL en `BlogPostStatus::isPublic()`
+(= `PublicationVisibility::isListed()`) in PHP. Het overzicht, de detailroute,
+de archieven, de gerelateerde berichten, de sitemap en de feed lezen allemaal
 daar doorheen. Er is dus geen query die per ongeluk een concept toont.
+
+Tot v0.1.14 sloot de SQL alleen `draft` uit. Een met de hand bewerkte rij met
+een onbekende status was daardoor publiek in SQL en een concept in PHP. Nu
+is ze in beide een concept. Voor elke geldige rij is de uitkomst gelijk;
+v0.1.15 heeft dat vóór en na vergeleken op dezelfde fixtures.
 
 **Er draait niets op de achtergrond.** Een ingepland bericht verschijnt omdat
 de klok verder liep, niet omdat er een cronjob was. Die klok is altijd die van
@@ -121,6 +135,19 @@ MySQL hun eigen tijdzone. Elke query bindt "nu" dus als parameter.
 
 `BlogClock::freezeForTests()` bestaat zodat de interessante grens — één
 seconde vóór en één seconde ná het moment — te testen is zonder te wachten.
+`BlogClock` is sinds v0.1.15 een dunne naam voor `PublishingClock`: er is
+één klok. Het tijdzonecontract en de strikte datuminvoer staan in
+`docs/publishing/ARCHITECTURE.md`, "Tijd". Een getypte datum die geen echt
+moment is ("morgen", 30 februari), wordt geweigerd met een melding in plaats
+van als "nu" gelezen.
+
+**Opslaan valideert** via `PublicationRules`: een status uit de lijst van de
+Blog, een echte datum, en een datum bij *Ingepland*. De velden status, datum
+en auteur zijn de gedeelde velden van `admin/_publication_fields.php`.
+`App\Service\Blog\BlogPostPublishable` vertelt de engine hoe een bericht
+heet en wat het nodig heeft om te publiceren: een titel in de standaardtaal
+en een adres. Met dat laatste kan `api/admin/update-publication.php` een
+bericht ook buiten de editor publiceren of terugzetten.
 
 ## Taxonomie
 
@@ -453,6 +480,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blog   # alles
 | `tests/Blog/BlogFeedLanguageTest.php` | één feed per taal: kanaal, items, `<language>` en links in de taal van het verzoek, de terugval, XML-escaping, en `/en/blog/feed.xml` over echt HTTP |
 | `tests/Blog/BlogMediaAndSettingsTest.php` | uitgelichte afbeeldingen, gebruiksmelding, niet-verwijderbaar, en de instellingen |
 | `tests/Blog/BlogRoutingTest.php` | echte verzoeken naar alle vijf de URL's, paginering, de slugredirect, en de CMS-only stand |
+| `tests/Blog/BlogPublishingTest.php` | de Blog op de Publishing Engine: de adapter, geweigerde en toegestane wijzigingen, sitemap met hreflang, `update-publication.php` over echt HTTP, de gedeelde velden in de editor |
 
 De HTTP-tests praten met `php_test`, die daarvoor `MODULE_BLOG_ENABLED=true`
 meekrijgt in `docker-compose.yml` — anders zou elke `/blog`-test een 404

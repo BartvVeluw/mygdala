@@ -59,6 +59,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
 | Pagina's onder elkaar zetten (geneste URL's), de paginaboom in het CMS, de beheergroep Service & juridisch | — | `docs/pages/NESTING.md` |
 | De ingebouwde updater, releases maken, een mislukte update herstellen | — | `docs/updates/ARCHITECTURE.md` |
+| Status, publicatiedatum, inplannen, archiveren en zichtbaarheid van redactionele content (Blog, later Artikelen), de Publishing Engine | `/blog` | `docs/publishing/ARCHITECTURE.md` |
 | Een publieke route, de dispatcher, URL's en slugs per taal, canonical en hreflang per taal | — | `docs/multilingual/ROUTING.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |
 | Docker, database, lokaal draaien, meerdere installaties naast elkaar | — | `README.md` |

@@ -744,8 +744,13 @@ bloginstellingen (`BLOG.md`):
                         scherm en endpoint, en dat Core geen Blog-klasse
                         noemt — database noch webserver nodig
 --testsuite blog        de rest: het berichtmodel, de inplangrens, taxonomie,
-                        SEO en feed, media, en echte verzoeken naar alle vijf
-                        de URL's
+                        SEO en feed, media, echte verzoeken naar alle vijf
+                        de URL's, en de Publishing Engine: PublishingContractTest
+                        (ook in fast en contract; status, zichtbaarheid,
+                        klok, middernacht en zomertijd, regels, register)
+                        en BlogPublishingTest (adapter, geweigerde
+                        wijzigingen, sitemap, update-publication.php over
+                        echt HTTP, de gedeelde velden)
 --testsuite cms         als je aan de gedeelde SEO-, redirect- of
                         mediakant zat
 ```

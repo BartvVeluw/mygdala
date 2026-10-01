@@ -27,7 +27,8 @@ alleen nodig als je aan de modulegrens zelf werkt.
 | Admin-endpoints | `api/admin/*blog*.php` |
 | Publieke routes | `blog.php`, `blog-post.php`, `blog-feed.php` |
 | Frontend | `assets/css/blog/blog.css` |
-| Tests | `tests/Blog/` |
+| Publicatie | de gedeelde Publishing Engine `src/Service/Publishing/` (status, klok, zichtbaarheid, regels, `Publishable`), de adapter `src/Service/Blog/BlogPostPublishable.php`, de velden `admin/_publication_fields.php`, het endpoint `api/admin/update-publication.php` — `docs/publishing/ARCHITECTURE.md` |
+| Tests | `tests/Blog/`, plus `tests/Service/PublishingContractTest.php` |
 
 ## De regels die hier gelden
 
@@ -41,6 +42,11 @@ alleen nodig als je aan de modulegrens zelf werkt.
 - **De publicatiecyclus heeft een klok.** Een ingepland bericht wordt zichtbaar
   door de tijd, niet door een cronjob. Ga daar geen tweede mechanisme naast
   bouwen.
+- **Status, datum en zichtbaarheid zijn van de Publishing Engine.** Schrijf
+  nooit zelf `status = 'published'` of `<> 'draft'` in een query: gebruik
+  `PublicationVisibility::listedSql()`/`reachableSql()` en bind
+  `PublishingClock::nowForSql()`. Een nieuwe status of regel hoort in
+  `src/Service/Publishing/`, niet in de Blog.
 - **Een lege blog op een levende URL is erger dan geen blog.** Daarom staat de
   module standaard uit. Verander die standaard niet.
 
