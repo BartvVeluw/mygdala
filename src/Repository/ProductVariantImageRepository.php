@@ -11,9 +11,14 @@ namespace App\Repository;
  * A LINK, NOT A PICTURE. The picture is a product_images row of the same
  * product; this table only says "variant 5 shows picture 12 as its second".
  * Deleting a variant or a picture removes its links (ON DELETE CASCADE) and
- * never a picture or a file. A variant with no links shows every picture of
- * its product — that is the reader's rule (api/product.php, shop.js), not a
- * row here.
+ * never a picture or a file. A variant with no links shows every general
+ * picture of its product — that is the reader's rule (api/product.php,
+ * shop.js), not a row here.
+ *
+ * A link may point at a general picture or at a variant-only one
+ * (product_images.variant_only); the rows say which, so a reader that wants
+ * the product's representative picture can skip the variant-only ones
+ * (self::generalOnly()). Only a link makes a variant-only picture visible.
  *
  * Replaces variant_images, where a variant owned uploaded files of its own.
  * That table is left as it was by 20260923120000 and nothing reads it.
@@ -42,7 +47,7 @@ final class ProductVariantImageRepository extends Repository
                     COALESCE(m.thumbnail_path, m.path, pi.image_path) AS thumbnail_path,
                     NULLIF(m.alt_text, '') AS alt_text,
                     m.display_name, m.width, m.height,
-                    pvi.sort_order
+                    pvi.sort_order, pi.variant_only
              FROM product_variant_images pvi
              INNER JOIN product_images pi ON pi.id = pvi.product_image_id
              INNER JOIN product_variants v ON v.id = pvi.variant_id AND v.product_id = pi.product_id
@@ -60,6 +65,20 @@ final class ProductVariantImageRepository extends Repository
         }
 
         return $byVariant;
+    }
+
+    /**
+     * The general pictures among a variant's links, in the variant's order:
+     * what may stand for the product where no variant is being looked at on
+     * purpose (its share image, its card). A variant-only picture is never
+     * the product's default picture.
+     *
+     * @param list<array<string, mixed>> $rows findByVariantIds() rows of one variant
+     * @return list<array<string, mixed>>
+     */
+    public static function generalOnly(array $rows): array
+    {
+        return array_values(array_filter($rows, static fn (array $row): bool => (int) ($row['variant_only'] ?? 0) === 0));
     }
 
     /**

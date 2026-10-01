@@ -108,6 +108,11 @@ $json = AdminEditorResponse::wantsJson();
 // it changes no picture. Checked again, token by token, in ProductGallery.
 $gallerySubmitted = ($_POST['gallery_submitted'] ?? null) === '1';
 $galleryTokens = ProductGallery::tokens($_POST['gallery'] ?? []);
+// The pictures meant for variants only (Varianten section): their own list,
+// or null when the form did not carry it, which keeps them as they are.
+$variantOnlyTokens = ($_POST['gallery_variant_only_submitted'] ?? null) === '1'
+    ? ProductGallery::tokens($_POST['gallery_variant_only'] ?? [])
+    : null;
 $variantTokens = ProductGallery::variantTokens($_POST['variants_submitted'] ?? [], $_POST['variant_images'] ?? []);
 [$variantDescriptions, $fields['variant_descriptions']] = validateVariantDescriptions($_POST, $errors);
 
@@ -144,6 +149,7 @@ if ($inventoryEditor->posted()) {
 // A refused save shows the same pictures and selections again.
 if ($gallerySubmitted) {
     $fields['gallery'] = $galleryTokens;
+    $fields['gallery_variant_only'] = $variantOnlyTokens;
     $fields['variant_images'] = $variantTokens;
 }
 
@@ -245,7 +251,7 @@ try {
             }
         }
 
-        (new ProductGallery($db))->save($id, $galleryTokens, $selections);
+        (new ProductGallery($db))->save($id, $galleryTokens, $selections, $variantOnlyTokens);
     }
 
     // A variant's own description, in this request's one language. Only

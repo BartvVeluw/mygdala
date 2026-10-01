@@ -17,6 +17,17 @@ namespace App\Repository;
  *
  * Variants never own a row here; they link to rows of their product in
  * product_variant_images (ProductVariantImageRepository).
+ *
+ * GENERAL OR VARIANT-ONLY. A row with variant_only = 1 is still one of the
+ * product's pictures, but only a variant that links to it shows it: it is
+ * never in the general gallery and never the primary picture. So every
+ * reader of "the product's pictures" here (findByProductId(), findPrimary(),
+ * primaryForProducts()) returns general pictures only; what manages the
+ * whole pool (the product editor, ProductGallery, ProductDeletionService)
+ * asks findPoolByProductId(). The order and is_primary only mean something
+ * among the general pictures: applyOrder() writes them and clears
+ * variant_only, markVariantOnly() sets it and clears is_primary, so a
+ * variant-only row is never primary whatever a caller sends.
  */
 class ProductImageRepository extends Repository
 {
@@ -25,9 +36,13 @@ class ProductImageRepository extends Repository
              COALESCE(m.thumbnail_path, m.path, pi.image_path) AS thumbnail_path,
              NULLIF(m.alt_text, \'\') AS alt_text,
              m.display_name, m.width, m.height,
-             pi.sort_order, pi.is_primary';
+             pi.sort_order, pi.is_primary, pi.variant_only';
 
     /**
+     * The product's general pictures, in gallery order: what its gallery,
+     * its share image and its search result show. A variant-only picture is
+     * not among them.
+     *
      * @return array<int, array<string, mixed>>
      */
     public function findByProductId(int $productId): array
@@ -36,8 +51,28 @@ class ProductImageRepository extends Repository
             'SELECT ' . self::COLUMNS . '
              FROM product_images pi
              LEFT JOIN media m ON m.id = pi.media_id
-             WHERE pi.product_id = :product_id
+             WHERE pi.product_id = :product_id AND pi.variant_only = 0
              ORDER BY pi.sort_order ASC, pi.id ASC'
+        );
+        $stmt->execute(['product_id' => $productId]);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * The product's whole pool: the general pictures in gallery order, then
+     * the variant-only ones. For what manages the pool, never for a visitor.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function findPoolByProductId(int $productId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT ' . self::COLUMNS . '
+             FROM product_images pi
+             LEFT JOIN media m ON m.id = pi.media_id
+             WHERE pi.product_id = :product_id
+             ORDER BY pi.variant_only ASC, pi.sort_order ASC, pi.id ASC'
         );
         $stmt->execute(['product_id' => $productId]);
 
@@ -51,8 +86,8 @@ class ProductImageRepository extends Repository
 
     /**
      * The primary picture of each of these products in one query (the first
-     * row in sort_order, as findPrimary() picks it). A product without
-     * pictures is absent.
+     * general row in sort_order, as findPrimary() picks it). A product
+     * without general pictures is absent.
      *
      * @param array<int, int> $productIds
      * @return array<int, array<string, mixed>> product id => picture
@@ -69,7 +104,7 @@ class ProductImageRepository extends Repository
             'SELECT ' . self::COLUMNS . "
              FROM product_images pi
              LEFT JOIN media m ON m.id = pi.media_id
-             WHERE pi.product_id IN ({$placeholders})
+             WHERE pi.product_id IN ({$placeholders}) AND pi.variant_only = 0
              ORDER BY pi.product_id ASC, pi.sort_order ASC, pi.id ASC"
         );
         $stmt->execute($ids);
@@ -84,17 +119,20 @@ class ProductImageRepository extends Repository
 
     /**
      * Appends a picture uploaded outside the library (the seeded catalogue,
-     * tests). It becomes primary when it is the product's first.
+     * tests). It becomes primary when it is the product's first general one.
      */
     public function create(int $productId, string $imagePath): int
     {
-        return $this->insert($productId, $imagePath, null);
+        return $this->insert($productId, $imagePath, null, false);
     }
 
-    /** Appends a Media Library picture at the end of the product's order. */
-    public function addFromMedia(int $productId, int $mediaId, string $path): int
+    /**
+     * Appends a Media Library picture at the end of the product's order: a
+     * general one, or a variant-only one (which is never primary).
+     */
+    public function addFromMedia(int $productId, int $mediaId, string $path, bool $variantOnly = false): int
     {
-        return $this->insert($productId, $path, $mediaId);
+        return $this->insert($productId, $path, $mediaId, $variantOnly);
     }
 
     /**
@@ -124,9 +162,10 @@ class ProductImageRepository extends Repository
     }
 
     /**
-     * Stores $orderedIds as the product's order: position = sort_order, and
-     * the first one is the primary picture. Ids of another product are
-     * ignored by the WHERE clause.
+     * Stores $orderedIds as the product's general pictures in their order:
+     * position = sort_order, the first one is the primary picture, and each
+     * of them is general (variant_only = 0) from now on. Ids of another
+     * product are ignored by the WHERE clause.
      *
      * @param list<int> $orderedIds
      */
@@ -134,7 +173,7 @@ class ProductImageRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'UPDATE product_images
-             SET sort_order = :sort_order, is_primary = :is_primary, updated_at = NOW()
+             SET sort_order = :sort_order, is_primary = :is_primary, variant_only = 0, updated_at = NOW()
              WHERE id = :id AND product_id = :product_id'
         );
 
@@ -148,25 +187,52 @@ class ProductImageRepository extends Repository
         }
     }
 
-    private function insert(int $productId, string $imagePath, ?int $mediaId): int
+    /**
+     * Makes these pictures of the product variant-only: out of the general
+     * gallery and never primary, placed after the general ones in sort_order
+     * (a position no gallery reads). Their variant links stay as they are.
+     * Ids of another product are ignored by the WHERE clause.
+     *
+     * @param list<int> $ids
+     */
+    public function markVariantOnly(int $productId, array $ids, int $firstSortOrder = 0): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE product_images
+             SET variant_only = 1, is_primary = 0, sort_order = :sort_order, updated_at = NOW()
+             WHERE id = :id AND product_id = :product_id'
+        );
+
+        foreach (array_values($ids) as $position => $id) {
+            $stmt->execute([
+                'sort_order' => $firstSortOrder + $position,
+                'id' => (int) $id,
+                'product_id' => $productId,
+            ]);
+        }
+    }
+
+    private function insert(int $productId, string $imagePath, ?int $mediaId, bool $variantOnly): int
     {
         $next = $this->db->prepare(
-            'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order, COUNT(*) AS total
+            'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order,
+                    COALESCE(SUM(variant_only = 0), 0) AS general
              FROM product_images WHERE product_id = :product_id'
         );
         $next->execute(['product_id' => $productId]);
         $row = $next->fetch();
 
         $stmt = $this->db->prepare(
-            'INSERT INTO product_images (product_id, image_path, media_id, sort_order, is_primary, created_at, updated_at)
-             VALUES (:product_id, :image_path, :media_id, :sort_order, :is_primary, NOW(), NOW())'
+            'INSERT INTO product_images (product_id, image_path, media_id, sort_order, is_primary, variant_only, created_at, updated_at)
+             VALUES (:product_id, :image_path, :media_id, :sort_order, :is_primary, :variant_only, NOW(), NOW())'
         );
         $stmt->execute([
             'product_id' => $productId,
             'image_path' => $imagePath,
             'media_id' => $mediaId,
             'sort_order' => (int) $row['next_sort_order'],
-            'is_primary' => (int) $row['total'] === 0 ? 1 : 0,
+            'is_primary' => !$variantOnly && (int) $row['general'] === 0 ? 1 : 0,
+            'variant_only' => $variantOnly ? 1 : 0,
         ]);
 
         return (int) $this->db->lastInsertId();
