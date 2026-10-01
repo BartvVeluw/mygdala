@@ -97,6 +97,18 @@ final class ContactFormBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'contact_form_sections' => [
+                'title' => BlockSearchRole::HEADING,
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();

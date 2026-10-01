@@ -105,6 +105,32 @@ final class DetailSectionBlock extends BlockDefinition implements ContributesAnc
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'detail_sections' => [
+                'nav_label' => BlockSearchRole::NONE,
+                'label' => BlockSearchRole::NONE,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'body' => BlockSearchRole::TEXT,
+                'main_image_alt' => BlockSearchRole::NONE,
+                'closing_note' => BlockSearchRole::TEXT,
+                'cta_label' => BlockSearchRole::NONE,
+            ],
+            'detail_section_points' => [
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+            ],
+            'detail_section_images' => [
+                'alt' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return [

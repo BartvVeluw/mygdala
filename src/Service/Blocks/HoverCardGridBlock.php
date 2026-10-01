@@ -96,6 +96,26 @@ final class HoverCardGridBlock extends BlockDefinition implements InspectsConten
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'hover_card_grids' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+            ],
+            'hover_card_grid_items' => [
+                'badge' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+                'link_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return [HoverCardGridContent::ITEMS => ['parent' => HoverCardGridContent::TABLE, 'column' => 'hover_card_grid_id']];

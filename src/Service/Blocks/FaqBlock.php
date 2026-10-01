@@ -81,6 +81,23 @@ final class FaqBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'faq_sections' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+            ],
+            'faq_items' => [
+                'question' => BlockSearchRole::HEADING,
+                'answer' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return ['faq_items' => ['parent' => 'faq_sections', 'column' => 'faq_section_id']];

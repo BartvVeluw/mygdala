@@ -100,6 +100,26 @@ final class TextImageSplitBlock extends BlockDefinition implements InspectsConte
     }
 
     /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'text_image_splits' => [
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+            ],
+            'text_image_split_items' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+                'button_label' => BlockSearchRole::NONE,
+                'alt' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
+    /**
      * The items. The two child tables of the block before 2.0,
      * text_image_split_paragraphs and text_image_split_images, still cascade
      * from the block row but own no words any more: db/migrations/20260924100000

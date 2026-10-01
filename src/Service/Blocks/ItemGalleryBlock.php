@@ -101,6 +101,22 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'item_galleries' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'footer_note' => BlockSearchRole::TEXT,
+                'button_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         // Defaults to the block in its most familiar shape: the first source

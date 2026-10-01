@@ -76,6 +76,20 @@ final class ContactCardBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'contact_cards' => [
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+                'button_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();

@@ -81,6 +81,23 @@ final class StepListBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'step_list_sections' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+            ],
+            'step_list_items' => [
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return ['step_list_items' => ['parent' => 'step_list_sections', 'column' => 'step_list_section_id']];

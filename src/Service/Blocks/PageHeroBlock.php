@@ -112,6 +112,21 @@ final class PageHeroBlock extends BlockDefinition implements CarriesBreadcrumb
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'page_heroes' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'image_alt' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $repository = new PageHeroRepository();

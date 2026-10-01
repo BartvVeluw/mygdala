@@ -87,6 +87,19 @@ final class FeaturedProductBlock extends BlockDefinition implements InspectsCont
     }
 
     /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'featured_products' => [
+                'intro' => BlockSearchRole::TEXT,
+                'link_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
+    /**
      * A new block has no product yet and every other choice at its default:
      * it renders nothing until a product is chosen, so it can be placed first
      * and set up later.

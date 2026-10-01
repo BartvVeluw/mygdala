@@ -90,6 +90,24 @@ final class FeatureGridBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'feature_grids' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+            ],
+            'feature_grid_items' => [
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return ['feature_grid_items' => ['parent' => 'feature_grids', 'column' => 'feature_grid_id']];

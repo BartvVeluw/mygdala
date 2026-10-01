@@ -112,6 +112,22 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
     }
 
     /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'item_galleries' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'footer_note' => BlockSearchRole::TEXT,
+                'button_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
+    /**
      * Every visible project, in the Portfolio's own order, as plain cards: no
      * heading and no filter buttons until the editor asks for them, so no
      * words either. Nothing site-specific, since a page template creates

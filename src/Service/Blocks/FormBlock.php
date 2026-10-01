@@ -88,6 +88,19 @@ final class FormBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'form_blocks' => [
+                'title' => BlockSearchRole::HEADING,
+                'intro' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();

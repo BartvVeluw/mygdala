@@ -81,6 +81,19 @@ final class RichTextBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'rich_text_sections' => [
+                'body' => BlockSearchRole::TEXT,
+                'button_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function styles(): array
     {
         return ['assets/css/blocks/rich-text.css'];

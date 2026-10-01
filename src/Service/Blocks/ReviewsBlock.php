@@ -100,6 +100,27 @@ final class ReviewsBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'review_blocks' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'button_label' => BlockSearchRole::NONE,
+            ],
+            'review_block_items' => [
+                'body' => BlockSearchRole::TEXT,
+                'name' => BlockSearchRole::TEXT,
+                'role' => BlockSearchRole::TEXT,
+                'source_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return [ReviewsContent::ITEMS => ['parent' => ReviewsContent::TABLE, 'column' => 'review_block_id']];

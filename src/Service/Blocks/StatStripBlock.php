@@ -78,6 +78,19 @@ final class StatStripBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'stat_strip_items' => [
+                'primary_text' => BlockSearchRole::TEXT,
+                'secondary_text' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return ['stat_strip_items' => ['parent' => 'stat_strips', 'column' => 'stat_strip_id']];

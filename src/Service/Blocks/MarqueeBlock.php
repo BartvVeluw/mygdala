@@ -76,6 +76,18 @@ final class MarqueeBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'marquee_items' => [
+                'label' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return ['marquee_items' => ['parent' => 'marquee_sections', 'column' => 'marquee_section_id']];

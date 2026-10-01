@@ -83,6 +83,22 @@ final class CtaBandBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'cta_bands' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'primary_label' => BlockSearchRole::NONE,
+                'secondary_label' => BlockSearchRole::NONE,
+            ],
+        ];
+    }
+
     public function styles(): array
     {
         // The shared picture rules first (Responsive Media 2.0).

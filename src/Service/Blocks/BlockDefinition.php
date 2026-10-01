@@ -448,6 +448,35 @@ abstract class BlockDefinition
     }
 
     /**
+     * What a visitor can find this block's page by in the site search
+     * (Search 2.0, SEARCH.md "De tekst van de blokken"): EVERY translatable
+     * field of translatableFields(), keyed the same way, with its
+     * BlockSearchRole — HEADING, TEXT or NONE.
+     *
+     *     return [
+     *         'faq_sections' => ['eyebrow' => BlockSearchRole::TEXT, 'title' => BlockSearchRole::HEADING],
+     *         'faq_items' => ['question' => BlockSearchRole::HEADING, 'answer' => BlockSearchRole::TEXT],
+     *     ];
+     *
+     * Only the block's OWN words: a block that shows other records (a
+     * product, a project, a form, a collection) never offers their words,
+     * which those records' own search results already carry. Hidden rows —
+     * the block switched off in its editor, an item switched off — are left
+     * out by App\Service\Search\BlockTextExtractor, not here.
+     *
+     * Empty for a block without words of its own (Witruimte, Productraster).
+     * Tests\Service\BlockSearchContractTest holds every block to classifying
+     * every field it declares, so a new block cannot forget one; Search
+     * itself never changes for a new block.
+     *
+     * @return array<string, array<string, string>> table => field key => BlockSearchRole::*
+     */
+    public function searchFields(): array
+    {
+        return [];
+    }
+
+    /**
      * @param array<string, mixed> $pageSection
      */
     protected function pageSlug(array $pageSection): string

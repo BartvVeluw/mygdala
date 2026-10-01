@@ -95,6 +95,30 @@ final class HomepageHeroBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'homepage_hero' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'title_highlight' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+                'primary_label' => BlockSearchRole::NONE,
+                'secondary_label' => BlockSearchRole::NONE,
+                'image_alt' => BlockSearchRole::NONE,
+                'badge_title' => BlockSearchRole::TEXT,
+                'badge_text' => BlockSearchRole::TEXT,
+            ],
+            'homepage_hero_stats' => [
+                'primary_text' => BlockSearchRole::TEXT,
+                'secondary_text' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return ['homepage_hero_stats' => ['parent' => 'homepage_hero', 'column' => 'homepage_hero_id']];

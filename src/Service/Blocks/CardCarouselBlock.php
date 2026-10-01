@@ -94,6 +94,30 @@ final class CardCarouselBlock extends BlockDefinition implements InspectsContent
         ];
     }
 
+    /**
+     * What the site search finds this block by (BlockDefinition::searchFields()).
+     */
+    public function searchFields(): array
+    {
+        return [
+            'card_carousels' => [
+                'eyebrow' => BlockSearchRole::TEXT,
+                'title' => BlockSearchRole::HEADING,
+                'lead' => BlockSearchRole::TEXT,
+            ],
+            'carousel_cards' => [
+                'title' => BlockSearchRole::HEADING,
+                'body' => BlockSearchRole::TEXT,
+                'image_alt' => BlockSearchRole::NONE,
+                'link_label' => BlockSearchRole::NONE,
+                'number_label' => BlockSearchRole::NONE,
+            ],
+            'carousel_card_tags' => [
+                'label' => BlockSearchRole::TEXT,
+            ],
+        ];
+    }
+
     public function childTables(): array
     {
         return [
