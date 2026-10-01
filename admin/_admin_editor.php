@@ -65,6 +65,7 @@ function admin_editor_bar(): void
          data-label-forbidden="<?= admin_te('editor.forbidden') ?>"
          data-label-failed="<?= admin_te('editor.failed') ?>"
          data-label-offline="<?= admin_te('editor.offline') ?>"
+         data-label-error-in="<?= admin_te('savebar.error_in') ?>"
          data-label-leave-question="<?= admin_te('editor.leave.native') ?>">
       <p class="admin-save-bar__status" role="status" aria-live="polite">
         <span class="admin-save-bar__dot" aria-hidden="true"></span>

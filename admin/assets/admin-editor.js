@@ -38,6 +38,20 @@
  * text or the media picker fires neither. A script that changes the form
  * without such an event dispatches `admin-editor:change`.
  *
+ * COMPANION FORMS. A screen may hold ordinary POST forms next to the editor
+ * that keep their own endpoint (the "Extra vormgeving" panel of every block
+ * in the product's Inhoud tab, admin/_block_appearance.php). They are picked
+ * by the SAME rule admin/assets/save-bar.js uses for its forms (a POST form
+ * in <main> with an editable control and a submit button, not an
+ * .admin-inline-form, not data-no-dirty-track), so an embedded form is
+ * watched alike on every editor without a second tracker. Each is dirty on
+ * its own; the screen is unsaved while the editor OR any companion is.
+ * Opslaan sends the editor first (when it changed), then every changed
+ * companion once, in order, with fetch(): accepted only on the endpoint's
+ * own success redirect (`saved=<id>`), stopping at the first refusal, and
+ * the page is loaded again after the last one so the screen shows what is
+ * stored. A companion's own button stays the ordinary POST it always was.
+ *
  * LEAVING. A plain click on a link to another page of this site, or a form
  * outside the editor that navigates (the language switch, Uitloggen), asks
  * first in the CMS's own dialog: save and go on, go on without saving, or
@@ -62,6 +76,38 @@
   var leavingOnPurpose = false;
   var quiet = 0;
   var savedTimer = null;
+
+  var RELOAD_FLAG = "mygdalaAdminEditorSaved";
+
+  var EDITABLE =
+    "input:not([type='hidden']):not([type='submit']):not([type='button']), select, textarea";
+
+  /** The companion forms (see COMPANION FORMS above): save-bar.js's rule, minus the editor itself. */
+  var companions = Array.prototype.filter.call(
+    document.querySelectorAll("main.admin-main form[method='post'], main.admin-main form[method='POST']"),
+    function (other) {
+      return (
+        other !== form &&
+        !other.classList.contains("admin-inline-form") &&
+        !other.hasAttribute("data-no-dirty-track") &&
+        other.querySelector("[type='submit'], button:not([type])") !== null &&
+        other.querySelector(EDITABLE) !== null
+      );
+    }
+  );
+  var dirtyCompanions = [];
+
+  function anyDirty() {
+    return dirty || dirtyCompanions.length > 0;
+  }
+
+  /** Whether anything but `except` (a form being submitted) still holds unsaved input. */
+  function dirtyBesides(except) {
+    if (dirty && except !== form) return true;
+    return dirtyCompanions.some(function (other) {
+      return other !== except;
+    });
+  }
 
   /* The words, put on the bar by admin/_admin_editor.php in the CMS language
      of whoever is signed in. */
@@ -91,16 +137,35 @@
   function markClean(message) {
     dirty = false;
     window.clearTimeout(savedTimer);
+    // The editor's save never speaks for a companion: one that still holds
+    // a change keeps the screen unsaved.
+    if (dirtyCompanions.length > 0) {
+      render("dirty");
+      return;
+    }
     render("saved", message || word("just-saved"), "just-saved");
     savedTimer = window.setTimeout(function () {
-      if (!dirty && !saving) render("saved");
+      if (!anyDirty() && !saving) render("saved");
     }, 2500);
+  }
+
+  function markCompanionDirty(other) {
+    if (saving || dirtyCompanions.indexOf(other) !== -1) return;
+    window.clearTimeout(savedTimer);
+    dirtyCompanions.push(other);
+    render("dirty");
   }
 
   ["input", "change", "admin-editor:change"].forEach(function (type) {
     document.addEventListener(type, function (event) {
       var target = event.target;
-      if (target && target.nodeType === 1 && form.contains(target)) markDirty();
+      if (!target || target.nodeType !== 1) return;
+      if (form.contains(target)) {
+        markDirty();
+        return;
+      }
+      var other = target.closest ? target.closest("form") : null;
+      if (other && companions.indexOf(other) !== -1) markCompanionDirty(other);
     });
   });
 
@@ -358,12 +423,113 @@
   }
 
   /**
-   * One save of the whole form. Resolves with true when the server stored
-   * it, false otherwise; `options.refresh` false skips drawing the regions
-   * again (the editor is about to be left).
+   * Everything unsaved on the screen, saved once: the editor's form and then
+   * every changed companion form. Resolves with true when the server stored
+   * all of it, false otherwise; `options.refresh` false skips drawing the
+   * regions again and `options.follow` false stays on the page afterwards
+   * (the editor is about to be left).
    */
   function save(options) {
     if (saving) return saving;
+    var follow = !options || options.follow !== false;
+    var except = options && options.except ? options.except : null;
+    var queue = companions.filter(function (other) {
+      return other !== except && dirtyCompanions.indexOf(other) !== -1;
+    });
+
+    var run;
+    if (queue.length === 0) {
+      run = saveEditor(options);
+    } else {
+      // The editor first, drawn again as usual, so a refused companion
+      // afterwards never leaves rows on screen under keys already stored.
+      run = (dirty ? saveEditor({ follow: false }) : Promise.resolve(true)).then(function (stored) {
+        return stored ? saveCompanions(queue, follow) : false;
+      });
+    }
+
+    saving = run.then(function (result) {
+      saving = null;
+      return result;
+    }, function () {
+      saving = null;
+      return false;
+    });
+
+    return saving;
+  }
+
+  /**
+   * The address a companion's endpoint redirects to when it accepted the
+   * data — the same server answer admin/assets/save-bar.js trusts. A refused
+   * save redirects back without the marker.
+   */
+  function companionAccepted(response) {
+    return response.ok && /[?&](saved|updated|created)=[1-9][0-9]*(&|$)/.test(response.url);
+  }
+
+  /**
+   * Each changed companion posted once, in order, as its own button would
+   * post it; the first refusal stops the row and leaves it, and every form
+   * after it, unsaved with its input on screen. After the last one the page
+   * is loaded again, because only the server can draw what is now stored.
+   */
+  function saveCompanions(queue, follow) {
+    render("saving");
+    queue.forEach(function (other) {
+      other.inert = true;
+    });
+
+    function post(index) {
+      if (index >= queue.length) return Promise.resolve(true);
+      var other = queue[index];
+
+      return fetch(other.action, {
+        method: "POST",
+        credentials: "same-origin",
+        body: new FormData(other)
+      })
+        .then(companionAccepted, function () {
+          return false;
+        })
+        .then(function (accepted) {
+          if (!accepted) {
+            var name = other.getAttribute("data-save-name");
+            render("error", name ? word("error-in").replace(":form", name) : word("failed"));
+            return false;
+          }
+          dirtyCompanions.splice(dirtyCompanions.indexOf(other), 1);
+          return post(index + 1);
+        });
+    }
+
+    return post(0).then(function (stored) {
+      queue.forEach(function (other) {
+        other.inert = false;
+      });
+      if (!stored) return false;
+
+      if (!follow) {
+        markClean();
+        return true;
+      }
+      try {
+        sessionStorage.setItem(RELOAD_FLAG, "1");
+      } catch (e) {}
+      leavingOnPurpose = true;
+      if (movedTo) window.location.assign(movedTo);
+      else window.location.reload();
+      return true;
+    });
+  }
+
+  var movedTo = null;
+
+  /**
+   * One save of the editor's own form. Resolves with true when the server
+   * stored it, false otherwise.
+   */
+  function saveEditor(options) {
     var refresh = !options || options.refresh !== false;
     var follow = !options || options.follow !== false;
 
@@ -380,7 +546,7 @@
     // what is on screen stay one and the same.
     form.inert = true;
 
-    saving = fetch(form.action, {
+    return fetch(form.action, {
       method: "POST",
       credentials: "same-origin",
       headers: { Accept: "application/json" },
@@ -409,6 +575,7 @@
           leavingOnPurpose = true;
           render("saved", answer.message || "", "just-saved");
           if (follow) window.location.assign(data.redirect);
+          else movedTo = data.redirect;
           return true;
         }
 
@@ -427,7 +594,6 @@
         });
       })
       .then(function (result) {
-        saving = null;
         form.inert = false;
         form.removeAttribute("aria-busy");
         // Back to where the editor was, when that is still on the page and
@@ -438,8 +604,6 @@
         }
         return result;
       });
-
-    return saving;
   }
 
   saveButton.addEventListener("click", function () {
@@ -485,7 +649,7 @@
       setDialogBusy(true);
       // Only after the server said it stored everything; a refused save
       // closes the dialog and shows why, and nothing navigates.
-      save({ refresh: false, follow: false }).then(function (stored) {
+      save({ refresh: false, follow: false, except: request.except }).then(function (stored) {
         setDialogBusy(false);
         if (stored) {
           pendingLeave = null;
@@ -512,7 +676,8 @@
     if (request.from && typeof request.from.focus === "function") request.from.focus();
   }
 
-  function askToLeave(go, from) {
+  /** `except`: a companion form that is itself the way out, sent by go() and never by the save before it. */
+  function askToLeave(go, from, except) {
     if (!dialog || typeof dialog.showModal !== "function") {
       // No dialog on this screen: the browser's own question, still before leaving.
       if (window.confirm(word("leave-question"))) {
@@ -523,7 +688,7 @@
     }
 
     if (dialog.open) return;
-    pendingLeave = { go: go, from: from };
+    pendingLeave = { go: go, from: from, except: except || null };
     dialog.showModal();
     var stay = dialog.querySelector("[data-admin-editor-leave-stay]");
     if (stay) stay.focus();
@@ -585,7 +750,7 @@
   }
 
   document.addEventListener("click", function (event) {
-    if (!dirty || leavingOnPurpose) return;
+    if (!anyDirty() || leavingOnPurpose) return;
 
     // A link that says it discards on purpose ("Annuleren") needs no question.
     var discard = event.target && event.target.closest ? event.target.closest("a[href][data-admin-editor-leave]") : null;
@@ -605,11 +770,22 @@
 
   document.addEventListener("submit", function (event) {
     var other = event.target;
-    if (!dirty || leavingOnPurpose || event.defaultPrevented) return;
+    if (leavingOnPurpose || event.defaultPrevented) return;
     if (!(other instanceof HTMLFormElement) || other === form || other === passThrough) return;
     if ((other.getAttribute("method") || "").toLowerCase() === "dialog") return;
     var target = (other.getAttribute("target") || "").toLowerCase();
     if (target !== "" && target !== "_self") return;
+
+    // Nothing else unsaved: the form goes as it always did. A companion's
+    // own button is then this screen's save, and the page it lands on is
+    // the stored state, so leaving needs no question.
+    if (!dirtyBesides(other)) {
+      if (companions.indexOf(other) !== -1) {
+        leavingOnPurpose = true;
+        render("saving");
+      }
+      return;
+    }
 
     event.preventDefault();
     var submitter = event.submitter || null;
@@ -621,11 +797,11 @@
       } finally {
         passThrough = null;
       }
-    }, submitter);
+    }, submitter, other);
   });
 
   window.addEventListener("beforeunload", function (event) {
-    if (!dirty || leavingOnPurpose) return;
+    if (!anyDirty() || leavingOnPurpose) return;
     event.preventDefault();
     event.returnValue = "";
     return "";
@@ -639,11 +815,27 @@
   bar.hidden = false;
   render("saved");
 
+  // Back from saving companion forms: the page now shows what is stored.
+  try {
+    if (sessionStorage.getItem(RELOAD_FLAG)) {
+      sessionStorage.removeItem(RELOAD_FLAG);
+      render("saved", word("just-saved"), "just-saved");
+      savedTimer = window.setTimeout(function () {
+        if (!anyDirty() && !saving) render("saved");
+      }, 2500);
+    }
+  } catch (e) {}
+
+  // After the reload flag, so a form the server sent back unwritten is never
+  // announced as just saved.
   if (form.hasAttribute("data-admin-editor-unsaved")) markDirty();
+  companions.forEach(function (other) {
+    if (other.hasAttribute("data-save-bar-unsaved")) markCompanionDirty(other);
+  });
 
   // For a screen's own script and for tests: the one editor on this page.
   window.AdminEditor = {
-    isDirty: function () { return dirty; },
+    isDirty: anyDirty,
     save: save
   };
 })();

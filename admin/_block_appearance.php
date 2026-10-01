@@ -22,9 +22,11 @@ use App\Service\Blocks\BlockDefinitions;
  *
  * The form is its own, posting to api/admin/update-block-appearance.php with
  * the row's page_sections id. The screen's save bar watches it like any other
- * form (admin/assets/save-bar.js): a changed look marks the screen unsaved,
- * leaving warns, and the bar's Opslaan or the panel's own button saves it
- * once. The endpoint answers with `saved=<id>`, the marker the bar accepts.
+ * form — admin/assets/save-bar.js on a page or a project, and on a product
+ * admin/assets/admin-editor.js, which takes it as a companion form by the
+ * same rule: a changed look marks the screen unsaved, leaving warns, and the
+ * bar's Opslaan or the panel's own button saves it once. The endpoint
+ * answers with `saved=<id>`, the marker both bars accept.
  *
  * @param array<string, mixed> $pageSection one page_sections row of the list (never a draft: a draft is not in the list)
  */
