@@ -10,6 +10,7 @@ use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\ContentOwners\ContentPages;
 use App\Service\ContentOwners\OwnerContentGuard;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\SectionRegistry;
 
 /**
@@ -158,6 +159,10 @@ final class ContentBlockDrafts
             // the whole save back.
             if ($placed !== null) {
                 OwnerContentGuard::assertIntact((int) $placed['page_id']);
+
+                // The words a visitor can find it by, in the same commit
+                // (App\Service\Search\BlockSearchIndex; never throws).
+                BlockSearchIndex::reindexSection($placed);
             }
 
             if ($ownTransaction) {

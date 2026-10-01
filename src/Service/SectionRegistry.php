@@ -17,6 +17,7 @@ use App\Service\Blocks\CarriesBreadcrumb;
 use App\Service\Blocks\OffersPickerPresets;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\ContentOwners\OwnerContentGuard;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\Language\AdminTranslator;
 
 /**
@@ -459,7 +460,8 @@ class SectionRegistry
     /**
      * The block list's hide and show (page_sections.is_active), in one
      * transaction with what has to agree with it: hiding the last meaningful
-     * block of an owner that must keep one is refused (OwnerContentGuard).
+     * block of an owner that must keep one is refused (OwnerContentGuard),
+     * and the site search's copy of its words follows (BlockSearchIndex).
      *
      * @param array<string, mixed> $pageSection the page_sections row
      */
@@ -472,7 +474,10 @@ class SectionRegistry
             OwnerContentGuard::assertMayRemove($pageSection);
         }
 
-        $db->beginTransaction();
+        $ownTransaction = !$db->inTransaction();
+        if ($ownTransaction) {
+            $db->beginTransaction();
+        }
 
         try {
             $repository->setActive((int) $pageSection['id'], $isActive);
@@ -481,9 +486,14 @@ class SectionRegistry
                 OwnerContentGuard::assertIntact((int) $pageSection['page_id']);
             }
 
-            $db->commit();
+            // Hidden words are not found, shown ones are (BlockSearchIndex).
+            BlockSearchIndex::reindexSection($pageSection);
+
+            if ($ownTransaction) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($ownTransaction && $db->inTransaction()) {
                 $db->rollBack();
             }
 

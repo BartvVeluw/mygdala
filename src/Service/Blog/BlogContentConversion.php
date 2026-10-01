@@ -74,6 +74,9 @@ final class BlogContentConversion
                 foreach ($bodies as $code => $body) {
                     BlockLocalization::save('rich_text_sections', $sectionId, $code, [RichTextContent::BODY => $body]);
                 }
+
+                // The site search's copy of its words (BlockSearchIndex).
+                \App\Service\Search\BlockSearchIndex::reindexBlock('rich_text', (int) $sectionId);
             }
 
             (new BlogPostRepository($db))->update($postId, ['content_mode' => BlogContentMode::BLOCKS]);

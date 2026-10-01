@@ -347,6 +347,7 @@ try {
     $placedCarousel = (new \App\Repository\PageSectionRepository($db))->findBySectionTypeAndId('card_carousel', (int) $carousel['id']);
     if ($placedCarousel !== null) {
         \App\Service\ContentOwners\OwnerContentGuard::assertIntact((int) $placedCarousel['page_id']);
+        \App\Service\Search\BlockSearchIndex::reindexSection($placedCarousel);
     }
 
     $db->commit();

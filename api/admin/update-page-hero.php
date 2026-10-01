@@ -270,6 +270,9 @@ try {
         $repository->replaceImages($heroId, $sequence);
     }
 
+    // The site search's copy of its words (App\Service\Search\BlockSearchIndex).
+    \App\Service\Search\BlockSearchIndex::reindexBlock('page_hero', $heroId);
+
     $db->commit();
     PageHeroContent::clearCache();
 } catch (\Throwable $e) {

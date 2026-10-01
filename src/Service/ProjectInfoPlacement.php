@@ -63,6 +63,7 @@ final class ProjectInfoPlacement
 
         // Rows not named keep their order after the new one.
         $sections->reorder((int) $page['id'], [$newId]);
+        \App\Service\Search\BlockSearchIndex::reindexBlock(self::TYPE, (int) $sectionId);
 
         PageContent::clearCache();
         ProjectInfoContent::clearCache();

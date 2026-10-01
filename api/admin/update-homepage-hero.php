@@ -415,6 +415,9 @@ try {
         static fn (array $order) => $repository->reorderStats($heroId, $order)
     );
 
+    // The site search's copy of its words (App\Service\Search\BlockSearchIndex).
+    \App\Service\Search\BlockSearchIndex::reindexBlock('homepage_hero', $heroId);
+
     $db->commit();
     HomepageHeroContent::clearCache();
 } catch (\Throwable $e) {

@@ -81,13 +81,22 @@ final class ContentPages
 
         $db = Database::connection();
         $pages = new PageRepository($db);
-        $db->beginTransaction();
+        // Inside a caller's transaction, join it (the caller commits).
+        $ownTransaction = !$db->inTransaction();
+        if ($ownTransaction) {
+            $db->beginTransaction();
+        }
 
         try {
             $pageId = $pages->createContentPage(self::contentKey($kind, $ownerId), $kind);
             (new ContentPageRepository($db))->link($owner->linkTable(), $owner->linkColumn(), $ownerId, $pageId);
-            $db->commit();
+            if ($ownTransaction) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
+            if (!$ownTransaction) {
+                throw $e;
+            }
             $db->rollBack();
 
             // Two first blocks at the same moment: the other request made it.
@@ -186,14 +195,20 @@ final class ContentPages
     public static function deleteOwner(string $kind, int $ownerId, \Closure $deleteOwnerRow): void
     {
         $db = Database::connection();
-        $db->beginTransaction();
+        // Inside a caller's transaction, join it: still one commit.
+        $ownTransaction = !$db->inTransaction();
+        if ($ownTransaction) {
+            $db->beginTransaction();
+        }
 
         try {
             self::deleteFor($kind, $ownerId);
             $deleteOwnerRow();
-            $db->commit();
+            if ($ownTransaction) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($ownTransaction && $db->inTransaction()) {
                 $db->rollBack();
             }
 

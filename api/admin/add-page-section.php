@@ -148,6 +148,8 @@ try {
             $sectionKey,
             $sectionId
         );
+        // Placed at once with its first words: the site search's copy too.
+        \App\Service\Search\BlockSearchIndex::reindexBlock($sectionType, (int) $sectionId);
     }
 } catch (\Throwable $e) {
     error_log('[api/admin/add-page-section.php] ' . $e->getMessage());
