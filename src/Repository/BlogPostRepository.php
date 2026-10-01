@@ -757,7 +757,7 @@ class BlogPostRepository extends Repository
         // every language.
         $columns = [
             'slug', 'featured_media_id', 'status', 'published_at', 'author_name',
-            'noindex', 'og_media_id',
+            'noindex', 'og_media_id', 'content_mode',
         ];
 
         $parameters = [];
@@ -773,6 +773,9 @@ class BlogPostRepository extends Repository
                 'noindex' => (int) (bool) $value,
                 'featured_media_id', 'og_media_id' => ($value === null || (int) $value <= 0) ? null : (int) $value,
                 'status' => BlogPostStatus::normalize($value),
+                // A closed pair (App\Service\Blog\BlogContentMode); anything
+                // else is the classic body every existing post has.
+                'content_mode' => in_array($value, \App\Service\Blog\BlogContentMode::ALL, true) ? $value : \App\Service\Blog\BlogContentMode::LEGACY,
                 // The one NOT NULL column is stored as given: it is validated
                 // before it gets here, and turning an empty one into NULL
                 // would swap a rejected save for a fatal.

@@ -67,6 +67,13 @@ try {
     // empty string.
     $title = BlogLocalization::postName($id);
 
+    // Its content blocks first (Blog 2.0): every block through
+    // SectionRegistry::delete() — words, child rows, files — its drafts, then
+    // the link and the content page, exactly as a product or a project goes.
+    // The link's RESTRICT key refuses the other order. Library images and the
+    // post's categories and tags stay.
+    \App\Service\ContentOwners\ContentPages::deleteFor(\App\Service\Blog\BlogPostContentOwner::KIND, $id);
+
     $repository->delete($id);
 
     $_SESSION['admin_blog_flash'] = 'Bericht "' . $title . '" is verwijderd.';

@@ -205,7 +205,7 @@ try {
         'og_media_id' => $socialMedia?->id,
     ]);
 
-    BlogLocalization::savePost($id, $language, [
+    $words = [
         // '' is "this language has no public route", not an address.
         BlogLocalization::SLUG => $slug === '' ? null : $slug,
         BlogLocalization::TITLE => $submitted['title'],
@@ -213,7 +213,17 @@ try {
         BlogLocalization::BODY => RichTextSanitizer::sanitize($submitted['body']),
         BlogLocalization::META_TITLE => $submitted['meta_title'],
         BlogLocalization::META_DESCRIPTION => $submitted['meta_description'],
-    ]);
+    ];
+
+    // A post in blocks mode has no body field on its editor (Blog 2.0): its
+    // classic body is NOT what this save is about, and leaving the key out
+    // keeps it exactly as stored, so switching back to the classic text
+    // loses nothing (App\Service\Blog\BlogContentMode).
+    if (\App\Service\Blog\BlogContentMode::usesBlocks($post)) {
+        unset($words[BlogLocalization::BODY]);
+    }
+
+    BlogLocalization::savePost($id, $language, $words);
 
     $repository->setCategories($id, $categoryIds);
     $repository->setTags($id, BlogPostService::resolveTagIds($tagLine));

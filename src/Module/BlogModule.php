@@ -279,6 +279,15 @@ final class BlogModule extends ModuleDefinition
         return ['post' => new \App\Service\Blog\BlogSearchProvider()];
     }
 
+    /**
+     * A blog post carries content blocks the way a product and a project do
+     * (Blog 2.0, CONTENT-BLOCKS.md "Blokken op een product of project").
+     */
+    public function contentOwners(): array
+    {
+        return [new \App\Service\Blog\BlogPostContentOwner()];
+    }
+
     /** A blog post is the first kind on the Publishing Engine (docs/publishing/ARCHITECTURE.md). */
     public function publishables(): array
     {

@@ -65,6 +65,9 @@ try {
         'slug' => BlogPostService::slugFor('', $title, $repository),
         'status' => BlogPostStatus::DRAFT,
         'published_at' => null,
+        // Blog 2.0: a new post is written in content blocks. Only posts from
+        // before it keep the classic body (App\Service\Blog\BlogContentMode).
+        'content_mode' => \App\Service\Blog\BlogContentMode::BLOCKS,
     ]);
     BlogLocalization::savePost($postId, $language, [BlogLocalization::TITLE => $title]);
 

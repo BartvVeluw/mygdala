@@ -70,7 +70,17 @@ if ($post === null) {
     // Every word in the language of the request, the fallback already
     // applied (App\Service\Blog\BlogContent).
     $title = BlogContent::title($post);
-    $body = BlogContent::body($post);
+
+    /**
+     * ONE BODY, chosen by the post's explicit mode (Blog 2.0,
+     * App\Service\Blog\BlogContentMode): the classic rich-text body exactly
+     * as before, or the post's content blocks through the ordinary block
+     * engine. Never both, and never "blocks if there are any".
+     */
+    $blocksKey = \App\Service\Blog\BlogContentMode::usesBlocks($post)
+        ? \App\Service\ContentOwners\ContentPages::contentKey(\App\Service\Blog\BlogPostContentOwner::KIND, (int) $post['id'])
+        : null;
+    $body = $blocksKey === null ? BlogContent::body($post) : '';
     $author = BlogContent::author($post);
     $showDate = BlogSettings::showDate() && BlogContent::publicationDate($post['published_at']) !== '';
 }
@@ -92,6 +102,11 @@ if ($post === null) {
 <?php
 if ($post !== null) {
     PageAssets::requireStyle('assets/css/blog/blog.css');
+
+    // The stylesheets and scripts of the blocks this post really has.
+    if ($blocksKey !== null) {
+        \App\Service\SectionRegistry::collectPageAssets($blocksKey);
+    }
 }
 require __DIR__ . '/partials/page-assets.php';
 ?>
@@ -162,6 +177,12 @@ require __DIR__ . '/partials/header.php';
           <div class="rich-content blog-post__body" data-reveal><?= $body ?></div>
         </div>
       </section>
+    <?php endif; ?>
+
+    <?php if ($blocksKey !== null): ?>
+      <?php /* The post's own blocks, at their own widths, in their own order —
+               nothing at all for a post that has none yet. */ ?>
+      <?php \App\Service\SectionRegistry::renderPage($blocksKey); ?>
     <?php endif; ?>
 
     <?php if ($post['tags'] !== [] || $post['categories'] !== []): ?>
