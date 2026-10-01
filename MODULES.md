@@ -183,13 +183,14 @@ Die dragen daarom een `order`-getal, en Core sorteert zijn eigen regels en die
 van de modules samen. Dat is het enige ordeningsmechanisme; niets hangt af van
 de volgorde waarin modules geregistreerd staan.
 
-Een galerijbron draagt ook een `order`, al komen daar alle bronnen uit
-modules: de laagste beschikbare bron is de bron waarmee een nieuw galerijblok
-begint. Portfolio-items (10) staan vóór een collectie van de Shop (20). Een
-bron kan ook zijn eigen kaart in de blokkenkiezer meegeven (`picker`: categorie,
-naam, omschrijving, voorbeelden). Zo toont de kiezer het ene galerijblok als
-*Collectiegalerij* onder Shop en *Portfoliogalerij* onder Portfolio, elk met
-zijn bron voorgekozen (`PAGE-EDITOR.md`).
+Een galerijbron hoort bij **één bloktype** van haar module (`block`): de
+collectie van de Shop bij de *Collectiegalerij* (`item_gallery`), de
+portfolio-items bij *Projecten* (`project_cards`). Een blok biedt, bewaart en
+rendert alleen zijn eigen bronnen (`ItemGallerySources::availableFor()`,
+`belongsTo()`), dus de Shop-galerij kan nooit projecten tonen. Een bron draagt
+ook een `order`: de laagste beschikbare bron van een blok is waarmee een nieuw
+blok begint (`defaultSourceFor()`). Tot v0.1.15 had een bron een eigen
+kiezerkaart (`picker`); die is weg met de presets (`PAGE-EDITOR.md`).
 
 **Een module bezit een header-slot, niet de header.** `headerPartials()` voegt
 iets toe aan de actiezone rechts — vandaag alleen de mini-winkelwagen. De
@@ -358,8 +359,9 @@ overleeft de Shop uitzetten en komt onveranderd terug.
 
 ## Blokken van een uitgeschakelde module
 
-Een `page_sections`-rij die naar `product_grid` wijst blijft staan als de Shop
-uit gaat. Het bloktype is dan niet geregistreerd, dus:
+Een `page_sections`-rij die naar `product_grid` wijst (of naar
+`shop_collections`, `featured_product` of `item_gallery`, de Collectiegalerij)
+blijft staan als de Shop uit gaat. Het bloktype is dan niet geregistreerd, dus:
 
 - **publiek**: de sectie wordt overgeslagen, de rest van de pagina rendert
   normaal — hetzelfde vangnet als voor een onbekend bloktype
@@ -857,7 +859,12 @@ Alles wat er ook zou zijn zonder webshop.
   op staat en laat alleen zo'n pagina kiezen (plus de huidige keuze); een
   pagina kiezen voegt nooit zelf een blok toe. Het blok **Collectie-tegels**
   (`shop_collections`) volgt hetzelfde contract: handmatig, op elke gewone
-  pagina, hooguit één per pagina, verwijderbaar. De winkelpagina
+  pagina, hooguit één per pagina, verwijderbaar. Beide kunnen sinds v0.1.15
+  een eigen, optionele kop krijgen (bovenkop, titel, tekst, per taal; editor
+  `admin/shop-listing.php`) en Extra vormgeving (`CONTENT-BLOCKS.md`,
+  "Productgrid en Collectie-tegels: een eigen kop"). De derde Shop-lijst is de
+  **Collectiegalerij** (`item_gallery`): de producten van één collectie als
+  beeldraster, sinds v0.1.15 een blok van de Shop en alleen van de Shop. De winkelpagina
   (`content_key = shop`) is de systeempagina van de Shop ("Systeempagina's
   van modules"): een installatie die haar al had houdt haar eigen blokken,
   een andere kreeg haar leeg, en leeg verandert ze niets. Elke Shop-link
@@ -1704,8 +1711,10 @@ overzicht zijn aparte uitbreidingen.
 
 **Projecten op een gewone pagina.** Portfolio brengt één eigen blok mee:
 **Projecten** (`project_cards`, `src/Service/Blocks/ProjectCardsBlock.php`),
-in de blokkenkiezer onder *Portfolio*, naast de kaart *Portfoliogalerij* (het
-galerijblok met bron `portfolio` voorgekozen, `PAGE-EDITOR.md`). Het is geen tweede galerij: het
+in de blokkenkiezer onder *Portfolio*. Het is dé manier om projecten in een
+blok te tonen: de oude *Portfoliogalerij* (het galerijblok op portfolio-items)
+is in v0.1.15 opgegaan in Projecten (`db/migrations/20261015110000`,
+`CONTENT-BLOCKS.md`, "Galerijen opgeschoond"). Het is geen tweede galerij: het
 bewaart zijn instellingen in dezelfde `item_galleries`-rij als het galerijblok,
 leest en tekent via `ItemGalleryContent` en `partials/section-item-gallery.php`,
 en krijgt zijn projecten en de link van elke kaart van de galerijbron

@@ -276,32 +276,22 @@ geweigerd wordt — vaste blokken, blokken die op deze pagina niet mogen,
 blokken die hun maximum al bereikt hebben, en blokken van een uitgeschakelde
 module.
 
-**Een blok kan meer dan één kaart hebben: presets.** Een blok dat
-`App\Service\Blocks\OffersPickerPresets` implementeert, krijgt in de kiezer een
-kaart per preset in plaats van één kaart: hetzelfde bloktype, met één
-instelling al gekozen, elke kaart met eigen naam, omschrijving, voorbeelden en
-categorie. Zo'n kaart post `section_preset` = `<type>:<preset>`. Het endpoint
-accepteert dat alleen als het type beschikbaar is én de preset er een is die
-het blok nu aanbiedt (`SectionRegistry::offersPreset()`). Na het toevoegen
-gedraagt het blok zich precies als een blok zonder preset, en de instelling
-is gewoon te wijzigen in zijn editor.
+**Eén bloktype is één kaart.** Een kaart post `section_type` en niets
+anders. Tot v0.1.15 kon een blok meer kaarten hebben (presets,
+`OffersPickerPresets` en `section_preset`): de galerij stond er als
+*Collectiegalerij* onder Shop en als *Portfoliogalerij* onder Portfolio. Dat
+mechanisme is met zijn enige gebruiker verdwenen (`CONTENT-BLOCKS.md`,
+"Galerijen opgeschoond"). Een gepost `section_preset` heeft geen type en wordt
+geweigerd zonder iets toe te voegen.
 
-Enige gebruiker: de galerij (`item_gallery`). Die toont een kaart per bron van
-een ingeschakelde module:
-
-| Kaart | Categorie | Bron voorgekozen |
+| Kaart | Categorie | Bloktype |
 |---|---|---|
-| *Collectiegalerij* | *Shop* | `collection` (kies daarna de collectie) |
-| *Portfoliogalerij* | *Portfolio* | `portfolio` |
+| *Collectiegalerij* | *Shop* | `item_gallery` (kies daarna de collectie) |
+| *Productgrid*, *Collectie-tegels* | *Shop* | `product_grid`, `shop_collections` |
+| *Projecten* | *Portfolio* | `project_cards` |
 
-Er is geen losse kaart *Portfolio-/collectiegalerij* meer. Staat een module
-uit, dan verdwijnt zijn kaart, en zonder andere blokken ook zijn kop.
-De kaartteksten komen uit de bron (`picker` in
-`ModuleDefinition::itemGallerySources()`), vertaald via
-`block.item_gallery.preset.<bron>.*`. **Alleen de kiezer** splitst: de
-Contentblokken-bibliotheek beschrijft bloktypes en toont de galerij één keer,
-onder zijn eigen categorie *Beeld & media*. *Projecten* (`project_cards`) staat
-in de kiezer en de bibliotheek onder *Portfolio*.
+Staat een module uit, dan verdwijnen haar kaarten, en zonder andere blokken
+ook haar kop in de kiezer.
 
 **Een kaart zegt wat het blok is, niet alles wat erover te zeggen valt.** De
 schets, de naam met het pictogram, de beschrijving en onderaan de categorie.

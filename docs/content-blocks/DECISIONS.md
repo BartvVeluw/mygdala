@@ -142,7 +142,8 @@ pagina".
 
 ## De inhoudsbron is een gesloten lijst, geen query-builder
 
-`item_gallery` (**Portfolio-/collectiegalerij**) heeft één instelling
+`item_gallery` (tot v0.1.15 **Portfolio-/collectiegalerij**, sindsdien de
+**Collectiegalerij** van de Shop) heeft één instelling
 `source_type` met een expliciete lijst waarden in `ItemGallerySources`, die de
 modules aanvullen met `itemGallerySources()`: `portfolio` van Portfolio,
 `collection` van de Shop. Een derde bron is straks één bijdrage in de module
@@ -595,3 +596,40 @@ zijn origineel (±400 KB) in een kader van 20rem. Dus: de thumbnail van de
 bibliotheek als preview, `loading="lazy"`, en een veld dat pas gewekt wordt
 als het in de buurt van het beeld komt. De server print de hele staat, dus
 een ongewekt veld is niet kapot maar alleen nog niet interactief.
+
+## Eén galerij per module, en geen presets meer (v0.1.15)
+
+De galerij (`item_gallery`) kon portfolio-items of een collectie tonen, de
+kiezer toonde haar daarom twee keer (*Collectiegalerij*, *Portfoliogalerij*,
+via `OffersPickerPresets`), en Portfolio had daarnaast *Projecten* op dezelfde
+rij. Een redacteur zag drie kaarten voor twee dingen, en de Shop-galerij kon
+in haar editor op projecten gezet worden.
+
+Besloten: **elk blok toont de inhoud van één module.** De galerij is de
+Collectiegalerij van de Shop (geregistreerd door `ShopModule`), Projecten is
+de manier van Portfolio. Een bron draagt het bloktype waar ze bij hoort
+(`ItemGallerySources`, `block`), en editor, endpoint en render vragen dat aan
+die ene plek in plaats van elk een eigen `if`. Het preset-mechanisme is met
+zijn enige gebruiker verwijderd: dode compatibiliteitscode zou de kiezer en
+`add-page-section.php` blijven belasten.
+
+De migratie zette de portfolio-galerijen op hun plek om naar Projecten, omdat
+het dezelfde rij is: alleen het type verandert, en niets kan verloren gaan of
+dubbel staan. Wat Projecten niet had (bovenkop, slottekst, knop) kreeg het
+erbij in plaats van weg te gooien; `tight_top` blijft als legacy-waarde
+staan. Zie `CONTENT-BLOCKS.md`, "Galerijen opgeschoond", met de mappingtabel.
+
+## De kop van Productgrid en Collectie-tegels: een rij, geen uitzondering (v0.1.15)
+
+De twee lijstblokken hadden geen eigen rij (`section_id` was het pagina-id),
+en woorden in `block_translations` hangen aan een rij. Twee opties: woorden
+aan de `page_sections`-rij hangen, of de blokken een rij geven.
+
+Besloten: **een rij, zoals elk blok** (`shop_listing_blocks`, gedeeld door
+beide types). Alles wat al bestond werkt dan zonder uitzondering: de
+woorden-registry, het opruimen bij verwijderen, de zoekindex, de concept-
+levensloop en de editor-guards. Een uitzondering in `BlockLocalization` of
+`BlockTextExtractor` voor "woorden aan een paginasectie" zou op al die
+plekken een tweede pad hebben gekost. De kop zelf is een klein gedeeld
+primitief (`BlockHead`) in plaats van een refactor van alle blokken met een
+kop: die schrijven hem nog zelf uit en kunnen het later overnemen.

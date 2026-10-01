@@ -341,7 +341,8 @@ Fase 3B, in drie golven (één migratie per golf):
 | A | Paginakop (`page_hero`) | `page_heroes`: eyebrow, title, lead |
 | A | Formulier (`form`) | `form_blocks`: title, intro |
 | A | Offerte-/contactformulier (`contact_form`) | `contact_form_sections`: title |
-| A | Galerij (`item_gallery`) en Projecten (`project_cards`, Portfolio) | `item_galleries` (gedeeld): eyebrow, title, lead, footer_note, button_label |
+| A | Collectiegalerij (`item_gallery`, Shop) en Projecten (`project_cards`, Portfolio) | `item_galleries` (gedeeld): eyebrow, title, lead, footer_note, button_label |
+| A | Productgrid (`product_grid`) en Collectie-tegels (`shop_collections`), sinds v0.1.15 | `shop_listing_blocks` (gedeeld): eyebrow, title, lead (`BlockHead`) |
 | B | Openingssectie homepage (`homepage_hero`) | `homepage_hero`: eyebrow, title, title_highlight, lead, primary_label, secondary_label, image_alt, badge_title, badge_text; `homepage_hero_stats`: primary_text, secondary_text |
 | B | Kenmerken in kaartjes (`feature_grid`) | `feature_grids`: eyebrow, title, lead; `feature_grid_items`: title, body |
 | B | Veelgestelde vragen (`faq`) | `faq_sections`: eyebrow, title; `faq_items`: question, answer |
@@ -352,10 +353,10 @@ Fase 3B, in drie golven (één migratie per golf):
 | C | Detailsectie (`detail_section`) | `detail_sections`: nav_label, title, lead, **body (rich)**, main_image_alt, closing_note, cta_label; `detail_section_points`: title, body; `detail_section_images`: alt |
 | C | Kaarten-carrousel (`card_carousel`) | `card_carousels`: eyebrow, title, lead; `carousel_cards`: title, body, image_alt, link_label, number_label; `carousel_card_tags`: label (kleinkind) |
 
-Het vaste blok `quicknav` en de Shop-blokken `product_grid` en
-`shop_collections` hebben geen eigen rijen en dus geen eigen woorden: de
-quicknav toont de labels van de Detailsecties, het productgrid de namen van de
-producten, de collectie-tegels die van de collecties.
+Het vaste blok `quicknav` heeft geen eigen rij en dus geen eigen woorden: het
+toont de labels van de Detailsecties. Het productgrid en de collectie-tegels
+hebben alleen hun eigen kop als woorden; de namen van de producten en de
+collecties blijven van de Shop.
 
 ### De tabel `block_translations`
 

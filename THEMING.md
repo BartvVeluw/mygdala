@@ -811,7 +811,7 @@ hun keuze eerste/tweede knop (`nav_items.button_variant`) en volgen zo de
 standaarden. Met een eigen, betekenisvolle vorm en dus buiten het systeem:
 de ronde icoonknoppen (zoeken, menu, winkelwagen-icoon, carrouselpijlen,
 lightbox, aantal-stepper), filterchips, `.site-search__submit` en de
-vaste "Bekijk project"-overlay van de Portfoliogalerij.
+vaste "Bekijk project"-overlay van het blok Projecten.
 
 ### Beheren
 

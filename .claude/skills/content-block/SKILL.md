@@ -118,9 +118,15 @@ en `GenericBlockDefaultsTest` bewaken beide.
   `ResponsiveMediaContractTest`. Het kader knipt af (`overflow: hidden`, en
   het kader in `ResponsiveMediaZoomContractTest::FRAMES`), anders loopt een
   zoom erbuiten. Nooit een eigen `object-position`, `scale` of `<picture>`.
-- **Eén blok, meer kiezerkaarten?** Implementeer `OffersPickerPresets`
-  (presets, zoals de galerij als Collectiegalerij en Portfoliogalerij), nooit
-  een tweede bloktype met dezelfde tabel of editor (`PAGE-EDITOR.md`).
+- **Eén bloktype is één kiezerkaart.** Presets bestaan niet meer (v0.1.15).
+  Toont een blok de inhoud van een module, dan is het een blok van die module
+  met een bron die bij dat ene type hoort (`ItemGallerySources`, `block`):
+  de Collectiegalerij is van de Shop, Projecten van Portfolio
+  (`CONTENT-BLOCKS.md`, "Galerijen opgeschoond").
+- **Een optionele kop (bovenkop, titel, tekst)?** Gebruik
+  `App\Service\Blocks\BlockHead` (velden, zoekrollen, lezen),
+  `partials/section-head.php` en `admin/_block_head_fields.php`, zoals
+  Productgrid en Collectie-tegels; schrijf de drie velden niet opnieuw uit.
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
 - **Toont je blok items uit een bron** (zoals de galerij en Projecten), laat

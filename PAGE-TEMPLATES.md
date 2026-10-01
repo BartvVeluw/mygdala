@@ -225,7 +225,7 @@ tegenover `isProtected()`).
 | **Homepage** (`/`) | **Ja.** De site-root moet altijd renderen, en `homepage_hero` is exclusief voor deze pagina en niet verwijderbaar. |
 | **Shop** (`/shop.php`) | **Nee, waar hij bestaat.** Zijn `product_grid` en `shop_collections` zijn gewone Shop-blokken die hij houdt. Niet meer beschermd. Een verse installatie heeft deze pagina niet; het productoverzicht is een keuze (`MODULES.md`). |
 | **Diensten** (`/diensten.php`) | **Bijna niet.** Alleen `quicknav` bindt hem: een functioneel blok dat op `allowed_pages: ['diensten']` staat. Alle overige blokken zijn gewone, handmatig toevoegbare blokken. |
-| **Portfolio** (`/portfolio`, vroeger `/portfolio.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Feature Grid, Portfolio-/collectiegalerij, CTA Band, Marquee). Een legacy vaste route met volledig CMS-beheerde inhoud. |
+| **Portfolio** (`/portfolio`, vroeger `/portfolio.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Feature Grid, Projecten — tot v0.1.15 de Portfolio-/collectiegalerij —, CTA Band, Marquee). Een legacy vaste route met volledig CMS-beheerde inhoud. |
 | **Over mij** (`/over-mij.php`) | **Nee.** Uitsluitend gewone blokken. Legacy vaste route. |
 | **Contact** (`/contact.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Offerte-/contactformulier, Contactkaart). Legacy vaste route. |
 

@@ -30,9 +30,10 @@ Er is nog één vast blok: `quicknav`. Al het andere is een gewoon, toevoegbaar
 blok. `product_grid` en `shop_collections` waren vaste blokken van de
 winkelpagina; sinds het productoverzicht een pagina is die de eigenaar kiest
 (`MODULES.md`, "Shop") zijn het gewone Shop-blokken, elk hooguit één per
-pagina, zonder eigen inhoudsrij: hun `page_sections.section_id` is het id van
-de pagina, zodat `UNIQUE(section_type, section_id)` per pagina geldt en niet
-per site. Een historische rij houdt het id dat hij had (0).
+pagina. Tot v0.1.15 hadden ze geen eigen inhoudsrij (hun `section_id` was het
+pagina-id, 0 voor de historische winkelpagina); sinds hun optionele kop heeft
+elk een rij in `shop_listing_blocks` en wijst `section_id` daarnaar, zoals bij
+elk ander blok (`db/migrations/20261015100000`).
 
 ## Blok-instanties
 
@@ -125,11 +126,12 @@ Een blok mag zijn inhoud uit een **instelbare bron** halen. Die bronnen zijn
 altijd een expliciete, gesloten lijst — nooit een generieke query-builder — en
 een bronsleutel uit een request wordt daartegen gevalideerd vóór gebruik,
 precies zoals een bloktype tegen de registry (en nog eens bij het lezen, zodat
-een handmatig aangepaste rij terugvalt op de eerste beschikbare bron). Vandaag
-geldt dit voor `item_gallery` (`ItemGallerySources`: `portfolio` van de
-Portfolio-module en `collection` van de Shop). Het blok **Projecten** van
-Portfolio (`project_cards`) is diezelfde galerij met de bron vast op
-`portfolio`; waarom dat een eigen bloktype is, staat in `DECISIONS.md`.
+een handmatig aangepaste rij niets toont). Vandaag geldt dit voor de blokken
+op `item_galleries` (`ItemGallerySources`), en elke bron hoort bij één
+bloktype: `collection` van de Shop bij de Collectiegalerij (`item_gallery`),
+`portfolio` van de Portfolio-module bij **Projecten** (`project_cards`).
+Waarom Projecten een eigen bloktype is en de galerij sinds v0.1.15 alleen van
+de Shop, staat in `DECISIONS.md`.
 
 Elke bron levert dezelfde genormaliseerde itemvorm, dus het blok houdt één
 renderpad, en leest door de bestaande repositories heen zodat er geen tweede

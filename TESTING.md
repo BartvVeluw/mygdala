@@ -532,13 +532,19 @@ presentatie-metadata van een blok of de opslagbalk
                         ge-escaped, zonder sitetekst) en
                         BlockPreviewContractTest (de bron van
                         admin/block-preview.php) — geen webserver nodig.
-                        BlockPickerTest bewijst ook de presets: de galerij
-                        als Collectiegalerij (Shop) en Portfoliogalerij
-                        (Portfolio), per module aan en uit
---testsuite blocks      voegt GalleryPickerPresetHttpTest toe: een preset-
-                        kaart maakt over echte HTTP het ene item_gallery-blok
-                        met zijn bron gekozen, en een preset die het blok
-                        niet aanbiedt wordt geweigerd zonder iets toe te voegen
+                        BlockPickerTest bewijst ook één kaart per type: de
+                        Collectiegalerij onder Shop, Projecten onder
+                        Portfolio, geen Portfoliogalerij, per module aan en uit
+--testsuite blocks      voegt CollectionGalleryHttpTest toe: over echte HTTP
+                        maakt de galerijkaart een galerij op een collectie en
+                        Projecten een blok op portfolio-items, een oud
+                        section_preset voegt niets toe, de galerij-editor
+                        weigert portfolio-items als bron, en met de Shop uit
+                        zijn editor en endpoint dicht; en ShopListingBlockTest
+                        + ShopListingEditorHttpTest (de kop van Productgrid en
+                        Collectie-tegels: byte-gelijk zonder kop, per taal,
+                        ge-escaped, zoeken zonder productwoorden, Extra
+                        vormgeving, de vier guards, Shop uit)
 --testsuite blocks      dezelfde vijf, plus ContentBlockArchitectureTest:
                         één lijst, één toevoegknop, en die staat ónder de
                         blokken; PageBuilderScreenTest: het echte

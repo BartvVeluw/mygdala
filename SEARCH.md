@@ -232,8 +232,10 @@ public function searchFields(): array
 
 `BlockSearchContractTest` eist dat elk blok elk veld classificeert, zodat een
 **nieuw blok** moet kiezen en Search zelf nooit verandert. Een blok zonder
-eigen woorden (Witruimte, Productraster, Collecties, Projectafbeeldingen,
-Mediabanner, het Diensten-snelmenu) geeft niets; ook de alt-teksten van de
+eigen woorden (Witruimte, Projectafbeeldingen, Mediabanner, het
+Diensten-snelmenu) geeft niets. Productgrid en Collectie-tegels geven sinds
+v0.1.15 alleen hun eigen kop (bovenkop en tekst als tekst, titel als kop),
+nooit een productnaam of collectietekst (`BlockHead::searchRoles()`); ook de alt-teksten van de
 projectfoto's die Projectafbeeldingen toont niet. De koppen binnen een rich
 text (`<h1>`–`<h6>`) tellen als kop.
 

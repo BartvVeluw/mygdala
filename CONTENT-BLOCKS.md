@@ -332,7 +332,7 @@ redacteur ze tussen andere blokken kan slepen of verbergen.
   verbergen en tonen (`toggle-page-section.php`), Extra vormgeving. Verwijderen
   weigert de lijst (`isDeletable()`), het endpoint ook.
 - **Geen foto's, geen sectie**; nooit "leeg" genoemd (dynamisch, zoals het
-  Productraster).
+  Productgrid).
 - **Projectinformatie** (`project_info`) en de vrije indeling zijn met
   Portfolio 3.0 verwijderd (`MODULES.md`, "Vaste projectkop en verplaatsbare
   pagina-inhoud", met de migratie).
@@ -495,8 +495,9 @@ drafts van een pagina eerst zelf op.
 **Welke blokken.** Elk blok met een eigen editor (`BlockDefinition::opensAsDraft()`,
 standaard `true`). Niet: de Paginakop en de Homepage Hero (hun `create()`
 schrijft de ene rij van hun pagina, geen nieuwe instantie die Annuleren kan
-terugnemen) en een blok zonder editor (Productraster, Collecties), dat meteen
-geplaatst wordt zoals vroeger en in de lijst oplicht (`added=`).
+terugnemen) en een blok zonder editor, dat meteen geplaatst wordt en in de
+lijst oplicht (`added=`). Productgrid en Collectie-tegels hebben sinds v0.1.15
+een editor voor hun kop en openen dus ook als concept.
 
 **Een bestaand blok** komt hier nooit langs. Annuleren of teruggaan in zijn
 editor is weggaan zonder opslaan; `discard-block-draft.php` verwijdert alleen
@@ -568,8 +569,8 @@ fout is nooit een waarschuwing.
 | Galerij, Projecten | items, **of** een bron die ze kan geven (`ItemGalleryContent::isConfigured()`): een dynamisch blok wordt op zijn configuratie beoordeeld, niet op wat de bron vandaag bevat |
 
 Nooit beoordeeld, met reden (`ContentBlockLifecycleContractTest::NEVER_EMPTY`):
-Witruimte (decoratief), Productraster, Collecties en Projectafbeeldingen
-(dynamisch), het Offerte-/contactformulier (toont altijd de contactkaart), de
+Witruimte (decoratief), Productgrid, Collectie-tegels en Projectafbeeldingen
+(dynamisch: met of zonder kop tonen ze wat de Shop of het project vandaag heeft), het Offerte-/contactformulier (toont altijd de contactkaart), de
 Paginakop en de Homepage Hero.
 
 **Een nieuw blok** implementeert `InspectsContent`, of komt met reden in
@@ -849,13 +850,13 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    daarom `max_instances => 1` nodig, anders zou een tweede aanroep dezelfde
    inhoudsrij teruggeven.
 
-   **Meer dan één kaart in de kiezer, zonder tweede bloktype.** Moet één
-   blok onder twee namen of categorieën te kiezen zijn, dan implementeert het
-   `App\Service\Blocks\OffersPickerPresets`: `pickerPresets()` geeft een
-   gesloten lijst kaarten, en `createFromPreset()` is `create()` met één
-   instelling gekozen. De galerij doet dit (*Collectiegalerij* onder Shop,
-   *Portfoliogalerij* onder Portfolio, `PAGE-EDITOR.md`). Maak hiervoor nooit
-   een tweede bloktype met dezelfde tabel, editor of partial.
+   **Eén bloktype, één kaart in de kiezer.** Het preset-mechanisme
+   (`OffersPickerPresets`, één blok als meer kaarten) is in v0.1.15 met zijn
+   enige gebruiker verdwenen: de galerij was *Collectiegalerij* én
+   *Portfoliogalerij*, en dat verwarde. Toont een blok inhoud van een andere
+   module, dan is het een blok van die module (zoals Projecten), met een
+   bron uit `ItemGallerySources` die bij dat ene bloktype hoort
+   ("Galerijen opgeschoond").
 8. **Eigen JS/CSS — alleen als het blok die nodig heeft.** Zet ze in
    `assets/js/blocks/<type>.js` en `assets/css/blocks/<type>.css` en noem ze
    in je definitie:
@@ -1065,10 +1066,11 @@ sinds deze regel, zoals Formulier en de galerij al deden).
 |---|---|---|
 | Kenmerken in kaartjes, Stappenplan, Kaarten-carrousel, Hover kaarten grid | optioneel | `h3` onder de titel, anders `h2` |
 | Tekst met afbeelding | optioneel | idem, voor de titel van een item |
-| Collectie-tegels, Contactkaart, Productgrid | geen | `h2` |
+| Collectie-tegels, Productgrid | optioneel (sinds v0.1.15) | `h3` onder de titel, anders `h2` |
+| Contactkaart | geen | `h2` |
 | Gerelateerde producten | optionele kop | `h3` onder de kop, anders `h2` |
 | Collectie- en personaliseerpagina (productkaarten onder de `<h1>`) | — | `h2` |
-| Projecten, Portfoliogalerij, gerelateerde projecten | optioneel | geen kop: de titel op een kaart is een onderschrift (`<p>`) |
+| Projecten, Collectiegalerij, gerelateerde projecten | optioneel | geen kop: de titel op een kaart is een onderschrift (`<p>`) |
 
 `Tests\Service\CardHeadingContractTest` rendert het voorbeeld van élk blok met en
 zonder zijn titel en faalt op een overgeslagen niveau, een lege kop of een
@@ -1245,10 +1247,62 @@ zonder woorden (de Mediabanner is het tweede), en staat daarom met naam in
 `BlockSampleContractTest::WORDLESS`. De editor (`admin/spacer.php`) toont
 alleen *Hoogte*. Tonen of verbergen doe je met het oog in de paginabouwer.
 
-**Productgrid en Collectie-tegels** printen geen eigen kop meer. Ze toonden
-een vaste "Alle producten" en "Collecties" die niemand had getypt. Die woorden
-waren nooit opgeslagen en hadden geen veld. Wil een redacteur een kop, dan
-zet hij een Tekstblok erboven.
+**Productgrid en Collectie-tegels** printen geen vaste kop meer. Ze toonden
+een "Alle producten" en "Collecties" die niemand had getypt. Sinds v0.1.15
+heeft elk een eigen, optionele kop (bovenkop, titel, tekst), zie
+"Productgrid en Collectie-tegels: een eigen kop".
+
+## Productgrid en Collectie-tegels: een eigen kop (v0.1.15)
+
+`db/migrations/20261015100000`. De twee lijstblokken van de Shop kunnen een
+**bovenkop, titel en tekst** krijgen, alle drie optioneel en per websitetaal,
+boven de producten of collecties. Wat ze tonen blijft van de Shop: de
+producten (gevuld door `assets/js/shop/shop.js`) en de collecties
+(`CollectionContent::activeForShop()`).
+
+| Onderdeel | Waar |
+|---|---|
+| De rij van het blok | `shop_listing_blocks` (`page_slug`, `section_key`, `is_active`), gedeeld door beide bloktypes zoals `item_galleries` door de galerij en Projecten; `page_sections.section_type` zegt welk blok een rij is |
+| De woorden | `block_translations`, eigenaar `shop_listing_blocks`, velden `eyebrow` (255), `title` (255), `lead` (600), platte tekst |
+| Gedeelde basis | `App\Service\Blocks\ShopListingBlock` (rij, editor, woorden, zoekrollen, Extra vormgeving) met `ProductGridBlock` en `ShopCollectionsBlock` erop |
+| Leesmodel | `App\Service\ShopListingContent` (drie toestanden) |
+| Editor en endpoint | `admin/shop-listing.php`, `api/admin/update-shop-listing.php` (Shop-module eerst, dan de vier guards) |
+
+**De kop is een gedeeld primitief**, `App\Service\Blocks\BlockHead`: de drie
+velden (`fields()`), hun zoekrollen (`searchRoles()`: titel kop, bovenkop en
+tekst tekst), het lezen (`words()`), de markup (`partials/section-head.php`,
+dezelfde `.section-head` met `render_eyebrow()`, `<h2>` en `.lead` als elke
+blokkop) en de drie velden in een editor (`admin/_block_head_fields.php`).
+Projecten en de Collectiegalerij gebruiken het editorveld ook; de andere
+blokken met een kop schrijven hem nog zelf uit en zijn bewust niet omgebouwd.
+
+**Zonder woorden** printen beide blokken precies wat ze altijd printten: geen
+kopwrapper en `padding-top:0` (ze staan onder een paginakop of onder de
+tegels). Met een kop zijn ze een gewone sectie met eigen ruimte boven die kop.
+`ShopListingBlockTest` vergelijkt het grid byte voor byte met de partial van
+`7d8a68e`. Met een titel worden de productnamen en tegeltitels `<h3>`
+(`CardHeading`), anders blijven ze `<h2>`.
+
+**De drie toestanden.** Geen rij (de ingebouwde winkelpagina van `shop.php`
+tekent het grid zonder paginasectie): het grid zonder kop. Een rij: met
+kop. Een rij op `is_active = 0`: niets. Collectie-tegels zonder collecties
+printen ook hun kop niet: een kop boven niets is geen inhoud.
+
+**De migratie** gaf elk bestaand blok zijn rij en zette `page_sections.section_id`
+erop (voorheen het pagina-id, 0 voor de historische winkelpagina); positie,
+zichtbaarheid en Extra vormgeving bleven staan. De `AUTO_INCREMENT` begint
+boven elk oud `section_id`, zodat het omzetten nooit op
+`UNIQUE(section_type, section_id)` botst.
+
+**Zoeken.** Alleen de eigen woorden van het blok gaan in de index van Search
+2.0. Productnamen, productteksten en collectieteksten nooit: die vindt de
+Shop-provider zelf (`SEARCH.md`).
+
+**Vormgeving.** Extra vormgeving (achtergrond, randen, ruimte, gloed en
+patroon) via het gedeelde paneel in de bloklijst, op de eigen `<section>`;
+geen eigen stijlveld in de editor. De kaarten zelf houden de Shop-stijl:
+Card Presentation 2.0 is bewust niet op deze blokken aangesloten (commerce,
+de productkaarten bouwt de browser).
 
 ## Oproep met knop (CTA 2.0)
 
@@ -1410,10 +1464,10 @@ geen uitzondering op een bestandsnaam of bloktype buiten de definitie zelf.
 |---|---|---|---|---|
 | Tekstblok, Oproep met knop, Cijferband, Stappen | ja | ja | ja | bolletjes, gloed, patroon |
 | Paginakop | ja | ja | nee (de kop heeft zijn eigen hoogte) | bolletjes, gloed, patroon |
-| Tekst met afbeelding, Kenmerken, FAQ, Kaarten-carrousel, Galerij, Projecten, Projectafbeeldingen, Hover kaarten, Detailsectie, Uitgelicht product, Formulier | ja | ja | ja | gloed, patroon |
+| Tekst met afbeelding, Kenmerken, FAQ, Kaarten-carrousel, Collectiegalerij, Projecten, Projectafbeeldingen, Hover kaarten, Detailsectie, Uitgelicht product, Productgrid, Collectie-tegels, Formulier | ja | ja | ja | gloed, patroon |
 | Mediabanner | ja | ja | ja | geen (het beeld ís het blok) |
 | Lopende band (marquee) | ja | ja | nee (geen sectie, de hoogte zijn de woorden) | geen |
-| Homepage-opening, Witruimte, Snelnavigatie, Contactformulier/-kaart, Productgrid, Collectie-tegels | — | — | — | — |
+| Homepage-opening, Witruimte, Snelnavigatie, Contactformulier/-kaart | — | — | — | — |
 
 **Waarom geen vallende bolletjes op elk blok.** Beweging achter een grid van
 kaarten, foto's, vragen die open- en dichtklappen of een formulier concurreert
@@ -2105,9 +2159,9 @@ eigen organisatie horen volgens Google niet als rich result.
 
 ## Projecten 2.0: welke projecten, in welke volgorde
 
-`db/migrations/20260928200000`. Het blok **Projecten** (`project_cards`) en
-de **galerij** (`item_gallery`) op portfolio-items delen hun
-`item_galleries`-rij, en daarmee de keuze welke projecten ze tonen. Die keuze
+`db/migrations/20260928200000`. Het blok **Projecten** (`project_cards`)
+bewaart in zijn `item_galleries`-rij de keuze welke projecten het toont (tot
+v0.1.15 deed de galerij op portfolio-items dat ook; die is nu Projecten). Die keuze
 hoort bij de bron (`ItemGallerySources`), niet bij het blok: het blok bewaart
 woorden, de bron kiest en sorteert, en de partial tekent de kaarten die er al
 waren.
@@ -2138,10 +2192,9 @@ waren.
 - **Met Portfolio uit** is de bron niet beschikbaar: het blok toont niets
   (geen lege kop, geen lege categorie), de rij en de selectie blijven, en met
   Portfolio weer aan staat alles terug (`MODULES.md`, "Portfolio").
-- **De galerij** (*Portfoliogalerij*) biedt dezelfde keuze in haar eigen
-  editor, voor elke bron die hem ondersteunt; een galerij die vroeger de
-  *Toon op homepage*-selectie toonde, is sinds `20260928200000` een handmatige
-  selectie van dezelfde projecten.
+- **Een galerij die vroeger de *Toon op homepage*-selectie toonde**, is sinds
+  `20260928200000` een handmatige selectie van dezelfde projecten, en sinds
+  `20261015110000` een Projecten-blok.
 
 **De editors** tonen de keuze met één gedeeld stuk (`admin/_gallery_selection.php`):
 *Bron*, *Categorie* (met per categorie het aantal zichtbare projecten),
@@ -2263,7 +2316,7 @@ byte voor byte vergeleken met die van v0.1.14, in zeven gevallen.
 | Blok | Waarom |
 |---|---|
 | Projecten (`project_cards`) | De eerste gebruiker. |
-| Galerij, als Portfoliogalerij en Collectiegalerij (`item_gallery`) | Dezelfde rij, dezelfde partial en dezelfde kaart als Projecten. |
+| Collectiegalerij (`item_gallery`) | Dezelfde rij, dezelfde partial en dezelfde kaart als Projecten. |
 
 Beide zijn `PresentsCards` en bieden alle drie de weergaven aan. De
 gerelateerde projecten op een projectpagina gebruiken dezelfde partial, maar
@@ -2277,10 +2330,10 @@ en de standaardkaart.
 | Hover-kaarten | De interactie (hover, beeldwissel) is het bloktype zelf, en het blok heeft al een eigen layoutmodel (layout, vorm, kolommen). |
 | Kaarten-carrousel | 3D-orbit of rij met vaste kaartbreedte: een eigen interactie en een eigen beeldhoogte. |
 | Reviews | Een testimonial zonder kaartbeeld, met vier eigen weergaven. |
-| Productgrid, gerelateerde producten, Uitgelicht product | Commerce: prijs, varianten, de kaarten worden in de browser gebouwd. |
+| Productgrid, gerelateerde producten, Uitgelicht product | Commerce: prijs, varianten, de kaarten worden in de browser gebouwd. Het Productgrid heeft wel een eigen kop en Extra vormgeving (v0.1.15). |
 | Kenmerken in kaartjes (Feature grid) | Geen beeld en geen link. |
 | Zoekresultaten | Een lijst, geen kaartgrid. |
-| Collectietegels, het blogoverzicht | Wel contentkaarten, maar een eigen Shop-blok en een route. Kandidaten voor later. |
+| Collectie-tegels, het blogoverzicht | Wel contentkaarten, maar een eigen Shop-blok en een route. Kandidaten voor later; de tegels hebben sinds v0.1.15 een eigen kop en Extra vormgeving, de tegel zelf houdt de Shop-stijl. |
 | De gewone fotolightbox van een projectpagina | Alleen foto's, geen kaarten. |
 
 ### Een blok aansluiten
@@ -2520,3 +2573,55 @@ Wat dat bewaakt:
 De beveiligingsgrens is niet verschoven: `section_type` uit een request kan nog
 steeds alleen een sleutel van de registratielijst raken of missen. Missen is
 weigeren; een klas- of tabelnaam wordt het nooit.
+
+## Galerijen opgeschoond (v0.1.15)
+
+`db/migrations/20261015110000`. Tot v0.1.15 was er één galerijblok
+(`item_gallery`) met twee bronnen, portfolio-items en een collectie, en de
+kiezer toonde het twee keer: *Collectiegalerij* onder Shop en
+*Portfoliogalerij* onder Portfolio. Daarnaast had Portfolio zijn eigen blok
+*Projecten* op dezelfde rij. Drie kaarten voor twee dingen.
+
+Nu geldt:
+
+| Module | Blokken die items tonen |
+|---|---|
+| Shop | **Productgrid**, **Collectie-tegels**, **Collectiegalerij** (`item_gallery`, alleen de producten van één collectie) |
+| Portfolio | **Projecten** (`project_cards`) |
+
+- **De Collectiegalerij is van de Shop.** `ShopModule::blockDefinitions()`
+  registreert haar; met de Shop uit is ze niet aanwezig (haar rijen blijven).
+  Haar editor biedt geen bronkeuze zolang er één bron is, en heeft geen
+  filterbalk en geen projectkeuze meer.
+- **Elke bron hoort bij één bloktype** (`ItemGallerySources`, sleutel
+  `block`): `collection` bij `item_gallery`, `portfolio` bij `project_cards`.
+  `availableFor()`, `isAvailableFor()` en `belongsTo()` dwingen dat centraal
+  af: de editor biedt alleen de eigen bronnen, het endpoint weigert elke
+  andere (ook een handgemaakte `source_type=portfolio`), en een blok rendert
+  een rij met een vreemde bron niet.
+- **Het preset-mechanisme is weg**: `OffersPickerPresets`,
+  `SectionRegistry::offersPreset()` en `section_preset` in
+  `api/admin/add-page-section.php`. Eén bloktype is één kaart. Een gepost
+  `section_preset` voegt niets toe (`CollectionGalleryHttpTest`).
+
+**De migratie** zette elke galerij op portfolio-items (en een galerij zonder
+bron, die vroeger als portfoliogrid renderde) om naar Projecten, **op zijn
+plek**: alleen `page_sections.section_type` verandert, in
+`content_block_drafts` ook, en het type in de zoekindex
+(`search_block_texts`) gaat mee. Dezelfde `item_galleries`-rij, dus dezelfde
+instellingen, gekozen projecten, woorden per taal, Card Presentation en Extra
+vormgeving. Niets wordt gekopieerd of verwijderd.
+
+| Instelling van de Portfoliogalerij | In Projecten | Klasse |
+|---|---|---|
+| Bron (portfolio), welke projecten (alle, categorie, handmatig), volgorde, maximum, filterbalk | dezelfde kolommen en selectie | C: 1-op-1 |
+| Card Presentation, Extra vormgeving, positie, zichtbaarheid (lijst en eigen *Actief*) | dezelfde kolommen | C: 1-op-1 |
+| Titel, introtekst | dezelfde woorden | C: 1-op-1 |
+| Bovenkop, slottekst, knop (label, adres, knopstijl) | Projecten biedt ze sinds v0.1.15 in zijn editor | D → kleinste oplossing: veld toegevoegd |
+| *Sluit aan op de sectie erboven* (`tight_top`) | niet in de editor; de opgeslagen waarde blijft en rendert, en een opslag houdt hem | D → bewaard als legacy-waarde |
+| Lightbox aan/uit | een project zoomt altijd (Portfolio 2.0) | A: had al geen effect |
+| Link voor kaarten zonder eigen pagina | een project volgt die link nooit | A: had al geen effect |
+
+Bewust verschil: Projecten laat zijn bovenruimte vallen direct onder een
+paginakop, zoals de meeste blokken; een galerij deed dat alleen met
+`tight_top`. Een opgeslagen `tight_top` blijft werken.
