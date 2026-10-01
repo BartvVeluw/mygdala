@@ -1133,15 +1133,17 @@ neer. De enige inline waarden zijn die van de afbeeldingsweergave
   niets.
 - **Op een tablet en een telefoon (≤ 860px) staat de tekst altijd boven de
   afbeelding**, allebei over de volle breedte. Dat is de regel van de
-  Detailsectie. De breedte en de kant gelden dan niet, en de hoogte wordt de
-  vorm van dezelfde stap: Klein (Compact) 16:9, Middel (Normaal) 4:3, Groot
-  1:1, nooit hoger dan 42rem (Responsive Media 3.1, `MEDIA.md`, "Compact,
-  Normaal, Groot"). Vóór 3.1 waren dat vaste hoogtes voor een telefoon, waardoor
-  elke stap op een tablet een maat kleiner leek. Een gemigreerd blok met de
-  afbeelding links toonde op een telefoon eerst de afbeelding; nu komt eerst
-  de tekst. Op een telefoon (≤ 640px, het ene breekpunt van Responsive Media)
-  kan een item een eigen hoogte kiezen (`image_mobile_height`): de vorm van
-  die stap. Zonder keuze volgt de telefoon de hoogte van het item.
+  Detailsectie. De breedte en de kant gelden dan niet. Op een tablet
+  (641–860px) wordt de hoogte de vorm van dezelfde stap: Compact 16:9,
+  Normaal 4:3, Groot 1:1, nooit hoger dan 42rem (Responsive Media 3.1,
+  `MEDIA.md`, "Compact, Normaal, Groot"). Vóór 3.1 had een tablet de vaste
+  hoogtes van een telefoon, waardoor elke stap daar een maat kleiner leek. Op
+  een telefoon (≤ 640px, het ene breekpunt van Responsive Media) blijven die
+  vaste hoogtes: 12, 16 en 20rem, of met een eigen hoogte van het item
+  (`image_mobile_height`) 12, 16 en 24rem (3.1.1 zette dat terug zoals het
+  vóór 3.1 was). Zonder keuze volgt de telefoon de hoogte van het item. Een
+  gemigreerd blok met de afbeelding links toonde op een telefoon eerst de
+  afbeelding; nu komt eerst de tekst.
 - **Een item met maar één helft gaat over de volle breedte.** Alleen tekst:
   de tekst is 100% breed. Alleen een afbeelding: de afbeelding vult het hele
   item, met zijn eigen hoogte en focuspunt. De breedte (`image_column`) en de

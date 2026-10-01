@@ -1178,14 +1178,18 @@ tablet, het voorbeeld Desktop / Tablet / Mobiel**
                         gesloten stappen en schermen, length() en ratio()
                         zoals de browser rekent, geweigerde lengtes, de
                         kaderstijl die alleen eigen eigenschappen doorlaat,
-                        vervalste maten; ImagePresentationContractTest (ook
-                        in contract en blocks): elke lengte staat letterlijk
-                        in het stylesheet, de stappen houden hun volgorde op
-                        elk scherm, een tablet toont een stap van Tekst met
-                        afbeelding in de vorm van een telefoon, een eigen
-                        telefoonhoogte is dezelfde stap, het CMS heeft geen
-                        eigen maattabel, elk kader voor elke keuze, en het
-                        veld met Desktop / Tablet / Mobiel
+                        vervalste maten, onPhone() (automatisch of eigen),
+                        de labels Compact / Normaal / Groot in nl en en;
+                        ImagePresentationContractTest (ook in contract en
+                        blocks): elke lengte staat letterlijk in het
+                        stylesheet, de stappen houden hun volgorde op elk
+                        scherm, een tablet toont een stap van Tekst met
+                        afbeelding in zijn vorm, een telefoon de hoogtes van
+                        vóór 3.1 (automatisch en eigen, in px), een groot
+                        scherm is ongewijzigd, de CMS-kaders komen uit
+                        pictureSize(), het CMS heeft geen eigen maattabel,
+                        elk kader voor elke keuze, en het veld met
+                        Desktop / Tablet / Mobiel
 --testsuite blocks      ResponsiveImageEditorHttpTest, MediaBannerHttpTest,
                         PageHeroEditorHttpTest, CtaBandHeightHttpTest,
                         DetailSectionGalleryFocusHttpTest (de kaders op het

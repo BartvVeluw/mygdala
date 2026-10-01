@@ -674,10 +674,18 @@ telefoon. `App\Service\Media\ImagePresentation` is die betekenis:
   maar het zijn dezelfde drie stappen, één keer gekoppeld in
   `ImagePresentation::STEP_OF`. Een stap houdt zijn plaats op elk scherm:
   op een tablet is Groot nog steeds de grootste, nooit "een maat kleiner".
-  De pixels krimpen met het scherm, de volgorde en de vorm niet.
+  Het CMS noemt ze overal *Compact*, *Normaal* en *Groot* (Engels *Compact*,
+  *Normal*, *Large*); de opgeslagen woorden blijven wat ze waren.
+- **Een telefoon: automatisch of eigen** (`ImagePresentation::onPhone()`).
+  Zonder eigen telefoonhoogte volgt een telefoon de stap van het blok
+  (`AUTOMATIC`); met een eigen telefoonhoogte toont hij die stap (`OWN`). Een
+  blok mag die twee bronnen verschillende lengtes geven: bij Tekst met
+  afbeelding, de Mediabanner en de Paginakop is een eigen *Groot* bewust hoger
+  dan de automatische. Een verzonnen woord is altijd `AUTOMATIC`.
 - **Eén bron voor pagina en voorbeeld.** De lengtes van een stap staan als
   letterlijke CSS-waarden in de Content-klasse van het blok
-  (`TextImageSplitContent::WIDE_HEIGHTS`, `STACKED_RATIOS`, `STACKED_MAX`;
+  (`TextImageSplitContent::WIDE_HEIGHTS`, `STACKED_RATIOS`, `STACKED_MAX`,
+  `PHONE_HEIGHTS`, `PHONE_OWN_HEIGHTS`;
   `MediaBannerContent::WIDE_HEIGHTS`, `PHONE_HEIGHTS`, `PHONE_OWN_HEIGHTS`;
   `PageHeroContent::WIDE_HEIGHTS`, `NARROW_HEIGHTS`, `PHONE_OWN_HEIGHTS`,
   `FIGURE_*`). Het stylesheet print ze, en
@@ -699,7 +707,7 @@ telefoon. `App\Service\Media\ImagePresentation` is die betekenis:
 | Blok | Groot scherm | Tablet | Telefoon |
 |---|---|---|---|
 | Responsive Media (telefoonafbeelding, -punt, -zoom, -weergave, -hoogte) | > 640px | > 640px: zoals een groot scherm | ≤ 640px |
-| Tekst met afbeelding | > 860px: tekst en beeld naast elkaar | ≤ 860px: één kolom | ≤ 860px: één kolom; ≤ 640px de eigen telefoonhoogte |
+| Tekst met afbeelding | > 860px: tekst en beeld naast elkaar | 641–860px: één kolom, de vorm van de stap | ≤ 640px: één kolom, vaste hoogtes of de eigen telefoonhoogte |
 | Paginakop | > 900px | ≤ 900px: lagere stappen, beeld naast de tekst gaat erboven | ≤ 640px de eigen telefoonhoogte |
 | Mediabanner | > 640px | > 640px: zoals een groot scherm | ≤ 640px: vaste, lagere stappen of de eigen telefoonhoogte |
 
@@ -711,29 +719,37 @@ container; in px op het referentiescherm, en hoe het CMS-kader ze toont):
 
 | Stap | Desktop 1280 | Tablet 768 | Mobiel 375 | CMS-voorbeeld |
 |---|---|---|---|---|
-| Tekst met afbeelding, Compact (`small`) | 536 x 307 (`clamp(14rem, 24vw, 20rem)`) | 704 x 396 (16:9) | 327 x 184 (16:9) | dezelfde maat, op halve grootte |
-| Tekst met afbeelding, Normaal (`medium`) | 536 x 461 (`clamp(18rem, 36vw, 30rem)`) | 704 x 528 (4:3) | 327 x 245 (4:3) | idem |
-| Tekst met afbeelding, Groot (`large`) | 536 x 640 (`clamp(22rem, 50vw, 42rem)`) | 704 x 672 (1:1, tot 42rem) | 327 x 327 (1:1) | idem |
-| Mediabanner, Klein / Middel / Groot / Extra groot | 1136 x 282 / 384 / 538 / 666 | 704 x 240 / 288 / 352 / 416 | 327 x 192 / 240 / 304 / 384 | idem |
-| Paginakop achter de tekst, Klein / Middel / Groot | 1280 x 360 / 495 / 675 | 768 x 352 / 512 / 576 | 375 x 352 / 512 / 576 | idem |
+| Tekst met afbeelding, Compact (`small`) | 536 x 307 (`clamp(14rem, 24vw, 20rem)`) | 704 x 396 (16:9) | 327 x 192 (12rem) | dezelfde maat, op halve grootte |
+| Tekst met afbeelding, Normaal (`medium`) | 536 x 461 (`clamp(18rem, 36vw, 30rem)`) | 704 x 528 (4:3) | 327 x 256 (16rem) | idem |
+| Tekst met afbeelding, Groot (`large`) | 536 x 640 (`clamp(22rem, 50vw, 42rem)`) | 704 x 672 (1:1, tot 42rem) | 327 x 320 (20rem) | idem |
+| Tekst met afbeelding, eigen telefoonhoogte Compact / Normaal / Groot | — | — (geldt niet op een tablet) | 327 x 192 / 256 / 384 (12 / 16 / 24rem) | idem |
+| Mediabanner, Compact / Normaal / Groot / Extra groot | 1136 x 282 / 384 / 538 / 666 | 704 x 240 / 288 / 352 / 416 | 327 x 192 / 240 / 304 / 384 | idem |
+| Paginakop achter de tekst, Compact / Normaal / Groot | 1280 x 360 / 495 / 675 | 768 x 352 / 512 / 576 | 375 x 352 / 512 / 576 | idem |
 
-Een eigen telefoonhoogte geldt alleen op een telefoon. Bij Tekst met
-afbeelding is het de vorm van dezelfde stap (Compact 16:9, Normaal 4:3,
-Groot 1:1): een telefoon met *Groot* toont precies wat een telefoon toont bij
-de blokhoogte *Groot*. De Mediabanner en de Paginakop houden hun eigen
-telefoonhoogtes (tabel in `CONTENT-BLOCKS.md`); die waren op een tablet niet
-fout en zijn in 3.1 niet veranderd.
+Een eigen telefoonhoogte geldt alleen op een telefoon, nooit op een tablet.
+Bij alle drie de blokken is het een vaste hoogte, en een eigen *Groot* is
+hoger dan de automatische (Tekst met afbeelding 24rem tegen 20rem). De
+Mediabanner en de Paginakop houden hun telefoonhoogtes (tabel in
+`CONTENT-BLOCKS.md`); die waren op een tablet niet fout en zijn in 3.1 niet
+veranderd.
+
+**Een telefoon toont Tekst met afbeelding als vóór 3.1 (3.1.1).** De eerste
+versie van 3.1 gaf ook een telefoon de vorm van de stap (327 x 184 / 245 /
+327, eigen Groot = automatisch Groot). Dat was een bijwerking: de fout zat op
+de tablet. Sinds 3.1.1 heeft een telefoon (≤ 640px) weer de hoogtes van
+`27311e9`: automatisch 12, 16 en 20rem, eigen telefoonhoogte 12, 16 en 24rem,
+op de volle breedte van de kolom. De tablet (641–860px) houdt de vorm van de
+stap, en het CMS-kader *Mobiel* rekent uit dezelfde constanten.
 
 **Waarom de tablet een stap kleiner leek (de fout van vóór 3.1).** Tekst met
 afbeelding zette onder 860px vaste hoogtes van 12, 16 en 20rem, bedoeld voor
 een telefoon van 327px breed. Op een tablet is het beeld 600 tot 790px breed,
 dus werd elk beeld een platte strook: gemeten bij 768px was Groot 694 x 320
 (2,17:1), platter dan Klein op een groot scherm (1,68:1); Normaal 2,71:1 en
-Compact 3,61:1. Bovendien betekende Groot op een telefoon twee dingen: 20rem
-automatisch, 24rem als eigen telefoonhoogte. Nu is het één kolom met de vorm
+Compact 3,61:1. Nu is het één kolom met de vorm
 van de stap, gemeten bij 768px: 694 x 390, 694 x 521 en 694 x 672 (1,78, 1,33
-en 1,03), dezelfde volgorde en vorm als op een telefoon. Op een groot scherm
-is niets veranderd.
+en 1,03). Op een groot scherm en op een telefoon is niets veranderd ten
+opzichte van vóór 3.1.
 
 ### Een plek aansluiten
 
