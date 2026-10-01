@@ -78,6 +78,14 @@ final class AdminAccessControlTest extends TestCase
         'step-list.php', 'text-image-split.php',
     ];
 
+    /**
+     * Endpoints of the Publishing Engine (docs/publishing/ARCHITECTURE.md): like a block list,
+     * the KIND decides the permission. Login, then "may publish some kind"
+     * (PublishingService::requireAnyForApi()) before the method and the
+     * token; that kind's own permission follows in PublishingService::change().
+     */
+    private const PUBLISHING_ENDPOINTS = ['update-publication.php'];
+
     private const OWNER_AWARE_BLOCK_ENDPOINTS = [
         'add-page-section.php', 'delete-page-section.php', 'toggle-page-section.php', 'reorder-page-sections.php',
         'discard-block-draft.php', 'update-card-carousel.php', 'update-carousel-card.php', 'update-contact-card.php', 'update-contact-form.php',
@@ -121,6 +129,10 @@ final class AdminAccessControlTest extends TestCase
         // endpoints behind it (media-list.php, media-upload.php) each check
         // media.view themselves.
         '_media_picker.php',
+        // The Publishing Engine's status/date/byline fields and its card
+        // (docs/publishing/ARCHITECTURE.md): markup printed by an owner's editor behind its own
+        // check; the card posts to update-publication.php, which checks again.
+        '_publication_fields.php',
         // One website-theme colour field: markup only, printed by
         // admin/theme.php, admin/setup.php and admin/page-theme.php behind
         // their own checks.
@@ -421,6 +433,24 @@ final class AdminAccessControlTest extends TestCase
                 // CSRF are asserted for every endpoint further down.
                 $this->assertStringContainsString('AdminAuth::requireLoginForApi()', $source, $endpoint);
                 $this->assertStringContainsString('Csrf::validate(', $source, $endpoint);
+                continue;
+            }
+
+            if (in_array($endpoint, self::PUBLISHING_ENDPOINTS, true)) {
+                $this->assertSame([], $this->requiredPermissions($source), "{$endpoint}: the kind decides, not a literal");
+
+                $loginPos = strpos($source, 'AdminAuth::requireLoginForApi()');
+                $anyPos = strpos($source, 'PublishingService::requireAnyForApi()');
+                $postPos = strpos($source, "\$_SERVER['REQUEST_METHOD'] !== 'POST'");
+                $csrfPos = strpos($source, 'Csrf::validate(');
+                $changePos = strpos($source, 'PublishingService::change(');
+
+                $this->assertNotFalse($loginPos, $endpoint);
+                $this->assertNotFalse($anyPos, $endpoint);
+                $this->assertLessThan($anyPos, $loginPos, "{$endpoint}: login before permission");
+                $this->assertLessThan($postPos, $anyPos, "{$endpoint}: permission before the method check");
+                $this->assertLessThan($csrfPos, $postPos, "{$endpoint}: the method before the CSRF token");
+                $this->assertLessThan($changePos, $csrfPos, "{$endpoint}: the CSRF token before anything is read");
                 continue;
             }
 

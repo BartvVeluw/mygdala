@@ -9,6 +9,7 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_tabs.php';
+require_once __DIR__ . '/_publication_fields.php';
 
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
@@ -213,6 +214,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
   <?php if ($updated): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('blog.bericht_opgeslagen') ?></p>
   <?php endif; ?>
+  <?= admin_publication_flash() ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
       <ul class="admin-error-list">
@@ -320,27 +322,20 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     <section class="admin-card">
       <h2><?= admin_te('blog.publicatie') ?></h2>
 
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('common.status') ?>
-          <select name="status">
-            <?php foreach (array_keys(BlogPostStatus::LABELS) as $statusKey): ?><?php $statusLabel = BlogPostStatus::label($statusKey); ?>
-              <option value="<?= $h($statusKey) ?>" <?= $status === $statusKey ? 'selected' : '' ?>><?= $h($statusLabel) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <label><?= admin_te('blog.publicatiedatum_tijd') ?>
-          <input type="datetime-local" name="published_at" value="<?= $h($publishedAtInput) ?>">
-        </label>
-      </div>
+      <?php /* The Publishing Engine's shared fields (admin/_publication_fields.php),
+               in the Blog's own words for its three states. */ ?>
+      <?= admin_publication_fields([
+          'statuses' => BlogPostStatus::ALL,
+          'status' => $status,
+          'published_at' => $publishedAtInput,
+          'labels' => array_combine(BlogPostStatus::ALL, array_map([BlogPostStatus::class, 'label'], BlogPostStatus::ALL)),
+          'date_label' => admin_t('blog.publicatiedatum_tijd'),
+      ]) ?>
       <p class="admin-text-muted">
         <strong><?= admin_t('blog.concept_nooit_zichtbaar_gepubliceerd') ?>
       </p>
 
-      <div class="admin-form-row">
-        <label><?= admin_te('blog.auteur') ?>
-          <input type="text" name="author_name" maxlength="<?= BlogPostService::MAX_AUTHOR_LENGTH ?>" value="<?= $h($fieldValue('author_name')) ?>" placeholder="Laat leeg voor geen auteursregel">
-        </label>
-      </div>
+      <?= admin_publication_byline($fieldValue('author_name'), BlogPostService::MAX_AUTHOR_LENGTH, admin_t('blog.auteur'), 'Laat leeg voor geen auteursregel') ?>
       <p class="admin-text-muted"><?= admin_t('blog.naam_onder_bericht_staat', ['v1' => BlogSettings::showAuthor() ? admin_t('blog.author_lines_on') : admin_t('blog.author_lines_off')]) ?></p>
 
       <div class="admin-form-row">
