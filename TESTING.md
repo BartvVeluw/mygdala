@@ -491,18 +491,20 @@ inzendingen of de twee formulierblokken (`FORMS.md`):
 
 ```
 --testsuite fast        (FormFieldTypeTest, FormFieldTypeChangeTest,
-                         FormValidationTest, FormUploadTest en
+                         FormValidationTest, FormUploadTest,
+                         FormSubmissionBulkContractTest en
                          FormBoundaryTest: veldtypes, wat een typewissel
                          kost, validatie, de keuring van een upload,
-                         rechten, guards en de grens met de Shop —
-                         database noch webserver nodig)
+                         ids en acties in bulk, rechten, guards en de
+                         grens met de Shop — database noch webserver nodig)
 --testsuite cms         voegt FormAdminTest, FormAdminHttpTest,
                         FormFieldEditorHttpTest, FormUploadHttpTest,
+                        FormSubmissionBulkHttpTest,
                         FormRenderingTest, ContactFormMigrationTest en
                         FormFileUploadMigrationTest toe: echte definities,
                         de veldeditor over echt HTTP, echte inzendingen met
                         echte multipart-uploads, downloaden en verwijderen,
-                        echte pagina's
+                        gelezen/ongelezen en bulkacties, echte pagina's
 --testsuite blocks      als je aan de rendering of de plaatsing zat
 ```
 
@@ -1546,7 +1548,7 @@ met `orders.view`).
 `modules`), `PortfolioItemEditingHttpTest` (suite `cms`),
 `BlockPreviewAccessTest` (suites `blocks` en `cms`),
 `PageHeroEditorHttpTest` (suite `blocks`), `FormAdminHttpTest` (suite `cms`),
-`FormFieldEditorHttpTest` (suite `cms`) en `FormUploadHttpTest` (suite `cms`) starten voor de duur van de klasse PHP's eigen webserver (`php -S`)
+`FormFieldEditorHttpTest` (suite `cms`), `FormUploadHttpTest` (suite `cms`) en `FormSubmissionBulkHttpTest` (suite `cms`) starten voor de duur van de klasse PHP's eigen webserver (`php -S`)
 op deze uitchecking, tegen de testdatabase, en loggen een beheerder in met
 een echte sessie. De twee Portfolio-tests, `BlockPreviewAccessTest`,
 `PageHeroEditorHttpTest` en de drie Forms-tests doen dat met

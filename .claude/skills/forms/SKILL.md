@@ -19,8 +19,8 @@ producten, personalisatie of Mollie, en werkt identiek met de Shop aan en uit.
 | Logica | `src/Service/Forms/` |
 | Opslag | `src/Repository/Form{,Block,Submission}Repository.php` |
 | Publieke kant | `partials/form.php`, `api/form-submit.php` |
-| Adminschermen | `admin/forms.php`, `form.php`, `form-field.php`, `form-preview.php` (het voorbeeld), `form-block.php`, `form-submissions.php`, `form-submission.php`; gedeeld `admin/_form_fields.php` en `admin/assets/forms-admin.js` |
-| Admin-endpoints | `api/admin/*form*.php`; een bestand downloaden: `api/admin/form-submission-attachment.php` |
+| Adminschermen | `admin/forms.php`, `form.php`, `form-field.php`, `form-preview.php` (het voorbeeld), `form-block.php`, `form-submissions.php`, `form-submission.php`; gedeeld `admin/_form_fields.php` en `admin/assets/forms-admin.js`; selectie in het overzicht `admin/assets/form-submissions.js` |
+| Admin-endpoints | `api/admin/*form*.php`; een bestand downloaden: `api/admin/form-submission-attachment.php`; gelezen/ongelezen en verwijderen in bulk: `api/admin/bulk-form-submissions.php` → `Forms/FormSubmissionBulk.php` |
 | Uploadveld | `FieldTypes/FileFieldType.php`, `FormFileTypes`, `FormUploadInspector`, `FormUpload`; opslag `src/Service/ContactAttachmentStorage.php` |
 | Blokken | `form_block` en `contact_form` |
 | Archief | `ContactRequestRepository`, `admin/contact-requests.php`, `api/contact.php` — historisch, nieuwe inzendingen lopen via Forms |
@@ -42,6 +42,9 @@ producten, personalisatie of Mollie, en werkt identiek met de Shop aan en uit.
   `Tests\Service\FormBoundaryTest` faalt daarop.
 - **Inzendingen zijn persoonsgegevens.** Verwijderen moet echt verwijderen,
   inclusief bestanden.
+- **Een bulkactie is alles of niets** en geldt per zichtbare pagina. Acties
+  zijn een gesloten lijst, hooguit 100 ids, en één fout id weigert het hele
+  verzoek (`FORMS.md`, "Inzendingen in bulk").
 - **Een bestand is een veld.** Geen blok of scherm drukt een eigen
   bestandskiezer af, en `$_FILES` wordt alleen gelezen via de definitie
   (`FormFieldType::acceptsFile()`). Soorten en groottes komen uit

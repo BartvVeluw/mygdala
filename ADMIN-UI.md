@@ -251,6 +251,15 @@ en zet de vraag zelf op elk formulier dat moet vragen:
 | `admin_confirm_dialog()` | De dialoog: een native `<dialog>` met een kop, de uitleg, *Annuleren* en de knop die doorgaat. Eén keer per scherm |
 | `admin_confirm_attributes($titel, $uitleg, $knop)` | De vraag van één formulier, als `data-admin-confirm*`-attributen. Alles ge-escaped, dus de eigen titel van een blok mag erin. Een lege titel of knop laat *Weet je het zeker?* en *Doorgaan* staan |
 
+**Eén knop die vraagt.** Heeft een formulier meer knoppen en moet er maar één
+vragen, zet dan dezelfde attributen op díe verzendknop in plaats van op het
+formulier (`<button type="submit" … <?= admin_confirm_attributes(…) ?>>`). Het
+script vraagt dan alleen als het formulier met die knop wordt verstuurd; de
+andere knoppen gaan direct. De bulkbalk van Inzendingen doet dat: alleen
+*Verwijderen* vraagt, *Markeren als gelezen* niet ([`FORMS.md`](FORMS.md),
+"Inzendingen in bulk"). Een vraag op de knop wint van een vraag op het
+formulier.
+
 **Het formulier doet het werk.** Het script houdt het versturen tegen, vraagt,
 en geeft bij *ja* hetzelfde formulier terug aan de browser
 (`requestSubmit()`, met de knop die was ingedrukt). Hetzelfde verzoek, dezelfde

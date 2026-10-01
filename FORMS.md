@@ -487,6 +487,9 @@ downloadlink; een bestand dat van schijf verdwenen is, heet daar
   verwijdert de rijen, en daarna de bestanden. Een bestand dat al weg is, is
   geen fout. Een ander bestand dan die van deze inzending is niet te
   bereiken.
+- **Inzendingen in bulk verwijderen** (`api/admin/bulk-form-submissions.php`,
+  zie *Inzendingen in bulk*) doet hetzelfde voor een hele selectie in één
+  transactie: eerst de rijen, na de commit de bestanden.
 - **Veld verwijderen** laat bewaarde inzendingen en hun bestanden staan, net
   als hun antwoorden.
 - **Formulier verwijderen** kan niet zolang er inzendingen zijn (zie
@@ -1039,6 +1042,127 @@ offerte-/contactformulier zet hetzelfde formulier in een smallere kolom naast
 *Direct contact*: dezelfde velden, dezelfde verdeling, op minder pixels.
 
 
+## Inzendingen beheren
+
+Beheer → Inzendingen (`admin/form-submissions.php`) is een lijst, een
+detailscherm, gelezen of ongelezen, en verwijderen. Geen CRM (zie *Bewust
+niet ondersteund*). Alles achter `forms.submissions`.
+
+### Het overzicht
+
+- **Nieuwste eerst**, 25 per pagina (`FormSubmissionRepository::PAGE_SIZE`),
+  met een paginering eronder als er meer zijn. Een paginanummer voorbij de
+  laatste toont de laatste pagina.
+- **Twee filters, allebei server-side:** status (*Alle*, *Ongelezen*,
+  *Gelezen*) en formulier. Een filter kiezen begint weer op pagina 1.
+  Status is een filter, geen sortering: een ongelezen inzending blijft staan
+  waar ze binnenkwam.
+- De voorvertoning (het eerste ingevulde antwoord) komt voor de hele pagina
+  uit één query (`previewsFor()`), de status zit in de rij zelf. Geen query
+  per rij.
+
+### Gelezen en ongelezen
+
+Opslag: `form_submissions.is_read` (0 = ongelezen, 1 = gelezen). Die kolom
+bestaat sinds de eerste Forms-migratie. Submissions 2.0 (v0.1.15) heeft dus
+**geen migratie** en geen tijdstempel toegevoegd: bestaande inzendingen houden
+de status die ze hadden, en de inbox klapt na een update niet ineens om naar
+"alles nieuw".
+
+| Moment | Status |
+|---|---|
+| Een bezoeker verstuurt een formulier dat bewaart | Ongelezen (`create()` schrijft `is_read = 0` zelf) |
+| Het detailscherm opent | Gelezen, op de server, vóórdat het scherm getoond wordt. Een refresh vindt haar gelezen; er is geen script bij nodig |
+| *Markeren als ongelezen* op het detailscherm | Ongelezen, en je komt terug op het **overzicht**. Terug naar het detail zou haar meteen weer gelezen maken |
+| *Markeren als gelezen* of *ongelezen* in de bulkbalk | Zoals gekozen, voor de hele selectie |
+
+Op het detailscherm is er dus geen *Markeren als gelezen*: wie het ziet, heeft
+het geopend. In het overzicht is een ongelezen rij vet met een lichte tint,
+en de kolom Status zegt *Nieuw* of *Gelezen*. Dat laatste is het eigenlijke
+onderscheid: het hangt niet aan kleur.
+
+**Geen teller.** Er is geen badge in de zijbalk en geen dashboardkaart voor
+inzendingen. `FormSubmissionRepository::countUnread()` bestaat wel, maar
+niets gebruikt hem. Submissions 2.0 heeft er bewust geen bijgebouwd. Komt er
+ooit een badge, dan telt hij **ongelezen**, want een badge is een
+aandachtssignaal en geen statistiek. Geen polling.
+
+### Inzendingen in bulk
+
+Elke rij in het overzicht heeft een checkbox met een echt (verborgen) label:
+*Inzending van 30-09-2026 05:37 (Contact) selecteren*. In de kop staat
+**Alles op deze pagina selecteren**:
+
+- Het selecteert de rijen van **deze pagina**, en nooit meer. Een andere
+  pagina, een ander filter of herladen begint leeg. Een selectie wordt
+  nergens bewaard: geen sessie en geen `sessionStorage`. Heeft het overzicht
+  meer dan één pagina, dan zegt de balk dat ook.
+- Is maar een deel gekozen, dan staat de kop op *indeterminate*.
+- De balk boven de tabel zegt hoeveel er gekozen zijn (*3 inzendingen
+  geselecteerd*), in een `role="status"` die een schermlezer voorleest. Pas
+  bij een keuze verschijnen de drie acties: *Markeren als gelezen*,
+  *Markeren als ongelezen* en *Verwijderen*.
+- **Alleen Verwijderen vraagt**, in de dialoog van het CMS en met het aantal:
+  *Weet je zeker dat je 7 inzendingen wilt verwijderen?* De vraag staat op
+  de knop, niet op het formulier ([`ADMIN-UI.md`](ADMIN-UI.md), "Eén knop
+  die vraagt").
+
+`admin/assets/form-submissions.js` telt, toont de acties en zet het aantal in
+de vraag. Verder doet het niets: het beslist niet welke ids mogen, bewaart
+niets en logt niets. Zonder script werken de checkboxes en de drie knoppen
+gewoon. Alleen de kopcheckbox blijft dan verborgen, en *Verwijderen* gaat
+dan zonder vraag, net als elke andere verwijdering zonder script.
+
+**Het contract** (`api/admin/bulk-form-submissions.php` →
+`App\Service\Forms\FormSubmissionBulk`):
+
+| Veld | Wat |
+|---|---|
+| `action` | `mark_read`, `mark_unread` of `delete`. Een gesloten lijst (`FormSubmissionBulk::ACTIONS`) |
+| `ids[]` | De gekozen inzendingen. Elk moet een positief geheel getal zijn. Dubbele worden samengevoegd. Hooguit **100** (`MAX_IDS`): ruim boven de 25 van een pagina, zodat een mens er nooit tegenaan loopt |
+| `form` | Het formulier waarop het overzicht gefilterd was, of leeg. Dit is ook de **scope**: elke gekozen inzending moet bij dat formulier horen |
+| `return_read`, `return_page` | De weg terug. Die wordt opnieuw opgebouwd uit gecontroleerde waarden en nooit als URL uit het request overgenomen |
+
+1. De vier guards: login, `forms.submissions`, POST, CSRF.
+2. De ids worden genormaliseerd. Is er één ongeldig, dan wordt het hele
+   verzoek geweigerd.
+3. In één transactie worden de gekozen rijen gelezen **en vergrendeld**
+   (`FOR UPDATE`). Bestaat er één niet, of hoort er één niet bij `form`,
+   dan wordt de hele selectie geweigerd.
+4. Daarna, in dezelfde transactie, volgt de actie in één statement.
+   Verwijderen leest eerst de bijlagen, verwijdert dan de rijen (antwoorden
+   en bijlagerijen gaan via cascade mee) en commit. **Pas daarna** gaan de
+   bestanden weg, in dezelfde volgorde als bij één verwijdering. Een bestand
+   dat niet weg kan, wordt gelogd met alleen het inzendingsnummer.
+
+**Alles of niets.** Een deels geldige selectie wordt helemaal geweigerd en
+niet stilletjes half uitgevoerd. Wat het scherm zelf kan versturen, komt terug
+op het overzicht met een melding: niets gekozen, of een inzending die in een
+ander tabblad al verwijderd was. Wat alleen een vervalst verzoek verstuurt, is
+een **400** zonder enige wijziging: een andere actie, een id dat geen getal
+is, te veel ids, of een inzending buiten het formulier. Na de actie kom je
+terug op hetzelfde filter en dezelfde pagina, met de melding *3 inzendingen
+verwijderd.* Is die pagina daarna leeg, dan toont het overzicht de laatste
+pagina die er nog is.
+
+**Rechten.** `forms.submissions` geldt voor álle bewaarde inzendingen. Er
+zijn geen rechten per formulier. Wie het recht heeft, mag dus zonder
+formulierfilter over alle formulieren heen selecteren. De scope bestaat om
+vervalste ids buiten het zichtbare formulier te weigeren, niet als tweede
+rechtenlaag.
+
+**Privacy.** In een attribuut van het overzicht staat alleen het id van een
+inzending. Het label noemt datum en formuliernaam, geen antwoord. Het
+endpoint geeft geen inzendingsgegevens terug, alleen een redirect met een
+aantal. Er komt niets nieuws in het log.
+
+**Later, als het nodig is:** selecteren over pagina's heen vraagt een
+server-side selectiemodel (bijvoorbeeld "alles wat dit filter vindt", met
+een telling ter bevestiging) en niet een lijst ids in de browser. Een
+ongelezen-badge in de zijbalk kan `countUnread()` gebruiken. Een tijdstempel
+`read_at` naast `is_read` kan erbij als iemand ooit wil weten *wanneer* iets
+gelezen is.
+
 ## Velden toevoegen en bewerken
 
 ### Veld toevoegen: eerst het soort veld
@@ -1365,6 +1489,7 @@ iets weg is": `admin_confirm_attributes()` op het formulier en
 | Veld | *Veld verwijderen?* | het label en het formulier, en dat bewaarde inzendingen leesbaar blijven |
 | Formulier | *Formulier verwijderen?* | de naam, en dat het met al zijn velden definitief weg is |
 | Inzending | *Inzending verwijderen?* | wanneer en op welk formulier ze binnenkwam, en dat antwoorden en bijlage mee gaan |
+| Inzendingen in bulk | *Inzendingen verwijderen?* | hoeveel, en dat antwoorden en bijlagen mee gaan. De vraag staat op de knop *Verwijderen* van de bulkbalk |
 
 De knop die doorgaat heet *Verwijderen* en heeft de destructieve stijl.
 *Annuleren* staat vooraan en heeft de focus. Annuleren, Escape en een klik
@@ -1430,6 +1555,20 @@ typekaart, welk formulier de opslagbalk bewaakt en wanneer het scherm als
 niet-opgeslagen begint, en verplaatste opties tot in het publieke formulier.
 `FormFieldTypeChangeTest` (`fast`) schrijft voor elk paar types uit wat een
 wissel kost.
+`FormSubmissionBulkContractTest` (`contract`, `fast`, `cms`) bewaakt
+*Inzendingen in bulk* zonder database. Het controleert hoe ids gelezen worden
+(dubbel, tekst, negatief, nul, lijst, te veel), de gesloten lijst acties, de
+limiet tegenover de paginagrootte, rijen vóór bestanden, en dat het script en
+het overzicht niets beslissen, bewaren of lekken.
+`FormSubmissionBulkHttpTest` (`cms`) bewijst het over echt HTTP:
+- ongelezen bij binnenkomst, het statusfilter zonder sortering, gelezen bij
+  openen en na een refresh, terug naar ongelezen vanaf het detail;
+- paginering en *Alles selecteren* per pagina, de vraag op alleen
+  *Verwijderen*;
+- gelezen en ongelezen in bulk, verwijderen met antwoorden, bijlagerijen en
+  bestanden en zonder wezen, de lege pagina na verwijderen;
+- elke weigering zonder wijziging, ook van een half toegestane selectie, en
+  de guards.
 `FormBoundaryTest` bewaakt de grenzen: rechten, guards, CSRF, geen
 Shop-koppeling, geen bedrijfsnaam in generieke code, en de `prime()`-aanroep
 in elk paginatemplate. Hij bewaakt ook dat geen Forms-scherm nog `confirm()`
@@ -1489,6 +1628,7 @@ autoresponders, mailinglijst-integraties, een sjablooneditor, wachtrijen en
 retries.
 
 **Beheer** — CRM-fasen, notities, toewijzing, labels, CSV-export,
+selecteren over pagina's heen, een ongelezen-teller in de zijbalk,
 spreadsheet-integraties, conversiedashboards, automatische bewaartermijnen.
 
 **Vormgeving** — formulierthema's, CSS per veld, eigen HTML, eigen
