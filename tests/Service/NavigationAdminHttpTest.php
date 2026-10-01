@@ -130,14 +130,17 @@ final class NavigationAdminHttpTest extends TestCase
         $this->assertStringContainsString('Pagina: Onze diensten', $this->rowText($xpath, $link), 'the destination in words');
         $this->assertStringContainsString('Rustige knop', $this->rowText($xpath, $button));
 
-        // ↑/↓ on every row, and a delete that asks in the CMS dialog — except
-        // on a link that still has submenu items.
+        // ↑/↓ on every row, and a delete that asks in the CMS dialog — on a
+        // link with submenu items too, saying they move up into its place
+        // (NavigationPlacementHttpTest deletes one).
         foreach ([$link, $child, $button] as $id) {
             foreach (['up', 'down'] as $direction) {
                 $this->assertSame(1, $xpath->query('//form[@action="/api/admin/move-nav-item.php"][.//input[@name="id"][@value="' . $id . '"]][.//input[@name="direction"][@value="' . $direction . '"]]')->length, "move {$direction} for {$id}");
             }
         }
-        $this->assertSame(0, $xpath->query('//form[@action="/api/admin/delete-nav-item.php"][.//input[@name="id"][@value="' . $link . '"]]')->length, 'no delete that the endpoint would refuse');
+        $parentDelete = $xpath->query('//form[@action="/api/admin/delete-nav-item.php"][.//input[@name="id"][@value="' . $link . '"]]')->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $parentDelete);
+        $this->assertStringContainsString('schuiven een niveau omhoog', $parentDelete->getAttribute('data-admin-confirm'), 'the dialog says what happens to its submenu');
         $delete = $xpath->query('//form[@action="/api/admin/delete-nav-item.php"][.//input[@name="id"][@value="' . $button . '"]]')->item(0);
         $this->assertInstanceOf(\DOMElement::class, $delete);
         $this->assertSame('Knop verwijderen?', $delete->getAttribute('data-admin-confirm-title'));
@@ -302,10 +305,9 @@ final class NavigationAdminHttpTest extends TestCase
         $this->assertSame(0, $addChild((int) $third['id']), 'level 3 offers none');
         $this->assertSame(
             1,
-            $screen->query('//*[@data-nav-zone][@data-parent-id="' . $second['id'] . '"]/*[@id="nav-item-' . $third['id'] . '"]')->length,
-            'level 3 is its own ordering zone under its parent'
+            $screen->query('//*[@id="nav-children-' . $second['id'] . '"][@data-parent-id="' . $second['id'] . '"]/*[@id="nav-item-' . $third['id'] . '"][@data-nav-level="3"]')->length,
+            'level 3 is drawn inside its parent and knows its level'
         );
-        $this->assertSame(0, $screen->query('//form[@action="/api/admin/delete-nav-item.php"][.//input[@name="id"][@value="' . $second['id'] . '"]]')->length, 'level 2 with a submenu cannot be deleted yet');
 
         // Folding (admin/assets/navigation-tree.js): a real button on each
         // row with a submenu, open by default, naming the zone it folds; a
@@ -318,15 +320,21 @@ final class NavigationAdminHttpTest extends TestCase
             $this->assertSame('true', $toggle->getAttribute('aria-expanded'));
             $this->assertSame('nav-children-' . $parent, $toggle->getAttribute('aria-controls'));
             $this->assertStringContainsString('Subitems van', $toggle->textContent, 'an accessible name');
-            $this->assertSame(1, $screen->query('//*[@id="nav-children-' . $parent . '"][@data-nav-zone][@data-parent-id="' . $parent . '"]/*[@id="nav-item-' . $child . '"]')->length);
+            $this->assertSame(1, $screen->query('//*[@id="nav-children-' . $parent . '"][@data-parent-id="' . $parent . '"]/*[@id="nav-item-' . $child . '"]')->length);
         }
         $this->assertSame(0, $screen->query('//*[@id="nav-item-' . $third['id'] . '"]//*[@data-nav-tree-toggle]')->length, 'a leaf has nothing to fold');
 
+        // "Bovenliggend item" on a new item: the parent from the address bar
+        // is chosen, but never a level-3 one, which is not even listed.
+        $chosen = static fn (\DOMXPath $editor): ?string => $editor->query('//select[@name="parent_id"]/option[@selected]')->item(0)?->getAttribute('value');
         $editor = $this->xpath(self::$server->request('GET', '/admin/navigation-item.php?parent_id=' . $third['id'], $session)['body']);
-        $this->assertSame(0, $editor->query('//input[@name="parent_id"]')->length, 'no level-4 form from the address bar');
+        $this->assertSame('0', $chosen($editor), 'no level-4 form from the address bar');
+        $this->assertSame(0, $editor->query('//select[@name="parent_id"]/option[@value="' . $third['id'] . '"]')->length);
         $editor = $this->xpath(self::$server->request('GET', '/admin/navigation-item.php?parent_id=' . $second['id'], $session)['body']);
-        $this->assertSame((string) $second['id'], $editor->query('//input[@name="parent_id"]')->item(0)?->getAttribute('value'));
-        $this->assertSame(0, $editor->query('//select[@name="link_type"]/option[@value="none"]')->length, 'a submenu item always has a destination');
+        $this->assertSame((string) $second['id'], $chosen($editor));
+        // A heading is offered only to be switched off by the script while a
+        // parent is chosen; the endpoint refuses it in a submenu either way.
+        $this->assertSame(1, $editor->query('//select[@name="link_type"]/option[@value="none"][@data-nav-link-only]')->length);
     }
 
     /**

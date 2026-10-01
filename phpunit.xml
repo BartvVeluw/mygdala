@@ -82,6 +82,7 @@
             <file>tests/Service/LegalPagesTest.php</file>
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/NavigationTreeTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/Search/SearchNavigationTest.php</file>
@@ -324,6 +325,7 @@
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/NavigationTreeTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/Search/SearchNavigationTest.php</file>
@@ -764,6 +766,7 @@
             <file>tests/Service/NavigationFooterLocalizationEditorHttpTest.php</file>
             <file>tests/Service/NavigationFollowsPageTitleHttpTest.php</file>
             <file>tests/Repository/NavigationRepositoryTest.php</file>
+            <file>tests/Repository/NavigationPlacementTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminAuthLoginTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>
@@ -814,12 +817,14 @@
             <file>tests/Service/MediaUsageTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/NavigationTreeTest.php</file>
             <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/Search/SearchCoreTest.php</file>
             <file>tests/Service/Search/SearchNavigationTest.php</file>
             <file>tests/Service/Search/SearchHttpTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
+            <file>tests/Service/NavigationPlacementHttpTest.php</file>
             <file>tests/Service/NavigationTreeContractTest.php</file>
             <file>tests/Service/FooterAdminHttpTest.php</file>
             <file>tests/Service/PageBuilderScreenTest.php</file>
