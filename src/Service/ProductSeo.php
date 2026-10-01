@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Repository\ProductImageRepository;
 use App\Repository\ProductRepository;
+use App\Repository\ProductVariantImageRepository;
 use App\Repository\ProductVariantRepository;
 use App\Service\Routing\RequestLanguage;
 
@@ -287,8 +288,12 @@ class ProductSeo
      * Mirrors exactly what the shop renders (see api/products.php and
      * assets/js/shop/shop.js): a product WITH active variants shows its default
      * variant's gallery instead of its own product-level photos, so that is
-     * what the social image and the structured data describe too. Falling
-     * back to `products.image_path` covers legacy rows that predate
+     * what the social image and the structured data describe too — but only
+     * its GENERAL pictures: a picture meant for variants only
+     * (product_images.variant_only) is never the product's default image, and
+     * when it links to variant-only pictures alone the product's own general
+     * pictures are used.
+     * Falling back to `products.image_path` covers legacy rows that predate
      * product_images.
      *
      * @return list<string>
@@ -301,13 +306,20 @@ class ProductSeo
             $defaultVariant = (new ProductVariantRepository())->findDefaultForProduct($productId);
 
             if ($defaultVariant !== null) {
-                foreach ($defaultVariant['images'] as $image) {
+                // Its general pictures only: a picture meant for variants
+                // only is never the product's share image or structured-data
+                // image. A variant that links to variant-only pictures alone
+                // falls back to the product's own general pictures; one that
+                // links to nothing keeps the legacy fallback below, as before.
+                foreach (ProductVariantImageRepository::generalOnly($defaultVariant['images']) as $image) {
                     $path = trim((string) ($image['image_path'] ?? ''));
                     if ($path !== '') {
                         $paths[] = $path;
                     }
                 }
-            } else {
+            }
+
+            if ($defaultVariant === null || ($paths === [] && $defaultVariant['images'] !== [])) {
                 foreach ((new ProductImageRepository())->findByProductId($productId) as $image) {
                     $path = trim((string) ($image['image_path'] ?? ''));
                     if ($path !== '') {

@@ -186,7 +186,8 @@ class ProductDeletionService
     {
         $paths = [];
 
-        foreach ($this->images->findByProductId($productId) as $image) {
+        // The whole pool: a picture meant for variants only is the product's too.
+        foreach ($this->images->findPoolByProductId($productId) as $image) {
             if (!empty($image['image_path'])) {
                 $paths[] = (string) $image['image_path'];
             }

@@ -32,8 +32,10 @@ use App\Service\Inventory\StockUnit;
  *   - stock (App\Service\Inventory): per unit only "sold out" and the most
  *     that may be ordered at once, never the figure itself; an untracked
  *     product says "unlimited" (null) for every unit;
- *   - pictures: the product's ONE pool; a variant shows the subset it links
- *     to, in its own order, or — when it links to none — the whole pool.
+ *   - pictures: `images` is the product's general pictures (never one meant
+ *     for variants only, product_images.variant_only); a variant shows the
+ *     subset of the pool it links to — general or variant-only — in its own
+ *     order, or, when it links to none, the general pictures.
  *
  * NOT HERE: the product page's server-side extras (SEO, personalization, the
  * order questions, the specifications) — they have their own services — and
@@ -64,9 +66,12 @@ final class ProductDetail
         $product['name'] = ShopLocalization::product($productId, ShopLocalization::NAME, $language);
         $product['description'] = ShopLocalization::productDescription($productId, $language);
 
-        // The product's ONE pool of pictures. A variant shows the subset it
-        // links to, in its own order, or - when it links to none - this whole
-        // pool (assets/js/shop/shop.js). Adding a variant never hides a picture.
+        // The product's general pictures (ProductImageRepository: a picture
+        // meant for variants only is not among them, so it never leaks into
+        // the default gallery). A variant shows the subset of the pool it
+        // links to, in its own order — variant-only pictures included — or,
+        // when it links to none, these (assets/js/shop/shop.js). Adding a
+        // variant never hides a picture.
         $product['images'] = array_map(self::picture(...), (new ProductImageRepository())->findByProductId($productId));
         $product['options'] = (new ProductOptionRepository())->findByProductId($productId);
         $product['variants'] = (new ProductVariantRepository())->findActiveByProductId($productId);

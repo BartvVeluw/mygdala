@@ -17,6 +17,16 @@
  * WITHOUT JAVASCRIPT the server-rendered inputs are posted unchanged, so a
  * save keeps the pictures exactly as they were.
  *
+ * GENERAL OR VARIANT-ONLY (product_images.variant_only). Productafbeeldingen
+ * holds the general pictures (`gallery[]`); the ones meant for variants only
+ * have their own list in the Varianten section ([data-variant-only-pool],
+ * `gallery_variant_only[]`). "Alleen voor varianten" on a general card and
+ * "Naar productgalerij" on a variant-only card move a picture between the
+ * two without touching its ticks; a variant's "Afbeelding alleen voor deze
+ * variant" adds a new library picture as variant-only and ticks it. A
+ * variant ticks from both. Only the product editor has the second list; the
+ * Portfolio and the media sequence never see any of this.
+ *
  * A VARIANT'S PICTURES live in its row in the Varianten section
  * (admin/_product_variants.php), and a row can appear after the page loaded:
  * "Variant toevoegen" (admin/assets/row-list.js, `row-list:added`) brings one,
@@ -77,15 +87,43 @@
       return text;
     }
 
-    /** The pool: [{token, src, name, kind}], in display order. */
-    var pool = Array.prototype.map.call(list.querySelectorAll("[data-gallery-item]"), function (item) {
+    /**
+     * The pool: [{token, src, name, kind, variantOnly}], the general pictures
+     * in display order, then the ones meant for variants only. Those live in
+     * their own list in the Varianten section ([data-variant-only-pool],
+     * `gallery_variant_only[]`), and only the product editor has one.
+     */
+    var variantOnlyRoot = root.hasAttribute("data-product-gallery") ? document.querySelector("[data-variant-only-pool]") : null;
+    var variantOnlyList = variantOnlyRoot ? variantOnlyRoot.querySelector("[data-variant-only-list]") : null;
+    var variantOnlyEmpty = variantOnlyRoot ? variantOnlyRoot.querySelector("[data-variant-only-empty]") : null;
+
+    function pictureOf(item, variantOnly) {
       return {
         token: item.getAttribute("data-token"),
         src: item.getAttribute("data-src") || "",
         name: item.getAttribute("data-name") || "",
-        kind: item.getAttribute("data-kind") === "video" ? "video" : "image"
+        kind: item.getAttribute("data-kind") === "video" ? "video" : "image",
+        mediaId: item.getAttribute("data-media-id") || null,
+        variantOnly: variantOnly
       };
+    }
+
+    var pool = Array.prototype.map.call(list.querySelectorAll("[data-gallery-item]"), function (item) {
+      return pictureOf(item, false);
     });
+    if (variantOnlyList) {
+      Array.prototype.forEach.call(variantOnlyList.querySelectorAll("[data-gallery-item]"), function (item) {
+        pool.push(pictureOf(item, true));
+      });
+    }
+
+    function generalTokens() {
+      return pool.filter(function (p) { return !p.variantOnly; }).map(function (p) { return p.token; });
+    }
+
+    function variantOnlyPictures() {
+      return pool.filter(function (p) { return p.variantOnly; });
+    }
 
     /** The same decorative picture media_video_icon() prints (admin/_media_picker.php). */
     function videoIcon() {
@@ -146,11 +184,24 @@
     }
 
     /**
+     * A card carries what the server's card carries (token, picture, name,
+     * library id), so a start of this script on cards it drew itself — the
+     * editor draws the sections again one by one after a save, and each
+     * redraw starts the gallery again — reads the same pool.
+     */
+    function describe(item, picture) {
+      item.setAttribute("data-token", picture.token);
+      item.setAttribute("data-src", picture.src || "");
+      item.setAttribute("data-name", picture.name || "");
+      if (picture.mediaId) item.setAttribute("data-media-id", String(picture.mediaId));
+    }
+
+    /**
      * Renders `tokens` into `container` as picture cards with ← → ×, and a
      * hidden input per card named `name`. `firstBadge` labels the first card
-     * (Hoofdfoto / Eerste foto).
+     * (Hoofdfoto / Eerste foto). `decorate`, when given, adds to each card.
      */
-    function renderStrip(container, tokens, name, firstBadge) {
+    function renderStrip(container, tokens, name, firstBadge, decorate) {
       container.innerHTML = "";
 
       tokens.forEach(function (token, index) {
@@ -160,7 +211,7 @@
         var item = document.createElement("li");
         item.className = "admin-gallery__item";
         item.setAttribute("data-gallery-item", "");
-        item.setAttribute("data-token", token);
+        describe(item, picture);
         item.setAttribute("data-kind", picture.kind === "video" ? "video" : "image");
         item.setAttribute("draggable", "true");
 
@@ -213,6 +264,7 @@
         actions.appendChild(right);
         actions.appendChild(remove);
         item.appendChild(actions);
+        if (decorate) decorate(item, picture);
 
         container.appendChild(item);
       });
@@ -349,21 +401,117 @@
       return field ? String(field.value || "") : "";
     }
 
-    function renderPool() {
-      renderStrip(list, pool.map(function (p) { return p.token; }), inputName, firstBadge);
-      if (emptyNote) emptyNote.hidden = pool.length > 0;
-      liveVariants().forEach(renderVariant);
+    /**
+     * "Alleen voor varianten" under a general card: only where the editor has
+     * the list to move it to, and only while the product has a variant to
+     * show it — without one the picture would show nowhere.
+     */
+    function variantOnlyButton(item, picture) {
+      if (!variantOnlyList || liveVariants().length === 0) return;
+      var flag = button("admin-gallery__flag", word("makeVariantOnly", "Alleen voor varianten"), word("makeVariantOnlyLabel", ":name alleen voor varianten gebruiken", { name: picture.name }), { "data-gallery-make-variant-only": "" });
+      item.appendChild(flag);
+    }
 
-      // The product editor's section line says how many pictures there are,
-      // and shows the main one (the first of the pool) as a thumbnail.
+    /** Whether some variant on the page ticks this picture. */
+    function linked(token) {
+      return liveVariants().some(function (variant) { return variant.tokens.indexOf(token) !== -1; });
+    }
+
+    /** The list of pictures meant for variants only, in the Varianten section. */
+    function renderVariantOnly() {
+      if (!variantOnlyList) return;
+      var pictures = variantOnlyPictures();
+      variantOnlyList.innerHTML = "";
+
+      pictures.forEach(function (picture) {
+        var item = document.createElement("li");
+        item.className = "admin-gallery__item admin-gallery__item--variant-only";
+        item.setAttribute("data-gallery-item", "");
+        describe(item, picture);
+
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "gallery_variant_only[]";
+        input.value = picture.token;
+        item.appendChild(input);
+
+        var media = document.createElement("span");
+        media.className = "admin-gallery__media";
+        var img = document.createElement("img");
+        img.src = picture.src;
+        img.alt = "";
+        img.loading = "lazy";
+        img.draggable = false;
+        media.appendChild(img);
+        item.appendChild(media);
+
+        var caption = document.createElement("span");
+        caption.className = "admin-gallery__name";
+        caption.textContent = picture.name;
+        item.appendChild(caption);
+
+        var note = document.createElement("span");
+        note.className = "admin-gallery__note";
+        note.setAttribute("data-variant-only-unlinked", "");
+        note.textContent = word("unlinked", "Niet aan een variant gekoppeld");
+        note.hidden = linked(picture.token);
+        item.appendChild(note);
+
+        var actions = document.createElement("span");
+        actions.className = "admin-gallery__actions";
+        actions.appendChild(button("admin-gallery__btn admin-gallery__btn--text", word("makeGeneral", "Naar productgalerij"), word("makeGeneralLabel", ":name in de productgalerij tonen", { name: picture.name }), { "data-variant-only-general": "" }));
+        actions.appendChild(button("admin-gallery__btn admin-gallery__btn--remove", "×", word("remove", ":name verwijderen", { name: picture.name }), { "data-variant-only-remove": "" }));
+        item.appendChild(actions);
+
+        variantOnlyList.appendChild(item);
+      });
+
+      if (variantOnlyEmpty) variantOnlyEmpty.hidden = pictures.length > 0;
+    }
+
+    function renderPool() {
+      var general = generalTokens();
+      renderStrip(list, general, inputName, firstBadge, variantOnlyButton);
+      if (emptyNote) emptyNote.hidden = general.length > 0;
+      liveVariants().forEach(renderVariant);
+      renderVariantOnly();
+
+      // The product editor's section line says how many general pictures
+      // there are, and shows the main one (the first of them) as a thumbnail.
       var count = root.hasAttribute("data-product-gallery") ? document.querySelector("[data-product-gallery-count]") : null;
-      if (count) count.textContent = String(pool.length);
+      if (count) count.textContent = String(general.length);
       var thumb = root.hasAttribute("data-product-gallery") ? document.querySelector("[data-product-gallery-thumb]") : null;
       if (thumb) {
-        var main = pool[0] && pool[0].kind !== "video" ? pool[0].src : "";
+        var first = byToken(general[0]);
+        var main = first && first.kind !== "video" ? first.src : "";
         if (main) thumb.setAttribute("src", main);
         thumb.hidden = main === "";
       }
+    }
+
+    /** Takes a picture out of the product: off every variant too. */
+    function removePicture(token) {
+      pool = pool.filter(function (p) { return p.token !== token; });
+      // A picture that is no longer the product's cannot stay on a variant.
+      liveVariants().forEach(function (variant) {
+        variant.tokens = variant.tokens.filter(function (t) { return t !== token; });
+      });
+      renderPool();
+    }
+
+    /**
+     * Moves a picture between the general pictures and the ones for variants
+     * only. Made general it goes last in the order; its ticks on variants stay.
+     */
+    function setVariantOnly(token, variantOnly) {
+      var picture = byToken(token);
+      if (!picture || picture.variantOnly === variantOnly) return;
+      pool = pool.filter(function (p) { return p !== picture; });
+      picture.variantOnly = variantOnly;
+      pool.push(picture);
+      renderPool();
+      touched();
+      announce(word(variantOnly ? "madeVariantOnly" : "madeGeneral", ":name", { name: picture.name }));
     }
 
     /** The variants still on the page: a removed row is forgotten here. */
@@ -374,50 +522,83 @@
 
     wireStrip(
       list,
-      function () { return pool.map(function (p) { return p.token; }); },
+      generalTokens,
       function (tokens) {
-        pool = tokens.map(byToken).filter(Boolean);
+        pool = tokens.map(byToken).filter(Boolean).concat(variantOnlyPictures());
       },
-      function (token) {
-        pool = pool.filter(function (p) { return p.token !== token; });
-        // A picture that is no longer the product's cannot stay on a variant.
-        liveVariants().forEach(function (variant) {
-          variant.tokens = variant.tokens.filter(function (t) { return t !== token; });
-        });
-        renderPool();
-      },
+      removePicture,
       renderPool
     );
+
+    on(list, "click", function (event) {
+      var flag = event.target.closest ? event.target.closest("[data-gallery-make-variant-only]") : null;
+      var item = flag ? flag.closest("[data-gallery-item]") : null;
+      if (!item) return;
+      var at = generalTokens().indexOf(item.getAttribute("data-token"));
+      setVariantOnly(item.getAttribute("data-token"), true);
+
+      var cards = list.querySelectorAll("[data-gallery-item]");
+      var next = cards[Math.min(at, cards.length - 1)];
+      var focusTarget = next ? next.querySelector("[data-gallery-remove]") : root.querySelector("[data-media-picker-open]");
+      if (focusTarget) focusTarget.focus();
+    });
+
+    if (variantOnlyList) {
+      on(variantOnlyList, "click", function (event) {
+        var target = event.target.closest ? event.target.closest("button") : null;
+        var item = target ? target.closest("[data-gallery-item]") : null;
+        if (!item) return;
+        var token = item.getAttribute("data-token");
+        var name = (byToken(token) || {}).name || "";
+
+        if (target.hasAttribute("data-variant-only-general")) {
+          setVariantOnly(token, false);
+        } else if (target.hasAttribute("data-variant-only-remove")) {
+          removePicture(token);
+          touched();
+          announce(word("removed", ":name verwijderd", { name: name }));
+        } else {
+          return;
+        }
+
+        // Keep the keyboard in the list: on the next card that is left.
+        var left = variantOnlyList.querySelector("[data-variant-only-remove]");
+        if (left) left.focus();
+      });
+    }
 
     /**
      * A picture chosen or uploaded in the Media Library modal
      * (admin/assets/media-picker.js, a field with data-media-picker-collect).
-     * A picture that is already in the pool is not added twice.
+     * A picture that is already in the pool is not added twice; one meant for
+     * variants only becomes a general picture again.
      */
+    function poolPictureFor(mediaId) {
+      for (var i = 0; i < pool.length; i++) {
+        if (pool[i].token === "media:" + mediaId || (pool[i].mediaId && String(pool[i].mediaId) === String(mediaId))) return pool[i];
+      }
+      return null;
+    }
+
     on(root, "media-picker:choose", function (event) {
       var item = event.detail || {};
       if (!item.id) return;
 
       var token = "media:" + item.id;
-      var known = pool.some(function (p) {
-        return p.token === token || (p.mediaId && String(p.mediaId) === String(item.id));
-      }) || excludedMediaId() === String(item.id);
-      if (known) {
+      var existing = poolPictureFor(item.id);
+      if (existing && existing.variantOnly) {
+        setVariantOnly(existing.token, false);
+        return;
+      }
+      if (existing || excludedMediaId() === String(item.id)) {
         announce(word("duplicate", ":name staat al bij dit product", { name: item.name || "" }));
         return;
       }
 
-      pool.push({ token: token, src: item.thumbnail || "", name: item.name || "", mediaId: item.id, kind: item.kind === "video" ? "video" : "image" });
+      pool.push({ token: token, src: item.thumbnail || "", name: item.name || "", mediaId: item.id, kind: item.kind === "video" ? "video" : "image", variantOnly: false });
       renderPool();
       touched();
       announce(word("added", ":name toegevoegd", { name: item.name || "" }));
-    });
-
-    // The media id behind an `image:` token, so a library item that is already
-    // one of the product's pictures is recognised when it is chosen again.
-    Array.prototype.forEach.call(list.querySelectorAll("[data-gallery-item]"), function (item) {
-      var picture = byToken(item.getAttribute("data-token"));
-      if (picture && item.getAttribute("data-media-id")) picture.mediaId = item.getAttribute("data-media-id");
     });
 
     /* ------------------------------------------------------------------ */
@@ -436,10 +617,13 @@
         var chosen = variant.tokens.indexOf(picture.token) !== -1;
         var tile = document.createElement("button");
         tile.type = "button";
-        tile.className = "admin-gallery-tile" + (chosen ? " is-chosen" : "");
+        tile.className = "admin-gallery-tile" + (chosen ? " is-chosen" : "") + (picture.variantOnly ? " is-variant-only" : "");
         tile.setAttribute("aria-pressed", chosen ? "true" : "false");
         tile.setAttribute("data-token", picture.token);
-        tile.setAttribute("aria-label", word("tile", ":name bij :variant", { name: picture.name, variant: variant.label }));
+        var label = word("tile", ":name bij :variant", { name: picture.name, variant: variant.label }) +
+          (picture.variantOnly ? " (" + word("variantOnlyBadge", "Alleen varianten") + ")" : "");
+        tile.setAttribute("aria-label", label);
+        tile.setAttribute("title", label);
 
         var img = document.createElement("img");
         img.src = picture.src;
@@ -482,9 +666,28 @@
         function (token) {
           variant.tokens = variant.tokens.filter(function (t) { return t !== token; });
           renderVariant(variant);
+          renderVariantOnly();
         },
         function () { renderVariant(variant); }
       );
+
+      /* "Afbeelding alleen voor deze variant": a library picture the product
+         does not have yet joins it as a picture for variants only, ticked
+         here. One it already has (general or not) is only ticked. */
+      on(block, "media-picker:choose", function (event) {
+        var item = event.detail || {};
+        if (!item.id || !event.target.closest("[data-variant-gallery-add]")) return;
+
+        var picture = poolPictureFor(item.id);
+        if (!picture) {
+          picture = { token: "media:" + item.id, src: item.thumbnail || "", name: item.name || "", mediaId: item.id, kind: "image", variantOnly: true };
+          pool.push(picture);
+        }
+        if (variant.tokens.indexOf(picture.token) === -1) variant.tokens.push(picture.token);
+        renderPool();
+        touched();
+        announce(word("variantLinked", ":name gekozen voor :variant", { name: picture.name, variant: variant.label }));
+      });
 
       if (variant.tiles) {
         on(variant.tiles, "click", function (event) {
@@ -499,6 +702,7 @@
             variant.tokens.splice(at, 1);
           }
           renderVariant(variant);
+          renderVariantOnly();
           touched();
 
           var again = variant.tiles.querySelector('[data-token="' + token + '"]');
@@ -516,6 +720,7 @@
     return {
       root: root,
       addVariant: addVariant,
+      refresh: renderPool,
       stop: function () { stopping.abort(); }
     };
   }
@@ -557,6 +762,16 @@
   document.addEventListener("row-list:added", function (event) {
     if (!current || !event.target || !event.target.querySelectorAll) return;
     Array.prototype.forEach.call(event.target.querySelectorAll("[data-variant-gallery]"), current.addVariant);
+    // A first variant offers "Alleen voor varianten" on the general pictures.
+    current.refresh();
+  });
+
+  // A variant row taken off the screen: said while it is still there, so the
+  // pool is drawn again a moment later — its ticks no longer count as links,
+  // and without any variant left "Alleen voor varianten" goes.
+  document.addEventListener("row-list:removed", function (event) {
+    if (!current || !event.target || !event.target.querySelector || !event.target.querySelector("[data-variant-gallery]")) return;
+    window.setTimeout(function () { if (current) current.refresh(); }, 0);
   });
 
   // The editor drew a section again after a save: start from what is there.

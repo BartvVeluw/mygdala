@@ -45,7 +45,7 @@ $personalization = null;
 if ($isEdit) {
     try {
         $product = (new ProductRepository())->findByIdForAdmin($id);
-        $images = (new ProductImageRepository())->findByProductId($id);
+        $images = (new ProductImageRepository())->findPoolByProductId($id);
         $options = (new ProductOptionRepository())->findByProductId($id);
         $variants = (new ProductVariantRepository())->findByProductId($id);
         // An order points at these, so they cannot be removed (only switched off).
@@ -110,6 +110,13 @@ require_once __DIR__ . '/_product_gallery.php';
 $galleryPictures = product_gallery_pictures(
     $images,
     $old !== null && isset($old['gallery']) && is_array($old['gallery']) ? $old['gallery'] : null
+);
+// The pictures meant for variants only (product_images.variant_only): not in
+// Productafbeeldingen, but in their own list in the Varianten section.
+$variantOnlyPictures = product_gallery_pictures(
+    $images,
+    $old !== null && isset($old['gallery_variant_only']) && is_array($old['gallery_variant_only']) ? $old['gallery_variant_only'] : null,
+    true
 );
 
 /**
@@ -558,7 +565,7 @@ $collapseScope = $isEdit ? (string) (int) $product['id'] : 'new';
         <div class="admin-collapse__body">
           <?php if ($isEdit): ?>
             <div data-admin-editor-region="variants">
-              <?php product_variants_section($options, $variants, $galleryPictures, $variantGallery, $lockedVariantIds, $stockTracked); ?>
+              <?php product_variants_section($options, $variants, $galleryPictures, $variantGallery, $lockedVariantIds, $stockTracked, $variantOnlyPictures); ?>
             </div>
           <?php else: ?>
             <?php /* A product needs its id before an option or a variant can

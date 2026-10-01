@@ -143,7 +143,9 @@ class DashboardRepository extends Repository
      * exactly like ProductVariantRepository::findDefaultForProduct() — may
      * show a selection of them (product_variant_images), and one that chose
      * none shows the product's own. So a product has an image when its
-     * default variant links to one, or when the product itself has one.
+     * default variant links to a general one, or when the product itself has
+     * one. A picture meant for variants only (product_images.variant_only)
+     * is never the card's, so it does not count.
      *
      * NO NAME, and a language-neutral order. A product's name lives per
      * website language in `product_translations` since Multilingual 2.0 phase
@@ -157,10 +159,14 @@ class DashboardRepository extends Repository
         $stmt = $this->db->query(
             "SELECT p.id, p.price, p.in_shop, p.in_personalization_catalog,
                     CASE
-                        WHEN dv.id IS NOT NULL AND EXISTS (SELECT 1 FROM product_variant_images pvi WHERE pvi.variant_id = dv.id)
+                        WHEN dv.id IS NOT NULL AND EXISTS (
+                            SELECT 1 FROM product_variant_images pvi
+                            INNER JOIN product_images vpi ON vpi.id = pvi.product_image_id AND vpi.variant_only = 0
+                            WHERE pvi.variant_id = dv.id
+                        )
                             THEN 1
                         ELSE (p.image_path IS NOT NULL AND p.image_path <> '')
-                             OR EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)
+                             OR EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id AND pi.variant_only = 0)
                     END AS has_image
              FROM products p
              LEFT JOIN product_variants dv ON dv.id = (

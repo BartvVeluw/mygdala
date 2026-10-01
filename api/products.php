@@ -151,11 +151,14 @@ try {
 
         $product['has_variants'] = true;
 
-        // The default variant's first picture; a variant that chose none
-        // shows the product's own pictures, so the card keeps the product's.
-        if (isset($defaultVariant['images'][0])) {
-            $product['image_path'] = $defaultVariant['images'][0]['image_path'];
-            $product['image_alt'] = $defaultVariant['images'][0]['alt_text'] ?? null;
+        // The default variant's first general picture; a variant that chose
+        // none shows the product's own pictures, so the card keeps the
+        // product's. A picture meant for variants only never stands for the
+        // product on a card (ProductVariantImageRepository::generalOnly()).
+        $cardPicture = \App\Repository\ProductVariantImageRepository::generalOnly($defaultVariant['images'])[0] ?? null;
+        if ($cardPicture !== null) {
+            $product['image_path'] = $cardPicture['image_path'];
+            $product['image_alt'] = $cardPicture['alt_text'] ?? null;
         }
     }
     unset($product);

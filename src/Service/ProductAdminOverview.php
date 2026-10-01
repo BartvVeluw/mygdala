@@ -52,7 +52,11 @@ final class ProductAdminOverview
 
         foreach ($products as &$product) {
             $id = (int) $product['id'];
-            $variantPicture = isset($defaultVariants[$id]) ? ($variantImages[$defaultVariants[$id]][0] ?? null) : null;
+            // The default variant's first general picture, as the shop card
+            // takes it: one meant for variants only never stands for the product.
+            $variantPicture = isset($defaultVariants[$id])
+                ? (ProductVariantImageRepository::generalOnly($variantImages[$defaultVariants[$id]] ?? [])[0] ?? null)
+                : null;
             $picture = $variantPicture ?? $primary[$id] ?? null;
 
             $path = $picture !== null ? (string) ($picture['thumbnail_path'] ?? $picture['image_path'] ?? '') : '';

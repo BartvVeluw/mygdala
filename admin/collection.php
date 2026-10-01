@@ -64,13 +64,13 @@ try {
     $products = (new ProductRepository())->findAllForAdmin();
 
     // Same thumbnail rule as admin/products.php and the shop card: the
-    // default variant's first chosen picture, else the product's own primary
-    // picture, so the picker shows what the shop shows.
+    // default variant's first chosen general picture, else the product's own
+    // primary picture, so the picker shows what the shop shows.
     $variantRepository = new ProductVariantRepository();
     foreach ($products as &$productRow) {
         $defaultVariant = $variantRepository->findDefaultForProduct((int) $productRow['id']);
         if ($defaultVariant !== null) {
-            $productRow['image_path'] = $defaultVariant['images'][0]['image_path'] ?? $productRow['image_path'];
+            $productRow['image_path'] = \App\Repository\ProductVariantImageRepository::generalOnly($defaultVariant['images'])[0]['image_path'] ?? $productRow['image_path'];
         }
     }
     unset($productRow);

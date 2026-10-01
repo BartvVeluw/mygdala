@@ -6235,6 +6235,29 @@ body.admin-block-picker-open{ overflow: hidden; }
 .admin-variant-gallery .admin-gallery__btn--remove:hover:not(:disabled){ border-color: var(--admin-error); color: var(--admin-error); background: transparent; }
 .admin-gallery__add{ display: flex; }
 
+/* Variant-only pictures (v0.1.15 phase 12.1): "Alleen voor varianten" under a
+   general card, the list of pictures for variants only in the Varianten
+   section with "Naar productgalerij", and a dashed tile where a variant
+   ticks one. Words, not colour alone, say which is which. */
+.admin-gallery .admin-gallery__flag{
+  min-height: 2.25rem; padding: 0.2rem 0.4rem;
+  border: 1px dashed var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  background: transparent; color: var(--admin-text-muted);
+  font-size: 0.78rem; font-weight: 600; line-height: 1.2;
+  cursor: pointer;
+}
+.admin-gallery .admin-gallery__flag:hover{ border-color: var(--admin-accent); color: var(--admin-accent); }
+.admin-gallery .admin-gallery__flag:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-gallery .admin-gallery__btn--text{ flex: 3 1 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; }
+.admin-gallery__note{ font-size: 0.75rem; color: var(--admin-text); font-weight: 600; }
+.admin-gallery__note[hidden]{ display: none; }
+.admin-variant-only-pool{ margin-top: var(--admin-sp-3); padding-top: var(--admin-sp-3); border-top: 1px solid var(--admin-border); }
+.admin-variant-only-pool .admin-product-variants__heading{ margin: 0; }
+.admin-variant-only-pool .admin-gallery__item{ cursor: default; border-style: dashed; }
+.admin-variant-gallery .admin-gallery-tile.is-variant-only{ border-style: dashed; }
+.admin-variant-gallery .admin-gallery-tile.is-variant-only.is-chosen{ border-style: solid; }
+
 .admin-variant-gallery{
   margin: 0 0 1rem; padding: 0.9rem 1rem 1rem;
   border: 1px solid var(--admin-border);

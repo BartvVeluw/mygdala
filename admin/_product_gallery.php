@@ -26,12 +26,20 @@ require_once __DIR__ . '/_translate.php';
  * has, `media:<id>` for a library image chosen in this visit — the same
  * tokens the server resolves again. Without JavaScript the rendered inputs
  * post the stored state unchanged.
+ *
+ * GENERAL OR VARIANT-ONLY (product_images.variant_only). Productafbeeldingen
+ * shows the general pictures only (`gallery[]`, the first is the Hoofdfoto).
+ * The pictures meant for variants only have their own short list in the
+ * Varianten section (`gallery_variant_only[]`,
+ * product_gallery_variant_only_pool()), and every variant can tick both
+ * kinds. A picture moves between the two lists with a button; its links to
+ * variants stay.
  */
 
 /**
  * One picture of the pool as the screen shows it.
  *
- * @return array{token: string, src: string, name: string, media_id: ?int}
+ * @return array{token: string, src: string, name: string, media_id: ?int, variant_only: bool}
  */
 function product_gallery_picture_from_row(array $row): array
 {
@@ -43,18 +51,20 @@ function product_gallery_picture_from_row(array $row): array
         'src' => '/' . ltrim($path, '/'),
         'name' => $name !== '' ? $name : basename((string) ($row['image_path'] ?? '')),
         'media_id' => !empty($row['media_id']) ? (int) $row['media_id'] : null,
+        'variant_only' => (int) ($row['variant_only'] ?? 0) === 1,
     ];
 }
 
 /**
- * The pool to show: what a refused save sent (tokens, resolved again), else
- * what the product has stored.
+ * One of the two lists to show — the general pictures, or with $variantOnly
+ * the pictures meant for variants only: what a refused save sent (tokens,
+ * resolved again), else what the product has stored.
  *
- * @param list<array<string, mixed>> $storedRows ProductImageRepository rows
- * @param list<string>|null          $oldTokens  the refused request's tokens, or null
- * @return list<array{token: string, src: string, name: string, media_id: ?int}>
+ * @param list<array<string, mixed>> $storedRows ProductImageRepository::findPoolByProductId() rows
+ * @param list<string>|null          $oldTokens  the refused request's tokens for this list, or null
+ * @return list<array{token: string, src: string, name: string, media_id: ?int, variant_only: bool}>
  */
-function product_gallery_pictures(array $storedRows, ?array $oldTokens): array
+function product_gallery_pictures(array $storedRows, ?array $oldTokens, bool $variantOnly = false): array
 {
     $stored = [];
     foreach ($storedRows as $row) {
@@ -62,13 +72,13 @@ function product_gallery_pictures(array $storedRows, ?array $oldTokens): array
     }
 
     if ($oldTokens === null) {
-        return array_values($stored);
+        return array_values(array_filter($stored, static fn (array $picture): bool => $picture['variant_only'] === $variantOnly));
     }
 
     $pictures = [];
     foreach ($oldTokens as $token) {
         if (isset($stored[$token])) {
-            $pictures[] = $stored[$token];
+            $pictures[] = ['variant_only' => $variantOnly] + $stored[$token];
             continue;
         }
 
@@ -80,6 +90,7 @@ function product_gallery_pictures(array $storedRows, ?array $oldTokens): array
                     'src' => $media->displayPath(),
                     'name' => $media->displayName(),
                     'media_id' => $media->id,
+                    'variant_only' => $variantOnly,
                 ];
             }
         }
@@ -102,6 +113,15 @@ function product_gallery_words(): string
         'primary' => admin_t('shop.gallery.primary'),
         'variantFirst' => admin_t('shop.gallery.variant_first'),
         'tile' => admin_t('shop.gallery.tile'),
+        'makeVariantOnly' => admin_t('shop.gallery.make_variant_only'),
+        'makeVariantOnlyLabel' => admin_t('shop.gallery.make_variant_only_label'),
+        'madeVariantOnly' => admin_t('shop.gallery.made_variant_only'),
+        'makeGeneral' => admin_t('shop.gallery.make_general'),
+        'makeGeneralLabel' => admin_t('shop.gallery.make_general_label'),
+        'madeGeneral' => admin_t('shop.gallery.made_general'),
+        'unlinked' => admin_t('shop.gallery.unlinked'),
+        'variantOnlyBadge' => admin_t('shop.gallery.variant_only_badge'),
+        'variantLinked' => admin_t('shop.gallery.variant_linked'),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
@@ -175,7 +195,13 @@ function product_gallery_pool(array $pictures): void
  * are drawn again by admin/assets/product-gallery.js from the pool as it is
  * on screen, so a picture added to the pool a moment ago is there too.
  *
- * @param list<array{token: string, src: string, name: string, media_id: ?int}> $pictures the pool
+ * The tiles offer the whole pool: the general pictures, then the ones meant
+ * for variants only (marked as such). "Afbeelding alleen voor deze variant"
+ * chooses a library picture as a variant-only picture of the product and
+ * ticks it here; a picture the product already has is ticked, not added
+ * twice.
+ *
+ * @param list<array{token: string, src: string, name: string, media_id: ?int, variant_only: bool}> $pictures the whole pool
  * @param array{key: string, label: string, tokens: list<string>, own: bool, html: string} $variant
  */
 function product_gallery_variant_block(array $pictures, array $variant): void
@@ -203,12 +229,19 @@ function product_gallery_variant_block(array $pictures, array $variant): void
 
       <div class="admin-gallery-tiles" data-variant-gallery-tiles role="group" aria-label="<?= admin_te('shop.gallery.tiles_label', ['variant' => $variant['label']]) ?>">
         <?php foreach ($pictures as $picture): ?>
-          <?php $isChosen = in_array($picture['token'], $chosen, true); ?>
-          <button type="button" class="admin-gallery-tile<?= $isChosen ? ' is-chosen' : '' ?>" data-token="<?= $h($picture['token']) ?>" aria-pressed="<?= $isChosen ? 'true' : 'false' ?>" aria-label="<?= admin_te('shop.gallery.tile', ['name' => $picture['name'], 'variant' => $variant['label']]) ?>">
+          <?php
+            $isChosen = in_array($picture['token'], $chosen, true);
+            $tileLabel = admin_t('shop.gallery.tile', ['name' => $picture['name'], 'variant' => $variant['label']])
+                . ($picture['variant_only'] ? ' (' . admin_t('shop.gallery.variant_only_badge') . ')' : '');
+          ?>
+          <button type="button" class="admin-gallery-tile<?= $isChosen ? ' is-chosen' : '' ?><?= $picture['variant_only'] ? ' is-variant-only' : '' ?>" data-token="<?= $h($picture['token']) ?>" aria-pressed="<?= $isChosen ? 'true' : 'false' ?>" aria-label="<?= $h($tileLabel) ?>" title="<?= $h($tileLabel) ?>">
             <img src="<?= $h($picture['src']) ?>" alt="" loading="lazy">
             <span class="admin-gallery-tile__mark" aria-hidden="true"><?= $isChosen ? '&#10003;' : '' ?></span>
           </button>
         <?php endforeach; ?>
+      </div>
+      <div class="admin-gallery__add" data-media-picker data-media-picker-kind="image" data-media-picker-collect data-variant-gallery-add>
+        <button type="button" class="admin-btn-secondary" data-media-picker-open>+ <?= admin_te('shop.gallery.variant_add') ?></button>
       </div>
 
       <div class="admin-variant-description" data-variant-description>
@@ -221,6 +254,51 @@ function product_gallery_variant_block(array $pictures, array $variant): void
           <?php renderRichTextField('variant_description[' . $key . ']', admin_t('shop.variant_description.label'), $variant['html']); ?>
         </div>
       </div>
+    </div>
+    <?php
+}
+
+/**
+ * The pictures meant for variants only, in the Varianten section: not in
+ * Productafbeeldingen, not in the product's gallery, but still the product's
+ * (product_images.variant_only = 1). A card says when no variant ticks it
+ * (it then shows nowhere, and stays until it is removed on purpose), and
+ * "Naar productgalerij" makes it a general picture again, last in the
+ * order. Their own order means nothing: a variant has its own.
+ *
+ * The marker `gallery_variant_only_submitted` tells the endpoint the list
+ * was on the form; without it the stored variant-only pictures stay as they
+ * are (App\Service\ProductGallery::save()).
+ *
+ * @param list<array{token: string, src: string, name: string, media_id: ?int, variant_only: bool}> $pictures
+ * @param list<string> $linkedTokens every token a variant on the screen ticks
+ */
+function product_gallery_variant_only_pool(array $pictures, array $linkedTokens): void
+{
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    ?>
+    <div class="admin-gallery admin-variant-only-pool" data-variant-only-pool>
+      <input type="hidden" name="gallery_variant_only_submitted" value="1">
+      <h3 class="admin-product-variants__heading"><?= admin_te('shop.gallery.variant_only_heading') ?></h3>
+      <p class="admin-text-muted"><?= admin_te('shop.gallery.variant_only_intro') ?></p>
+      <ul class="admin-gallery__grid admin-gallery__grid--small" data-variant-only-list aria-label="<?= admin_te('shop.gallery.variant_only_list_label') ?>">
+        <?php foreach ($pictures as $picture): ?>
+          <li class="admin-gallery__item admin-gallery__item--variant-only" data-gallery-item
+              data-token="<?= $h($picture['token']) ?>"
+              data-src="<?= $h($picture['src']) ?>"
+              data-name="<?= $h($picture['name']) ?>"<?= $picture['media_id'] !== null ? ' data-media-id="' . (int) $picture['media_id'] . '"' : '' ?>>
+            <input type="hidden" name="gallery_variant_only[]" value="<?= $h($picture['token']) ?>">
+            <span class="admin-gallery__media"><img src="<?= $h($picture['src']) ?>" alt="" loading="lazy" draggable="false"></span>
+            <span class="admin-gallery__name"><?= $h($picture['name']) ?></span>
+            <span class="admin-gallery__note" data-variant-only-unlinked<?= in_array($picture['token'], $linkedTokens, true) ? ' hidden' : '' ?>><?= admin_te('shop.gallery.unlinked') ?></span>
+            <span class="admin-gallery__actions">
+              <button type="button" class="admin-gallery__btn admin-gallery__btn--text" data-variant-only-general aria-label="<?= admin_te('shop.gallery.make_general_label', ['name' => $picture['name']]) ?>"><?= admin_te('shop.gallery.make_general') ?></button>
+              <button type="button" class="admin-gallery__btn admin-gallery__btn--remove" data-variant-only-remove aria-label="<?= admin_te('shop.gallery.remove', ['name' => $picture['name']]) ?>">&times;</button>
+            </span>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+      <p class="admin-text-muted" data-variant-only-empty<?= $pictures !== [] ? ' hidden' : '' ?>><?= admin_te('shop.gallery.variant_only_empty') ?></p>
     </div>
     <?php
 }

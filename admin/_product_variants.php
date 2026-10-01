@@ -46,14 +46,23 @@ require_once __DIR__ . '/_product_inventory.php';
  *
  * @param list<array<string, mixed>> $options ProductOptionRepository::findByProductId() rows
  * @param list<array<string, mixed>> $variants ProductVariantRepository::findByProductId() rows
- * @param list<array{token: string, src: string, name: string, media_id: ?int}> $pictures the pool as shown
+ * @param list<array{token: string, src: string, name: string, media_id: ?int, variant_only: bool}> $pictures the general pictures as shown
  * @param array<int, array{tokens: list<string>, own: bool, html: string}> $variantGallery per variant id
  * @param list<int> $lockedVariantIds variants an order points at
  * @param bool $stockTracked whether the product's "Voorraad bijhouden" is on
+ * @param list<array{token: string, src: string, name: string, media_id: ?int, variant_only: bool}> $variantOnlyPictures the pictures meant for variants only
  */
-function product_variants_section(array $options, array $variants, array $pictures, array $variantGallery, array $lockedVariantIds, bool $stockTracked = false): void
+function product_variants_section(array $options, array $variants, array $pictures, array $variantGallery, array $lockedVariantIds, bool $stockTracked = false, array $variantOnlyPictures = []): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+    // A variant ticks from the whole pool: the general pictures, then the
+    // ones meant for variants only.
+    $pool = [...$pictures, ...$variantOnlyPictures];
+    $linkedTokens = [];
+    foreach ($variantGallery as $selection) {
+        array_push($linkedTokens, ...$selection['tokens']);
+    }
 
     // Which stored values a variant uses: "option:value" keys, the shape the
     // script compares the screen against.
@@ -125,18 +134,20 @@ function product_variants_section(array $options, array $variants, array $pictur
                     'stock_seen' => (int) ($variant['stock'] ?? 0),
                     'tracked' => $stockTracked,
                 ],
-                $pictures,
-                $variantGallery[$variantId] ?? ['tokens' => [], 'own' => false, 'html' => '']
+                $pool,
+                $variantGallery[$variantId] ??['tokens' => [], 'own' => false, 'html' => '']
             );
           ?>
         <?php endforeach; ?>
       </div>
       <p class="admin-text-muted" data-product-variants-empty<?= $variants !== [] ? ' hidden' : '' ?>><?= admin_te('shop.varianten_2') ?></p>
-      <template data-row-list-template="product-variants"><?php product_variants_variant_row('__KEY__', ['label' => admin_t('shop.nieuwe_variant'), 'pairs' => '', 'price' => '', 'active' => true, 'locked' => false, 'stock' => 0, 'stock_seen' => null, 'tracked' => $stockTracked], $pictures, ['tokens' => [], 'own' => false, 'html' => '']); ?></template>
+      <template data-row-list-template="product-variants"><?php product_variants_variant_row('__KEY__', ['label' => admin_t('shop.nieuwe_variant'), 'pairs' => '', 'price' => '', 'active' => true, 'locked' => false, 'stock' => 0, 'stock_seen' => null, 'tracked' => $stockTracked], $pool, ['tokens' => [], 'own' => false, 'html' => '']); ?></template>
       <p class="admin-visually-hidden" role="status" aria-live="polite" data-row-list-status="product-variants" data-row-list-moved="<?= admin_te('editor_rows.verplaatst') ?>"></p>
       <div class="admin-option-rows__tools">
         <button type="button" class="admin-btn-secondary" data-row-list-add="product-variants" hidden>+ <?= admin_te('shop.editor.add_variant') ?></button>
       </div>
+
+      <?php product_gallery_variant_only_pool($variantOnlyPictures, $linkedTokens); ?>
     </div>
     <?php
 }

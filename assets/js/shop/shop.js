@@ -349,7 +349,10 @@
       }
       var productDefaultImage = productImages[0] || null;
 
-      /* What a variant shows: its own choice, or the product's whole pool. */
+      /* What a variant shows: its own choice (which may hold pictures meant
+         for variants only), or the product's general pictures. The product's
+         `images` never holds a variant-only one (App\Service\ProductDetail),
+         so choosing a variant without a choice of its own shows them again. */
       function variantImages(variant) {
         return variant && Array.isArray(variant.images) && variant.images.length > 0 ? variant.images : productImages;
       }
