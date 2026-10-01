@@ -79,7 +79,7 @@ function block_appearance_panel(array $pageSection, string $csrfToken): void
         <?php if ($support->decorations !== []) { $select('decoration', ['none', ...$support->decorations]); } ?>
       </div>
       <div class="block-appearance-panel__actions">
-        <button type="submit" class="admin-btn-secondary"><?= admin_te('appearance.save') ?></button>
+        <button type="submit" class="admin-btn-secondary" data-admin-editor-companion-save><?= admin_te('appearance.save') ?></button>
       </div>
     </form>
   </details>

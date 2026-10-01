@@ -97,6 +97,16 @@
   );
   var dirtyCompanions = [];
 
+  // A companion's own save button that says the bar replaces it
+  // (data-admin-editor-companion-save, the Extra vormgeving panel): hidden
+  // here, where the bar's Opslaan sends the companion too; without this
+  // script, and on a save-bar.js screen, it stays the form's way to save.
+  companions.forEach(function (other) {
+    Array.prototype.forEach.call(other.querySelectorAll("[data-admin-editor-companion-save]"), function (button) {
+      button.hidden = true;
+    });
+  });
+
   function anyDirty() {
     return dirty || dirtyCompanions.length > 0;
   }
@@ -496,6 +506,10 @@
           if (!accepted) {
             var name = other.getAttribute("data-save-name");
             render("error", name ? word("error-in").replace(":form", name) : word("failed"));
+            // Never a refusal in a closed panel or a hidden tab.
+            revealTab(other);
+            openSection(other);
+            if (typeof other.scrollIntoView === "function") other.scrollIntoView({ block: "center" });
             return false;
           }
           dirtyCompanions.splice(dirtyCompanions.indexOf(other), 1);
