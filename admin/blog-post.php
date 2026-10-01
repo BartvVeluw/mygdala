@@ -10,6 +10,8 @@ require_once __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_publication_fields.php';
+require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_content_blocks.php';
 
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
@@ -26,29 +28,37 @@ use App\Service\Csrf;
 use App\Service\Media\MediaService;
 
 /**
- * One blog post's editor: three tabs over ONE form.
+ * One blog post's editor (Blog 2.0): four tabs, one form for the post.
  *
- *   Inhoud      title, excerpt and body in ONE website language, the featured
+ *   Algemeen    title and excerpt in ONE website language, the featured
  *               image, the categories and the tags
- *   Publicatie  status, publication moment, author, and the post's URL
+ *   Inhoud      the post's body, in the mode it is in (BlogContentMode):
+ *               classic — the rich-text body, in the form, and a card to
+ *               convert it into content blocks; blocks — the ordinary block
+ *               list of its content page (content_blocks_owner_panel(), the
+ *               one a product and a project use) and a card to switch back
+ *   Publicatie  the Publishing Engine's status and date, the byline, the URL
  *   SEO         SEO title, meta description, indexability, the social image
  *               and a preview of the search result
  *
- * ONE FORM ACROSS THREE PANELS, deliberately — the same arrangement
+ * ONE FORM FOR THE POST, deliberately — the same arrangement
  * admin/page.php uses for Pagina and SEO. api/admin/update-blog-post.php
- * reads the whole post from one request, so splitting the tabs into three
+ * reads the whole post from one request, so splitting the tabs into several
  * forms would turn every save into a partial POST that blanks whatever the
  * editor was not looking at. Every panel therefore ends in the same "Bericht
- * opslaan", and either one saves all three.
+ * opslaan". The block list is NOT in that form: its rows are forms of their
+ * own, and a form cannot hold a form, so the Inhoud panel continues after
+ * the post's form closes (the arrangement admin/portfolio-item.php uses).
  *
  * The tab strip itself is navigation only (admin/_admin_tabs.php): with
  * JavaScript off the three panels are simply a long page, and the save bar
  * (admin/_save_bar.php) watches the same form it always would.
  *
- * The body is the shared rich-text field (admin/_richtext_field.php) — a
- * plain textarea that Quill enhances — and the server sanitises what arrives
- * whichever of the two produced it. V1 gives a post a rich-text body rather
- * than a content-block layout on purpose (BLOG.md).
+ * The classic body is the shared rich-text field (admin/_richtext_field.php)
+ * — a plain textarea that Quill enhances — and the server sanitises what
+ * arrives whichever of the two produced it. In blocks mode the field is not
+ * on the screen and the save leaves the stored body alone, so switching back
+ * is exact (BLOG.md, "Klassieke tekst en contentblokken").
  *
  * ONE WEBSITE LANGUAGE at a time since Multilingual 2.0 phase 5 wave B, via
  * admin/_localized_fields.php like every other converted screen: the language
@@ -170,8 +180,26 @@ $isPublic = BlogPostStatus::isPublic($post);
 $isReachable = BlogPostStatus::isReachable($post);
 $isPending = BlogPostStatus::isPending($post);
 
-/** A rejected save puts its messages above the fields on Inhoud. */
-$forcedTab = $errors !== [] ? 'inhoud' : null;
+// Which body this post shows, explicitly (App\Service\Blog\BlogContentMode).
+$usesBlocks = \App\Service\Blog\BlogContentMode::usesBlocks($post);
+$blockKind = \App\Service\Blog\BlogPostContentOwner::KIND;
+$canManageBlocks = \App\Service\ContentOwners\ContentBlockAccess::canManageKind($blockKind);
+
+// Whether there is a classic body to go back to, in any language.
+$hasClassicBody = false;
+foreach (\App\Service\Language\SiteLanguages::all() as $siteLanguage) {
+    if (trim(BlogLocalization::rawPost($postId, BlogLocalization::BODY, $siteLanguage->code)) !== '') {
+        $hasClassicBody = true;
+        break;
+    }
+}
+
+/**
+ * A rejected save puts its messages above the fields on Algemeen; a block
+ * editor, the block list and the mode switch come back to Inhoud
+ * (?tab=inhoud, BlogPostContentOwner::editUrl()), as on a project.
+ */
+$forcedTab = ($_GET['tab'] ?? '') === 'inhoud' ? 'inhoud' : ($errors !== [] ? 'algemeen' : null);
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -233,6 +261,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
   <?php admin_localized_bar($editingLanguage); ?>
 
   <?php admin_tabs_start('blog-post-editor', [
+      'algemeen' => admin_t('tabs.general'),
       'inhoud' => admin_t('tabs.content'),
       'publicatie' => admin_t('tabs.publication'),
       'seo' => admin_t('tabs.seo'),
@@ -249,7 +278,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
              leaves every other translation of this post alone. */ ?>
     <?= admin_localized_input($editingLanguage) ?>
 
-    <?php admin_tab_panel('inhoud'); ?>
+    <?php admin_tab_panel('algemeen'); ?>
     <section class="admin-card">
       <h2><?= admin_te('blog.tekst') ?></h2>
 
@@ -265,11 +294,6 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
         </label>
       </div>
       <p class="admin-text-muted"><?= admin_te('blog.samenvatting_staat_overzicht_rss') ?></p>
-    </section>
-
-    <section class="admin-card">
-      <h2><?= admin_te('blog.bericht') ?></h2>
-      <?php renderRichTextField('body', 'Tekst', $word(BlogLocalization::BODY), 'full', 'admin-richtext-editor--lg'); ?>
     </section>
 
     <section class="admin-card">
@@ -320,6 +344,20 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       <p class="admin-text-muted"><?= admin_t('blog.slaat_alle_drie_tabbladen') ?></p>
     </section>
     <?php admin_tab_panel_end(); ?>
+
+    <?php if (!$usesBlocks): ?>
+    <?php admin_tab_panel('inhoud'); ?>
+    <section class="admin-card">
+      <h2><?= admin_te('blog.bericht') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('blog.content_mode.legacy_intro') ?></p>
+      <?php renderRichTextField('body', 'Tekst', $word(BlogLocalization::BODY), 'full', 'admin-richtext-editor--lg'); ?>
+    </section>
+
+    <section class="admin-card admin-card--actions">
+      <button type="submit"><?= admin_te('blog.bericht_opslaan') ?></button>
+    </section>
+    <?php admin_tab_panel_end(); ?>
+    <?php endif; ?>
 
     <?php admin_tab_panel('publicatie'); ?>
     <section class="admin-card">
@@ -428,7 +466,50 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     <?php admin_tab_panel_end(); ?>
   </form>
 
+  <?php /* The rest of Inhoud: outside the post's form, because the block list
+           and the two switches are forms of their own. */ ?>
+  <?php admin_tab_panel('inhoud'); ?>
+  <?php if ($usesBlocks): ?>
+    <?php if ($canManageBlocks): ?>
+      <?php content_blocks_owner_panel($blockKind, $postId, $csrfToken); ?>
+    <?php endif; ?>
+    <?php if ($hasClassicBody): ?>
+      <section class="admin-card">
+        <h2><?= admin_te('blog.content_mode.back_title') ?></h2>
+        <p class="admin-text-muted"><?= admin_te('blog.content_mode.back_text') ?></p>
+        <form method="post" action="/api/admin/update-blog-post-content-mode.php" class="admin-inline-form" data-no-dirty-track>
+          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+          <input type="hidden" name="id" value="<?= $postId ?>">
+          <input type="hidden" name="content_mode" value="legacy">
+          <button type="submit" class="admin-btn-secondary"><?= admin_te('blog.content_mode.back_button') ?></button>
+        </form>
+      </section>
+    <?php endif; ?>
+  <?php else: ?>
+    <section class="admin-card">
+      <h2><?= admin_te('blog.content_mode.convert_title') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('blog.content_mode.convert_text') ?></p>
+      <form method="post" action="/api/admin/update-blog-post-content-mode.php" class="admin-inline-form" data-no-dirty-track<?= admin_confirm_attributes(
+          admin_t('blog.content_mode.convert_confirm_title'),
+          admin_t('blog.content_mode.convert_confirm_text'),
+          admin_t('blog.content_mode.convert_button')
+      ) ?>>
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <input type="hidden" name="id" value="<?= $postId ?>">
+        <input type="hidden" name="content_mode" value="blocks">
+        <button type="submit" class="admin-btn-secondary"><?= admin_te('blog.content_mode.convert_button') ?></button>
+      </form>
+    </section>
+  <?php endif; ?>
+  <?php admin_tab_panel_end(); ?>
+
   <?php admin_tabs_end(); ?>
+
+  <?php if ($usesBlocks && $canManageBlocks): ?>
+    <?php content_blocks_owner_modals($blockKind, $postId, $csrfToken); ?>
+  <?php else: ?>
+    <?= admin_confirm_dialog() ?>
+  <?php endif; ?>
 </main>
 
 <?php save_bar(); ?>
@@ -436,5 +517,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
 <?php admin_tabs_script(); ?>
+<?php admin_collapse_script(); ?>
+<?php content_blocks_scripts(); ?>
 </body>
 </html>
