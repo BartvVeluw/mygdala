@@ -666,6 +666,27 @@ zit achter de helpknop van het veld.
 - **Een melding** staat per onderdeel bij het veld (`presentation.<onderdeel>`
   in de foutenlijst van het scherm).
 
+## Kaartweergave
+
+Een keuze voor hoe de kaarten binnen een blok eruitzien (Card Presentation
+2.0, `CONTENT-BLOCKS.md` "Kaartweergave"): `admin_card_presentation_field()`
+in `admin/_card_presentation_field.php`, met de regels `.admin-cp` in
+`admin.css`. Het staat in de groep *Weergave* van Projecten en van de galerij.
+
+- **Een fieldset met radiokaarten**, geen select: per weergave een kleine
+  schets, de naam en één regel over waar hij voor is (*Standaard*, *Compact*,
+  *Breed*). De legend *Kaartweergave* heeft een helpknop die uitlegt dat dit
+  voor alle kaarten van het blok tegelijk geldt en dat de achtergrond van het
+  blok bij Extra vormgeving hoort.
+- **Zonder script.** Gewone radioknoppen; de gekozen kaart krijgt de
+  accentrand via `:has(input:checked)` en het rondje blijft zichtbaar
+  aangevinkt, zodat de toestand niet alleen op kleur rust. Het veld doet
+  gewoon mee met de opslagbalk.
+- **Alleen wat het blok aanbiedt** (`CardPresentation::offered()`); een blok
+  zonder kaarten krijgt geen veld. De schetsen zijn decoratief
+  (`aria-hidden`), nooit technische woorden als *aspect-ratio* of
+  *grid-template-columns*.
+
 ## Waar het al gebruikt wordt
 
 De schermen hieronder, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het

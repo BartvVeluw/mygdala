@@ -1087,6 +1087,29 @@ randen en de effecten achter het blok zijn Extra vormgeving, niet van
 Reviews. `ReviewsContractTest` faalt op een hexkleur, een `rgb()` met een
 getal of een `font-family` zonder token in `reviews.css`.
 
+## Kaartweergave: alleen tokens
+
+De kaartweergaven Compact en Breed (`CONTENT-BLOCKS.md`, "Kaartweergave",
+`assets/css/card-presentation.css`) hebben geen eigen kleur en geen eigen
+letter:
+
+| Wat | Token |
+|---|---|
+| Het vlak van een kaart, en bij hover | `--color-surface`, `--color-surface-hover` |
+| Rand, en bij hover | `--color-line`, `--color-line-strong` |
+| Kaarttitel | `--color-text`, de letter van de kop zelf (`--font-display`, Font Library) |
+| Korte tekst | `--color-text-muted` |
+| Toetsenbordfocus | `--color-primary-bright` |
+| Een kaart zonder beeld | een verloop van `--color-surface-hover` naar `--color-surface-2` |
+| Ruimte en afronding | `--sp-*`, `--radius-md` |
+
+Een actief palet en een paginathema kleuren de kaarten dus vanzelf mee. Let
+op bij het maken van een paginathema: kaarten staan op het *vlak*, dus een
+thema met dezelfde kleur voor vlak en tekst maakt elke kaart onleesbaar, ook
+de productkaarten. De achtergrond van het blok zelf is Extra vormgeving.
+`CardPresentationContractTest` faalt op een hexkleur, een `rgb()` met een
+getal of een `font-family` in `card-presentation.css`.
+
 ## Branding-afbeeldingen
 
 Logo, tweede logo, favicon en deel-afbeelding blijven `site_settings`, en

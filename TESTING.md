@@ -1337,6 +1337,30 @@ de standaard voor elk bestaand blok, de galerij op `soft` die verhuist, de
 draft die haar waarde houdt, geen andere kolom die verandert, een tweede run
 zonder effect, en vers = geüpgraded.
 
+Kaartweergave (`CONTENT-BLOCKS.md`, "Kaartweergave"):
+`CardPresentationContractTest` (geen database, in `contract`, `fast` en
+`blocks`) dekt de gesloten lijst en het veilig lezen van een opgeslagen
+waarde, wat een opslag mag aannemen (alleen wat het blok aanbiedt, de
+opgeslagen waarde zonder veld, de rest geweigerd), de klassen uit één
+resolver, precies de galerij en Projecten als aangesloten blokken, Standaard
+gelijk aan de render zonder waarde en zonder gedeelde klasse, Compact en Breed
+met elke link, zoom, knop, alt-tekst en lui beeld, geen link in een link, een
+leeg beeldkader, de kaarttitel als kop volgens `CardHeading`, escapen en niets
+afgesneden, de stylesheet (alleen tokens, alles onder `.card-presentation`, Breed
+gestapeld op een telefoon) en het editorveld.
+
+`CardPresentationHttpTest` (eigen `php -S`, `blocks` en `cms`) dekt beide
+editors met de opgeslagen keuze, Breed en Compact op de publieke pagina met
+de stylesheet en terug naar Standaard als de oude pagina, Breed samen met
+Extra vormgeving, de galerij, een nieuw blok dat zijn weergave bij de eerste
+opslag krijgt en een geannuleerde draft zonder rij, een vervalste waarde,
+CSRF, een vervalste of andermans sectie, geen recht, en de stylesheet alleen
+waar een blok een andere weergave dan de standaard heeft.
+
+`CardPresentationMigrationTest` (ScratchInstall, `migration` en `blocks`)
+dekt `default` voor elk bestaand blok, geen andere kolom die verandert, een
+tweede run zonder effect, en vers = geüpgraded.
+
 ### Zoeken
 
 De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):

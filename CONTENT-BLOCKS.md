@@ -2115,6 +2115,137 @@ alleen uit wat er getoond mag worden (`App\Service\RandomOrder`, PHP's eigen
   per render getrokken wordt, uit de juiste pool, zonder dubbelen en binnen
   het maximum — en nooit dat de volgende trekking anders *moet* zijn.
 
+## Kaartweergave (Card Presentation 2.0)
+
+`App\Service\Blocks\CardPresentation`, `db/migrations/20261010100000`. Hoe de
+kaarten **binnen** een blok eruitzien, één keuze voor het hele blok. Het is
+een gedeeld contract voor gewone contentkaarten (een beeld, een titel, een
+korte tekst, een link of een knop), zodat niet elk blok zelf een
+afbeeldingsverhouding, kolommen, padding en mobiel gedrag bedenkt.
+
+| Waarde | In het CMS | Wat de bezoeker ziet |
+|---|---|---|
+| `default` | Standaard | De kaarten van het blok zoals ze altijd waren. Bij de galerij en Projecten: een 4/5-foto met de woorden bij hover, drie kolommen. |
+| `compact` | Compact | Een vierkante, kleinere foto met de woorden er altijd onder, minder ruimte, vier kolommen (3 → 2 → 1 op een telefoon). |
+| `wide` | Breed | Foto links, woorden rechts, twee kaarten naast elkaar, één vanaf 1100 px. Onder 600 px staat de foto boven de woorden. |
+
+Er is bewust **geen vierde weergave "Beeldgericht"**: de standaardkaart van
+de galerij is al de beeldgerichte kaart (grote foto, woorden bij hover). Een
+vierde keuze zou hetzelfde twee keer tekenen.
+
+### Wat een weergave wel en niet bepaalt
+
+Een weergave bepaalt de kolommen die bij die weergave horen, de opbouw van de
+kaart, de vorm en de uitsnede van het beeld, de ruimte rond de woorden en dat
+de woorden altijd zichtbaar zijn. Bij Compact en Breed wordt de kaarttitel een
+echte kop (`CardHeading::under()`), want de woorden staan dan vast in beeld en
+verschijnen niet pas bij hover.
+
+Een weergave bepaalt **niet** welke items er staan, hun woorden, waar een
+kaart naartoe linkt, of een foto inzoomt, een publicatiestatus of een prijs.
+Dat blijft van het blok en zijn bron. Een Portfoliokaart blijft dus in elke
+weergave een zoombare foto met een aparte knop "Bekijk project"; een
+collectiekaart blijft één link naar het product. Er komt nooit een link in een
+link.
+
+### Kaartweergave en Extra vormgeving
+
+Twee lagen die elkaar niet raken:
+
+- **Kaartweergave** gaat over de kaarten *binnen* het blok. Ze staat in de
+  rij van het blok (`item_galleries.card_presentation`), in de editor van het
+  blok, en de klassen staan op het grid en de kaarten.
+- **Extra vormgeving** gaat over het blok *als geheel*: achtergrond, lijnen,
+  ruimte en effecten, in `page_sections`, in het paneel in de bloklijst, en de
+  klassen staan op de root-`<section>`.
+
+Projecten met kaarten Breed en vormgeving Subtiel met een accentlijn werkt dus
+zonder conflict. Kaartweergave heeft geen eigen blokachtergrond. Een kaart
+heeft wel een eigen vlak (`--color-surface`), omdat dat bij een kaart hoort.
+
+### De standaard blijft byte voor byte gelijk
+
+Een blok zonder keuze (de kolom is `default`, ook na de migratie) krijgt geen
+enkele extra klasse, geen extra element en geen stylesheet. Een onbekende of
+lege waarde leest `CardPresentation::stored()` als de standaard.
+`CardPresentationContractTest` vergelijkt de standaardweergave met de render
+zonder waarde en met een onbekende waarde. Bij de bouw is de partial ook
+byte voor byte vergeleken met die van v0.1.14, in zeven gevallen.
+
+### Opslag, beveiliging en assets
+
+- **Gesloten lijst.** `CardPresentation::ALL`. Het endpoint neemt alleen een
+  waarde die het blok aanbiedt (`choiceFromRequest()`), houdt de opgeslagen
+  waarde als het veld ontbreekt, en weigert al het andere met "Kies een
+  kaartweergave uit de lijst.". Er komt nooit een klasse of stijl uit een
+  request of de database: `CardPresentation::classes()` is de enige plek die
+  de klassennamen maakt.
+- **In dezelfde transactie** als de rest van de opslag
+  (`ItemGalleryRepository::saveCardPresentation()`), dus een nieuw blok krijgt
+  zijn weergave bij de eerste opslag mee, en een geannuleerde draft laat niets
+  achter.
+- **Eén stylesheet**, `assets/css/card-presentation.css`, eigenaar
+  `CardPresentation`. `CardPresentation::collectAssets()` vraagt hem alleen op
+  een pagina waar een blok Compact of Breed gebruikt, net als
+  `BlockAppearance::collectAssets()`. Geen JavaScript, geen extra request per
+  kaart. Alleen themavariabelen, zodat kleurenpalet, paginathema en Font
+  Library gewoon doorwerken.
+
+### Aangesloten blokken
+
+| Blok | Waarom |
+|---|---|
+| Projecten (`project_cards`) | De eerste gebruiker. |
+| Galerij, als Portfoliogalerij en Collectiegalerij (`item_gallery`) | Dezelfde rij, dezelfde partial en dezelfde kaart als Projecten. |
+
+Beide zijn `PresentsCards` en bieden alle drie de weergaven aan. De
+gerelateerde projecten op een projectpagina gebruiken dezelfde partial, maar
+zijn geen blok: daar blijft de eigen gridkeuze (`PortfolioRelatedProjects::LAYOUTS`)
+en de standaardkaart.
+
+### Bewust niet aangesloten
+
+| Onderdeel | Waarom niet |
+|---|---|
+| Hover-kaarten | De interactie (hover, beeldwissel) is het bloktype zelf, en het blok heeft al een eigen layoutmodel (layout, vorm, kolommen). |
+| Kaarten-carrousel | 3D-orbit of rij met vaste kaartbreedte: een eigen interactie en een eigen beeldhoogte. |
+| Reviews | Een testimonial zonder kaartbeeld, met vier eigen weergaven. |
+| Productgrid, gerelateerde producten, Uitgelicht product | Commerce: prijs, varianten, de kaarten worden in de browser gebouwd. |
+| Kenmerken in kaartjes (Feature grid) | Geen beeld en geen link. |
+| Zoekresultaten | Een lijst, geen kaartgrid. |
+| Collectietegels, het blogoverzicht | Wel contentkaarten, maar een eigen Shop-blok en een route. Kandidaten voor later. |
+| De gewone fotolightbox van een projectpagina | Alleen foto's, geen kaarten. |
+
+### Een blok aansluiten
+
+1. Implementeer `PresentsCards` op de definitie: `cardPresentations()` (wat
+   het blok aanbiedt, de standaard eerst) en `cardPresentation()` (de waarde
+   van één geplaatste instantie, voor `collectAssets()`).
+2. Bewaar de keuze in de rij van het blok, met `default` als standaard, en lees
+   haar met `CardPresentation::stored()`.
+3. Zet `admin_card_presentation_field()` (`admin/_card_presentation_field.php`)
+   in de editor en `CardPresentation::choiceFromRequest()` in het endpoint.
+4. Laat de partial `CardPresentation::classes($presentation, <deel>)` printen
+   op het grid, de kaart, het beeldkader, de woorden, de titel en de tekst, en
+   alleen als de weergave niet de standaard is.
+5. Zet het type in `CardPresentationContractTest::CONNECTED` en schrijf een
+   regressietest voor de standaardweergave van het blok.
+
+Geen eigen kopie van de compact- of breed-CSS in de stylesheet van het blok.
+Blokspecifieke details mogen daar wel blijven.
+
+### Responsive Media
+
+De kaarten van de galerij en Projecten tonen het beeld van hun bron met een
+gewone `<img loading="lazy">`. Focus en zoom van Responsive Media horen bij
+een plek op een blokrij (`ResponsiveImageSlot`), niet bij een item uit een
+bron, dus deze kaarten hebben geen focusdata. Alle weergaven gebruiken dezelfde
+bron met `object-fit: cover`, een vaste verhouding van het kader (geen
+verspringende layout) en kopiëren of veranderen nooit een afbeelding. Een
+toekomstig blok dat wel een `ResponsiveImageSlot` per kaart heeft, print
+`render_responsive_image()` binnen het beeldkader
+`card-presentation__media`.
+
 ## Uitgelicht product
 
 `db/migrations/20260928160000`. Eén product uit de Shop groot op een gewone
@@ -2273,6 +2404,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 | Kiezen, annuleren, opslaan en terugkeren; de lege-blokwaarschuwing | `fast` → `ContentBlockLifecycleTest` en `ContentBlockLifecycleHttpTest` → `blocks` |
 | De bestemmingskiezer, `LinkChoice`, `LinkTargets` of `SafeUrl` | `fast` → `blocks` (`DestinationPickerTest`, `Routing\SafeUrlTest`) → `modules` |
 | Een knop, of de knopstijl van een blok | `fast` (`ButtonStyleBlocksTest`, `ButtonStyleCssTest`) → `blocks` (`ButtonStylesHttpTest`) |
+| De kaartweergave van een blok (`CardPresentation`) | `fast` (`CardPresentationContractTest`) → `CardPresentationHttpTest` → `blocks` |
 | Alleen rendering | `blocks`; de HTTP-tests daarin hebben de `php_test`-container nodig |
 | Migratie/backfill | `blocks` → `--group migration-backfill` → volledige suite |
 

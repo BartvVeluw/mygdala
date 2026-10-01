@@ -166,6 +166,16 @@ en `GenericBlockDefaultsTest` bewaken beide.
   draagt en stijl hem nooit op het element (`CONTENT-BLOCKS.md`, "Koppen in
   kaarten"); `CardHeadingContractTest` rendert je voorbeeld met en zonder
   titel.
+- **Zijn het gewone contentkaarten** (beeld, titel, korte tekst, link) en wil
+  de redacteur kunnen kiezen hoe ze eruitzien? Sluit aan op de
+  *Kaartweergave*: `PresentsCards` op de definitie, een kolom in de rij,
+  `admin_card_presentation_field()` in de editor,
+  `CardPresentation::choiceFromRequest()` in het endpoint en
+  `CardPresentation::classes()` in de partial, alleen buiten de standaard. Nooit
+  eigen compact- of breed-CSS, en het type in
+  `CardPresentationContractTest::CONNECTED` (`CONTENT-BLOCKS.md`,
+  "Kaartweergave"). Interactiekaarten (Hover-kaarten, de carrousel) en
+  commercekaarten horen er niet bij.
 - **Kan je blok Extra vormgeving dragen?** Laat de partial één root-element
   printen (een `<section>` met de inhoud in een `.container` direct eronder)
   en zet `appearanceSupport()` op `AppearanceSupport::section()`, eventueel
