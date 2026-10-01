@@ -62,6 +62,11 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
   [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
 - **De standaardtaal beslist of iets bestaat.** Een blok, knop of item zonder
   woorden in de standaardtaal toont in geen enkele taal.
+- **De zoekfunctie leest wat de bezoeker leest.** Ook de tekst van de blokken
+  (Search 2.0) komt per veld uit de gevraagde taal met de terugval naar de
+  standaardtaal, nooit uit een andere taal; een nieuwe taal of een andere
+  standaardtaal laat de index zichzelf opnieuw opbouwen. →
+  [`SEARCH.md`](SEARCH.md), "De tekst van de blokken"
 - **Systeemtekst is een gesloten codecatalogus per taalcode**
   (`SiteText::pick()`), met terugval op de standaardtaal; nooit een
   `if ($taal === 'de')` en nooit een opgeslagen `label_de`.

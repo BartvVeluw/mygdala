@@ -135,6 +135,13 @@ en `GenericBlockDefaultsTest` bewaken beide.
   terug-link in `block_editor_draft_notice('<type>', $csrfToken)`. Nooit een
   terugkeeradres uit het request (`CONTENT-BLOCKS.md`, "De levensloop van een
   nieuw blok").
+- **Zoektekst.** Geef in `searchFields()` elk veld uit `translatableFields()`
+  een rol: `BlockSearchRole::HEADING`, `TEXT` of `NONE` (alt-tekst, knop- en
+  linklabels). Alleen eigen woorden, nooit die van een gekoppeld record.
+  Schrijft je endpoint woorden zonder `place()`, roep dan
+  `BlockSearchIndex::reindexBlock()` aan (`SEARCH.md`, "De tekst van de
+  blokken"; `BlockSearchContractTest`). Verandert de rol van een bestaand
+  veld: verhoog `BlockSearchIndex::VERSION`.
 - **Kan je blok leeg zijn?** Implementeer `App\Service\Blocks\InspectsContent`
   (`hasContent()`, dezelfde regel als je partial), of zet het met reden in
   `ContentBlockLifecycleContractTest::NEVER_EMPTY` (decoratief of dynamisch).

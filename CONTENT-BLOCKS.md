@@ -21,6 +21,7 @@ herhaalbaar blok:
 |---|---|
 | Migratie + tabel | `db/migrations/*_create_cta_bands_table.php` → `cta_bands` |
 | Woorden per taal | `translatableFields()` in de definitie → `block_translations`, via `App\Service\Blocks\BlockLocalization` (geen eigen migratie) |
+| Zoektekst | `searchFields()` in de definitie: per woordveld `HEADING`, `TEXT` of `NONE` (`SEARCH.md`, "De tekst van de blokken") |
 | Repository (alle SQL) | `src/Repository/CtaBandRepository.php` |
 | Inhoudsklasse | `src/Service/CtaBandContent.php` |
 | Frontend-partial | `partials/section-cta-band.php` |
@@ -393,7 +394,9 @@ eigenaar (`ContentBlockMediaUsageOwnerHttpTest`).
 
 **Wat een blok niet doet** op een product of project: de titel, canonical,
 structured data of deelafbeelding veranderen. Die blijven van `ProductSeo` en
-`PortfolioSeo`. Zoeken (Search 1.0) doorzoekt de blokken nog niet.
+`PortfolioSeo`. Zoeken vindt het product of project wel op de woorden van
+zijn blokken (Search 2.0, `SEARCH.md`): één resultaat, op het adres van de
+eigenaar.
 
 **Herbruikbare blokken** zijn in deze codebase bloktypes die op elke pagina
 terug kunnen komen, geen gedeelde bibliotheek met verwijzingen; een blok op een
@@ -762,6 +765,7 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    | `clearCache()` | `<Type>Content::clearCache()` |
    | `contentTable()` | De tabelnaam — vertrouwde metadata waarmee tests hun eigen rijen opruimen |
    | `translatableFields()` | De woorden per websitetaal, per eigen tabel, met `TranslatableField::plain()` of `::rich()` — zie *Taal* hierboven. Een blok zonder eigen rijen (`FixedBlockDefinition`) declareert `[]` |
+   | `searchFields()` | Voor **elk** veld uit `translatableFields()` zijn rol in de zoekfunctie: `BlockSearchRole::HEADING` (een kop), `TEXT` (leestekst) of `NONE` (alt-tekst, knoplabel, ankerlabel). Alleen eigen woorden, nooit die van een gekoppeld record. `BlockSearchContractTest` eist het; Search verandert er niet voor (`SEARCH.md`, "De tekst van de blokken") |
    | `styles()` / `scripts()` / `vendorScripts()` | De eigen frontend van dit blok; standaard leeg — zie stap 8 |
 
    Optioneel, met een veilige standaard: `childTables()` (de kindtabellen

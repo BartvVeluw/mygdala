@@ -1381,12 +1381,22 @@ tweede run zonder effect, en vers = geüpgraded.
 
 ### Zoeken
 
-De zoekfunctie heeft drie testklassen (`SEARCH.md`, "Testen"):
+De zoekfunctie heeft zes testklassen (`SEARCH.md`, "Testen"):
 `SearchCoreTest` en `SearchNavigationTest` hebben geen database nodig en zitten
-in `unit`, `fast` en `cms`. `SearchProvidersTest` schrijft pagina's, producten,
-projecten en berichten in één transactie die na elke test wordt teruggedraaid,
-en zit in `modules`, `shop` en `blog`. De module-aan/uit-gevallen gebruiken
-`ModuleRegistry::overrideForTests()`, niet de omgevingsvariabelen.
+in `unit`, `fast` en `cms`; `BlockSearchContractTest` (Search 2.0: elk blok
+classificeert zijn velden, elke schrijver houdt de index bij) ook niet, en zit
+in `contract`, `fast` en `blocks`. `SearchProvidersTest` en
+`SearchBlockTextTest` schrijven pagina's, producten, projecten, berichten,
+artikelen en blokken in één transactie die na elke test wordt teruggedraaid,
+en zitten in `modules`, `shop` en `blog`; ze bouwen de blokindex in `setUp()`
+op met `BlockSearchIndex::ensureCurrent()`, zodat geen zoekopdracht in de test
+zelf opnieuw opbouwt en de querytellingen alleen het zoeken meten.
+`SearchIndexMigrationTest` zit in `migration` en `modules`. De
+module-aan/uit-gevallen gebruiken `ModuleRegistry::overrideForTests()`, niet de
+omgevingsvariabelen.
+
+`ArticleIntegrityTest` (`modules`) hoort bij Articles: een artikel dat geen
+concept is houdt een blok met inhoud, en verwijderen is één transactie.
 
 ### Paginathema's
 

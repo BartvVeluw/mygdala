@@ -209,7 +209,7 @@ zoals op elke pagina. Een paginathema per artikel is er niet.
 |---|---|
 | SEO | `ArticleSeo` → `SeoMetadata`: eigen of afgeleide titel en omschrijving, canonical per taal, `og:type` article, `Article`-JSON-LD (auteur alleen als er een byline is), noindex bij archief of vinkje |
 | Sitemap | `ArticlesModule::sitemapCollectors()`: overzicht per taal, *listed* en indexeerbare artikelen per echte versie met hreflang, onderwerpen met artikelen; één query voor de rijen en één voor de woorden |
-| Zoeken | `ArticleSearchProvider` (type `article`): titel en intro, alleen *listed* en indexeerbaar, per taal. **Niet** de tekst van de blokken: dat is Search 2.0 |
+| Zoeken | `ArticleSearchProvider` (type `article`): titel en intro, en de tekst van de blokken (Search 2.0, `SEARCH.md`), alleen *listed* en indexeerbaar, per taal |
 | LinkTargets | type `article`; href volgt *reachable*, in de gelezen taal, anders de standaardtaal, anders een andere versie |
 | LinkedImages | `article` → de uitgelichte afbeelding, zodat de Detailsectie een artikel als beeld met link kan tonen |
 | Media | `ArticleMediaUsage` (één query per batch) plus `RESTRICT`: een uitgelichte afbeelding is niet te verwijderen zolang een artikel haar gebruikt |
@@ -269,4 +269,3 @@ een geüpgradede database. De testcontainer zet `MODULE_ARTICLES_ENABLED=true`.
 - Author Management: de byline is vrije tekst.
 - Een paginathema per artikel.
 - Een "laatste artikelen"-blok of een `item_gallery`-bron.
-- Zoeken in de tekst van de blokken (Search 2.0).

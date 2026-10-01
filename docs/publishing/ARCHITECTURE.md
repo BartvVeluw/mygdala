@@ -333,9 +333,17 @@ haar eigen permissie en editor, en krijgt een contentpagina van de gewone
 blokkenmotor (`CONTENT-BLOCKS.md`, "Wie mag welke blokken beheren"). Er is
 geen nieuwe pagina-engine nodig en in deze fase niets gebouwd.
 
-## Zoeken (voorbereid, niet gebouwd)
+## Zoeken
 
-Search 2.0 kan per record alles uit de engine en de provider halen:
+Search 2.0 (v0.1.15, `SEARCH.md`) is gebouwd zonder centrale index van
+publiceerbare records: elke provider vraagt bij elke zoekopdracht zijn eigen
+*listed*-regel (`listedSql()`), dus een concept, een ingepland of een
+gearchiveerd bericht of artikel komt nooit in de resultaten, en publiceren of
+terugzetten werkt meteen. Alleen de **tekst van de blokken** staat in een
+afgeleide index (`search_block_texts`), zonder status: die weet niet of zijn
+eigenaar gepubliceerd is, en hoeft dat ook niet.
+
+Wat een latere, rijkere zoekfunctie per record uit de engine kan halen:
 
 | Veld | Bron |
 |---|---|
@@ -345,9 +353,9 @@ Search 2.0 kan per record alles uit de engine en de provider halen:
 | taal | de sleutels van `alternates()` |
 | publicatiedatum | `PublishingClock::forAtom(published_at)` |
 
-De huidige site-zoekfunctie (`SearchProvider` per module) blijft zoals hij
-is. Er is geen index. Artikelen leveren daar titel en intro van *listed*,
-indexeerbare artikelen, niet de tekst van hun blokken.
+Artikelen leveren titel, intro en de tekst van hun blokken; blogberichten
+titel, samenvatting en wat hun pagina als tekst toont (de klassieke tekst of,
+in blokmodus, de blokken).
 
 ## Preview
 
@@ -425,4 +433,3 @@ Gebouwd zoals hier stond, met drie bijstellingen (`ARTICLES.md`):
 - Een redactionele goedkeuringsstroom, revisies of een previewtoken.
 - Author Management.
 - Een generieke taxonomy-engine.
-- Search 2.0.

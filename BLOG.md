@@ -172,7 +172,10 @@ categorie- en tagarchieven, de feed, de sitemap, de zoekresultaten of bij
 gerelateerde berichten en buren. De detailroute, een slugredirect en een
 blokknop naar het bericht vragen *reachable*
 (`BlogPostStatus::isReachable()`, `findReachableById()`/`findReachableBySlug()`);
-al het andere vraagt *listed*. Terugzetten naar gepubliceerd laat hetzelfde
+al het andere vraagt *listed*. De zoekfunctie vindt een bericht op wat zijn
+pagina als tekst toont: in klassieke modus de body, in blokmodus de tekst van
+de blokken, nooit allebei (Search 2.0, `SEARCH.md`, "De tekst van de
+blokken"). Terugzetten naar gepubliceerd laat hetzelfde
 adres weer gewoon meedoen. Er komt geen redirect en geen archiefpagina.
 
 **Sinds v0.1.15 staat de Blog op de Publishing Engine**
