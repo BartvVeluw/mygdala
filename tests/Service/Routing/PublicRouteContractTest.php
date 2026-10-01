@@ -115,6 +115,24 @@ final class PublicRouteContractTest extends TestCase
             'post' => self::POST_NONE,
             'why' => 'a per-language slug: App\Service\Blog\BlogUrls builds it and blog-post.php declares its versions',
         ],
+        'articles.index' => [
+            'witness' => null,
+            'canonical' => null,
+            'post' => self::POST_NONE,
+            'why' => 'a per-language word (/artikelen, /en/articles) that is no witness by definition; articles.php declares a version per language, and Tests\Module\ArticlesTest resolves it',
+        ],
+        'articles.topic' => [
+            'witness' => null,
+            'canonical' => null,
+            'post' => self::POST_NONE,
+            'why' => 'a per-language slug under a per-language word: App\Service\Articles\ArticleUrls builds it and articles.php declares its versions',
+        ],
+        'articles.article' => [
+            'witness' => null,
+            'canonical' => null,
+            'post' => self::POST_NONE,
+            'why' => 'a per-language slug: App\Service\Articles\ArticleUrls builds it and article.php declares its versions',
+        ],
         'personalization.catalog' => ['witness' => '/personaliseren.php', 'canonical' => '/personaliseren.php', 'post' => self::POST_NONE],
         'portfolio.index' => ['witness' => '/portfolio', 'canonical' => '/portfolio', 'post' => self::POST_FORM_SOURCE],
         'portfolio.index.file' => [

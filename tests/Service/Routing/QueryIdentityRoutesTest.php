@@ -62,6 +62,8 @@ final class QueryIdentityRoutesTest extends TestCase
         'checkout.php' => 'the cart lives in the browser',
         'personaliseren.php' => 'one page',
         'portfolio.php' => 'one page',
+        'articles.php' => 'the path names the topic, and articles.php declares it; ?pagina=N is view state',
+        'article.php' => 'the path names the article, and article.php declares it',
         'blog-feed.php' => 'a feed: no language switch',
         'blog.php' => 'the path names the category or tag, and blog.php declares it; ?pagina=N is view state',
         'blog-post.php' => 'the path names the post, and blog-post.php declares it',

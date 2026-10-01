@@ -96,7 +96,7 @@ final class BlogPublishingTest extends TestCase
         $this->assertSame([], $provider->alternates($draft), 'a draft has no public address');
         $this->assertNull($provider->publication(999999999));
         $this->assertNull(Publishables::find('blog_post', 999999999));
-        $this->assertNull(Publishables::find('article', $id), 'a blog post\'s id under another type finds nothing');
+        $this->assertNull(Publishables::find('news_item', $id), 'a blog post\'s id under an unknown type finds nothing');
     }
 
     public function testCanPublishIsTheBlogsOwnRule(): void
@@ -121,7 +121,7 @@ final class BlogPublishingTest extends TestCase
         $id = $this->post('Wissel', 'draft', null);
         $before = $this->posts->find($id);
 
-        $this->assertSame('not_found', PublishingService::change('article', $id, 'published', '', $may)['outcome'], 'forged type');
+        $this->assertSame('not_found', PublishingService::change('news_item', $id, 'published', '', $may)['outcome'], 'forged type');
         $this->assertSame('not_found', PublishingService::change('blog_post', 999999999, 'published', '', $may)['outcome'], 'forged id');
         $this->assertSame('not_found', PublishingService::change('blog_post', $id . 'x', 'published', '', $may)['outcome'], 'malformed id');
         $this->assertSame('forbidden', PublishingService::change('blog_post', $id, 'published', '', $mayNot)['outcome'], 'no permission for this kind');

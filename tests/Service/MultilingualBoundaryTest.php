@@ -1583,6 +1583,9 @@ final class MultilingualBoundaryTest extends TestCase
         'blog_post_translations',
         'blog_category_translations',
         'blog_tag_translations',
+        // Articles 1.0 (ARTICLES.md).
+        'article_translations',
+        'article_topic_translations',
         'product_translations',
         'collection_translations',
         'order_item_translations',
@@ -1604,6 +1607,7 @@ final class MultilingualBoundaryTest extends TestCase
         'src/Service/Forms/FormLocalization.php',
         'src/Service/PortfolioLocalization.php',
         'src/Service/Blog/BlogLocalization.php',
+        'src/Service/Articles/ArticleLocalization.php',
         'src/Service/ShopLocalization.php',
         // A SNAPSHOT, not a translation: what a product was CALLED when it was
         // bought. Its own class on purpose, with its own reading rule — see

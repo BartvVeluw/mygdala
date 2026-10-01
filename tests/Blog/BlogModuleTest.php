@@ -116,7 +116,7 @@ final class BlogModuleTest extends TestCase
         }
 
         $this->assertSame(
-            ['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => false, 'multilingual' => false, 'page_themes' => false],
+            ['shop' => true, 'personalization' => true, 'blog' => false, 'articles' => false, 'portfolio' => false, 'multilingual' => false, 'page_themes' => false],
             $defaults
         );
     }

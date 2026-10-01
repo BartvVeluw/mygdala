@@ -74,8 +74,8 @@ final class DestinationPickerTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$on = BuiltInServer::start(['MODULE_SHOP_ENABLED' => 'true', 'MODULE_PORTFOLIO_ENABLED' => 'true', 'MODULE_BLOG_ENABLED' => 'true']);
-        self::$off = BuiltInServer::start(['MODULE_SHOP_ENABLED' => 'false', 'MODULE_PERSONALIZATION_ENABLED' => 'false', 'MODULE_PORTFOLIO_ENABLED' => 'false', 'MODULE_BLOG_ENABLED' => 'true']);
+        self::$on = BuiltInServer::start(['MODULE_SHOP_ENABLED' => 'true', 'MODULE_PORTFOLIO_ENABLED' => 'true', 'MODULE_BLOG_ENABLED' => 'true', 'MODULE_ARTICLES_ENABLED' => 'true']);
+        self::$off = BuiltInServer::start(['MODULE_SHOP_ENABLED' => 'false', 'MODULE_PERSONALIZATION_ENABLED' => 'false', 'MODULE_PORTFOLIO_ENABLED' => 'false', 'MODULE_BLOG_ENABLED' => 'true', 'MODULE_ARTICLES_ENABLED' => 'false']);
     }
 
     public static function tearDownAfterClass(): void
@@ -272,7 +272,7 @@ final class DestinationPickerTest extends TestCase
 
         $on = $this->xpath(self::$on->request('GET', $path, $session)['body']);
         $kinds = array_map(static fn (\DOMElement $o): string => $o->getAttribute('value'), iterator_to_array($on->query('//select[@name="primary_link_type"]/option')));
-        self::assertSame(['none', 'page', 'blog_post', 'product', 'collection', 'portfolio_project', 'url'], $kinds);
+        self::assertSame(['none', 'page', 'blog_post', 'article', 'product', 'collection', 'portfolio_project', 'url'], $kinds);
         self::assertSame('product', $on->query('//select[@name="primary_link_type"]/option[@selected]')->item(0)?->getAttribute('value'));
         self::assertSame((string) $product, $on->query('//select[@name="primary_link_target[product]"]/option[@selected]')->item(0)?->getAttribute('value'));
         self::assertSame(1, $on->query('//*[@data-nav-link-field="product" and @data-destination-search]//select[@name="primary_link_target[product]"]')->length, 'a product is searched');
@@ -281,7 +281,7 @@ final class DestinationPickerTest extends TestCase
 
         $off = $this->xpath(self::$off->request('GET', $path, $session)['body']);
         $kinds = array_map(static fn (\DOMElement $o): string => $o->getAttribute('value'), iterator_to_array($off->query('//select[@name="primary_link_type"]/option')));
-        self::assertSame(['none', 'page', 'blog_post', 'url', 'product'], $kinds, 'no Shop or Portfolio kinds, the stored one kept last');
+        self::assertSame(['none', 'page', 'blog_post', 'url', 'product'], $kinds, 'no Shop, Portfolio or Articles kinds, the stored one kept last');
         $kept = $off->query('//select[@name="primary_link_type"]/option[@selected]')->item(0);
         self::assertSame('product', $kept?->getAttribute('value'));
         self::assertStringContainsString('Shop', (string) $kept?->textContent, 'named by its module');
