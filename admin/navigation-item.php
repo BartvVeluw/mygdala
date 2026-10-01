@@ -39,6 +39,16 @@ AdminAuth::requirePermission('pages.manage');
  *   Weergave    top-level only: a link in the menu or a button in the header,
  *               and the button's style from a closed list. Hidden for a link
  *               with submenu items, which cannot become a button.
+ *   Plaats      menu items only: "Bovenliggend item", the menu as a tree in
+ *               one <select> (App\Service\TreeOptions, the Pages list's
+ *               text), "Geen (hoofdniveau)" first. It offers exactly what
+ *               App\Service\NavigationTree allows — never the item itself,
+ *               nothing below it, no place where its submenu would pass the
+ *               deepest level — and the endpoint judges again. It is the
+ *               keyboard, touch and precise way to do what a drag on the
+ *               overview does; a new parent puts the item last in its new
+ *               submenu (HEADER-FOOTER.md, "Verplaatsen"). A header button
+ *               has no place in the tree and no such card.
  *
  * Without JavaScript every destination field is on screen and the endpoint
  * uses only the one that belongs to the chosen kind
@@ -73,10 +83,9 @@ if (!$isNew) {
     }
 }
 
-// A new child item may be pre-selected via ?parent_id=, a new button via
-// ?presentation=button. There is no parent field to choose from at all: an
-// item is created where its "+ Submenu-item" was clicked, on level 3 at most
-// (NavigationRepository::canBeParent()), and never moves afterwards.
+// A new child item starts under the parent whose "+ Submenu-item" was
+// clicked (?parent_id=, on level 3 at most: NavigationRepository::canBeParent()),
+// a new button via ?presentation=button. "Bovenliggend item" can change it.
 $presetParentId = null;
 $presetPresentation = NavigationPresentation::LINK;
 if ($isNew) {
@@ -96,6 +105,27 @@ if ($isChild) {
     $parentLabel = $parentRow !== null ? NavigationLocalization::adminName($parentRow) : null;
 }
 $childCount = $isNew ? 0 : $repository->countChildren((int) $item['id']);
+
+// "Bovenliggend item": the menu as a tree, from one query. The stored parent
+// is always listed, so an item whose place is no longer allowed (a tree
+// edited in SQL) is not moved by the next save; choosing it again is no move.
+$tree = $repository->tree();
+$parentOptions = [];
+$storedParentId = $isNew ? $presetParentId : ($item['parent_id'] === null ? null : (int) $item['parent_id']);
+$candidates = $tree->parentCandidates($isNew ? null : (int) $item['id']);
+$candidateIds = array_column($candidates, 'id');
+foreach ($tree->ordered() as $entry) {
+    if (!in_array($entry['id'], $candidateIds, true) && $entry['id'] !== $storedParentId) {
+        continue;
+    }
+    $parentOptions[] = [
+        'id' => $entry['id'],
+        'label' => \App\Service\TreeOptions::label(NavigationLocalization::adminName($tree->row($entry['id'])), $entry['level'] - 1),
+    ];
+}
+if ($storedParentId !== null && $tree->levelOf($storedParentId) === null && $tree->has($storedParentId)) {
+    $parentOptions[] = ['id' => $storedParentId, 'label' => NavigationLocalization::adminName($tree->row($storedParentId))];
+}
 
 $item ??= [
     'id' => null,
@@ -151,6 +181,15 @@ $variant = NavigationPresentation::variantOf(['button_variant' => $field('button
 $openInNewTab = is_array($old) ? !empty($old['open_in_new_tab']) : (int) $item['open_in_new_tab'] === 1;
 $isVisible = is_array($old) ? !empty($old['is_visible']) : (int) $item['is_visible'] === 1;
 $isButton = $presentation === NavigationPresentation::BUTTON;
+$isStoredButton = NavigationPresentation::isButton($item);
+$chosenParentId = is_array($old) && array_key_exists('parent_id', $old)
+    ? (ctype_digit((string) $old['parent_id']) && (int) $old['parent_id'] > 0 ? (int) $old['parent_id'] : null)
+    : $storedParentId;
+// A refused save that named a parent the list does not offer (a hand-made
+// choice) shows the stored one again, like the Pages list.
+if ($chosenParentId !== null && !in_array($chosenParentId, array_column($parentOptions, 'id'), true)) {
+    $chosenParentId = $storedParentId;
+}
 
 // The presentation choice exists only where it can be used: a top-level item
 // without submenu items.
@@ -240,9 +279,6 @@ if ($isNew) {
     <?php if (!$isNew): ?>
       <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
     <?php endif; ?>
-    <?php if ($isNew && $isChild): ?>
-      <input type="hidden" name="parent_id" value="<?= (int) $presetParentId ?>">
-    <?php endif; ?>
 
     <section class="admin-card">
       <div class="admin-field admin-field--inline">
@@ -294,9 +330,9 @@ if ($isNew) {
           <option value="page" <?= $linkType === 'page' ? 'selected' : '' ?>><?= admin_te('navigation.kind_page') ?></option>
           <option value="route" <?= $linkType === 'route' ? 'selected' : '' ?>><?= admin_te('navigation.kind_route') ?></option>
           <option value="external" <?= $linkType === 'external' ? 'selected' : '' ?>><?= admin_te('navigation.kind_external') ?></option>
-          <?php if (!$isChild): ?>
-            <option value="none" data-nav-link-only <?= $linkType === 'none' ? 'selected' : '' ?>><?= admin_te('navigation.kind_none') ?></option>
-          <?php endif; ?>
+          <?php /* A heading only exists on the top level: the script disables
+                   it while a parent is chosen, the endpoint refuses it below. */ ?>
+          <option value="none" data-nav-link-only <?= $linkType === 'none' ? 'selected' : '' ?>><?= admin_te('navigation.kind_none') ?></option>
         </select>
       </div>
 
@@ -341,6 +377,22 @@ if ($isNew) {
       </div>
     </section>
 
+    <?php if (!$isStoredButton): ?>
+    <section class="admin-card">
+      <h2><?= admin_te('navigation.place_heading') ?></h2>
+      <div class="admin-field">
+        <?= admin_field_label('nav-parent', admin_t('navigation.parent_label'), admin_t('help.navigation.parent')) ?>
+        <select class="admin-select" id="nav-parent" name="parent_id" data-nav-parent aria-describedby="nav-parent-heading-note">
+          <option value="0"<?= $chosenParentId === null ? ' selected' : '' ?>><?= admin_te('navigation.parent_none') ?></option>
+          <?php foreach ($parentOptions as $option): ?>
+            <option value="<?= (int) $option['id'] ?>"<?= $option['id'] === $chosenParentId ? ' selected' : '' ?>><?= $h($option['label']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <p class="admin-text-muted" id="nav-parent-heading-note" data-nav-parent-heading-note<?= $linkType === 'none' ? '' : ' hidden' ?>><?= admin_te('navigation.parent_heading_only') ?></p>
+      </div>
+    </section>
+    <?php endif; ?>
+
     <?php if ($canChoosePresentation): ?>
     <section class="admin-card">
       <h2><?= admin_te('navigation.appearance_heading') ?></h2>
@@ -377,20 +429,18 @@ if ($isNew) {
   <?php if (!$isNew): ?>
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>
-      <?php if ($childCount > 0): ?>
-        <p class="admin-text-muted"><?= admin_te('navigation.delete_children_first') ?></p>
-      <?php else: ?>
-        <p class="admin-text-muted"><?= admin_te($isButton ? 'navigation.delete_button_explained' : 'navigation.delete_link_explained') ?></p>
-        <form method="post" action="/api/admin/delete-nav-item.php" class="admin-inline-form"<?= admin_confirm_attributes(
-            admin_t($isButton ? 'navigation.delete_button_title' : 'navigation.delete_link_title'),
-            admin_t($isButton ? 'navigation.delete_button_message' : 'navigation.delete_link_message', ['item' => $pageTitle]),
-            admin_t('common.delete')
-        ) ?>>
-          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-          <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-          <button type="submit" class="admin-btn-danger"><?= admin_te($isButton ? 'navigation.delete_button' : 'navigation.delete_link') ?></button>
-        </form>
-      <?php endif; ?>
+      <?php /* Submenu items stay: they move up one level into this item's
+               place (NavigationRepository::delete()). */ ?>
+      <p class="admin-text-muted"><?= admin_te($isButton ? 'navigation.delete_button_explained' : ($childCount > 0 ? 'navigation.delete_link_explained_children' : 'navigation.delete_link_explained')) ?></p>
+      <form method="post" action="/api/admin/delete-nav-item.php" class="admin-inline-form"<?= admin_confirm_attributes(
+          admin_t($isButton ? 'navigation.delete_button_title' : 'navigation.delete_link_title'),
+          admin_t($isButton ? 'navigation.delete_button_message' : ($childCount > 0 ? 'navigation.delete_link_message_children' : 'navigation.delete_link_message'), ['item' => $pageTitle]),
+          admin_t('common.delete')
+      ) ?>>
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+        <button type="submit" class="admin-btn-danger"><?= admin_te($isButton ? 'navigation.delete_button' : 'navigation.delete_link') ?></button>
+      </form>
     </section>
   <?php endif; ?>
 </main>

@@ -1056,7 +1056,37 @@ a{ color: var(--admin-accent); }
    list for a top-level nav item's submenu / a footer column's links. */
 .admin-nav-item-row.is-dragging,
 .admin-footer-column-row.is-dragging,
-.admin-footer-link-row.is-dragging{ opacity: 0.4; }
+.admin-footer-link-row.is-dragging,
+.admin-nav-children.is-dragging{ opacity: 0.4; }
+
+/* The menu tree's drop marks (admin/assets/navigation-drag.js): a line
+   between rows that starts where its level starts, or the row itself lit
+   up when the dragged item goes INTO its submenu. Never both at once. */
+.admin-nav-tree{ position: relative; }
+.admin-nav-drop-line{
+  position: absolute;
+  right: 0;
+  height: 3px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: var(--admin-accent);
+  pointer-events: none;
+}
+.admin-nav-drop-line::before{
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--admin-accent);
+}
+.admin-nav-item-row.is-drop-inside{
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 1px;
+  background: var(--admin-accent-soft);
+}
 
 .admin-nav-item-row.is-hidden-section,
 .admin-footer-column-row.is-hidden-section,

@@ -78,14 +78,11 @@
   }
 
   /**
-   * Global Navigation admin (admin/navigation.php, [data-nav-zone]): drag
-   * reordering of nav_items. Same handle-only-draggable pattern as
-   * initPageSectionZones() above, generalized to run once per zone —
-   * there is one zone for the top-level items and one more per parent item
-   * that currently has children, each independently draggable and each
-   * persisted to its own parent_id scope (reorder-nav-items.php never lets
-   * a drop move an item into a different zone's parent — the drop handler
-   * only ever reorders rows already inside the same zone element).
+   * Header & navigatie (admin/navigation.php, [data-nav-zone]): drag
+   * reordering of the header BUTTONS, one flat list persisted to its own
+   * group (reorder-nav-items.php). Same handle-only-draggable pattern as
+   * initPageSectionZones() above. The menu is a tree in which a row can
+   * change parent, which is admin/assets/navigation-drag.js's.
    */
   function initNavItemZones() {
     document.querySelectorAll("[data-nav-zone]").forEach(function (zone) {

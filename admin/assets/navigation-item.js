@@ -29,6 +29,12 @@
  * selected, the first real kind is selected instead, so the form never shows
  * a combination the server would refuse.
  *
+ * "BOVENLIGGEND ITEM" (header items only, [data-nav-parent]): a button and a
+ * heading without destination only exist on the top level, so while either
+ * is chosen the list is off, and while a parent is chosen neither is
+ * offered. The list itself only holds places the server accepts
+ * (App\Service\NavigationTree); the endpoint judges again.
+ *
  * "GEBRUIK TITEL VAN BESTEMMING" (header items only, [data-nav-label-follows]):
  * while a page link follows its page, the item's own text is hidden and no
  * longer required, and a line says what the menu will show — the chosen
@@ -61,10 +67,37 @@
     });
   }
 
-  function syncPresentation() {
-    if (!presentation) return;
+  var parent = form.querySelector("[data-nav-parent]");
+  var headingNote = form.querySelector("[data-nav-parent-heading-note]");
 
-    var isButton = presentation.value === "button";
+  function hasParent() {
+    return !!(parent && !parent.disabled && parent.value !== "0" && parent.value !== "");
+  }
+
+  /**
+   * "Bovenliggend item" against the two choices that only exist on the top
+   * level: a header button has no place in the menu tree, and a heading
+   * without destination never sits in a submenu. While either is chosen the
+   * list is switched off (a disabled select is not posted, so the stored
+   * place stays); while a parent is chosen, "Knop" is not offered.
+   */
+  function syncParent() {
+    if (!parent) return;
+
+    var isButton = !!(presentation && presentation.value === "button");
+    var isHeading = !!(kind && kind.value === "none");
+    parent.disabled = isButton || isHeading;
+    if (headingNote) headingNote.hidden = !isHeading;
+
+    if (presentation) {
+      presentation.querySelectorAll('option[value="button"]').forEach(function (option) {
+        option.disabled = hasParent();
+      });
+    }
+  }
+
+  function syncPresentation() {
+    var isButton = !!(presentation && presentation.value === "button");
 
     form.querySelectorAll("[data-nav-button-field]").forEach(function (field) {
       field.hidden = !isButton;
@@ -72,9 +105,12 @@
 
     if (!kind) return;
 
+    // Also not for an item inside a submenu: a heading lives on top.
+    var blocked = isButton || hasParent();
+
     kind.querySelectorAll("[data-nav-link-only]").forEach(function (option) {
-      option.disabled = isButton;
-      if (isButton && option.selected) {
+      option.disabled = blocked;
+      if (blocked && option.selected) {
         kind.value = "page";
         // The kind really changed, so the save bar and anything else
         // listening hear about it like any other edit.
@@ -118,12 +154,25 @@
   // added row is sorted out the moment it arrives.
   form.addEventListener("change", function (event) {
     var target = event.target;
-    if (target && target.hasAttribute && target.hasAttribute("data-nav-link-type")) syncDestination();
+    if (target && target.hasAttribute && target.hasAttribute("data-nav-link-type")) {
+      syncDestination();
+      syncParent();
+    }
+    if (target === parent) {
+      syncPresentation();
+      syncParent();
+    }
     if (target === follows || target === pageSelect || (target && target.hasAttribute && target.hasAttribute("data-nav-link-type"))) syncLabel();
   });
   form.addEventListener("row-list:added", syncDestination);
-  if (presentation) presentation.addEventListener("change", syncPresentation);
+  if (presentation) {
+    presentation.addEventListener("change", function () {
+      syncPresentation();
+      syncParent();
+    });
+  }
 
+  syncParent();
   syncPresentation();
   syncDestination();
   syncLabel();

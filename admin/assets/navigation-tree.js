@@ -8,7 +8,7 @@
  *
  * ONLY A VIEW. Nothing is posted and nothing changes on the site: the items,
  * their order and their nesting are what they were. A hidden zone is still in
- * the page, so dragging its parent takes it along (admin.js) and ↑/↓ work as
+ * the page, so dragging its parent takes it along (navigation-drag.js) and ↑/↓ work as
  * before.
  *
  * WHAT IS REMEMBERED, and where: which items are closed, in this browser's
