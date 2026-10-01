@@ -79,7 +79,8 @@ voegt alleen zijn eigen publicatieregel toe (`ArticleService::publishErrors()`):
 - een titel in de standaardtaal;
 - een adres in de standaardtaal;
 - minstens één blok dat iets zegt (`ContentPages::hasMeaningfulBlocks()`):
-  zichtbaar, geregistreerd, geen paginakop, niet decoratief (Witruimte,
+  zichtbaar in de bloklijst **en** aan in zijn eigen editor ("Actief"),
+  geregistreerd, geen paginakop, niet decoratief (Witruimte,
   `BlockDefinition::isDecorative()`), en voor een blok dat zijn eigen inhoud
   kan beoordelen niet leeg.
 
@@ -88,8 +89,39 @@ regel op wat het artikel **na** het opslaan zou zijn: hij schrijft in een
 transactie, leest het terug en rolt alles terug bij een weigering. Het
 endpoint `api/admin/update-publication.php` vraagt dezelfde regel.
 
-Een artikel dat al gepubliceerd is, blijft gepubliceerd als iemand later zijn
-laatste blok weghaalt; de regel geldt bij het publiceren.
+### Inhoud houden
+
+De regel blijft gelden **na** het publiceren. Een artikel dat geen concept is
+(Gepubliceerd, Ingepland — ook in de toekomst — en Gearchiveerd: de engine
+toetste de regel toen het die status kreeg, en een ingepland artikel gaat op
+zijn moment live zonder tweede controle) kan zijn laatste blok dat iets zegt
+niet verliezen. Geweigerd, met de melding *"Dit artikel is niet meer in
+concept. Voeg eerst andere inhoud toe, of zet het artikel terug naar Concept
+…"*:
+
+- het blok verwijderen;
+- het verbergen in de bloklijst;
+- het leegmaken of uitzetten in zijn eigen editor, of het laatste item eruit
+  halen.
+
+Het artikel gaat **nooit** stilletjes terug naar Concept. Een concept mag leeg
+zijn.
+
+Dit staat niet in een endpoint en Articles noemt geen blok. Een eigenaar die
+inhoud moet houden implementeert `ContentOwners\RequiresContent`
+(`ArticleContentOwner`: elke status behalve Concept), en
+`ContentOwners\OwnerContentGuard` toetst dat op de drie plekken waar elke
+blokwijziging langs komt: `ContentBlockDrafts::place()` (de laatste schrijfstap
+van elke blokeditor, binnen zijn transactie), `SectionRegistry::delete()` en
+`SectionRegistry::setActive()`. Een weigering rolt de hele wijziging terug; het
+endpoint toont `OwnerContentGuard::messageFor()` en houdt wat er getypt was
+(`CONTENT-BLOCKS.md`, "Een eigenaar die inhoud moet houden").
+
+Niet bewaakt, omdat het geen wijziging van de blokken van het artikel is: een
+module uitzetten waarvan een blok het enige blok was, of een formulier,
+collectie of product verwijderen waar een blok naar wijst. Zulke blokken
+tellen daarna niet meer mee; bij de eerstvolgende blokwijziging zegt de
+melding het.
 
 **Gearchiveerd**: het eigen adres blijft werken met `noindex`, maar het
 artikel staat niet in het overzicht, niet op de onderwerppagina, niet in de
@@ -192,18 +224,37 @@ Er verdwijnt geen rij en geen blok; weer aanzetten herstelt alles. De woorden
 
 ## Verwijderen
 
-`api/admin/delete-article.php`: eerst `ContentPages::deleteFor()` (blokken via
-`SectionRegistry::delete()`, drafts, link en pagina, in eigen transactie;
-de `RESTRICT`-sleutel eist die volgorde), dan de rij met haar vertalingen
-(`CASCADE`). Mislukt de tweede stap, dan blijft een artikel zonder blokken
-over dat opnieuw verwijderd kan worden. Bestanden in de bibliotheek blijven.
+`api/admin/delete-article.php` → `ArticleService::delete()` →
+`ContentPages::deleteOwner()`: **één databasetransactie** voor alles:
+
+1. `ContentPages::deleteFor()`: elk blok via `SectionRegistry::delete()` (de
+   woorden in elke taal, kindrijen), de drafts, de link en de inhoudspagina;
+   de `RESTRICT`-sleutel eist dat dit eerst gaat;
+2. de artikelrij, met haar vertalingen (`CASCADE`). Het onderwerp blijft.
+
+Mislukt iets, dan wordt alles teruggedraaid: geen artikel zonder blokken en
+geen blokken zonder artikel. Dat kan omdat `SectionRegistry::delete()`,
+`ContentBlockDrafts::discard()` en `deleteFor()` zich bij een lopende
+transactie aansluiten in plaats van een eigen te openen. Het hele lijstje
+laten gaan met zijn eigenaar wordt nooit door `OwnerContentGuard` geweigerd.
+
+Bestanden: een blok ruimt zijn eigen bestanden op via
+`BlockDefinition::deleteFiles()`, vóór zijn rijen, zoals altijd. Geen enkel blok
+heeft vandaag een eigen bestand (een afbeelding is een item uit de
+Mediabibliotheek, een verwijzing), dus een rollback kan niets op schijf
+kwijtraken. Bibliotheekitems worden nooit verwijderd.
 
 ## Testen
 
 ```bash
 docker compose exec php_test php vendor/bin/phpunit tests/Module/ArticlesTest.php
+docker compose exec php_test php vendor/bin/phpunit tests/Module/ArticleIntegrityTest.php
 docker compose exec php_test php vendor/bin/phpunit tests/Install/ArticlesMigrationTest.php
 ```
+
+`ArticleIntegrityTest` (suite `modules`): inhoud houden per status en per soort
+wijziging, de melding in het CMS, en verwijderen in één transactie, ook met
+een echte databasefout halverwege.
 
 `ArticlesTest` (suite `modules`) start zijn eigen ingebouwde server met de
 module aan en voor de uit-controle een tweede met de module uit.

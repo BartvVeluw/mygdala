@@ -310,8 +310,30 @@ krijgt daarom een eigen `pages`-rij om zijn blokken te houden
 Een **artikel** (`article`, recht `articles.manage`, `ARTICLES.md`) heeft alleen
 blokken als inhoud. Voor zijn publicatieregel vraagt het
 `ContentPages::hasMeaningfulBlocks()`: een zichtbaar blok dat iets zegt, dus
-geen paginakop, geen decoratief blok (`BlockDefinition::isDecorative()`, alleen
-Witruimte) en geen blok dat zelf zegt leeg te zijn.
+aan in de lijst en in zijn eigen editor, geen paginakop, geen decoratief blok
+(`BlockDefinition::isDecorative()`, alleen Witruimte) en geen blok dat zelf
+zegt leeg te zijn.
+
+### Een eigenaar die inhoud moet houden
+
+Een eigenaar kan eisen dat zijn bloklijst iets blijft zeggen: hij implementeert
+`ContentOwners\RequiresContent` (`requiresContent($id)` en zijn eigen melding).
+Vandaag alleen een artikel dat geen concept is. `ContentOwners\OwnerContentGuard`
+toetst dat centraal, zodat geen blokeditor en geen endpoint een eigenaar kent:
+
+| Waar | Wat | Hoe |
+|---|---|---|
+| `ContentBlockDrafts::place()` | elke opslag van een blokeditor (leegmaken, uitzetten, items weghalen) | `assertIntact()` na de laatste schrijfstap, binnen de transactie |
+| `SectionRegistry::delete()` | verwijderen uit de lijst | `assertMayRemove()` vooraf, `assertIntact()` in de transactie |
+| `SectionRegistry::setActive()` | verbergen in de lijst (`toggle-page-section.php`) | idem |
+| `update-carousel-card.php` | een kaart van een carrousel | `assertIntact()` op de lijst van de carrousel |
+
+Een weigering is een `OwnerContentRequired`; de transactie rolt terug en de
+foutafhandeling van het endpoint toont `OwnerContentGuard::messageFor($e)` in
+plaats van zijn algemene melding. Een nieuw blok hoeft hier niets voor te
+doen: zijn editor roept `place()` al aan. Een eigenaar die met zijn hele
+lijst verdwijnt (`ContentPages::deleteFor()`/`deleteOwner()`) wordt nooit
+geweigerd.
 
 Een **blogbericht** (Blog 2.0, `blog_post`, recht `blog.manage`) volgt dezelfde
 regels als een product: alle gewone blokken, geen Paginakop en geen
