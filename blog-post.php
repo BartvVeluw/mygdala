@@ -179,12 +179,14 @@ require __DIR__ . '/partials/header.php';
       </section>
     <?php endif; ?>
 
-    <?php if ($blocksKey !== null): ?>
-      <?php /* The post's own blocks, at their own widths, in their own order —
-               nothing at all for a post that has none yet. */ ?>
-      <?php \App\Service\SectionRegistry::renderPage($blocksKey); ?>
-    <?php endif; ?>
-
+<?php
+// The post's own blocks, at their own widths, in their own order, in blocks
+// mode only. One PHP block at the start of the line, so a classic post's
+// markup stays byte-identical to what it was before Blog 2.0.
+if ($blocksKey !== null) {
+    \App\Service\SectionRegistry::renderPage($blocksKey);
+}
+?>
     <?php if ($post['tags'] !== [] || $post['categories'] !== []): ?>
       <section style="padding-top:0;">
         <div class="container container--narrow">

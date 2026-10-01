@@ -31,7 +31,7 @@ use App\Service\SeoMetadata;
  *                -> the global seo_default_description
  *                -> no tag
  *   canonical    /blog/<slug>, from App\Service\Blog\BlogUrls
- *   robots       noindex when the post says so; index otherwise
+ *   robots       noindex when the post says so or is archived; index otherwise
  *   image        the post's own social image (og_media_id)
  *                -> its featured image
  *                -> the site-wide Standaard deel-afbeelding
@@ -100,7 +100,11 @@ final class BlogSeo
             // works for both and the canonical tag can never disagree with
             // the link that got the visitor here.
             canonical: BlogContent::postCanonical($post),
-            indexable: (int) ($post['noindex'] ?? 0) !== 1,
+            // An archived post still answers at its address, but asks not to
+            // be indexed (Blog 2.0, docs/publishing/ARCHITECTURE.md): the only
+            // reason besides the post's own noindex.
+            indexable: (int) ($post['noindex'] ?? 0) !== 1
+                && BlogPostStatus::normalize($post['status'] ?? null) !== BlogPostStatus::ARCHIVED,
             ogType: self::POST_OG_TYPE,
             socialImage: self::socialImagePath($post),
             jsonLd: self::postJsonLd($post),
