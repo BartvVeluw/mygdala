@@ -35,7 +35,8 @@ is een CMS, geen layoutbouwer.
 | Social profielen: register, adrescontrole, lezen | `App\Service\SocialProfiles` |
 | Een bestemming in woorden, en of hij bereikbaar is | `admin/_link_destination.php` (menu én footer) |
 | Schermen | **Header & navigatie** (`admin/navigation.php`, `admin/navigation-item.php`); **Footer** (`admin/footer.php`, `admin/footer-column.php`, `admin/footer-link.php`). `admin/header-footer.php` is alleen nog een doorverwijzing naar Footer |
-| Opslaan, header | `api/admin/create-nav-item.php`, `update-nav-item.php` (regels in `_nav_item_input.php`), `move-nav-item.php`, `reorder-nav-items.php`, `toggle-nav-item.php`, `delete-nav-item.php` |
+| Opslaan, header | `api/admin/create-nav-item.php`, `update-nav-item.php` (regels in `_nav_item_input.php`), `place-nav-item.php` (één sleepbeweging), `move-nav-item.php`, `reorder-nav-items.php`, `toggle-nav-item.php`, `delete-nav-item.php` |
+| De menuboom | `App\Service\NavigationTree` (niveaus, nakomelingen, weigeringen, de keuzelijst), `NavigationRepository::place()` en `::delete()`, `App\Service\TreeOptions` (de tekst van een ingesprongen optie, gedeeld met Pagina's), `admin/assets/navigation-drag.js` |
 | Opslaan, footer | `update-footer-settings.php` (secties `brand` en `bottom`); de kolommen en links met `create-`, `update-`, `toggle-`, `move-`, `reorder-` en `delete-footer-column.php` en `-footer-link.php` (regels in `_footer_link_input.php`); de social profielen met `create-`, `update-`, `move-` en `delete-footer-social-link.php` (regels in `_footer_social_link_input.php`) |
 | Rendering | `partials/header.php` (de menulijst zelf in `partials/main-nav-list.php`), `partials/footer.php` |
 | Submenu's openen en sluiten, links of rechts | `initNavDropdowns()` in `assets/js/core.js` |
@@ -164,8 +165,11 @@ knop schuift nooit tussen twee menulinks door.
 
 - **↑ en ↓** op elke rij (`move-nav-item.php`, `NavigationRepository::move()`):
   werkt met het toetsenbord, op een telefoon en zonder JavaScript.
-- **Slepen** blijft voor een muis (`reorder-nav-items.php`, met `presentation`
-  erbij). De sleepgreep is `aria-hidden`; ↑ en ↓ zijn de toegankelijke weg.
+- **Slepen** is voor een muis. In het menu kan een item daarbij ook van ouder
+  wisselen (zie "Verplaatsen"); de knoppen zijn een platte lijst en slepen
+  alleen binnen die lijst (`reorder-nav-items.php`, met `presentation`
+  erbij). De sleepgreep is `aria-hidden`; ↑ en ↓ en *Bovenliggend item* zijn
+  de toegankelijke wegen.
 - Wordt een link een knop, of andersom, dan sluit hij achteraan de nieuwe groep
   aan.
 
@@ -215,14 +219,22 @@ Diensten                 niveau 1   link (of een kop zonder bestemming)
   submenu-item onder …*. Het overzicht toont *+ Submenu-item* alleen waar dat
   kan, en de editor neemt een ongeldige `?parent_id=` niet over. Dat is een
   weigering op de server, niet alleen een verborgen knop.
-- **Geen cycli.** `parent_id` wordt één keer gezet, bij het aanmaken, naar een
-  rij die al bestaat, en daarna nooit meer veranderd (`update-nav-item.php`
-  verplaatst niets). Een nieuwe rij is nog niemands voorouder, dus er kan geen
-  lus ontstaan. `depthOf()` loopt toch hoogstens drie stappen omhoog, zodat
-  een met de hand geschreven lus of een te diepe keten geen geldige ouder is.
+- **Geen cycli.** Een item mag van ouder wisselen (zie "Verplaatsen"), maar
+  nooit onder zichzelf of onder iets dat eronder staat:
+  `NavigationTree::placementError()` weigert dat, op de server, voor elke
+  manier van verplaatsen. `depthOf()` loopt hoogstens drie stappen omhoog,
+  zodat een met de hand geschreven lus of een te diepe keten geen geldige
+  ouder is.
+- **De grens telt het submenu mee.** Een item met een eigen submenu mag alleen
+  zo hoog dat zijn diepste item nog op niveau 3 past: het niveau van de nieuwe
+  ouder plus de hoogte van het verplaatste stuk boom is ten hoogste
+  `MAX_DEPTH`. Het is dus optie B uit de opdracht van v0.1.15 fase 10: geen
+  onbeperkte recursie, maar één centrale grens die desktop en mobiel allebei
+  echt tonen, op de server afgedwongen en aan het script doorgegeven
+  (`data-max-depth`).
 - **Volgorde** blijft per groep (ouder + presentatie), dus ook per submenu op
-  niveau 3: ↑/↓ en slepen werken daar zonder extra code, en een item schuift
-  nooit naar een ander niveau.
+  niveau 3. ↑/↓ blijven binnen de groep; van groep wisselen gaat via slepen of
+  *Bovenliggend item*.
 - **Wat de publieke header leest.** `NavigationService::buildTree()` bouwt de
   boom recursief en stopt na niveau 3; de partial rendert ook nooit dieper.
   Een verborgen of onbereikbaar item neemt zijn hele submenu mee.
@@ -241,11 +253,89 @@ Diensten                 niveau 1   link (of een kop zonder bestemming)
   localStorage is al per installatie (één origin), en een id van een
   verwijderd item doet niets. Alleen weergave: de website, de volgorde, de
   nesting en het mobiele menu veranderen niet, en er wordt niets gepost.
-  Slepen neemt de zone van een rij mee, ingeklapt of niet (`admin.js`,
-  `navChildrenOf()`: de zone direct na een rij is van die rij); vóór v0.1.13
-  bleef een submenu bij het slepen van zijn ouder achter op de oude plek. Een
-  adres met `#nav-item-<id>` (waar ↑/↓ landt) klapt de items erboven voor dat
-  bezoek open, zonder de bewaarde stand te veranderen.
+  Slepen neemt het submenu van een rij mee, ingeklapt of niet: de server
+  verplaatst alleen de rij, de rest hangt eronder. Een adres met
+  `#nav-item-<id>` (waar ↑/↓ en een verplaatsing landen) klapt de items
+  erboven voor dat bezoek open, zonder de bewaarde stand te veranderen.
+
+### Verplaatsen
+
+Het menu is **één boom**. Een item kan op hetzelfde niveau van plek wisselen,
+naar een andere ouder, terug naar het hoogste niveau, of van het hoogste
+niveau in een submenu. Er is één schrijfweg: `NavigationRepository::place($id,
+$parentId, $position)`, waar slepen en de keuzelijst allebei op uitkomen.
+
+- **Slepen** (`admin/assets/navigation-drag.js`, alleen het menu). Drie
+  markeringen, nooit twee tegelijk: een **lijn boven** een rij (ervóór), een
+  **lijn onder** een rij (erna), en de **rij zelf oplichtend**
+  (`.is-drop-inside`: erin, achteraan zijn submenu). De lijn begint waar het
+  niveau begint, dus hij laat ook het niveau zien. Onder de laatste rij van
+  een submenu kiest de afstand van de muis tot de linkerkant het niveau: in
+  dat submenu, of na zijn ouder. Onder een rij met een open submenu betekent
+  "erna" bovenaan dat submenu. Het script biedt alleen aan wat de server
+  aanneemt (zijn eigen submenu nooit, de grens wel meegeteld, een kop alleen
+  bovenaan) met de gegevens die de server per rij meegeeft
+  (`data-nav-level`, `data-nav-height`, `data-nav-heading`). Eén loslaten is
+  **één verzoek** naar `api/admin/place-nav-item.php` (id, `parent_id` leeg
+  voor het hoogste niveau, `position` vanaf 0 geteld zonder het item zelf),
+  nooit een verzoek per buur. Daarna laadt het scherm opnieuw
+  (`?moved=<id>#nav-item-<id>`, *Menu-item verplaatst.*), zodat het altijd
+  toont wat is opgeslagen; ook als het adres hetzelfde zou blijven. Een
+  weigering staat boven het menu en er verschuift niets.
+- **Bovenliggend item** (`admin/navigation-item.php`, kaart *Plaats in het
+  menu*). Een gewone `<select>` met *Geen (hoofdniveau)* bovenaan en daarna
+  het menu als boom, ingesprongen zoals de lijst van Pagina's
+  (`App\Service\TreeOptions`). Hij biedt precies
+  `NavigationTree::parentCandidates()`: nooit het item zelf, niets eronder,
+  geen plek waar zijn submenu voorbij niveau 3 zou komen. De opgeslagen ouder
+  staat er altijd in, zodat een item op een plek die niet meer mag (met de
+  hand in de database gezet) niet stilzwijgend verhuist. Dit is de volwaardige
+  weg voor toetsenbord, touch en precisie. **Regel bij een nieuwe ouder:
+  achteraan diens submenu**; dezelfde ouder houdt zijn plek. Daarna kan het
+  item gesleept of met ↑/↓ verschoven worden. Een knop heeft deze kaart niet
+  (hij staat in zijn eigen lijst); kies je *Knop* of *Nergens heen*, dan zet
+  het script de lijst uit, en kies je een ouder, dan biedt het die twee niet
+  aan. De server weigert ze hoe dan ook.
+- **Wat de server weigert**, met een reden in woorden, en dan wordt er niets
+  geschreven: een onbekend item, een knop (die staat in de lijst *Knoppen*),
+  het item zelf als ouder, een eigen submenu-item op welke diepte ook, een
+  onbekende ouder, een knop als ouder (de andere lijst: zo wordt een item
+  nooit stilzwijgend van lijst gewisseld), een kop zonder bestemming onder het
+  hoogste niveau, en een plek voorbij niveau 3. Er is maar één navigatie; de
+  footer heeft eigen tabellen en kan geen ouder zijn.
+- **Eén transactie.** `place()` vergrendelt eerst alle rijen
+  (`SELECT … FOR UPDATE`, het menu is klein), leest de boom, controleert, zet
+  de nieuwe ouder, sluit het gat in de oude lijst en nummert de nieuwe lijst
+  0..n-1. Alles of niets; twee verplaatsingen tegelijk kunnen elkaars boom
+  niet half lezen. Opent de aanroeper al een transactie
+  (`update-nav-item.php` slaat het item en zijn plek als één geheel op), dan
+  doet `place()` daarin mee en rolt alleen zijn eigen transactie terug.
+- **Een kapotte boom.** Een rij in een met de hand geschreven lus, of onder
+  een ouder die weg is, heeft geen niveau. Geen enkele lus loopt vast: elke
+  wandeling onthoudt wat hij al zag. Zo'n rij staat in het overzicht onder het
+  menu met een waarschuwing, is nooit een ouder in de keuzelijst, staat niet
+  op de website, en mag alleen naar het hoogste niveau, wat hem herstelt.
+- **Taal.** De boom is taalneutraal (`nav_items.parent_id`); alleen de
+  teksten zijn per taal. Een verplaatsing geldt dus in elke taal tegelijk.
+- **Geen cache** buiten het request: na elke verplaatsing tonen CMS en
+  website dezelfde boom.
+
+### Verwijderen
+
+Een item met submenu-items mag verwijderd worden. Zijn submenu-items gaan
+**niet** mee: ze schuiven één niveau omhoog, op de plek van het verwijderde
+item, in hun eigen volgorde (`NavigationRepository::delete()`, één
+transactie). Op het hoogste niveau komen ze dus op het hoogste niveau. Zo
+verdwijnt er nooit onverwacht een hele tak, en blijft er nooit een rij achter
+met een ouder die niet meer bestaat. De bevestigingsdialoog zegt dat ze
+omhoog schuiven. `parent_id` blijft `ON DELETE RESTRICT` als vangnet. Vóór
+v0.1.15 weigerde het CMS zo'n item, en kon je de submenu-items alleen
+verwijderen en opnieuw aanmaken.
+
+### Verborgen
+
+Ongewijzigd: een verborgen of onbereikbaar item neemt zijn hele submenu mee
+van de website. Zijn submenu-items schuiven niet op naar een hoger niveau.
 
 ### Submenu's: link en pijltje
 
@@ -888,7 +978,11 @@ aansluit, en een mobiel submenu dat in beide richtingen vanaf zijn gemeten
 hoogte schuift), `SearchNavigationTest` (de zoekknop in de header: standaard
 uit, `SEARCH.md`),
 `NavigationPresentationTest` (de twee gesloten lijsten en wat een
-knop niet mag), `HeaderFooterSettingsTest` (slotregel, het register van
+knop niet mag), `NavigationTreeTest` (de menuboom zonder database: niveaus,
+nakomelingen, hoogte, elke weigering met haar reden, de keuzelijst, een lus
+die elke wandeling beëindigt, en de optietekst van Pagina's),
+`NavigationTreeContractTest` (inklappen, en slepen: één verzoek per
+loslaten, drie markeringen, de grens van de server), `HeaderFooterSettingsTest` (slotregel, het register van
 netwerken, de adrescontrole met de regressies van fase B, en wat
 `SocialProfiles::forFooter()` van rijen maakt, zonder database) en
 `HeaderFooterContractTest` (geen sitespecifieke tekst of bestemming in de
@@ -897,7 +991,17 @@ doorverwijzing, en niets dat de oude social-instellingen leest of schrijft).
 `cms` voegt toe:
 
 - `NavigationRepositoryTest` — opslaan, de volgorde per groep (ook op niveau
-  3), ↑ en ↓, de diepte en geen ouder op niveau 3 of in een lus;
+  3), ↑ en ↓, de diepte en geen nieuw item onder niveau 3 of in een lus;
+- `NavigationPlacementTest` — `place()` en `delete()` tegen de database:
+  naar een andere ouder, terug naar boven, op een exacte plek, het gat in de
+  oude lijst dicht, geen positie dubbel, een weigering schrijft niets, de
+  transactie van de aanroeper rolt mee terug, submenu-items schuiven op bij
+  verwijderen, een lus hersteld, en de publieke boom in NL en EN;
+- `NavigationPlacementHttpTest` — over echt HTTP: de vier guards van
+  `place-nav-item.php`, elk vervalst id, ouder of positie geweigerd zonder
+  wijziging, *Bovenliggend item* zonder het item en zijn submenu, een nieuwe
+  ouder achteraan, het overzicht met niveau en hoogte per rij, een ouder
+  verwijderen, en de publieke header na een verplaatsing;
 - `NavigationAdminHttpTest` — het scherm en zijn endpoints over echt HTTP, en
   wat de publieke header daarvan maakt, ook met de Shop uit; niveau 3 opslaan,
   niveau 4 geweigerd, en link plus pijltje op elk niveau met een geneste

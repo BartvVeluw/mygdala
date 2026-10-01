@@ -421,11 +421,19 @@ partials zelf (`HEADER-FOOTER.md`):
 
 ```
 --testsuite fast        (NavigationServiceTest, MainNavMarkupTest,
-                         NavigationPresentationTest,
+                         NavigationPresentationTest, NavigationTreeTest (de
+                         menuboom zonder database: weigeringen, keuzelijst,
+                         lussen), NavigationTreeContractTest (inklappen en
+                         slepen tussen ouders),
                          HeaderFooterSettingsTest en HeaderFooterContractTest;
                          database noch webserver nodig; de adrescontrole van
                          de social profielen zit in HeaderFooterSettingsTest)
---testsuite cms         voegt NavigationRepositoryTest, NavigationAdminHttpTest
+--testsuite cms         voegt NavigationRepositoryTest,
+                        NavigationPlacementTest (verplaatsen en verwijderen
+                        in de boom, transactie, lus herstellen),
+                        NavigationPlacementHttpTest (place-nav-item.php met
+                        guards en vervalste ids, Bovenliggend item, publieke
+                        header na een verplaatsing), NavigationAdminHttpTest
                         (scherm, endpoints en publieke header over een eigen
                         php -S, ook met de Shop uit),
                         NavigationFollowsPageTitleHttpTest ("Gebruik titel van
