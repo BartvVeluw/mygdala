@@ -177,6 +177,7 @@
             <file>tests/Service/DashboardPageTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
             <file>tests/Service/FormSubmissionBulkContractTest.php</file>
+            <file>tests/Service/PublishingContractTest.php</file>
             <file>tests/Service/FrontendAssetOwnershipTest.php</file>
             <file>tests/Service/HeaderFooterContractTest.php</file>
             <file>tests/Service/InvoiceAdminSecurityTest.php</file>
@@ -305,6 +306,7 @@
             <file>tests/Service/DashboardPageTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
             <file>tests/Service/FormSubmissionBulkContractTest.php</file>
+            <file>tests/Service/PublishingContractTest.php</file>
             <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormFieldWidthTest.php</file>
@@ -538,6 +540,7 @@
              say "the Blog" without running the whole CMS. -->
         <testsuite name="blog">
             <directory>tests/Blog</directory>
+            <file>tests/Service/PublishingContractTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
