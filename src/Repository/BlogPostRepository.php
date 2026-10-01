@@ -46,6 +46,16 @@ class BlogPostRepository extends Repository
         return PublicationVisibility::listedSql('p');
     }
 
+    /**
+     * The detail route's predicate (Blog 2.0): listed, or archived once it
+     * went out — PublicationVisibility::reachableSql(). Only the lookups of a
+     * single post's own address use it; every listing stays on publicWhere().
+     */
+    private static function reachableWhere(): string
+    {
+        return PublicationVisibility::reachableSql('p');
+    }
+
     /** Newest first, with the id as a stable tie-breaker for equal moments. */
     private const PUBLIC_ORDER = 'p.published_at DESC, p.id DESC';
 
@@ -127,6 +137,30 @@ class BlogPostRepository extends Repository
         $stmt->execute($named + ['now' => $now]);
 
         return $stmt->fetchAll();
+    }
+
+    /** A post whose own address answers now, by id (BlogContent::post()). */
+    public function findReachableById(int $id, string $now): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.* FROM blog_posts p WHERE p.id = :id AND ' . self::reachableWhere() . ' LIMIT 1'
+        );
+        $stmt->execute(['id' => $id, 'now' => $now]);
+        $row = $stmt->fetch();
+
+        return $row === false ? null : $row;
+    }
+
+    /** A post whose own address answers now, by its neutral slug. */
+    public function findReachableBySlug(string $slug, string $now): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.* FROM blog_posts p WHERE p.slug = :slug AND ' . self::reachableWhere() . ' LIMIT 1'
+        );
+        $stmt->execute(['slug' => $slug, 'now' => $now]);
+        $row = $stmt->fetch();
+
+        return $row === false ? null : $row;
     }
 
     public function findPublicBySlug(string $slug, string $now): ?array
@@ -408,7 +442,8 @@ class BlogPostRepository extends Repository
     {
         $counts = [];
         foreach ($this->db->query('SELECT status, COUNT(*) AS total FROM blog_posts GROUP BY status')->fetchAll() as $row) {
-            $counts[BlogPostStatus::normalize($row['status'])] = (int) $row['total'];
+            $status = BlogPostStatus::normalize($row['status']);
+            $counts[$status] = ($counts[$status] ?? 0) + (int) $row['total'];
         }
 
         return $counts;

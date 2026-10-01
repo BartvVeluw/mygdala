@@ -224,7 +224,9 @@ final class BlogPostService
             return false;
         }
 
-        if (!BlogPostStatus::isPublic($before) || !BlogPostStatus::isPublic($after)) {
+        // Reachable, not listed: an archived post's address works, so moving
+        // it must not break the links people have (Blog 2.0).
+        if (!BlogPostStatus::isReachable($before) || !BlogPostStatus::isReachable($after)) {
             return false;
         }
 

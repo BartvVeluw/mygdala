@@ -83,7 +83,7 @@ final class BlogPublishingTest extends TestCase
         $id = $this->post('Gepubliceerd', 'published', '-1 day', english: true);
         $provider = Publishables::get('blog_post');
 
-        $this->assertSame(['draft', 'published', 'scheduled'], $provider->statuses());
+        $this->assertSame(['draft', 'published', 'scheduled', 'archived'], $provider->statuses());
         $this->assertSame('published', $provider->publication($id)['status']);
         $this->assertSame((string) $this->posts->find($id)['published_at'], $provider->publication($id)['published_at']);
 
@@ -125,7 +125,7 @@ final class BlogPublishingTest extends TestCase
         $this->assertSame('not_found', PublishingService::change('blog_post', 999999999, 'published', '', $may)['outcome'], 'forged id');
         $this->assertSame('not_found', PublishingService::change('blog_post', $id . 'x', 'published', '', $may)['outcome'], 'malformed id');
         $this->assertSame('forbidden', PublishingService::change('blog_post', $id, 'published', '', $mayNot)['outcome'], 'no permission for this kind');
-        $this->assertSame('invalid', PublishingService::change('blog_post', $id, 'archived', '', $may)['outcome'], 'the Blog offers no archive');
+        $this->assertSame('invalid', PublishingService::change('blog_post', $id, 'deleted', '', $may)['outcome'], 'not a status at all');
         $this->assertSame('invalid', PublishingService::change('blog_post', $id, 'live', '', $may)['outcome']);
         $this->assertSame('invalid', PublishingService::change('blog_post', $id, 'scheduled', '', $may)['outcome']);
         $this->assertSame('invalid', PublishingService::change('blog_post', $id, 'published', '2026-02-30T10:00', $may)['outcome']);
@@ -223,7 +223,7 @@ final class BlogPublishingTest extends TestCase
         foreach ($xpath->query('//select[@name="status"]/option') as $option) {
             $options[$option->getAttribute('value')] = trim($option->textContent);
         }
-        $this->assertSame(['draft' => 'Concept', 'published' => 'Gepubliceerd', 'scheduled' => 'Ingepland'], $options, 'the Blog\'s three states in its own words');
+        $this->assertSame(['draft' => 'Concept', 'published' => 'Gepubliceerd', 'scheduled' => 'Ingepland', 'archived' => 'Gearchiveerd'], $options, 'the Blog\'s four states in its own words');
         $this->assertSame('scheduled', $xpath->query('//select[@name="status"]/option[@selected]')->item(0)->getAttribute('value'));
         $this->assertSame(BlogClock::forFormInput($this->posts->find($id)['published_at']), $xpath->query('//input[@name="published_at"]')->item(0)->getAttribute('value'));
         $this->assertSame('<script>alert(1)</script> & Co', $xpath->query('//input[@name="author_name"]')->item(0)->getAttribute('value'));
@@ -249,7 +249,7 @@ final class BlogPublishingTest extends TestCase
             $hidden[$input->getAttribute('name')] = $input->getAttribute('value');
         }
         $this->assertSame(['csrf_token' => 'tok"en', 'type' => 'blog_post', 'id' => (string) $id], $hidden);
-        $this->assertSame(3, $xpath->query('//select[@name="status"]/option')->length, 'only the statuses this kind offers');
+        $this->assertSame(4, $xpath->query('//select[@name="status"]/option')->length, 'the statuses this kind offers');
         $this->assertSame(1, $xpath->query('//input[@name="published_at"][@type="datetime-local"]')->length);
     }
 

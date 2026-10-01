@@ -213,10 +213,10 @@ foreach (array_keys(BlogPostStatus::LABELS) as $statusKey) {
             $postId = (int) $post['id'];
             $status = BlogPostStatus::normalize($post['status']);
             $isPending = BlogPostStatus::isPending($post);
-            $isPublic = BlogPostStatus::isPublic($post);
+            $isPublic = BlogPostStatus::isReachable($post);
             $postCategories = $categoriesByPost[$postId] ?? [];
             $badge = match (true) {
-                $status === BlogPostStatus::DRAFT => 'muted',
+                $status === BlogPostStatus::DRAFT, $status === BlogPostStatus::ARCHIVED => 'muted',
                 $isPending => 'pending',
                 default => 'info',
             };

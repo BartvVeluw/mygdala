@@ -108,7 +108,7 @@ final class BlogPostPublishable implements Publishable
 
     public function alternates(int $id): array
     {
-        $post = $this->posts()->findPublicById($id, PublishingClock::nowForSql());
+        $post = $this->posts()->findReachableById($id, PublishingClock::nowForSql());
 
         return $post === null ? [] : BlogContent::postAlternates($post);
     }

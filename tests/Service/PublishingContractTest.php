@@ -261,7 +261,7 @@ final class PublishingContractTest extends TestCase
         $this->assertInstanceOf(Publishable::class, Publishables::get('blog_post'));
         $this->assertSame(['blog_post'], array_keys(Publishables::all()));
         $this->assertSame('blog.manage', Publishables::get('blog_post')->permission());
-        $this->assertNotContains('archived', Publishables::get('blog_post')->statuses(), 'the Blog offers no archive yet');
+        $this->assertSame(PublicationStatus::ALL, Publishables::get('blog_post')->statuses(), 'Blog 2.0 offers all four, archived included');
 
         foreach (['Blog_Post', 'blog_post ', 'App\\Service\\Blog\\BlogPostPublishable', '../blog_post', 'article', '', null, ['blog_post']] as $forged) {
             $this->assertNull(Publishables::get($forged), var_export($forged, true));

@@ -9,8 +9,8 @@ use App\Service\Publishing\PublicationStatus;
 use App\Service\Publishing\PublicationVisibility;
 
 /**
- * The three states a blog post can be in, and the one rule that turns a
- * state plus a moment into "is this public right now".
+ * The four states a blog post can be in, and the rules that turn a state
+ * plus a moment into "is this listed" and "does its address answer".
  *
  * A CLOSED SET, like every other vocabulary in this project: a stored value
  * that is not one of these is treated as a draft, so a hand-edited row or a
@@ -39,24 +39,30 @@ use App\Service\Publishing\PublicationVisibility;
  *
  * SINCE v0.1.15 the Blog is the first kind on the Publishing Engine
  * (docs/publishing/ARCHITECTURE.md): these values are App\Service\Publishing\PublicationStatus's,
- * and isPublic()/isPending() are PublicationVisibility's "listed" rule. The
- * Blog offers three of its four states; `archived` reads as a draft here
- * until Blog 2.0 offers it.
+ * and isPublic()/isPending() are PublicationVisibility's "listed" rule.
+ *
+ * ARCHIVED, since Blog 2.0: the post's own address keeps answering, as
+ * noindex (BlogSeo::isIndexable() follows isPublic()), but it is listed
+ * nowhere — not in the overview, an archive, the feed, the sitemap, search or
+ * related posts. isReachable() is the detail route's question; isPublic() is
+ * every listing's. Archiving is not deleting and never redirects.
  */
 final class BlogPostStatus
 {
     public const DRAFT = PublicationStatus::DRAFT;
     public const PUBLISHED = PublicationStatus::PUBLISHED;
     public const SCHEDULED = PublicationStatus::SCHEDULED;
+    public const ARCHIVED = PublicationStatus::ARCHIVED;
 
     /** @var list<string> */
-    public const ALL = [self::DRAFT, self::PUBLISHED, self::SCHEDULED];
+    public const ALL = [self::DRAFT, self::PUBLISHED, self::SCHEDULED, self::ARCHIVED];
 
     /** @var array<string, string> Dutch labels, in the order the admin lists them */
     public const LABELS = [
         self::DRAFT => 'Concept',
         self::PUBLISHED => 'Gepubliceerd',
         self::SCHEDULED => 'Ingepland',
+        self::ARCHIVED => 'Gearchiveerd',
     ];
 
     /** Any value that is not a known status IS a draft. */
@@ -93,6 +99,18 @@ final class BlogPostStatus
     public static function isPublic(array $post, ?\DateTimeImmutable $now = null): bool
     {
         return PublicationVisibility::isListed(self::normalize($post['status'] ?? null), $post['published_at'] ?? null, $now);
+    }
+
+    /**
+     * Whether this post's own address answers at $now: listed, or archived
+     * once it had gone out. The detail route, a slug redirect and a block's
+     * button ask this; nothing that LISTS posts does.
+     *
+     * @param array<string, mixed> $post
+     */
+    public static function isReachable(array $post, ?\DateTimeImmutable $now = null): bool
+    {
+        return PublicationVisibility::isReachable(self::normalize($post['status'] ?? null), $post['published_at'] ?? null, $now);
     }
 
     /**

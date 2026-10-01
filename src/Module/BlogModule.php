@@ -395,7 +395,9 @@ final class BlogModule extends ModuleDefinition
                     return $choices;
                 },
                 'href' => static function (int $id): ?string {
-                    $post = (new BlogPostRepository())->findPublicById($id, BlogClock::nowForSql());
+                    // Reachable: a button to an archived post keeps working,
+                    // as its address does (Blog 2.0); a draft renders none.
+                    $post = (new BlogPostRepository())->findReachableById($id, BlogClock::nowForSql());
 
                     return $post === null ? null : BlogContent::postUrl($post);
                 },

@@ -167,6 +167,7 @@ $socialMedia = MediaService::find((int) ($post['og_media_id'] ?? 0));
 $seoPreview = BlogSeo::forPost($post, $editingLanguage);
 
 $isPublic = BlogPostStatus::isPublic($post);
+$isReachable = BlogPostStatus::isReachable($post);
 $isPending = BlogPostStatus::isPending($post);
 
 /** A rejected save puts its messages above the fields on Inhoud. */
@@ -193,6 +194,8 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       <p class="admin-page-head__desc">
         <?php if ($isPublic): ?>
           <?= admin_te('blog.post_is_online') ?>
+        <?php elseif ($isReachable): ?>
+          <?= admin_te('blog.post_is_archived') ?>
         <?php elseif ($isPending): ?>
           <?= admin_t('blog.scheduled_for', ['v1' => $h(BlogClock::forAdmin($post['published_at']))]) ?>
         <?php else: ?>
@@ -200,7 +203,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
         <?php endif; ?>
       </p>
     </div>
-    <?php if ($isPublic): ?>
+    <?php if ($isReachable): ?>
 <?php $viewPath = $localizedPostPath(); ?>
 <?php if ($viewPath !== null): ?>
       <a href="<?= $h($viewPath) ?>" class="admin-btn-secondary" target="_blank" rel="noopener">Bekijk bericht &#8594;</a>

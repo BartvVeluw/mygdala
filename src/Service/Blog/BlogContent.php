@@ -193,10 +193,13 @@ final class BlogContent
          * even for a post whose localized row was never written.
          */
         $postId = BlogLocalization::posts()->ownerForSlug($slug, $language);
-        $row = $postId === null ? null : $repository->findPublicById($postId, $now);
+        // REACHABLE, not listed (Blog 2.0): an archived post still answers at
+        // its own address, as noindex (BlogSeo), while every listing — and the
+        // neighbours and related posts below — stays on the listed rule.
+        $row = $postId === null ? null : $repository->findReachableById($postId, $now);
 
         if ($row === null && $language === LanguageResolver::defaultLanguage()) {
-            $row = $repository->findPublicBySlug($slug, $now);
+            $row = $repository->findReachableBySlug($slug, $now);
 
             // ...and only for a post with NO address of its own in this
             // language (App\Service\Routing\LocalizedSlug::answersTo()).
