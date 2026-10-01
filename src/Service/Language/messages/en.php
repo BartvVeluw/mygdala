@@ -3665,7 +3665,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'update.error.migration_failed' => 'The database change :version (:name) failed.',
     'update.error.maintenance_stuck' => 'Maintenance mode could not be switched off.',
     'update.error.unexpected' => 'Something unexpected went wrong.',
-    'shop.gallery.heading' => 'Images',
+    'shop.gallery.heading' => 'Product images',
     'shop.gallery.intro' => 'Choose images from the Media Library or upload new ones. The first image is the main photo. Change the order with the arrows or by dragging; everything is kept when you click Save.',
     'shop.gallery.list_label' => 'Images of this product',
     'shop.gallery.empty' => 'This product has no images yet.',

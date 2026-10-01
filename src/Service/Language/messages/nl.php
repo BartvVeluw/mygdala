@@ -3675,7 +3675,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'update.error.migration_failed' => 'De databasewijziging :version (:name) is mislukt.',
     'update.error.maintenance_stuck' => 'De onderhoudsmodus kon niet worden uitgezet.',
     'update.error.unexpected' => 'Er ging iets onverwachts mis.',
-    'shop.gallery.heading' => 'Afbeeldingen',
+    'shop.gallery.heading' => 'Productafbeeldingen',
     'shop.gallery.intro' => 'Kies afbeeldingen uit de Mediabibliotheek of upload nieuwe. De eerste afbeelding is de hoofdfoto. Verander de volgorde met de pijlen of door te slepen; alles wordt bewaard als je op Opslaan klikt.',
     'shop.gallery.list_label' => 'Afbeeldingen van dit product',
     'shop.gallery.empty' => 'Dit product heeft nog geen afbeeldingen.',

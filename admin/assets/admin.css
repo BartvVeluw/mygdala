@@ -1386,6 +1386,10 @@ a{ color: var(--admin-accent); }
 .admin-collapse__title{ margin: 0; flex: 1 1 12rem; min-width: 0; }
 
 .admin-collapse__badges{ display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+/* A small picture in a section line: the product editor's main picture
+   (Productafbeeldingen), so a closed section still shows which one leads. */
+.admin-collapse__thumb{ width: 2rem; height: 2rem; flex: none; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border); }
+.admin-collapse__thumb[hidden]{ display: none; }
 
 .admin-collapse__body{
   margin-top: 0.35rem;
@@ -3009,6 +3013,10 @@ form[data-admin-editor][aria-busy="true"]{ opacity: 0.85; cursor: progress; tran
 .admin-product-editor{ display: flex; flex-direction: column; gap: var(--admin-sp-5); }
 .admin-product-editor > .admin-card{ margin: 0; }
 .admin-editor-section .admin-collapse__badges .admin-badge{ font-variant-numeric: tabular-nums; }
+/* A section line is the only way to open it: on a phone a full finger high. */
+@media (max-width: 640px){
+  .admin-editor-section > .admin-collapse--card > .admin-collapse__summary{ min-height: 2.75rem; }
+}
 
 /* Varianten: the options, each a card with its values, and the variants,
    each a card with its price, its switch, its pictures and its text. */

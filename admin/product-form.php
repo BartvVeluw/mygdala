@@ -319,10 +319,18 @@ if ($isEdit) {
 $hasContentTab = $isEdit && \App\Service\ContentOwners\ContentBlockAccess::canManageKind(\App\Service\ProductContentOwner::KIND);
 $productKind = \App\Service\ProductContentOwner::KIND;
 
-// The two big sections fold, each on its own. They start open, the editor's
-// browser tab remembers how they were left (admin/assets/admin-collapse.js),
-// and a refused save opens them again, so no message can hide in a closed one.
+// The sections fold, each on its own (Shop Admin UX 2.0, ADMIN-UI.md
+// "Inklapbare secties"). The editor's browser tab remembers how they were
+// left, per product (admin/assets/admin-collapse.js, scope = the product's
+// id), and a refused save opens them again, so no message can hide in a
+// closed one. The two long ones, Productafbeeldingen and Varianten, start
+// closed on a product that already has some — their summary says how many,
+// and Productafbeeldingen shows its main picture — and open while empty, so
+// the first one is added where it is seen.
 $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
+$imagesStartOpen = !$isEdit || $galleryPictures === [] ? ' open' : '';
+$variantsStartOpen = !$isEdit || $variants === [] ? ' open' : '';
+$collapseScope = $isEdit ? (string) (int) $product['id'] : 'new';
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -393,7 +401,7 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
            the server refuses it; the endpoint says which field and which
            section, and the section opens. Folding a section is not a change. */ ?>
   <form method="post" action="/api/admin/<?= $isEdit ? 'update-product.php' : 'create-product.php' ?>" enctype="multipart/form-data" class="admin-product-editor" id="product-form"
-        data-admin-editor data-admin-collapse-group="product-editor" data-admin-collapse-scope="product" data-admin-collapse-no-return<?= $errors !== [] ? ' data-admin-editor-unsaved' : '' ?>>
+        data-admin-editor data-admin-collapse-group="product-editor" data-admin-collapse-scope="<?= htmlspecialchars($collapseScope, ENT_QUOTES, 'UTF-8') ?>" data-admin-collapse-no-return<?= $errors !== [] ? ' data-admin-editor-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
     <?php if ($isEdit): ?>
       <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
@@ -500,11 +508,14 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
     <?php /* The product's own pictures, and nothing else: which of them a
              variant shows is part of that variant, in Varianten below. */ ?>
     <section class="admin-card admin-editor-section" data-admin-editor-section="images">
-      <details class="admin-collapse admin-collapse--card" id="product-images-section" data-admin-collapse-id="images" open<?= $sectionForcedOpen ?>>
+      <details class="admin-collapse admin-collapse--card" id="product-images-section" data-admin-collapse-id="images"<?= $imagesStartOpen . $sectionForcedOpen ?>>
         <summary class="admin-collapse__summary">
           <span class="admin-collapse__caret" aria-hidden="true"></span>
           <h2 class="admin-collapse__title"><?= admin_te('shop.gallery.heading') ?></h2>
           <span class="admin-collapse__badges">
+            <?php /* The main picture, so a closed section still says which
+                     one leads (product-gallery.js keeps it current). */ ?>
+            <img class="admin-collapse__thumb"<?= $galleryPictures === [] ? ' hidden' : ' src="' . htmlspecialchars($galleryPictures[0]['src'], ENT_QUOTES, 'UTF-8') . '"' ?> alt="" loading="lazy" data-product-gallery-thumb>
             <span class="admin-badge" title="<?= admin_te('shop.editor.images_count') ?>"><span data-product-gallery-count><?= count($galleryPictures) ?></span><span class="admin-visually-hidden"> <?= admin_te('shop.editor.images_count') ?></span></span>
           </span>
         </summary>
@@ -536,7 +547,7 @@ $sectionForcedOpen = $errors !== [] ? ' data-admin-collapse-open' : '';
     </section>
 
     <section class="admin-card admin-editor-section" data-admin-editor-section="variants">
-      <details class="admin-collapse admin-collapse--card" id="product-variants-section" data-admin-collapse-id="variants" open<?= $sectionForcedOpen ?>>
+      <details class="admin-collapse admin-collapse--card" id="product-variants-section" data-admin-collapse-id="variants"<?= $variantsStartOpen . $sectionForcedOpen ?>>
         <summary class="admin-collapse__summary">
           <span class="admin-collapse__caret" aria-hidden="true"></span>
           <h2 class="admin-collapse__title"><?= admin_te('shop.varianten') ?></h2>

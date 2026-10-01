@@ -354,9 +354,16 @@
       if (emptyNote) emptyNote.hidden = pool.length > 0;
       liveVariants().forEach(renderVariant);
 
-      // The product editor's section line says how many pictures there are.
+      // The product editor's section line says how many pictures there are,
+      // and shows the main one (the first of the pool) as a thumbnail.
       var count = root.hasAttribute("data-product-gallery") ? document.querySelector("[data-product-gallery-count]") : null;
       if (count) count.textContent = String(pool.length);
+      var thumb = root.hasAttribute("data-product-gallery") ? document.querySelector("[data-product-gallery-thumb]") : null;
+      if (thumb) {
+        var main = pool[0] && pool[0].kind !== "video" ? pool[0].src : "";
+        if (main) thumb.setAttribute("src", main);
+        thumb.hidden = main === "";
+      }
     }
 
     /** The variants still on the page: a removed row is forgotten here. */
