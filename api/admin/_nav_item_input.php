@@ -28,10 +28,17 @@ declare(strict_types=1);
  *     every link in the header and footer goes through;
  *   - the presentation and button variant: App\Service\NavigationPresentation,
  *     a closed list, never a class name from the request;
- *   - the parent: only on create, and only a menu link on level 1 or 2, so
- *     the new item lands on level 3 at most
- *     (NavigationRepository::canBeParent(), MAX_DEPTH). An update never
- *     moves an item, which is also why no cycle can be made.
+ *   - the parent ("Bovenliggend item"): on create a menu link on level 1 or
+ *     2, so the new item lands on level 3 at most
+ *     (NavigationRepository::canBeParent(), MAX_DEPTH). On update the same
+ *     list may move the item: App\Service\NavigationTree::placementError()
+ *     refuses the item itself, anything below it, a header button, an
+ *     unknown id and a place where its own submenu would pass the deepest
+ *     level — the rules a drag on the overview meets too. A form without
+ *     the field keeps the stored parent. The move itself is
+ *     NavigationRepository::place(), in the endpoint's transaction; a new
+ *     parent puts the item LAST in its new list (HEADER-FOOTER.md,
+ *     "Verplaatsen").
  *
  * KEEPING A DESTINATION THAT IS UNAVAILABLE RIGHT NOW. A route of a
  * switched-off module is not in App\Service\RouteRegistry, so validate()
@@ -83,12 +90,19 @@ function validateNavItemInput(
     $openInNewTab = isset($input['open_in_new_tab']);
     $isVisible = isset($input['is_visible']);
 
+    // "Geen (hoofdniveau)" posts 0 or nothing; anything that is not a
+    // whole number is no parent anybody could have chosen.
+    $parentIdRaw = $text('parent_id');
+    $parentIdIsValid = $parentIdRaw === '' || ctype_digit($parentIdRaw);
+    $postedParentId = ctype_digit($parentIdRaw) && (int) $parentIdRaw > 0 ? (int) $parentIdRaw : null;
+
     if ($existing === null) {
-        $parentIdRaw = $text('parent_id');
-        $parentId = ctype_digit($parentIdRaw) && (int) $parentIdRaw > 0 ? (int) $parentIdRaw : null;
+        $parentId = $postedParentId;
+        $storedParentId = null;
         $childCount = 0;
     } else {
-        $parentId = $existing['parent_id'] === null ? null : (int) $existing['parent_id'];
+        $storedParentId = $existing['parent_id'] === null ? null : (int) $existing['parent_id'];
+        $parentId = array_key_exists('parent_id', $input) ? $postedParentId : $storedParentId;
         $childCount = $repository->countChildren((int) $existing['id']);
     }
 
@@ -140,6 +154,17 @@ function validateNavItemInput(
         }
     }
 
+    if (!$parentIdIsValid) {
+        $errors[] = AdminTranslator::trans('validation.nav_place_parent_unknown');
+    } elseif ($existing !== null && $parentId !== $storedParentId && !NavigationPresentation::isButton($existing)) {
+        // The kind of destination is judged above on what the form says, so
+        // the stored kind does not get a second say here.
+        $placementError = $repository->tree()->placementError((int) $existing['id'], $parentId);
+        if ($placementError !== null && $placementError !== 'validation.submenu_item_eigen_link_hebben') {
+            $errors[] = AdminTranslator::trans($placementError);
+        }
+    }
+
     foreach (NavigationPresentation::errors($presentation, $variant, $parentId, $linkType, $childCount) as $key) {
         $errors[] = AdminTranslator::trans($key);
     }
@@ -182,6 +207,7 @@ function validateNavItemInput(
         'presentation' => $isButton ? NavigationPresentation::BUTTON : NavigationPresentation::LINK,
         'button_variant' => in_array($variant, NavigationPresentation::variants(), true) ? $variant : NavigationPresentation::VARIANT_PRIMARY,
         'parent_id' => $parentId,
+        'parent_changed' => $existing !== null && $parentId !== $storedParentId,
     ];
 
     $old = [
@@ -196,6 +222,7 @@ function validateNavItemInput(
         'is_visible' => $isVisible,
         'presentation' => $presentation,
         'button_variant' => $variant,
+        'parent_id' => $parentIdRaw,
     ];
 
     return [$errors, $data, $old];

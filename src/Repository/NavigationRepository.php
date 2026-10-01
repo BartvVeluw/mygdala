@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Service\NavigationPresentation;
+use App\Service\NavigationTree;
 
 /**
  * All nav_items SQL. See db/migrations/20260907210000_create_nav_items_table.php
@@ -120,15 +121,12 @@ class NavigationRepository extends Repository
      * Enforces the MAX_DEPTH cap: $parentId is only a valid parent when it
      * exists, is a MENU LINK (a header button has no dropdown) and sits above
      * the deepest level, so the new child lands on level MAX_DEPTH at most.
-     * Used by create-nav-item.php before writing a submenu item's parent_id,
-     * and by the editor and the overview before they offer a parent at all.
-     *
-     * No cycle can come from this: parent_id is written once, when a row is
-     * created, and never changed afterwards (update-nav-item.php does not
-     * move items). A new row cannot be anybody's ancestor yet, so pointing
-     * it at an existing row can never close a loop. depthOf() still refuses
-     * a chain it cannot walk to the top, which covers a loop or an over-deep
-     * chain written into the database by hand.
+     * Used for a NEW item, which has no submenu of its own yet and cannot be
+     * anybody's ancestor, so pointing it at an existing row can never close a
+     * loop. Moving an existing item is place()'s, which also weighs the
+     * item's own submenu and refuses its descendants (NavigationTree).
+     * depthOf() refuses a chain it cannot walk to the top, which covers a
+     * loop or an over-deep chain written into the database by hand.
      */
     public function canBeParent(int $parentId): bool
     {
@@ -199,7 +197,8 @@ class NavigationRepository extends Repository
     }
 
     /**
-     * parent_id is never changed here (see api/admin/update-nav-item.php).
+     * parent_id is never changed here: a move is place()'s, which
+     * api/admin/update-nav-item.php calls in the same transaction.
      * The presentation may change: a link that becomes a button, or back,
      * moves to the END of the group it joins, so it never lands in the middle
      * of an order the editor arranged there. Without presentation or
@@ -251,17 +250,163 @@ class NavigationRepository extends Repository
     }
 
     /**
-     * Only succeeds when the item has no children — callers (the admin API
-     * endpoint) must check countChildren() first and give a friendly error;
-     * the parent_id FK is RESTRICT as a defense-in-depth backstop, not the
-     * primary UX.
+     * Deletes one item. Its submenu items are never deleted with it and never
+     * left behind without a parent: they take its place in its own list, in
+     * their own order, one level up (HEADER-FOOTER.md, "Verwijderen"). An
+     * item on the top level hands them to the top level. A level only ever
+     * gets shallower this way, so no limit can be broken.
+     *
+     * One transaction: the children move, the list is renumbered and the row
+     * goes, or nothing changes. The label rows go with it (CASCADE); the
+     * parent_id foreign key stays RESTRICT as the backstop against a delete
+     * that skips this method.
      */
     public function delete(int $id): bool
     {
-        $stmt = $this->db->prepare('DELETE FROM nav_items WHERE id = :id');
-        $stmt->execute(['id' => $id]);
+        return $this->inTransaction(function () use ($id): bool {
+            $this->lockAll();
+            $item = $this->findById($id);
+            if ($item === null) {
+                return false;
+            }
 
-        return $stmt->rowCount() > 0;
+            $parentId = $item['parent_id'] === null ? null : (int) $item['parent_id'];
+            $childIds = array_map(
+                static fn (array $row): int => (int) $row['id'],
+                $this->findForGroup($id, NavigationPresentation::LINK)
+            );
+
+            if ($childIds !== []) {
+                $siblingIds = array_map(
+                    static fn (array $row): int => (int) $row['id'],
+                    $this->findForGroup($parentId, NavigationPresentation::of($item))
+                );
+                $position = array_search($id, $siblingIds, true);
+                if ($position === false) {
+                    array_push($siblingIds, ...$childIds);
+                } else {
+                    array_splice($siblingIds, $position, 1, $childIds);
+                }
+
+                $stmt = $this->db->prepare('UPDATE nav_items SET parent_id = :parent_id, updated_at = NOW() WHERE id = :id');
+                foreach ($childIds as $childId) {
+                    $stmt->execute(['parent_id' => $parentId, 'id' => $childId]);
+                }
+                $this->writeOrder($siblingIds);
+            }
+
+            $stmt = $this->db->prepare('DELETE FROM nav_items WHERE id = :id');
+            $stmt->execute(['id' => $id]);
+
+            return $stmt->rowCount() > 0;
+        });
+    }
+
+    /**
+     * The menu's tree, from one query (App\Service\NavigationTree).
+     */
+    public function tree(): NavigationTree
+    {
+        return new NavigationTree($this->findAllForAdmin());
+    }
+
+    /**
+     * Places one menu item under $parentId (null = the top level) at
+     * $position in that list, counted without the item itself; null, or a
+     * position past the end, puts it last. THE one structural write of the
+     * menu: a drag on the overview and the Parent list of the editor both end
+     * here (HEADER-FOOTER.md, "Verplaatsen").
+     *
+     * Refused, as a translation key, for every reason NavigationTree
+     * names: an unknown item, a header button, the item itself or anything
+     * below it as parent, an unknown parent or one from the button list, a
+     * heading without destination below the top level, or a submenu that
+     * would end up past MAX_DEPTH. Nothing is written then.
+     *
+     * ONE TRANSACTION, the rows locked first: the old list closes its gap,
+     * the item takes its parent and the new list is renumbered 0..n-1, or
+     * the tree stays exactly as it was. Joins a transaction the caller
+     * already opened (update-nav-item.php saves the item and its place as
+     * one), and rolls back only its own.
+     */
+    public function place(int $id, ?int $parentId, ?int $position = null): ?string
+    {
+        return $this->inTransaction(function () use ($id, $parentId, $position): ?string {
+            $this->lockAll();
+            $item = $this->findById($id);
+            if ($item !== null && NavigationPresentation::isButton($item)) {
+                return 'validation.nav_place_button';
+            }
+
+            $tree = $this->tree();
+            $error = $tree->placementError($id, $parentId);
+            if ($error !== null) {
+                return $error;
+            }
+
+            $oldParentId = $item['parent_id'] === null ? null : (int) $item['parent_id'];
+
+            $newSiblings = array_values(array_filter(
+                $tree->childIds($parentId),
+                static fn (int $siblingId): bool => $siblingId !== $id
+            ));
+            $at = $position === null || $position < 0 || $position > count($newSiblings) ? count($newSiblings) : $position;
+            array_splice($newSiblings, $at, 0, [$id]);
+
+            if ($oldParentId !== $parentId) {
+                $stmt = $this->db->prepare('UPDATE nav_items SET parent_id = :parent_id, updated_at = NOW() WHERE id = :id');
+                $stmt->execute(['parent_id' => $parentId, 'id' => $id]);
+
+                $this->writeOrder(array_values(array_filter(
+                    $tree->childIds($oldParentId),
+                    static fn (int $siblingId): bool => $siblingId !== $id
+                )));
+            }
+            $this->writeOrder($newSiblings);
+
+            return null;
+        });
+    }
+
+    /**
+     * Runs $work in a transaction: its own, or the caller's when one is open
+     * (PDO refuses a nested beginTransaction(); same arrangement as
+     * CollectionRepository). Only its own transaction is committed or rolled
+     * back here.
+     *
+     * @template T
+     * @param callable(): T $work
+     * @return T
+     */
+    private function inTransaction(callable $work): mixed
+    {
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $result = $work();
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
+
+            return $result;
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Locks every nav_items row until the transaction ends, so two moves at
+     * once cannot each read the tree the other is about to change. The menu
+     * is a handful of rows; one lock for all of them is the simple, safe one.
+     */
+    private function lockAll(): void
+    {
+        $this->db->query('SELECT id FROM nav_items FOR UPDATE')->fetchAll();
     }
 
     /**
@@ -329,17 +474,12 @@ class NavigationRepository extends Repository
      */
     private function writeOrder(array $orderedIds): void
     {
-        $this->db->beginTransaction();
-        try {
+        $this->inTransaction(function () use ($orderedIds): void {
+            $stmt = $this->db->prepare('UPDATE nav_items SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
             foreach ($orderedIds as $position => $id) {
-                $stmt = $this->db->prepare('UPDATE nav_items SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
                 $stmt->execute(['sort_order' => $position, 'id' => $id]);
             }
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

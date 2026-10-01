@@ -27,11 +27,8 @@ namespace App\Service;
  *     Shop
  *        – Zakelijk
  *
- * A native <select> cannot draw a tree, so the depth is in the text. The
- * indent is no-break spaces, which a screen reader does not read, and the
- * mark is a single en dash, which a screen reader at its usual punctuation
- * level does not read either — a deliberate choice over a row of dashes or
- * box-drawing characters, which it would read out on every option.
+ * A native <select> cannot draw a tree, so the depth is in the text:
+ * App\Service\TreeOptions, which a menu item's Parent list uses as well.
  *
  * WHAT EACH LIST SHOWS stays that list's own business: drafts or not, the
  * page itself or not, a stored choice kept. This class only puts what a list
@@ -44,12 +41,6 @@ namespace App\Service;
  */
 final class PageOptions
 {
-    /** One level of indent: three no-break spaces. */
-    private const INDENT = "\u{00A0}\u{00A0}\u{00A0}";
-
-    /** Before a page that sits under another: an en dash and a no-break space. */
-    private const MARK = "\u{2013}\u{00A0}";
-
     /**
      * The pages a list shows, in THE order, plus the pages above them that it
      * does not show (`context`), so every page stands under its own parent.
@@ -108,6 +99,6 @@ final class PageOptions
     /** An option's text: the name, indented by its depth, marked when it sits under another page. */
     public static function label(string $name, int $depth): string
     {
-        return $depth < 1 ? $name : str_repeat(self::INDENT, $depth) . self::MARK . $name;
+        return TreeOptions::label($name, $depth);
     }
 }

@@ -3,14 +3,12 @@
 /**
  * POST /api/admin/delete-nav-item.php
  *
- * Deletes a nav_items row — but refuses (friendly error, not a raw FK
- * error) when the item still has children: the safest, clearest of the two
- * options considered for "delete an item with children" (see MAIN.MD,
- * "Global Navigation + Footer"), matching this project's existing
- * "check usage first" convention (e.g. delete-portfolio-category.php). An
- * admin must move/delete the children first — nothing is silently
- * destroyed. parent_id's own ON DELETE RESTRICT is the defense-in-depth
- * backstop if this check is ever bypassed.
+ * Deletes a nav_items row. An item with submenu items may go too: its
+ * submenu items are never deleted with it, they take its place in its own
+ * list, in their own order, one level up (NavigationRepository::delete(),
+ * HEADER-FOOTER.md "Verwijderen"). Nothing but the one item disappears, and
+ * no row is ever left pointing at a parent that is gone; parent_id's own ON
+ * DELETE RESTRICT stays the backstop if that method is ever bypassed.
  *
  * Asked first in the CMS's own dialog on admin/navigation.php and
  * admin/navigation-item.php (admin_confirm_attributes()); that dialog is a
@@ -54,12 +52,6 @@ $item = $repository->findById($idParam);
 if ($item === null) {
     http_response_code(404);
     exit('Menu-item niet gevonden.');
-}
-
-if ($repository->countChildren($idParam) > 0) {
-    $_SESSION['admin_nav_error'] = AdminTranslator::trans('validation.menu_item_heeft_submenu_items');
-    header('Location: /admin/navigation.php');
-    exit;
 }
 
 try {

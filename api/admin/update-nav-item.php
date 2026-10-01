@@ -10,13 +10,14 @@
  * (App\Service\NavigationPresentation). The shared rules are in
  * api/admin/_nav_item_input.php.
  *
- * parent_id is deliberately never editable here — moving an item between
- * top-level and submenu (or between parents) is a structural change this
- * screen doesn't expose; delete + recreate as a submenu item under the new
- * parent is the supported path, same as this project's other admin CRUD
- * screens have no "move to another parent" action. Changing the presentation
- * is not such a move: the item stays top-level and joins the end of the
- * other group (NavigationRepository::update()).
+ * And its place: "Bovenliggend item" may move a menu link to another parent
+ * or to the top level. That is NavigationRepository::place(), the same move
+ * a drag on the overview makes, inside this save's transaction; the item
+ * goes LAST in its new list, and an unchanged parent keeps its position
+ * (HEADER-FOOTER.md, "Verplaatsen"). A form without the field keeps the
+ * stored parent. Changing the presentation is not such a move: the item
+ * stays top-level and joins the end of the other group
+ * (NavigationRepository::update()).
  *
  * Same guard order and PRG pattern as api/admin/update-form.php, including
  * the redirect back to the editor with saved=1 for the save bar.
@@ -79,6 +80,17 @@ try {
     // are one save.
     $db->beginTransaction();
     $repository->update($idParam, $data);
+    // A new parent from the editor's list: last in its new list, the old
+    // list closing its gap — the same move a drag makes, judged again
+    // against the tree as it stands inside this transaction.
+    $placeError = $data['parent_changed'] ? $repository->place($idParam, $data['parent_id']) : null;
+    if ($placeError !== null) {
+        $db->rollBack();
+        $_SESSION['admin_nav_item_errors'] = [AdminTranslator::trans($placeError)];
+        $_SESSION['admin_nav_item_old'] = $old;
+        header('Location: ' . $editorUrl);
+        exit;
+    }
     // "Gebruik titel van bestemming": no words of its own, in any language —
     // the menu shows the page's title (NavigationLocalization::labelFor()).
     if ($data['label_follows']) {
