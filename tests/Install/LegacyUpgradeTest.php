@@ -70,8 +70,11 @@ final class LegacyUpgradeTest extends TestCase
 
     public function testEveryContentPageSurvives(): void
     {
+        // The site's own pages. Since Portfolio 3.0 (20261014100000) every
+        // project also has a content page of its own (owner_type
+        // 'portfolio_project'); those belong to their project, not to this list.
         $keys = array_column(
-            $this->install()->rows('SELECT content_key FROM pages ORDER BY sort_order, id'),
+            $this->install()->rows('SELECT content_key FROM pages WHERE owner_type IS NULL ORDER BY sort_order, id'),
             'content_key'
         );
 

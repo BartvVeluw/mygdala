@@ -123,7 +123,8 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'form_blocks' => ['header_align'],
         'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id', 'image_focus_x', 'image_focus_y', 'image_mobile_media_id', 'image_mobile_focus_x', 'image_mobile_focus_y', 'image_zoom', 'image_mobile_zoom', 'primary_button_style_id', 'secondary_button_style_id'],
         'page_heroes' => ['image_mode', 'hero_height', 'image_focus_x', 'image_focus_y', 'image_mobile_media_id', 'image_mobile_focus_x', 'image_mobile_focus_y', 'image_fit', 'image_mobile_fit', 'image_mobile_height', 'slide_transition', 'slide_duration', 'image_zoom', 'image_mobile_zoom'],
-        'item_galleries' => ['portfolio_category_id', 'item_sort', 'button_style_id'],
+        // Card Presentation 2.0 (20261010100000): card_presentation.
+        'item_galleries' => ['portfolio_category_id', 'item_sort', 'button_style_id', 'card_presentation'],
         // Detailsectie 2.0 (20260930120000): what a gallery item shows,
         // (20260930140000) the focus point of its picture, and
         // (20261002100000) its zoom.
