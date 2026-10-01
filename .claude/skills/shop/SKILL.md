@@ -81,8 +81,15 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
   formulier dat dezelfde *Opslaan* meeneemt. Een lange sectie klapt in met
   `admin/_admin_collapse.php`, onthouden per product (scope = id); bouw geen
   eigen accordeon. Een variant kiest afbeeldingen uit de pool van het
-  product (`product_variant_images`): er is geen afbeelding die alleen bij
-  een variant hoort (`MODULES.md`, "Shop").
+  product (`product_variant_images`). Een afbeelding in die pool is
+  algemeen of **alleen voor varianten** (`product_images.variant_only`):
+  dat staat in de kolom en wordt nooit afgeleid uit de koppelingen. Lees
+  "de afbeeldingen van het product" altijd via
+  `ProductImageRepository::findByProductId()`/`findPrimary()` (alleen
+  algemeen); `findPoolByProductId()` is alleen voor wat de pool beheert. Een
+  variant-only afbeelding is nooit hoofdfoto, kaart-, deel- of
+  structured-data-beeld (`ProductVariantImageRepository::generalOnly()`;
+  `MODULES.md`, "Shop" → *Algemeen of alleen voor varianten*).
 - **Een klantafbeelding bij een bestelvraag is privé orderdata**
   (`MODULES.md`, "Bestelvelden" → *Afbeelding uploaden*): buiten de webroot,
   nooit in de Mediabibliotheek, `assets/`, een mail of de factuur; de browser

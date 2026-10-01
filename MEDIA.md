@@ -868,7 +868,12 @@ een hele reeks id's. De **Shop** doet hetzelfde
 productafbeelding, met erbij bij hoeveel varianten hij ook staat, en
 *"Collectie: &lt;naam&gt;"*. Een variant heeft geen eigen afbeelding: hij
 koppelt aan een afbeelding van zijn product (`product_variant_images`), dus zijn
-gebruik is dat van het product.
+gebruik is dat van het product. Dat geldt ook voor een afbeelding **alleen voor
+varianten** (`product_images.variant_only`, v0.1.15 fase 12.1): het is nog
+steeds één `product_images`-rij van het product, dus één gebruik
+*"Product: &lt;naam&gt; (ook bij N varianten)"*, ook als geen variant hem op
+dat moment aanvinkt. Er komt geen tweede gebruik per variant bij, en zolang de
+rij bestaat weigert de bibliotheek het bestand te verwijderen.
 
 **Staat een module uit, dan telt zijn gebruik niet mee.** Dat is dezelfde
 regel als overal (`MODULES.md`): een uitgeschakelde module draagt niets bij.

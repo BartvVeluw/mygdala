@@ -844,6 +844,37 @@ De productgalerij en haar overgang (Product Gallery 2.0, `MODULES.md`):
                         herhaling) — de laatste ook in --testsuite migration
 ```
 
+Afbeeldingen alleen voor varianten (v0.1.15 fase 12.1,
+`product_images.variant_only`, `MODULES.md`, "Shop"):
+
+```
+--testsuite fast        ShopGalleryContractTest (de eigen lijst en het veld
+                        gallery_variant_only[], omzetten raakt geen
+                        variantvinkjes, "Alleen voor varianten" alleen met
+                        een variant, en elke kaart van het script draagt
+                        data-src/-name zoals die van de server: na Opslaan
+                        tekent de editor regio voor regio opnieuw)
+--testsuite shop        voegt ProductVariantOnlyPicturesTest toe (bestaand =
+                        algemeen, niet in de algemene galerij of payload,
+                        wel via de variant, B één keer, één afbeelding bij
+                        twee varianten, nooit hoofdfoto, algemeen ↔
+                        variant-only met koppelingen intact, een verzoek
+                        zonder tweede lijst raakt niets, laatste koppeling en
+                        variant weg zonder mediaverlies, product weg zonder
+                        weesrijen, SEO-beeld nooit variant-only en de oude
+                        terugval ongewijzigd, één mediagebruik, vreemde
+                        id's genegeerd), ProductVariantOnlyPicturesHttpTest
+                        (eigen php -S: beide lijsten in de ene opslag,
+                        hoofdfoto niet te forceren, vreemd product, vreemde
+                        variant, vervalste productcontext en onbekende id's
+                        veranderen niets, CSRF/recht/login eerst, het scherm
+                        met twee lijsten en een geweigerde opslag) en
+                        VariantOnlyPicturesMigrationTest (vers en upgrade,
+                        elke bestaande rij algemeen ook met koppelingen,
+                        koppelingen ongewijzigd, herhaling, standaard 0) —
+                        de laatste ook in --testsuite migration
+```
+
 *Factuur bekijken* (Factuurpreview 1.0, `MODULES.md`, "Shop"):
 
 ```

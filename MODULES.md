@@ -456,16 +456,64 @@ Alles wat er ook zou zijn zonder webshop.
   (`product_images`, met `media_id` naar de Mediabibliotheek); een variant
   kiest daaruit een deelverzameling in een eigen volgorde
   (`product_variant_images`, een koppeling, geen kopie). Een variant die niets
-  kiest toont alle afbeeldingen van het product, dus een variant toevoegen
-  verbergt nooit een productfoto. Een variant verwijderen haalt alleen zijn
-  koppelingen weg; een bibliotheekbestand verwijdert de Shop nooit
-  (`ShopMediaUsage`, `MEDIA.md`). De oude `variant_images`, met eigen
+  kiest toont alle algemene afbeeldingen van het product, dus een variant
+  toevoegen verbergt nooit een productfoto. Een variant verwijderen haalt
+  alleen zijn koppelingen weg; een bibliotheekbestand verwijdert de Shop
+  nooit (`ShopMediaUsage`, `MEDIA.md`). De oude `variant_images`, met eigen
   bestanden per variant, is door `20260923120000` omgezet naar dit model en
-  wordt niet meer gelezen. Een afbeelding die een variant kiest staat dus
-  óók in *Productafbeeldingen*: dat is dit model, geen dubbele relatie.
-  Afbeeldingen die alleen bij een variant horen en niet in de algemene
-  galerij, vragen een ander opslagmodel; dat is een open beslissing
-  (Shop Admin UX 2.0, v0.1.15 fase 12), niet gebouwd.
+  wordt niet meer gelezen.
+
+  **Algemeen of alleen voor varianten** (v0.1.15 fase 12.1,
+  `product_images.variant_only`, migratie `20261016100000`). Elke afbeelding
+  in de pool is één van twee soorten:
+
+  - **Algemeen** (`variant_only = 0`, de standaard en wat elke bestaande rij
+    na de migratie is): staat in *Productafbeeldingen* en in de algemene
+    productgalerij, en mag daarnaast aan één of meer varianten gekoppeld
+    zijn. De eerste algemene afbeelding is de hoofdfoto.
+  - **Alleen voor varianten** (`variant_only = 1`): blijft van het product
+    (zelfde rij, zelfde `media_id`), maar staat niet in de algemene galerij
+    en niet in *Productafbeeldingen*. Alleen een variant die eraan koppelt
+    toont hem. Hij is nooit hoofdfoto (`is_primary` blijft 0, ook als hij
+    de enige afbeelding is; dan heeft het product geen hoofdfoto), en nooit
+    het deel-, kaart- of structured-data-beeld van het product.
+
+  Het onderscheid wordt **nooit afgeleid uit de koppelingen**: de editor
+  stuurt twee lijsten (`gallery[]` en `gallery_variant_only[]` met de
+  marker `gallery_variant_only_submitted`) en `ProductGallery::save()` neemt
+  die over. Een afbeelding wisselt van soort door in de andere lijst te
+  staan; rij, bibliotheekitem en koppelingen blijven. Algemeen gemaakt komt
+  hij achteraan in de algemene volgorde. Staat hij in beide lijsten, dan is
+  hij algemeen. Een verzoek zonder de tweede lijst laat de variant-only
+  afbeeldingen zoals ze zijn. Haal je de laatste koppeling van een
+  variant-only afbeelding weg, dan blijft hij in de pool staan, ongekoppeld,
+  tot hij bewust wordt weggehaald (×); dan gaat alleen de rij, nooit het
+  bibliotheekbestand.
+
+  **Wie leest wat.** `ProductImageRepository::findByProductId()`,
+  `findPrimary()` en `primaryForProducts()` geven alleen algemene
+  afbeeldingen; alleen wat de pool beheert (de editor, `ProductGallery`,
+  `ProductDeletionService`) vraagt `findPoolByProductId()`. Variantkoppelingen
+  (`ProductVariantImageRepository::findByVariantIds()`) geven beide soorten,
+  met `variant_only` erbij. Waar een standaardvariant het product
+  vertegenwoordigt (de winkelkaart in `api/products.php`, de thumbnail van
+  `ProductAdminOverview` en `admin/collection.php`, `ProductSeo::imagePaths()`,
+  de aandachtslijst van het dashboard) telt alleen zijn eerste **algemene**
+  koppeling (`ProductVariantImageRepository::generalOnly()`). Koppelt de
+  standaardvariant alleen aan variant-only afbeeldingen, dan vallen SEO en
+  kaart terug op de algemene afbeeldingen van het product; koppelt hij aan
+  niets, dan blijft alles zoals het was.
+
+  **Op de productpagina en in Uitgelicht product** (beide `ProductDetail`,
+  `shop.js`): `images` zijn de algemene afbeeldingen; een variant toont
+  precies zijn koppelingen (algemeen en variant-only, elk één keer, in zijn
+  eigen volgorde) en zonder koppelingen de algemene afbeeldingen. Een
+  variantkeuze terug naar zo'n variant laat de variant-only afbeeldingen dus
+  weer verdwijnen. Let op: de pagina selecteert bij het laden de
+  standaardvariant (de eerste actieve), zoals altijd. Koppelt díe aan een
+  variant-only afbeelding, dan staat die bij het laden in beeld: dat is een
+  bewuste variantcontext, geen lek. Er is geen toestand "geen variant
+  gekozen".
 - **Het productoverzicht** (`admin/products.php`, Shop Admin UX & Order
   Fields 2.0) is *Raster* of *Lijst*: één kaartmarkup die CSS twee keer
   tekent (`data-product-view`), met een schakelaar van twee knoppen
@@ -484,11 +532,18 @@ Alles wat er ook zou zijn zonder webshop.
   `ADMIN-UI.md`, "Een editor die opslaat zonder te herladen"). Eén
   formulier en één *Opslaan*, zonder herladen:
   - het product zelf, zijn collecties en SEO;
-  - de kaart *Productafbeeldingen*, met alleen de pool van het product (de
-    eerste is de *Hoofdfoto*) en de *Overgang productgalerij* (zie
+  - de kaart *Productafbeeldingen*, met alleen de algemene afbeeldingen van
+    het product (de eerste is de *Hoofdfoto*; met minstens één variant heeft
+    elke kaart *Alleen voor varianten*) en de *Overgang productgalerij* (zie
     hieronder);
-  - de kaart *Varianten*: de opties met hun waardes, en de varianten met
-    hun prijs, schakelaar, afbeeldingen uit de pool en eigen beschrijving.
+  - de kaart *Varianten*: de opties met hun waardes, de varianten met hun
+    prijs, schakelaar, afbeeldingen uit de hele pool (een variant-only tegel
+    heeft een stippelrand), *+ Afbeelding alleen voor deze variant* (een
+    nieuw bibliotheekbeeld wordt variant-only en aangevinkt; een beeld dat
+    het product al heeft wordt alleen aangevinkt) en eigen beschrijving, en
+    onderaan *Afbeeldingen alleen voor varianten*: elke variant-only
+    afbeelding met *Naar productgalerij*, × en, als geen variant hem
+    aanvinkt, *Niet aan een variant gekoppeld*.
 
   Een optie, waarde of variant toevoegen, verplaatsen of weghalen verandert
   alleen het scherm. Rijen gaan op sleutel: een id, of `new<n>` voor een rij
