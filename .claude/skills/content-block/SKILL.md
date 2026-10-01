@@ -118,6 +118,13 @@ en `GenericBlockDefaultsTest` bewaken beide.
   `ResponsiveMediaContractTest`. Het kader knipt af (`overflow: hidden`, en
   het kader in `ResponsiveMediaZoomContractTest::FRAMES`), anders loopt een
   zoom erbuiten. Nooit een eigen `object-position`, `scale` of `<picture>`.
+- **Laat je redacteur de maat van een beeld kiezen?** Gebruik de drie
+  stappen van `ImagePresentation` (Compact, Normaal, Groot; `MEDIA.md`,
+  "Compact, Normaal, Groot"): de lengtes als letterlijke CSS-waarden in je
+  Content-klasse, het stylesheet print ze, `editorFrames()` geeft de editor
+  zijn kaders voor Desktop, Tablet en Mobiel, en
+  `ImagePresentationContractTest` pint de twee aan elkaar. Een stap houdt
+  zijn plaats op elk scherm; geen maattabel in `admin.css`.
 - **Eén bloktype is één kiezerkaart.** Presets bestaan niet meer (v0.1.15).
   Toont een blok de inhoud van een module, dan is het een blok van die module
   met een bron die bij dat ene type hoort (`ItemGallerySources`, `block`):

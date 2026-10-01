@@ -662,6 +662,79 @@ foto van dat item staat meteen in beeld met het punt van de galerij. Een icoon (
 is een SVG die nooit wordt bijgesneden. Het deelbeeld (`og_media_id`) staat
 niet op de site zelf.
 
+### Compact, Normaal, Groot
+
+Responsive Media 3.1 (v0.1.15) geeft de maatstappen van een beeld één
+betekenis, op de pagina en in het CMS, op een groot scherm, een tablet en een
+telefoon. `App\Service\Media\ImagePresentation` is die betekenis:
+
+- **Drie stappen, kleinste eerst:** `compact`, `normal`, `large`. Een blok mag
+  ze anders opslaan (Tekst met afbeelding en de Mediabanner: `small`,
+  `medium`, `large`; een eigen telefoonhoogte: `compact`, `normal`, `large`),
+  maar het zijn dezelfde drie stappen, één keer gekoppeld in
+  `ImagePresentation::STEP_OF`. Een stap houdt zijn plaats op elk scherm:
+  op een tablet is Groot nog steeds de grootste, nooit "een maat kleiner".
+  De pixels krimpen met het scherm, de volgorde en de vorm niet.
+- **Eén bron voor pagina en voorbeeld.** De lengtes van een stap staan als
+  letterlijke CSS-waarden in de Content-klasse van het blok
+  (`TextImageSplitContent::WIDE_HEIGHTS`, `STACKED_RATIOS`, `STACKED_MAX`;
+  `MediaBannerContent::WIDE_HEIGHTS`, `PHONE_HEIGHTS`, `PHONE_OWN_HEIGHTS`;
+  `PageHeroContent::WIDE_HEIGHTS`, `NARROW_HEIGHTS`, `PHONE_OWN_HEIGHTS`,
+  `FIGURE_*`). Het stylesheet print ze, en
+  `Tests\Service\ImagePresentationContractTest` faalt zodra één teken
+  verschilt. Het CMS rekent zijn kaders uit dezelfde waarden uit
+  (`ImagePresentation::length()` op het referentiescherm), dus een stap die
+  verandert, verandert op de pagina en in het voorbeeld tegelijk. `admin/`
+  heeft geen eigen maattabel meer (de `:has()`-tabellen in `admin.css` zijn
+  weg).
+- **Drie referentieschermen voor het voorbeeld**
+  (`ImagePresentation::VIEWPORTS`): Desktop 1280 x 900 (het venster waarin
+  elk kader sinds 2.0 gemeten is), Tablet 768 x 1024 (staand), Mobiel
+  375 x 812. Dat zijn geen breekpunten: elk blok houdt zijn eigen breekpunten,
+  en het ene breekpunt van het contract blijft 640px. De breedte van de
+  inhoud is die van `.container` in `core.css`: 1136, 704 en 327px.
+
+**De breekpunten, uit de code.**
+
+| Blok | Groot scherm | Tablet | Telefoon |
+|---|---|---|---|
+| Responsive Media (telefoonafbeelding, -punt, -zoom, -weergave, -hoogte) | > 640px | > 640px: zoals een groot scherm | ≤ 640px |
+| Tekst met afbeelding | > 860px: tekst en beeld naast elkaar | ≤ 860px: één kolom | ≤ 860px: één kolom; ≤ 640px de eigen telefoonhoogte |
+| Paginakop | > 900px | ≤ 900px: lagere stappen, beeld naast de tekst gaat erboven | ≤ 640px de eigen telefoonhoogte |
+| Mediabanner | > 640px | > 640px: zoals een groot scherm | ≤ 640px: vaste, lagere stappen of de eigen telefoonhoogte |
+
+Tablet 768px valt dus bij Tekst met afbeelding en de Paginakop in hun smalle
+lay-out, en bij de Mediabanner in die van een groot scherm.
+
+**Wat de stappen zijn** (Tekst met afbeelding bij 50%; Mediabanner binnen de
+container; in px op het referentiescherm, en hoe het CMS-kader ze toont):
+
+| Stap | Desktop 1280 | Tablet 768 | Mobiel 375 | CMS-voorbeeld |
+|---|---|---|---|---|
+| Tekst met afbeelding, Compact (`small`) | 536 x 307 (`clamp(14rem, 24vw, 20rem)`) | 704 x 396 (16:9) | 327 x 184 (16:9) | dezelfde maat, op halve grootte |
+| Tekst met afbeelding, Normaal (`medium`) | 536 x 461 (`clamp(18rem, 36vw, 30rem)`) | 704 x 528 (4:3) | 327 x 245 (4:3) | idem |
+| Tekst met afbeelding, Groot (`large`) | 536 x 640 (`clamp(22rem, 50vw, 42rem)`) | 704 x 672 (1:1, tot 42rem) | 327 x 327 (1:1) | idem |
+| Mediabanner, Klein / Middel / Groot / Extra groot | 1136 x 282 / 384 / 538 / 666 | 704 x 240 / 288 / 352 / 416 | 327 x 192 / 240 / 304 / 384 | idem |
+| Paginakop achter de tekst, Klein / Middel / Groot | 1280 x 360 / 495 / 675 | 768 x 352 / 512 / 576 | 375 x 352 / 512 / 576 | idem |
+
+Een eigen telefoonhoogte geldt alleen op een telefoon. Bij Tekst met
+afbeelding is het de vorm van dezelfde stap (Compact 16:9, Normaal 4:3,
+Groot 1:1): een telefoon met *Groot* toont precies wat een telefoon toont bij
+de blokhoogte *Groot*. De Mediabanner en de Paginakop houden hun eigen
+telefoonhoogtes (tabel in `CONTENT-BLOCKS.md`); die waren op een tablet niet
+fout en zijn in 3.1 niet veranderd.
+
+**Waarom de tablet een stap kleiner leek (de fout van vóór 3.1).** Tekst met
+afbeelding zette onder 860px vaste hoogtes van 12, 16 en 20rem, bedoeld voor
+een telefoon van 327px breed. Op een tablet is het beeld 600 tot 790px breed,
+dus werd elk beeld een platte strook: gemeten bij 768px was Groot 694 x 320
+(2,17:1), platter dan Klein op een groot scherm (1,68:1); Normaal 2,71:1 en
+Compact 3,61:1. Bovendien betekende Groot op een telefoon twee dingen: 20rem
+automatisch, 24rem als eigen telefoonhoogte. Nu is het één kolom met de vorm
+van de stap, gemeten bij 768px: 694 x 390, 694 x 521 en 694 x 672 (1,78, 1,33
+en 1,03), dezelfde volgorde en vorm als op een telefoon. Op een groot scherm
+is niets veranderd.
+
 ### Een plek aansluiten
 
 1. Migratie: de kolommen van een `ResponsiveImageSlot` op de tabel,

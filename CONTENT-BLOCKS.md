@@ -1116,7 +1116,7 @@ onder elke sectie). Dat is de reden om meerdere items in één blok te zetten.
 | afbeelding | `media_id` (+ oud `image_path`) | een item uit de mediabibliotheek, optioneel |
 | kant van de afbeelding | `image_side` | `left`, `right` |
 | breedte van de afbeelding | `image_column` | `25`, `50`, `75`: het deel van de rij in procenten, de tekst krijgt de rest |
-| hoogte van de afbeelding | `image_height` | `small`, `medium`, `large`: tokens in `assets/css/blocks/text-image-split.css` |
+| hoogte van de afbeelding | `image_height` | `small`, `medium`, `large` (Compact, Normaal, Groot van `ImagePresentation`): tokens in `assets/css/blocks/text-image-split.css`, dezelfde letterlijke waarden als `TextImageSplitContent::WIDE_HEIGHTS` en `STACKED_RATIOS` |
 | weergave van de afbeelding | `image_focus_x`, `image_focus_y`, `image_fit` en de telefoonkolommen `image_mobile_*` | het veld *Afbeeldingsweergave* van elke plek die bijsnijdt (`MEDIA.md`, *Responsive Media*): een focuspunt, *Vullen* of *Hele afbeelding*, en voor een telefoon een eigen afbeelding, punt, weergave en hoogte (*Compact*, *Normaal*, *Groot*) |
 | knopdoel | `button_link_type`, `button_link_target_id`, `button_url` | *Geen knop*, een pagina, blogbericht of product op id, of een getypt adres (`LinkChoice`, zie *Taal* hierboven) |
 
@@ -1131,13 +1131,17 @@ neer. De enige inline waarden zijn die van de afbeeldingsweergave
   standaardtaal beslist, zoals overal. Een helemaal leeg item weigert de
   editor, met de melding bij het item. Een item met alleen een lay-out toont
   niets.
-- **Mobiel (≤ 860px) staat de tekst altijd boven de afbeelding**, allebei
-  over de volle breedte. Dat is de regel van de Detailsectie. De breedte en de
-  kant gelden dan niet, en de hoogtes worden vaste, lagere waarden. Een
-  gemigreerd blok met de afbeelding links toonde op een telefoon eerst de
-  afbeelding; nu komt eerst de tekst. Op een telefoon (≤ 640px, het ene
-  breekpunt van Responsive Media) kan een item een eigen hoogte kiezen
-  (`image_mobile_height`); zonder keuze blijft het die vaste waarde.
+- **Op een tablet en een telefoon (≤ 860px) staat de tekst altijd boven de
+  afbeelding**, allebei over de volle breedte. Dat is de regel van de
+  Detailsectie. De breedte en de kant gelden dan niet, en de hoogte wordt de
+  vorm van dezelfde stap: Klein (Compact) 16:9, Middel (Normaal) 4:3, Groot
+  1:1, nooit hoger dan 42rem (Responsive Media 3.1, `MEDIA.md`, "Compact,
+  Normaal, Groot"). Vóór 3.1 waren dat vaste hoogtes voor een telefoon, waardoor
+  elke stap op een tablet een maat kleiner leek. Een gemigreerd blok met de
+  afbeelding links toonde op een telefoon eerst de afbeelding; nu komt eerst
+  de tekst. Op een telefoon (≤ 640px, het ene breekpunt van Responsive Media)
+  kan een item een eigen hoogte kiezen (`image_mobile_height`): de vorm van
+  die stap. Zonder keuze volgt de telefoon de hoogte van het item.
 - **Een item met maar één helft gaat over de volle breedte.** Alleen tekst:
   de tekst is 100% breed. Alleen een afbeelding: de afbeelding vult het hele
   item, met zijn eigen hoogte en focuspunt. De breedte (`image_column`) en de

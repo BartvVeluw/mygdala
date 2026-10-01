@@ -1169,6 +1169,33 @@ telefoonafbeelding, vullen of hele afbeelding, beeldverhouding op een rij**
                         wegwerpdatabases mygdala_scratch_rm_zoom_*)
 ```
 
+**Wijziging aan de maatstappen van een beeld: Compact, Normaal, Groot, de
+tablet, het voorbeeld Desktop / Tablet / Mobiel**
+(Responsive Media 3.1, `MEDIA.md` "Compact, Normaal, Groot")
+
+```
+--testsuite fast        ImagePresentationTest (ook in unit en blocks): de
+                        gesloten stappen en schermen, length() en ratio()
+                        zoals de browser rekent, geweigerde lengtes, de
+                        kaderstijl die alleen eigen eigenschappen doorlaat,
+                        vervalste maten; ImagePresentationContractTest (ook
+                        in contract en blocks): elke lengte staat letterlijk
+                        in het stylesheet, de stappen houden hun volgorde op
+                        elk scherm, een tablet toont een stap van Tekst met
+                        afbeelding in de vorm van een telefoon, een eigen
+                        telefoonhoogte is dezelfde stap, het CMS heeft geen
+                        eigen maattabel, elk kader voor elke keuze, en het
+                        veld met Desktop / Tablet / Mobiel
+--testsuite blocks      ResponsiveImageEditorHttpTest, MediaBannerHttpTest,
+                        PageHeroEditorHttpTest, CtaBandHeightHttpTest,
+                        DetailSectionGalleryFocusHttpTest (de kaders op het
+                        echte scherm)
+```
+
+De echte maten in een browser (de matrix in `MEDIA.md`) zijn met de hand
+gemeten, met `getBoundingClientRect()` op 1440, 1280, 1024, 861, 860, 768,
+641, 640, 639 en 375px; geen test draait een browser.
+
 **Wijziging aan de koppen van een blok met kaarten**
 (`App\Service\Blocks\CardHeading`, `CONTENT-BLOCKS.md` "Koppen in kaarten")
 

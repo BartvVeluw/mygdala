@@ -611,10 +611,28 @@ korte hint staat onder de schuiven; de langere uitleg (slepen = welk deel van
 de foto centraal staat, zoom = hoe ver je inzoomt, resetten = midden en 100%)
 zit achter de helpknop van het veld.
 
+- **Voorbeeld op Desktop, Tablet, Mobiel** (Responsive Media 3.1). Boven het
+  kader staat een schakelaar van drie knoppen (`.admin-segmented` met
+  `aria-pressed`, pas zichtbaar met het script) en één zin die zegt wat je
+  ziet. Hij verandert alleen het kader: vorm en grootte van het beeld op dat
+  referentiescherm (`MEDIA.md`, "Compact, Normaal, Groot"), zonder herladen en
+  met dezelfde `<img>`. Een tablet volgt de instellingen van een groot scherm,
+  zoals de pagina. Op *Mobiel* toont het kader de weergave van een telefoon,
+  en als de telefoon een eigen punt of afbeelding heeft diens afbeelding,
+  punt en zoom, met een gestippelde rand en zonder slepen: dat punt verschuif
+  je in het kader onder *Op een telefoon*. De knop *Tablet* staat er alleen
+  als het blok zijn tabletvorm kent (Tekst met afbeelding, Mediabanner,
+  Paginakop, Oproep met knop, Kaarten-carrousel, Detailsectie, Reviews,
+  Hover kaarten; niet de Homepage-hero): geen verzonnen terugval.
 - **Focuspunt.** Het voorbeeld is een kader met de vorm van de plek
-  (`--admin-rm-desktop-ratio`, gezet door het scherm of met `:has()` uit de
-  keuzes van hetzelfde formulier: de hoogte van een Paginakop, de vorm van een
-  Hover-grid). Je sleept de afbeelding in het kader: naar rechts slepen brengt
+  (`--admin-rm-<view>-ratio` en, bij een blok met maatstappen,
+  `--admin-rm-<view>-width`: de breedte op halve grootte, zodat Groot er ook
+  groter uitziet dan Normaal). Een blok met maatstappen (Tekst met
+  afbeelding, Mediabanner, Paginakop) geeft het veld met `'shapes'` alle
+  kaders die zijn keuzes kunnen geven, uitgerekend door zijn Content-klasse
+  (`editorFrames()`), en het script kiest het kader bij de keuzes op het
+  scherm; andere plekken zetten hun vorm met `'frame'` of met `:has()` uit
+  een keuze van hetzelfde formulier (de vorm van een Hover-grid). Je sleept de afbeelding in het kader: naar rechts slepen brengt
   meer van haar linkerkant in beeld. Pointer events, dus muis, vinger en pen;
   `touch-action: none`, zodat een vinger niet de pagina schuift; de pointer
   wordt vastgehouden tot hij loslaat, en het kader tekent hoogstens één keer
