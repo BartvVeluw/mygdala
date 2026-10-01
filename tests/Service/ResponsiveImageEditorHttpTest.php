@@ -322,15 +322,15 @@ final class ResponsiveImageEditorHttpTest extends TestCase
         // The default adds nothing: an existing carousel renders as it did.
         self::assertSame('auto', $this->carousels->findById($this->carouselId)['flat_image_ratio']);
         self::assertStringNotContainsString('orbit-carousel--flat', $this->rendered());
-        self::assertSame(['--admin-rm-desktop-ratio: 300 / 148; --admin-rm-mobile-ratio: 308 / 120;'], $this->values($this->cardScreen($session, $card), '//fieldset[@data-rm]/@style'));
+        self::assertSame(['--admin-rm-desktop-ratio: 300 / 148; --admin-rm-tablet-ratio: 240 / 120; --admin-rm-mobile-ratio: 308 / 120;'], $this->values($this->cardScreen($session, $card), '//fieldset[@data-rm]/@style'));
 
         $this->assertSaved($this->saveCarousel($session, ['desktop_layout' => 'orbit', 'flat_image_ratio' => '4-3']));
         self::assertSame('4-3', $this->carousels->findById($this->carouselId)['flat_image_ratio']);
         self::assertStringContainsString('class="orbit-carousel orbit-carousel--flat orbit-carousel--flat-4-3"', $this->rendered());
-        self::assertSame(['--admin-rm-desktop-ratio: 300 / 148; --admin-rm-mobile-ratio: 4 / 3;'], $this->values($this->cardScreen($session, $card), '//fieldset[@data-rm]/@style'), 'the ring keeps its height; a phone takes the shape');
+        self::assertSame(['--admin-rm-desktop-ratio: 300 / 148; --admin-rm-tablet-ratio: 240 / 120; --admin-rm-mobile-ratio: 4 / 3;'], $this->values($this->cardScreen($session, $card), '//fieldset[@data-rm]/@style'), 'the ring keeps its height; a phone takes the shape');
 
         $this->assertSaved($this->saveCarousel($session, ['desktop_layout' => 'row', 'flat_image_ratio' => '4-3']));
-        self::assertSame(['--admin-rm-desktop-ratio: 4 / 3; --admin-rm-mobile-ratio: 4 / 3;'], $this->values($this->cardScreen($session, $card), '//fieldset[@data-rm]/@style'), 'side by side, every screen takes it');
+        self::assertSame(['--admin-rm-desktop-ratio: 4 / 3; --admin-rm-tablet-ratio: 4 / 3; --admin-rm-mobile-ratio: 4 / 3;'], $this->values($this->cardScreen($session, $card), '//fieldset[@data-rm]/@style'), 'side by side, every screen takes it');
 
         // Five words, one of them chosen; anything else is refused; a form without it keeps it.
         $screen = self::$server->request('GET', '/admin/card-carousel.php?section=' . urlencode($this->section), $session)['body'];
