@@ -49,7 +49,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * (page_sections.section_type): admin/project-cards.php edits only this
  * block's rows, admin/item-gallery.php only the gallery's.
  */
-final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
+final class ProjectCardsBlock extends BlockDefinition implements InspectsContent, PresentsCards
 {
     public function type(): string
     {
@@ -251,6 +251,22 @@ final class ProjectCardsBlock extends BlockDefinition implements InspectsContent
     public function scripts(): array
     {
         return ['assets/js/lightbox.js', 'assets/js/blocks/item-gallery.js'];
+    }
+
+    /**
+     * Every shared card presentation (App\Service\Blocks\CardPresentation):
+     * the cards of this block are content cards, the same in every source.
+     */
+    public function cardPresentations(): array
+    {
+        return CardPresentation::ALL;
+    }
+
+    public function cardPresentation(array $pageSection): string
+    {
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        return CardPresentation::stored($content['card_presentation'] ?? null);
     }
 
     public function clearCache(): void

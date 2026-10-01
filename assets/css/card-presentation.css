@@ -1,0 +1,175 @@
+/* ==========================================================================
+   Card Presentation 2.0: how the cards INSIDE a block look
+   (App\Service\Blocks\CardPresentation, CONTENT-BLOCKS.md "Kaartweergave").
+
+   Asked for by CardPresentation::collectAssets(), and only on a page where a
+   block draws its cards in a presentation other than its own default. The
+   default never reaches this file: its cards carry none of these classes.
+
+   One set of rules for every block that joins, on the shared classes the
+   partial prints from CardPresentation::classes():
+
+     .card-presentation--<presentation>   the grid (with the block's own grid class)
+     .card-presentation__card             one card (the link, or the card around a zoom)
+     .card-presentation__media            the picture's frame (a span, or the zoom button)
+     .card-presentation__body             the words, always in the flow and always visible
+     .card-presentation__title            the card title (an h2 or h3, CardHeading)
+     .card-presentation__text             the short text under it
+
+   Theme tokens only, so a colour palette, a page theme and the Font Library
+   apply as they do everywhere. The block's own background, lines and room
+   are Extra vormgeving, on the block's root, never here.
+
+   Every rule is scoped under .card-presentation, two classes deep, so it
+   wins over a block's own one-class rules whatever order the files load in.
+   ========================================================================== */
+
+/* --- The card ----------------------------------------------------------- */
+
+.card-presentation .card-presentation__card{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  aspect-ratio: auto;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.card-presentation .card-presentation__card:hover{
+  border-color: var(--color-line-strong);
+  background: var(--color-surface-hover);
+}
+/* A card that is one link shows its keyboard focus on the whole card. */
+.card-presentation a.card-presentation__card:focus-visible{
+  outline: 2px solid var(--color-primary-bright);
+  outline-offset: 2px;
+}
+
+/* --- The picture -------------------------------------------------------- */
+
+.card-presentation .card-presentation__media{
+  position: relative;
+  display: block;
+  flex: none;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: radial-gradient(circle at 50% 35%, var(--color-surface-hover), var(--color-surface-2));
+}
+.card-presentation .card-presentation__media img{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* The zoom button is the frame: its own focus ring stays inside the card. */
+.card-presentation button.card-presentation__media:focus-visible{
+  outline: 2px solid var(--color-primary-bright);
+  outline-offset: -4px;
+}
+
+/* --- The words ----------------------------------------------------------- */
+
+/* Always in the flow and always shown: no presentation hides words behind
+   a hover, and nothing is cut off. */
+.card-presentation .card-presentation__body{
+  position: static;
+  inset: auto;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: var(--sp-3);
+  background: none;
+  opacity: 1;
+}
+.card-presentation .card-presentation__title{
+  margin: 0;
+  max-width: 100%;
+  color: var(--color-text);
+  font-size: 1.15rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.card-presentation .card-presentation__text{
+  display: block;
+  max-width: 100%;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* --- Compact: more, smaller cards --------------------------------------- */
+
+.card-presentation.card-presentation--compact{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.card-presentation--compact .card-presentation__media{ aspect-ratio: 1 / 1; }
+.card-presentation--compact .card-presentation__body{
+  gap: 0.2rem;
+  padding: var(--sp-1) var(--sp-2) var(--sp-2);
+}
+.card-presentation--compact .card-presentation__title{ font-size: 1rem; }
+.card-presentation--compact .card-presentation__text{ font-size: 0.82rem; line-height: 1.4; }
+@media (max-width: 900px){
+  .card-presentation.card-presentation--compact{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px){
+  .card-presentation.card-presentation--compact{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* A phone reads before it compares: one card in a row again. */
+@media (max-width: 480px){
+  .card-presentation.card-presentation--compact{ grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- Wide: the picture left, the words right ----------------------------- */
+
+.card-presentation.card-presentation--wide{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+.card-presentation--wide .card-presentation__card{
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: stretch;
+}
+/* A card without words is its picture alone, over the card's full width. */
+.card-presentation--wide .card-presentation__card:not(:has(.card-presentation__body)){ display: flex; }
+.card-presentation--wide .card-presentation__media{
+  height: 100%;
+  min-height: 12rem;
+  aspect-ratio: 4 / 3;
+}
+.card-presentation--wide .card-presentation__body{
+  justify-content: center;
+  gap: 0.6rem;
+  padding: var(--sp-4);
+}
+.card-presentation--wide .card-presentation__title{ font-size: 1.35rem; }
+.card-presentation--wide .card-presentation__text{ font-size: 0.95rem; }
+/* A wide card needs the room of the whole row before two fit side by side. */
+@media (max-width: 1100px){
+  .card-presentation.card-presentation--wide{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+}
+/* On a phone a horizontal card would squeeze both halves: the picture goes
+   on top and the words under it, nothing left out. */
+@media (max-width: 600px){
+  .card-presentation--wide .card-presentation__card{ display: flex; flex-direction: column; }
+  .card-presentation--wide .card-presentation__media{ height: auto; min-height: 0; }
+  .card-presentation--wide .card-presentation__body{ padding: var(--sp-3); }
+  .card-presentation--wide .card-presentation__title{ font-size: 1.15rem; }
+}

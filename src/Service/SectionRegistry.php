@@ -7,6 +7,7 @@ use App\Service\Blocks\BlockAppearance;
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\CardPresentation;
 use App\Service\Blocks\AnchorNavigation;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\ContributesAnchor;
@@ -729,6 +730,10 @@ class SectionRegistry
         // The looks of the blocks (Extra vormgeving): their stylesheets come
         // after the blocks' own, and only when a block on this page has one.
         BlockAppearance::collectAssets($sections);
+
+        // The shared card presentations (Card Presentation 2.0): only when a
+        // block on this page draws its cards in one other than its own.
+        CardPresentation::collectAssets($sections);
     }
 
     /**

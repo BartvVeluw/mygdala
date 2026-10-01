@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\ItemGalleryRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\CardPresentation;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
 use App\Service\Theme\ButtonStyles;
@@ -47,8 +48,9 @@ use App\Service\Theme\ButtonStyles;
  * source's own relation, reached through ItemGallerySources.
  *
  * Display settings live on the block, not on the page: `show_filter_bar`,
- * `enable_lightbox`, `max_items`, `fallback_link_url`, `background` and
- * `tight_top`. Two instances on one page therefore have fully independent
+ * `enable_lightbox`, `max_items`, `fallback_link_url`, `background`,
+ * `tight_top` and how the cards look, `card_presentation`
+ * (App\Service\Blocks\CardPresentation). Two instances on one page therefore have fully independent
  * settings — which is the point of the phase, and why the old
  * "Hele portfolio-sectie verbergen" toggle on admin/portfolio.php is gone:
  * a block's visibility is the block's own `is_active`.
@@ -268,6 +270,9 @@ class ItemGalleryContent
             'button_style' => ButtonStyles::storedChoice($row['button_style_id'] ?? null),
             'background' => $background,
             'tight_top' => (bool) $row['tight_top'],
+            // How the cards look (Card Presentation 2.0); an unknown or
+            // missing value is the default, the cards as they always were.
+            'card_presentation' => CardPresentation::stored($row['card_presentation'] ?? null),
             // Only a source that HAS a taxonomy can offer a filter bar; a
             // collection has none, so the setting simply has nothing to draw.
             // The source itself decides — this class does not know which
@@ -360,6 +365,7 @@ class ItemGalleryContent
             'button_style' => null,
             'background' => 'default',
             'tight_top' => false,
+            'card_presentation' => CardPresentation::DEFAULT,
             'filter_categories' => [],
             'items' => [],
         ];

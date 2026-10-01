@@ -124,6 +124,18 @@ class ItemGalleryRepository extends Repository
     }
 
     /**
+     * How the block's cards look (Card Presentation 2.0,
+     * App\Service\Blocks\CardPresentation): its own write, so every other
+     * caller of upsertSection() leaves a chosen presentation as it is. The
+     * endpoint checks the value against the block's offer first.
+     */
+    public function saveCardPresentation(int $id, string $presentation): void
+    {
+        $stmt = $this->db->prepare('UPDATE item_galleries SET card_presentation = :presentation, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['presentation' => $presentation, 'id' => $id]);
+    }
+
+    /**
      * Permanently removes ONE instance — used by the page builder's
      * "Delete section" action via App\Service\SectionRegistry::delete().
      */

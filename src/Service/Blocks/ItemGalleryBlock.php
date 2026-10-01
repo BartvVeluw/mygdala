@@ -30,7 +30,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * starting with its source chosen. Still this one type; its own category
  * below is what the Contentblokken catalogue shows.
  */
-final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPresets, InspectsContent
+final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPresets, InspectsContent, PresentsCards
 {
     public function type(): string
     {
@@ -289,6 +289,22 @@ final class ItemGalleryBlock extends BlockDefinition implements OffersPickerPres
     public function scripts(): array
     {
         return ['assets/js/lightbox.js', 'assets/js/blocks/item-gallery.js'];
+    }
+
+    /**
+     * Every shared card presentation (App\Service\Blocks\CardPresentation):
+     * the cards of this block are content cards, the same in every source.
+     */
+    public function cardPresentations(): array
+    {
+        return CardPresentation::ALL;
+    }
+
+    public function cardPresentation(array $pageSection): string
+    {
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        return CardPresentation::stored($content['card_presentation'] ?? null);
     }
 
     public function clearCache(): void

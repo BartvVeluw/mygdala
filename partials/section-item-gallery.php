@@ -64,6 +64,15 @@ require_once __DIR__ . '/lightbox.php';
  * (App\Service\PortfolioRelatedProjects::LAYOUTS). A word it does not know is
  * the ordinary grid, and the blocks never pass one.
  *
+ * HOW A CARD LOOKS is the block's `card_presentation` (Card Presentation 2.0,
+ * App\Service\Blocks\CardPresentation): the default prints exactly the cards
+ * described above, byte for byte, with no class of its own. Compact and wide
+ * mark the same elements with the shared card-presentation classes
+ * (assets/css/card-presentation.css), put the picture in a frame of its own,
+ * show the words always and make the card title a heading. What a card links
+ * to, whether its picture zooms and its call to action stay exactly as above
+ * in every presentation.
+ *
  * @param array<string, mixed> $content App\Service\ItemGalleryContent::forSection()
  */
 function render_section_item_gallery(array $content, string $revealGroup = 'gallery'): void
@@ -92,6 +101,17 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
 
     $grid = (string) ($content['grid'] ?? '');
     $gridClass = in_array($grid, ['compact', 'large'], true) ? ' gallery-grid--' . $grid : '';
+
+    // How the cards look (Card Presentation 2.0). The default adds nothing:
+    // every class below is '' and every tag the one it always was, so a
+    // block that never chose prints exactly what it did. Any other
+    // presentation shows the words always, so its card title is a real
+    // heading (App\Service\Blocks\CardHeading) instead of the hover caption.
+    $presentation = \App\Service\Blocks\CardPresentation::stored($content['card_presentation'] ?? null);
+    $presents = $presentation !== \App\Service\Blocks\CardPresentation::DEFAULT;
+    $cp = static fn (string $part): string => \App\Service\Blocks\CardPresentation::classes($presentation, $part);
+    $overlayTag = $presents ? 'div' : 'span';
+    $titleTag = $presents ? \App\Service\Blocks\CardHeading::under($text('title') !== '') : 'p';
 
     $sectionAttrs = $content['background'] === 'soft' ? ' class="bg-soft"' : '';
     $sectionAttrs .= $content['tight_top'] ? ' style="padding-top:0;"' : '';
@@ -122,7 +142,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       </div>
       <?php endif; ?>
 
-      <div class="gallery-grid<?= $gridClass ?>">
+      <div class="gallery-grid<?= $gridClass ?><?= $cp('grid') ?>">
         <?php foreach ($content['items'] as $item): ?>
         <?php
           // A card without a URL of its own follows the block's fallback link,
@@ -137,19 +157,28 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
           // A source may hand over an item with no photo (a product without
           // an image, say). The card then renders as the theme's empty
           // surface tile rather than a broken <img>.
-          $imageTag = (string) $item['image_path'] === '' ? '' : '<img src="'
-              . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h($item['alt'])
-              . '" loading="lazy">';
+          $hasImage = (string) $item['image_path'] !== '';
+          $image = $hasImage
+              ? '<img src="' . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h($item['alt']) . '" loading="lazy">'
+              : '';
+          // A presentation puts the picture in a frame of its own, so its
+          // shape is the frame's and a hover zoom stays inside it. Without a
+          // picture the frame stays, empty and decorative, so a wide row does
+          // not lose its left half. On a zoomable card the zoom button is
+          // that frame instead.
+          $imageTag = $presents
+              ? '<span class="' . ltrim($cp('media')) . '"' . ($hasImage ? '' : ' aria-hidden="true"') . '>' . $image . '</span>'
+              : $image;
           // Only the words the item has: the fallback of its source is
           // applied already, so '' means there are none.
           $itemTitle = $item['title'];
           $itemSubtitle = $item['subtitle'];
           $overlay = '';
           if ($itemTitle !== '') {
-              $overlay .= '<p class="gallery-item__title">' . $h($itemTitle) . '</p>';
+              $overlay .= '<' . $titleTag . ' class="gallery-item__title' . $cp('title') . '">' . $h($itemTitle) . '</' . $titleTag . '>';
           }
           if ($itemSubtitle !== '') {
-              $overlay .= '<span class="gallery-item__text">' . $h($itemSubtitle) . '</span>';
+              $overlay .= '<span class="gallery-item__text' . $cp('text') . '">' . $h($itemSubtitle) . '</span>';
           }
           // A zoomable card: a photo the lightbox enlarges, and at most one
           // separate call to action. Never both a link card and a zoom.
@@ -173,26 +202,26 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
               : \App\Service\Language\SiteText::pick(['nl' => 'Vergroot afbeelding', 'en' => 'Enlarge image']);
         ?>
         <?php if ($itemUrl !== ''): ?>
-        <a class="gallery-item<?= $isDetailLink ? ' gallery-item--linked' : '' ?>" href="<?= $h($itemUrl) ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
+        <a class="gallery-item<?= $isDetailLink ? ' gallery-item--linked' : '' ?><?= $cp('card') ?>" href="<?= $h($itemUrl) ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
-          <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
+          <?php if ($overlay !== ''): ?><<?= $overlayTag ?> class="gallery-item__overlay<?= $cp('body') ?>"><?= $overlay ?></<?= $overlayTag ?>><?php endif; ?>
           <?php if ($isDetailLink): ?>
           <span class="gallery-item__arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
           <?php endif; ?>
         </a>
         <?php elseif ($zooms): ?>
-        <div class="gallery-item gallery-item--zoom<?= $cta !== null ? ' gallery-item--has-cta' : '' ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
-          <button type="button" class="gallery-item__zoom" data-lightbox-trigger
+        <div class="gallery-item gallery-item--zoom<?= $cta !== null ? ' gallery-item--has-cta' : '' ?><?= $cp('card') ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
+          <button type="button" class="gallery-item__zoom<?= $cp('media') ?>" data-lightbox-trigger
             data-src="<?= $h($rootPath((string) $item['image_path'])) ?>"
             data-alt="<?= $h((string) $item['alt']) ?>"
             data-caption="<?= $h($itemTitle) ?>"
-            aria-label="<?= $h($zoomLabel) ?>"><?= $imageTag ?></button>
-          <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
+            aria-label="<?= $h($zoomLabel) ?>"><?= $image ?></button>
+          <?php if ($overlay !== ''): ?><<?= $overlayTag ?> class="gallery-item__overlay<?= $cp('body') ?>"><?= $overlay ?></<?= $overlayTag ?>><?php endif; ?>
         </div>
         <?php else: ?>
-        <div class="gallery-item"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
+        <div class="gallery-item<?= $cp('card') ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
-          <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
+          <?php if ($overlay !== ''): ?><<?= $overlayTag ?> class="gallery-item__overlay<?= $cp('body') ?>"><?= $overlay ?></<?= $overlayTag ?>><?php endif; ?>
         </div>
         <?php endif; ?>
         <?php endforeach; ?>
