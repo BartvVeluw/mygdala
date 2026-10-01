@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Repository\ProductImageRepository;
 use App\Repository\ProductRepository;
 use App\Service\Language\SiteText;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
@@ -36,7 +37,13 @@ final class ProductSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $ids = SearchCandidates::ids(ShopLocalization::products(), [ShopLocalization::NAME, ShopLocalization::DESCRIPTION], $query);
+        $owner = new ProductContentOwner();
+        $ids = SearchCandidates::ids(
+            ShopLocalization::products(),
+            [ShopLocalization::NAME, ShopLocalization::DESCRIPTION],
+            $query,
+            static fn (string $term): array => BlockSearchIndex::ownersMatching($owner, $term, $language)
+        );
         if ($ids === []) {
             return [];
         }
@@ -48,6 +55,7 @@ final class ProductSearchProvider implements SearchProvider
 
         $productIds = array_keys($rows);
         ShopLocalization::preloadProducts($productIds);
+        $blockTexts = BlockSearchIndex::ownerTexts($owner, $productIds, $language);
         $pictures = (new ProductImageRepository())->primaryForProducts($productIds);
 
         $documents = [];
@@ -68,7 +76,9 @@ final class ProductSearchProvider implements SearchProvider
                     $name,
                     SearchText::plain(ShopLocalization::productDescription($id, $language)),
                     ProductSeo::publicPath($id, $language),
-                    $picture !== '' ? '/' . ltrim($picture, '/') : null
+                    $picture !== '' ? '/' . ltrim($picture, '/') : null,
+                    $blockTexts[$id]['headings'] ?? '',
+                    $blockTexts[$id]['body'] ?? ''
                 ),
             ];
         }

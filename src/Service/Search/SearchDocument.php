@@ -14,6 +14,16 @@ namespace App\Service\Search;
  * A provider hands over only content a visitor may see (its own visibility
  * rule); whether a document MATCHES is decided by SearchService, with one
  * scoring rule for every provider.
+ *
+ * Four kinds of words, weighed in this order (SearchText::score()):
+ *
+ *   $title            the name: a page title, a product name ...
+ *   $text             the owner's own summary: meta description,
+ *                     product description, intro, excerpt
+ *   $contentHeadings  the headings in its content (Search 2.0: the block
+ *                     headings, BlockSearchIndex)
+ *   $content          all of its content as read (the block text, or a
+ *                     classic blog post's body), headings included
  */
 final class SearchDocument
 {
@@ -21,7 +31,9 @@ final class SearchDocument
         public readonly string $title,
         public readonly string $text,
         public readonly string $url,
-        public readonly ?string $thumbnail = null
+        public readonly ?string $thumbnail = null,
+        public readonly string $contentHeadings = '',
+        public readonly string $content = ''
     ) {
     }
 }

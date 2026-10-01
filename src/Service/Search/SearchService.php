@@ -104,6 +104,13 @@ final class SearchService
             return new SearchResults($query, [], 0, 1, $perPage, []);
         }
 
+        // The block text index (Search 2.0) rebuilds itself once when it was
+        // built with other rules: the first search after an update, a new
+        // language, a module switched on. Cheap when it is current.
+        if ($providers === null) {
+            BlockSearchIndex::ensureCurrent();
+        }
+
         $folded = $query->folded();
         $terms = $query->foldedTerms();
         $scored = [];
@@ -127,7 +134,7 @@ final class SearchService
                     continue;
                 }
 
-                $score = SearchText::score($folded, $document->title, $document->text, $terms);
+                $score = SearchText::score($folded, $document->title, $document->text, $terms, $document->contentHeadings, $document->content);
                 if ($score === 0) {
                     continue;
                 }
@@ -137,7 +144,7 @@ final class SearchService
                         (string) $type,
                         $label,
                         $document->title,
-                        SearchText::excerpt($document->text, $folded, SearchText::EXCERPT_LENGTH, $terms),
+                        self::excerpt($document, $score, $folded, $terms),
                         $document->url,
                         $document->thumbnail !== null && self::isSafeUrl($document->thumbnail) ? $document->thumbnail : null,
                         $score
@@ -159,6 +166,23 @@ final class SearchService
         );
 
         return new SearchResults($query, $hits, $total, $page, $perPage, $failed);
+    }
+
+    /**
+     * A title that matches keeps the owner's own summary as its excerpt, as
+     * before; otherwise the words around the match, in the summary or in the
+     * content (Search 2.0: a word found only in a block shows that block's
+     * words, not the start of the page).
+     *
+     * @param list<string> $terms
+     */
+    private static function excerpt(SearchDocument $document, int $score, string $folded, array $terms): string
+    {
+        if ($score >= SearchText::SCORE_TITLE && trim($document->text) !== '') {
+            return SearchText::excerpt($document->text, $folded, SearchText::EXCERPT_LENGTH, $terms);
+        }
+
+        return SearchText::bestExcerpt([$document->text, $document->content], $folded, SearchText::EXCERPT_LENGTH, $terms);
     }
 
     /**

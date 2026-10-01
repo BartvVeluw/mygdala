@@ -8,6 +8,7 @@ use App\Repository\ArticleRepository;
 use App\Service\Language\SiteText;
 use App\Service\Media\MediaService;
 use App\Service\Publishing\PublishingClock;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
@@ -23,8 +24,9 @@ use App\Service\Search\SearchText;
  * in a language the article has a version in, at that version's address and
  * in its own words.
  *
- * NOT the text of its content blocks. Search 2.0 is where block text gets
- * indexed (docs/publishing/ARCHITECTURE.md, "Zoeken").
+ * Search 2.0: and by the words of its content blocks, which are its whole
+ * body (no other body exists), in the same language, from the block text
+ * index (BlockSearchIndex) — weighed below its title and intro.
  */
 final class ArticleSearchProvider implements SearchProvider
 {
@@ -35,7 +37,13 @@ final class ArticleSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $ids = SearchCandidates::ids(ArticleLocalization::articles(), [ArticleLocalization::TITLE, ArticleLocalization::EXCERPT], $query);
+        $owner = new ArticleContentOwner();
+        $ids = SearchCandidates::ids(
+            ArticleLocalization::articles(),
+            [ArticleLocalization::TITLE, ArticleLocalization::EXCERPT],
+            $query,
+            static fn (string $term): array => BlockSearchIndex::ownersMatching($owner, $term, $language)
+        );
         if ($ids === []) {
             return [];
         }
@@ -49,6 +57,7 @@ final class ArticleSearchProvider implements SearchProvider
         }
 
         ArticleLocalization::preload(array_map(static fn (array $row): int => (int) $row['id'], $rows));
+        $blockTexts = BlockSearchIndex::ownerTexts($owner, array_map(static fn (array $row): int => (int) $row['id'], $rows), $language);
         $pictures = MediaService::findMany(array_values(array_filter(array_map(
             static fn (array $row): int => (int) ($row['featured_media_id'] ?? 0),
             $rows
@@ -68,7 +77,9 @@ final class ArticleSearchProvider implements SearchProvider
                 $title,
                 SearchText::plain(ArticleLocalization::word($id, ArticleLocalization::EXCERPT, $language)),
                 ArticleUrls::articlePath($slug, $language),
-                ($pictures[(int) ($row['featured_media_id'] ?? 0)] ?? null)?->displayPath()
+                ($pictures[(int) ($row['featured_media_id'] ?? 0)] ?? null)?->displayPath(),
+                $blockTexts[$id]['headings'] ?? '',
+                $blockTexts[$id]['body'] ?? ''
             );
 
             if (count($documents) >= $limit) {

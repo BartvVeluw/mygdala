@@ -19,31 +19,38 @@ use App\Service\Language\EntityTranslations;
  * the whole phrase has each of its terms too. SearchText::score() then
  * decides on the words in the language asked for.
  *
+ * $alsoMatching is one more source per term (Search 2.0: the owners whose
+ * content blocks have it, BlockSearchIndex::ownersMatching()), counted like
+ * one more field.
+ *
  * Cost: one LIKE per field and term — a fixed number, at most
- * SearchQuery::MAX_TERMS × fields, whatever the number of results.
+ * SearchQuery::MAX_TERMS × (fields + 1), whatever the number of results.
  */
 final class SearchCandidates
 {
     /**
      * @param list<string> $fields
+     * @param (\Closure(string): list<int>)|null $alsoMatching owner ids that have this term elsewhere
      * @return list<int>
      */
-    public static function ids(EntityTranslations $translations, array $fields, SearchQuery $query): array
+    public static function ids(EntityTranslations $translations, array $fields, SearchQuery $query, ?\Closure $alsoMatching = null): array
     {
-        $terms = $query->terms();
-        if ($terms === []) {
-            // A query of short words only ("a b"): the phrase as one needle.
-            $terms = [$query->text];
-        }
-
+        // The terms; for a query of short words only ("a b"), the phrase.
         $ids = null;
-        foreach ($terms as $term) {
+        foreach ($query->needles() as $term) {
             $owners = [];
             foreach ($fields as $field) {
                 foreach ($translations->ownersMatching($field, $term) as $id) {
                     $owners[$id] = true;
                 }
             }
+
+            if ($alsoMatching !== null) {
+                foreach ($alsoMatching($term) as $id) {
+                    $owners[(int) $id] = true;
+                }
+            }
+
             $ids = $ids === null ? $owners : array_intersect_key($ids, $owners);
             if ($ids === []) {
                 return [];

@@ -23,16 +23,16 @@ use App\Service\PageTranslation;
  * the site's own search honours that too.
  *
  * WHAT IS SEARCHED: the page's title and its meta description, in the
- * language asked for with the usual fallback (PageLocalization). The text of
- * the page's blocks is NOT searched in V1: it lives in block_translations as
- * one row per field of every block type, and reading it back as text would
- * mean rendering every block of every page per keystroke. A search index for
- * full page text is a later extension (SEARCH.md, "Later").
+ * language asked for with the usual fallback (PageLocalization), and — Search
+ * 2.0 — the words of its shown content blocks in that language, from the
+ * block text index (BlockSearchIndex), weighed below the page's own words.
  *
  * COST: pages are few, so every published page is read in one query and
- * their words in one more (PageLocalization::preload), and SearchService
- * decides what matches. No LIKE is needed, and the page words are read only
- * through PageLocalization (Tests\Service\MultilingualBoundaryTest).
+ * their words in one more (PageLocalization::preload); the block text costs
+ * two more, whatever the number of pages: the pages whose blocks have a term
+ * (one escaped LIKE), then their text. SearchService decides what matches.
+ * The page words are read only through PageLocalization
+ * (Tests\Service\MultilingualBoundaryTest).
  *
  * THE ADDRESS is the one the site itself links to in that language
  * (PageContent::publicUrl): the page's own address there, else its address
@@ -53,6 +53,13 @@ final class PageSearchProvider implements SearchProvider
         ));
         PageLocalization::preload(array_map(static fn (array $page): int => (int) $page['id'], $pages));
 
+        // Block text only of the published pages whose blocks have a term.
+        $withBlockMatch = array_flip(BlockSearchIndex::pagesMatchingAny($query->needles(), $language));
+        $blockTexts = BlockSearchIndex::pageTexts(array_values(array_filter(
+            array_map(static fn (array $page): int => (int) $page['id'], $pages),
+            static fn (int $id): bool => isset($withBlockMatch[$id])
+        )), $language);
+
         // Matched here already (the same SearchText rule SearchService
         // applies), so $limit counts matches and a large site's later pages
         // are never cut off before they were compared.
@@ -63,11 +70,12 @@ final class PageSearchProvider implements SearchProvider
             $id = (int) $page['id'];
             $title = trim(PageLocalization::title($id, $language));
             $text = SearchText::plain(PageLocalization::value($id, PageTranslation::META_DESCRIPTION, $language));
-            if ($title === '' || SearchText::score($folded, $title, $text, $terms) === 0) {
+            $blocks = $blockTexts[$id] ?? ['headings' => '', 'body' => ''];
+            if ($title === '' || SearchText::score($folded, $title, $text, $terms, $blocks['headings'], $blocks['body']) === 0) {
                 continue;
             }
 
-            $documents[] = new SearchDocument($title, $text, PageContent::publicUrl($page, $language));
+            $documents[] = new SearchDocument($title, $text, PageContent::publicUrl($page, $language), null, $blocks['headings'], $blocks['body']);
 
             if (count($documents) >= $limit) {
                 break;

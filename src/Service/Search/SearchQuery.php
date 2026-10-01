@@ -112,4 +112,18 @@ final class SearchQuery
     {
         return array_map([SearchText::class, 'fold'], $this->terms());
     }
+
+    /**
+     * What a prefilter looks for: the terms, or the phrase itself when it
+     * has none (a query of short words only, "a b"). The rule
+     * SearchCandidates::ids() and the block text index share.
+     *
+     * @return list<string>
+     */
+    public function needles(): array
+    {
+        $terms = $this->terms();
+
+        return $terms === [] ? [$this->text] : $terms;
+    }
 }

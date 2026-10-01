@@ -35,10 +35,16 @@ final class SearchText
     /** Only the description, intro or excerpt contains it. */
     public const SCORE_TEXT = 100;
 
+    /** Only a heading in the content (a block heading) contains it (Search 2.0). */
+    public const SCORE_CONTENT_HEADING = 90;
+
+    /** Only the content (block text, a classic post's body) contains it. */
+    public const SCORE_CONTENT = 80;
+
     /**
      * Not the phrase, but every separate term somewhere (a query of more
      * words): from SCORE_TERMS up to SCORE_TERMS + SCORE_TERMS_TITLE, more
-     * the more terms stand in the title. Always below SCORE_TEXT, so the
+     * the more terms stand in the title. Always below SCORE_CONTENT, so the
      * whole phrase, anywhere, outranks words that are merely all present.
      */
     public const SCORE_TERMS = 10;
@@ -88,11 +94,24 @@ final class SearchText
      * and higher the more terms stand in the title. One word is one term, so
      * a query of one word scores exactly as before.
      *
+     * Search 2.0 adds the content below the owner's own words: the phrase
+     * in a content heading (SCORE_CONTENT_HEADING), then in the content
+     * (SCORE_CONTENT), both under SCORE_TEXT and above the term rule; the
+     * term rule looks in the content too.
+     *
      * @param list<string> $foldedTerms SearchQuery::foldedTerms()
      */
-    public static function score(string $foldedQuery, string $title, string $text, array $foldedTerms = []): int
+    public static function score(string $foldedQuery, string $title, string $text, array $foldedTerms = [], string $contentHeadings = '', string $content = ''): int
     {
         $phrase = self::phraseScore($foldedQuery, $title, $text);
+
+        if ($phrase === 0 && $foldedQuery !== '') {
+            if ($contentHeadings !== '' && str_contains(self::fold($contentHeadings), $foldedQuery)) {
+                $phrase = self::SCORE_CONTENT_HEADING;
+            } elseif ($content !== '' && str_contains(self::fold($content), $foldedQuery)) {
+                $phrase = self::SCORE_CONTENT;
+            }
+        }
         // A query of one word IS its one term: the phrase levels alone, as
         // before. ("laser a" has one term that is not the phrase: it does
         // get the term rule.)
@@ -101,7 +120,7 @@ final class SearchText
         }
 
         $foldedTitle = self::fold($title);
-        $all = $foldedTitle . ' ' . self::fold($text);
+        $all = $foldedTitle . ' ' . self::fold($text) . ' ' . self::fold($content);
         $inTitle = 0;
         foreach ($foldedTerms as $term) {
             if (!str_contains($all, $term)) {
@@ -144,6 +163,33 @@ final class SearchText
         }
 
         return 0;
+    }
+
+    /**
+     * The excerpt of a result: from the first of $texts (the owner's own
+     * text first, then its content) that has the phrase, else the first that
+     * has a term, else the first that has anything. So a match found only
+     * in a block shows the words around it there, not the start of the page.
+     *
+     * @param list<string> $texts
+     * @param list<string> $foldedTerms
+     */
+    public static function bestExcerpt(array $texts, string $foldedQuery, int $length = self::EXCERPT_LENGTH, array $foldedTerms = []): string
+    {
+        $texts = array_values(array_filter($texts, static fn (string $text): bool => trim($text) !== ''));
+
+        foreach ([[$foldedQuery], $foldedTerms] as $needles) {
+            foreach ($texts as $text) {
+                $folded = self::fold($text);
+                foreach ($needles as $needle) {
+                    if ($needle !== '' && str_contains($folded, $needle)) {
+                        return self::excerpt($text, $foldedQuery, $length, $foldedTerms);
+                    }
+                }
+            }
+        }
+
+        return $texts === [] ? '' : self::excerpt($texts[0], $foldedQuery, $length, $foldedTerms);
     }
 
     /**

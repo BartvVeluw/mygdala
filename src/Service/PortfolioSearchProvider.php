@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Service\Language\SiteText;
 use App\Service\Routing\LocalizedUrl;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
@@ -40,13 +41,20 @@ final class PortfolioSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $ids = SearchCandidates::ids(PortfolioLocalization::items(), self::FIELDS, $query);
+        $owner = new PortfolioContentOwner();
+        $ids = SearchCandidates::ids(
+            PortfolioLocalization::items(),
+            self::FIELDS,
+            $query,
+            static fn (string $term): array => BlockSearchIndex::ownersMatching($owner, $term, $language)
+        );
         if ($ids === []) {
             return [];
         }
 
         $items = PortfolioGalleryContent::searchableProjects($ids);
         PortfolioLocalization::preloadItems(array_map(static fn (array $item): int => $item['id'], $items));
+        $blockTexts = BlockSearchIndex::ownerTexts($owner, array_map(static fn (array $item): int => $item['id'], $items), $language);
 
         $documents = [];
         foreach ($items as $item) {
@@ -64,7 +72,9 @@ final class PortfolioSearchProvider implements SearchProvider
                 $title,
                 trim($subtitle . ($subtitle !== '' && $intro !== '' ? ' — ' : '') . $intro),
                 LocalizedUrl::path(PortfolioGalleryContent::publicPath($item['slug']), $language),
-                $picture !== '' ? '/' . ltrim($picture, '/') : null
+                $picture !== '' ? '/' . ltrim($picture, '/') : null,
+                $blockTexts[$id]['headings'] ?? '',
+                $blockTexts[$id]['body'] ?? ''
             );
 
             if (count($documents) >= $limit) {

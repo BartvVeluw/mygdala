@@ -8,6 +8,7 @@ use App\Repository\BlogPostRepository;
 use App\Service\Language\SiteText;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LanguageResolver;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\Search\SearchCandidates;
 use App\Service\Search\SearchDocument;
 use App\Service\Search\SearchProvider;
@@ -16,7 +17,10 @@ use App\Service\Search\SearchText;
 
 /**
  * The Blog's contribution to the site search (App\Module\BlogModule::
- * searchProviders()): posts, by title and excerpt.
+ * searchProviders()): posts, by title and excerpt, and (Search 2.0) by what
+ * the post page shows as its body: the classic text of a post in classic
+ * mode, the words of its content blocks in block mode (BlockSearchIndex),
+ * never both (BlogContentMode), weighed below title and excerpt.
  *
  * VISIBILITY is the post page's own rule: BlogPostRepository's one public
  * predicate (not a draft, published_at set and not in the future, with the
@@ -30,8 +34,9 @@ use App\Service\Search\SearchText;
  *
  * COST, per search: one LIKE per field and term over blog_post_translations
  * (SearchCandidates::ids(), any language, escaped), one query for the public
- * rows, one for their words,
- * one for their featured pictures. Newest first, the Blog's own order.
+ * rows, one for their words, one for their featured pictures, and the
+ * block text: one LIKE per term, then one read for all posts together.
+ * Newest first, the Blog's own order.
  */
 final class BlogSearchProvider implements SearchProvider
 {
@@ -42,7 +47,16 @@ final class BlogSearchProvider implements SearchProvider
 
     public function documents(SearchQuery $query, string $language, int $limit): array
     {
-        $ids = SearchCandidates::ids(BlogLocalization::posts(), [BlogLocalization::TITLE, BlogLocalization::EXCERPT], $query);
+        // The body is a prefilter field for a classic post only; a post in
+        // block mode is found by its blocks, and a body it still keeps from
+        // before its conversion matches nothing below.
+        $owner = new BlogPostContentOwner();
+        $ids = SearchCandidates::ids(
+            BlogLocalization::posts(),
+            [BlogLocalization::TITLE, BlogLocalization::EXCERPT, BlogLocalization::BODY],
+            $query,
+            static fn (string $term): array => BlockSearchIndex::ownersMatching($owner, $term, $language)
+        );
         if ($ids === []) {
             return [];
         }
@@ -56,6 +70,11 @@ final class BlogSearchProvider implements SearchProvider
         }
 
         BlogLocalization::preloadPosts(array_map(static fn (array $post): int => (int) $post['id'], $posts));
+        $blockTexts = BlockSearchIndex::ownerTexts(
+            $owner,
+            array_map(static fn (array $post): int => (int) $post['id'], array_values(array_filter($posts, [BlogContentMode::class, 'usesBlocks']))),
+            $language
+        );
         $pictures = MediaService::findMany(array_values(array_filter(array_map(
             static fn (array $post): int => (int) ($post['featured_media_id'] ?? 0),
             $posts
@@ -71,11 +90,23 @@ final class BlogSearchProvider implements SearchProvider
 
             $picture = $pictures[(int) ($post['featured_media_id'] ?? 0)] ?? null;
 
+            // What the post page shows as its body: its blocks in block mode,
+            // its classic text otherwise — never both (BlogContentMode).
+            if (BlogContentMode::usesBlocks($post)) {
+                $headings = $blockTexts[$id]['headings'] ?? '';
+                $content = $blockTexts[$id]['body'] ?? '';
+            } else {
+                $headings = '';
+                $content = SearchText::plain(BlogLocalization::post($id, BlogLocalization::BODY, $language));
+            }
+
             $documents[] = new SearchDocument(
                 $title,
                 SearchText::plain(BlogLocalization::post($id, BlogLocalization::EXCERPT, $language)),
                 self::postUrl($post, $language),
-                $picture?->displayPath()
+                $picture?->displayPath(),
+                $headings,
+                $content
             );
 
             if (count($documents) >= $limit) {
