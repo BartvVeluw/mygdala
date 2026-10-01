@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Articles;
 
+use App\Repository\ArticleRepository;
 use App\Service\ContentOwners\ContentPages;
 use App\Service\Language\AdminTranslator;
 use App\Service\Publishing\PublicationVisibility;
@@ -54,6 +55,34 @@ final class ArticleService
         }
 
         return $errors;
+    }
+
+    /**
+     * Removes one article as ONE database change
+     * (ContentPages::deleteOwner()): its content page with every block, the
+     * blocks' words, child rows and drafts, the link, then the article row,
+     * whose translations go with it by CASCADE. A failure anywhere rolls all
+     * of it back, so there is never an article without its blocks nor blocks
+     * without their article. Its topic stays (it belongs to every article
+     * that has it); Media Library items are never deleted (MEDIA.md).
+     *
+     * @return bool false when there was no such article
+     */
+    public static function delete(int $articleId, ?ArticleRepository $articles = null): bool
+    {
+        $articles ??= new ArticleRepository();
+
+        if ($articleId < 1 || $articles->find($articleId) === null) {
+            return false;
+        }
+
+        $deleted = false;
+        ContentPages::deleteOwner(ArticleContentOwner::KIND, $articleId, static function () use ($articles, $articleId, &$deleted): void {
+            $deleted = $articles->delete($articleId);
+        });
+        ArticleLocalization::articles()->forget($articleId);
+
+        return $deleted;
     }
 
     /**

@@ -4656,4 +4656,5 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'articles.error.publish_title' => 'Om te publiceren is een titel in de standaardtaal nodig.',
     'articles.error.publish_slug' => 'Om te publiceren is een adres in de standaardtaal nodig.',
     'articles.error.publish_blocks' => 'Om te publiceren is minstens één contentblok met inhoud nodig (Witruimte of een leeg blok telt niet).',
+    'articles.error.content_required' => 'Dit artikel is niet meer in concept. Voeg eerst andere inhoud toe, of zet het artikel terug naar Concept, voordat je het laatste inhoudsblok verwijdert, verbergt of leegmaakt.',
 ];

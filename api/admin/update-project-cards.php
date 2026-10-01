@@ -181,7 +181,7 @@ try {
 
     error_log('[api/admin/update-project-cards.php] ' . $e->getMessage());
 
-    $_SESSION['admin_project_cards_errors'] = [AdminTranslator::trans('validation.projecten_niet_opgeslagen')];
+    $_SESSION['admin_project_cards_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('validation.projecten_niet_opgeslagen')];
     $_SESSION['admin_project_cards_old'] = $old;
     header('Location: /admin/project-cards.php?section=' . urlencode($sectionParam));
     exit;

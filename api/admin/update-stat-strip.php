@@ -150,7 +150,7 @@ try {
 
     error_log('[api/admin/update-stat-strip.php] ' . $e->getMessage());
 
-    $_SESSION['admin_stat_strip_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_stat_strip_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_stat_strip_old'] = $old;
     header('Location: ' . $redirect);
     exit;

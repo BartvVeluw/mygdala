@@ -7,6 +7,9 @@ namespace App\Service\Articles;
 use App\Module\ArticlesModule;
 use App\Repository\ArticleRepository;
 use App\Service\ContentOwners\ContentOwner;
+use App\Service\ContentOwners\RequiresContent;
+use App\Service\Language\AdminTranslator;
+use App\Service\Publishing\PublicationStatus;
 
 /**
  * An article as the owner of content blocks: its whole body is its blocks,
@@ -21,8 +24,13 @@ use App\Service\ContentOwners\ContentOwner;
  *
  * The right is Articles' own (articles.manage); pages.manage alone does not
  * reach these blocks (ContentBlockAccess).
+ *
+ * An article that is not a draft must keep a block that says something: the
+ * publish rule (ArticleService::publishErrors()) holds after publishing too,
+ * so a block change that would break it is refused (RequiresContent,
+ * App\Service\ContentOwners\OwnerContentGuard).
  */
-final class ArticleContentOwner implements ContentOwner
+final class ArticleContentOwner implements ContentOwner, RequiresContent
 {
     public const KIND = 'article';
 
@@ -69,5 +77,23 @@ final class ArticleContentOwner implements ContentOwner
     public function permission(): string
     {
         return ArticlesModule::ARTICLES_MANAGE;
+    }
+
+    /**
+     * Every status but Concept: the Publishing Engine ran the publish rule
+     * when the article got it (PublicationRules::validate()), scheduled and
+     * archived included, so it must keep holding. A scheduled article goes
+     * live by the clock alone, with no second check.
+     */
+    public function requiresContent(int $ownerId): bool
+    {
+        $article = (new ArticleRepository())->find($ownerId);
+
+        return $article !== null && PublicationStatus::normalize($article['status']) !== PublicationStatus::DRAFT;
+    }
+
+    public function contentRequiredMessage(): string
+    {
+        return AdminTranslator::trans('articles.error.content_required');
     }
 }

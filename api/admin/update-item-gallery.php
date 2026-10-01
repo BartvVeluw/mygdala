@@ -256,7 +256,7 @@ try {
 
     error_log('[api/admin/update-item-gallery.php] ' . $e->getMessage());
 
-    $_SESSION['admin_item_gallery_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_item_gallery_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? 'Kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_item_gallery_old'] = $old;
     header('Location: /admin/item-gallery.php?section=' . urlencode($sectionParam));
     exit;

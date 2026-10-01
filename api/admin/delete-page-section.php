@@ -12,7 +12,9 @@
  * failure partway through can never leave a dangling page_sections
  * reference. Rejects a non-deletable type (e.g. Homepage Hero) rather than
  * silently no-op-ing, so a forged request against a protected type surfaces
- * as an error instead of appearing to succeed.
+ * as an error instead of appearing to succeed. The last meaningful block of
+ * an owner that must keep one (an article that is not a draft) is refused
+ * with the owner's own message (OwnerContentGuard).
  */
 
 declare(strict_types=1);
@@ -26,6 +28,7 @@ use App\Service\SectionRegistry;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\ContentOwners\ContentBlockAccess;
+use App\Service\ContentOwners\OwnerContentGuard;
 
 AdminAuth::requireLoginForApi();
 ContentBlockAccess::requireAnyForApi();
@@ -72,7 +75,8 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-page-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_verwijderd_probeer_opnieuw');
+    $_SESSION['admin_pages_error'] = OwnerContentGuard::messageFor($e)
+        ?? AdminTranslator::trans('validation.sectie_kon_verwijderd_probeer_opnieuw');
     header('Location: ' . ContentBlockAccess::listUrl($page));
     exit;
 }

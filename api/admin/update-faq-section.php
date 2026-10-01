@@ -170,7 +170,7 @@ try {
 
     error_log('[api/admin/update-faq-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_faq_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_faq_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_faq_old'] = $old;
     header('Location: ' . $redirect);
     exit;

@@ -218,7 +218,7 @@ try {
 
     error_log('[api/admin/update-feature-grid.php] ' . $e->getMessage());
 
-    $_SESSION['admin_feature_grid_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_feature_grid_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_feature_grid_old'] = $old;
     header('Location: ' . $redirect);
     exit;

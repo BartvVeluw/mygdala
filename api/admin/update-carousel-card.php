@@ -340,6 +340,15 @@ try {
         $repository->reorderTags($cardId, $order);
     }
 
+    // A card is part of its carousel's content: an owner that must keep
+    // content (an article that is not a draft) may not have lost it here
+    // (App\Service\ContentOwners\OwnerContentGuard). A carousel that is
+    // still a draft stands on no list yet.
+    $placedCarousel = (new \App\Repository\PageSectionRepository($db))->findBySectionTypeAndId('card_carousel', (int) $carousel['id']);
+    if ($placedCarousel !== null) {
+        \App\Service\ContentOwners\OwnerContentGuard::assertIntact((int) $placedCarousel['page_id']);
+    }
+
     $db->commit();
     CardCarouselContent::clearCache();
 } catch (\Throwable $e) {
@@ -348,7 +357,7 @@ try {
     }
 
     error_log('[api/admin/update-carousel-card.php] ' . $e->getMessage());
-    $_SESSION['admin_carousel_card_errors'] = [AdminTranslator::trans('block_carousel.error_card_save_failed')];
+    $_SESSION['admin_carousel_card_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('block_carousel.error_card_save_failed')];
     $_SESSION['admin_carousel_card_old'] = $old;
     header('Location: ' . $redirect);
     exit;

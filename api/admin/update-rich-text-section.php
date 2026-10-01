@@ -184,7 +184,7 @@ try {
 
     error_log('[api/admin/update-rich-text-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_rich_text_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_rich_text_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? 'Kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_rich_text_old'] = $old;
     header('Location: ' . $redirect);
     exit;

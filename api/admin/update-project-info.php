@@ -78,7 +78,7 @@ try {
 
     error_log('[api/admin/update-project-info.php] ' . $e->getMessage());
 
-    $_SESSION['admin_project_info_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_project_info_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     header('Location: ' . $redirect);
     exit;
 }

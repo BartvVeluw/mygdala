@@ -458,7 +458,7 @@ try {
 
     error_log('[api/admin/update-detail-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_detail_section_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_detail_section_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_detail_section_old'] = $old;
     header('Location: ' . $redirect);
     exit;

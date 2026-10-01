@@ -248,7 +248,7 @@ try {
 
     error_log('[api/admin/update-card-carousel.php] ' . $e->getMessage());
 
-    $_SESSION['admin_card_carousel_errors'] = [AdminTranslator::trans('block_carousel.error_save_failed')];
+    $_SESSION['admin_card_carousel_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('block_carousel.error_save_failed')];
     $_SESSION['admin_card_carousel_old'] = $old;
     header('Location: ' . $redirect);
     exit;

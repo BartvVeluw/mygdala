@@ -200,7 +200,7 @@ try {
 
     error_log('[api/admin/update-featured-product.php] ' . $e->getMessage());
 
-    $_SESSION['admin_featured_product_errors'] = [AdminTranslator::trans('block_featured_product.error_save')];
+    $_SESSION['admin_featured_product_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('block_featured_product.error_save')];
     $_SESSION['admin_featured_product_old'] = $old;
     header('Location: ' . $redirect);
     exit;

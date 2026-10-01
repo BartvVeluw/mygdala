@@ -51,6 +51,29 @@ class PageSectionRepository extends Repository
     }
 
     /**
+     * Of these rows of one block content table, the ids switched OFF in the
+     * block's own editor (`is_active` = 0, the "Actief" box every content
+     * table has). One query per table. The table is a block definition's
+     * contentTable(), a code constant, and is checked against a plain
+     * identifier pattern anyway.
+     *
+     * @param list<int> $ids
+     * @return list<int>
+     */
+    public function switchedOffContentIds(string $contentTable, array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+
+        if ($ids === [] || preg_match('/^[a-z][a-z0-9_]{0,63}$/', $contentTable) !== 1) {
+            return [];
+        }
+
+        $stmt = $this->db->query("SELECT id FROM `{$contentTable}` WHERE is_active = 0 AND id IN (" . implode(', ', $ids) . ')');
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
      * Whether a page shows at least one block (a hidden one does not count):
      * what makes a module's placeholder page a page of its own
      * (App\Service\ModuleSystemPages::isPlaceholder()).

@@ -288,7 +288,7 @@ try {
 
     error_log('[api/admin/update-media-banner.php] ' . $e->getMessage());
 
-    $_SESSION['admin_media_banner_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_media_banner_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_media_banner_old'] = $old;
     header('Location: ' . $redirect);
     exit;

@@ -129,7 +129,7 @@ try {
 
     error_log('[api/admin/update-contact-form.php] ' . $e->getMessage());
 
-    $_SESSION['admin_contact_form_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_contact_form_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? 'Kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_contact_form_old'] = $old;
     header('Location: /admin/contact-form.php?section=' . urlencode($sectionParam));
     exit;

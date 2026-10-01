@@ -10,6 +10,10 @@
  * never touches the other — hiding a section here does not change what its
  * own editor's checkbox shows, and vice versa (see the page_sections
  * migration's docblock).
+ *
+ * Through SectionRegistry::setActive(), so hiding the last meaningful block
+ * of an owner that must keep one (an article that is not a draft) is refused
+ * with the owner's own message (OwnerContentGuard).
  */
 
 declare(strict_types=1);
@@ -22,6 +26,8 @@ use App\Service\Csrf;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\ContentOwners\ContentBlockAccess;
+use App\Service\ContentOwners\OwnerContentGuard;
+use App\Service\SectionRegistry;
 
 AdminAuth::requireLoginForApi();
 ContentBlockAccess::requireAnyForApi();
@@ -60,11 +66,12 @@ if ($page === null) {
 ContentBlockAccess::requirePageForApi($page);
 
 try {
-    $repository->setActive($id, $isActive);
+    SectionRegistry::setActive($pageSection, $isActive, $repository);
 } catch (\Throwable $e) {
     error_log('[api/admin/toggle-page-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen_probeer_opnieuw');
+    $_SESSION['admin_pages_error'] = OwnerContentGuard::messageFor($e)
+        ?? AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen_probeer_opnieuw');
     header('Location: ' . ContentBlockAccess::listUrl($page));
     exit;
 }

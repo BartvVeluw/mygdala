@@ -9,6 +9,7 @@ use App\Repository\ContentBlockDraftRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\ContentOwners\ContentPages;
+use App\Service\ContentOwners\OwnerContentGuard;
 use App\Service\SectionRegistry;
 
 /**
@@ -115,7 +116,10 @@ final class ContentBlockDrafts
      *
      * Throws when the draft may not be placed any more (its type is no
      * longer available on the page, such as a second instance of a type
-     * capped at one); the endpoint's own failure path then keeps the input.
+     * capped at one), and OwnerContentRequired when the save took the last
+     * meaningful block from an owner that must keep one (an article that is
+     * not a draft); the endpoint's own failure path then keeps the input,
+     * and shows OwnerContentGuard::messageFor() when there is one.
      *
      * @return array<string, mixed>|null the page_sections row
      */
@@ -148,6 +152,14 @@ final class ContentBlockDrafts
                 $placed = $sections->findById($id);
             }
 
+            // What the save left its list with: an owner that must keep
+            // content (a non-draft article) may not have lost it here
+            // (App\Service\ContentOwners\OwnerContentGuard). Throwing rolls
+            // the whole save back.
+            if ($placed !== null) {
+                OwnerContentGuard::assertIntact((int) $placed['page_id']);
+            }
+
             if ($ownTransaction) {
                 $db->commit();
             }
@@ -178,7 +190,12 @@ final class ContentBlockDrafts
     {
         $db = Database::connection();
         $drafts = new ContentBlockDraftRepository($db);
-        $db->beginTransaction();
+        // Inside a caller's transaction (an owner deleted with its whole
+        // list, ContentPages::deleteOwner()) this joins it.
+        $ownTransaction = !$db->inTransaction();
+        if ($ownTransaction) {
+            $db->beginTransaction();
+        }
 
         try {
             $current = $drafts->findByRow((string) $draft['section_type'], (int) $draft['section_id'], true);
@@ -186,15 +203,19 @@ final class ContentBlockDrafts
             if ($current === null
                 || (new PageSectionRepository($db))->findBySectionTypeAndId((string) $draft['section_type'], (int) $draft['section_id']) !== null
             ) {
-                $db->commit();
+                if ($ownTransaction) {
+                    $db->commit();
+                }
 
                 return;
             }
 
             $drafts->delete((int) $current['id']);
-            $db->commit();
+            if ($ownTransaction) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($ownTransaction && $db->inTransaction()) {
                 $db->rollBack();
             }
 

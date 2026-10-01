@@ -16,6 +16,7 @@ use App\Service\Blocks\RendersAnchorNavigation;
 use App\Service\Blocks\CarriesBreadcrumb;
 use App\Service\Blocks\OffersPickerPresets;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
+use App\Service\ContentOwners\OwnerContentGuard;
 use App\Service\Language\AdminTranslator;
 
 /**
@@ -426,9 +427,15 @@ class SectionRegistry
      * non-deletable type; callers must check isDeletable() before offering
      * the action.
      *
+     * The owner of the list may refuse it: the last meaningful block of a
+     * non-draft article does not go (OwnerContentGuard, which throws
+     * OwnerContentRequired before anything is removed). $listIsGoing is for
+     * the one caller that removes the whole list with its owner
+     * (ContentPages::deleteFor()), which is never refused.
+     *
      * @param array<string, mixed> $pageSection the full page_sections row (from PageSectionRepository)
      */
-    public static function delete(array $pageSection, PageSectionRepository $pageSectionRepository): void
+    public static function delete(array $pageSection, PageSectionRepository $pageSectionRepository, bool $listIsGoing = false): void
     {
         $type = (string) $pageSection['section_type'];
 
@@ -436,9 +443,52 @@ class SectionRegistry
             throw new \RuntimeException("Section type \"{$type}\" cannot be deleted via the page builder.");
         }
 
-        self::removeContent($pageSection, static function () use ($pageSection, $pageSectionRepository): void {
+        if (!$listIsGoing) {
+            OwnerContentGuard::assertMayRemove($pageSection);
+        }
+
+        self::removeContent($pageSection, static function () use ($pageSection, $pageSectionRepository, $listIsGoing): void {
             $pageSectionRepository->delete((int) $pageSection['id']);
+
+            if (!$listIsGoing) {
+                OwnerContentGuard::assertIntact((int) $pageSection['page_id']);
+            }
         });
+    }
+
+    /**
+     * The block list's hide and show (page_sections.is_active), in one
+     * transaction with what has to agree with it: hiding the last meaningful
+     * block of an owner that must keep one is refused (OwnerContentGuard).
+     *
+     * @param array<string, mixed> $pageSection the page_sections row
+     */
+    public static function setActive(array $pageSection, bool $isActive, ?PageSectionRepository $repository = null): void
+    {
+        $db = \App\Database::connection();
+        $repository ??= new PageSectionRepository($db);
+
+        if (!$isActive) {
+            OwnerContentGuard::assertMayRemove($pageSection);
+        }
+
+        $db->beginTransaction();
+
+        try {
+            $repository->setActive((int) $pageSection['id'], $isActive);
+
+            if (!$isActive) {
+                OwnerContentGuard::assertIntact((int) $pageSection['page_id']);
+            }
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
     /**
@@ -478,8 +528,14 @@ class SectionRegistry
         // ever reach the files of THIS instance.
         $definition->deleteFiles($pageSection);
 
+        // Inside a caller's transaction (an owner deleted with its whole
+        // list, ContentPages::deleteOwner()) this joins it: the caller
+        // commits or rolls back everything at once.
         $db = \App\Database::connection();
-        $db->beginTransaction();
+        $ownTransaction = !$db->inTransaction();
+        if ($ownTransaction) {
+            $db->beginTransaction();
+        }
         try {
             // The block's words in every website language, and those of its
             // child rows, go in the same transaction, for every block with a
@@ -499,9 +555,13 @@ class SectionRegistry
                 $alsoInTransaction();
             }
 
-            $db->commit();
+            if ($ownTransaction) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
-            $db->rollBack();
+            if ($ownTransaction && $db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
 

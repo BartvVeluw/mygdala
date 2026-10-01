@@ -4646,4 +4646,5 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'articles.error.publish_title' => 'To publish, a title in the default language is needed.',
     'articles.error.publish_slug' => 'To publish, an address in the default language is needed.',
     'articles.error.publish_blocks' => 'To publish, at least one content block with content is needed (a spacer or an empty block does not count).',
+    'articles.error.content_required' => 'This article is no longer a draft. Add other content first, or set the article back to Draft, before you delete, hide or empty its last content block.',
 ];

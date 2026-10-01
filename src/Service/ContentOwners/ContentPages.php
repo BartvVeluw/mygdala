@@ -110,6 +110,12 @@ final class ContentPages
      * PageService::delete() removes a page's blocks, then the link and the page
      * row. Called by the owner's own delete BEFORE it deletes the owner, which
      * its link table's RESTRICT key would otherwise refuse.
+     *
+     * ONE TRANSACTION for all of it: the blocks, their words and child rows,
+     * the drafts, the link and the page row. Called inside a transaction of
+     * the caller's (deleteOwner()), it joins that one instead, so the owner's
+     * own row can go in the same commit. The whole list going with its owner
+     * is never refused by OwnerContentGuard.
      */
     public static function deleteFor(string $kind, int $ownerId): void
     {
@@ -121,31 +127,41 @@ final class ContentPages
         }
 
         $pageId = (int) $page['id'];
-        $sections = new PageSectionRepository();
+        $db = Database::connection();
+        $ownTransaction = !$db->inTransaction();
 
-        foreach ($sections->findForPage($pageId) as $pageSection) {
-            if (SectionRegistry::isDeletable((string) $pageSection['section_type'])) {
-                SectionRegistry::delete($pageSection, $sections);
-                continue;
-            }
-
-            // A block of a module that is off right now: the row goes with the
-            // page, the way PageService::delete() detaches one.
-            $sections->delete((int) $pageSection['id']);
+        if ($ownTransaction) {
+            $db->beginTransaction();
         }
 
-        // Its drafts too (App\Service\Blocks\ContentBlockDrafts), as PageService::delete() does.
-        \App\Service\Blocks\ContentBlockDrafts::discardForPage($pageId);
-
-        $db = Database::connection();
-        $db->beginTransaction();
-
         try {
+            $sections = new PageSectionRepository($db);
+
+            foreach ($sections->findForPage($pageId) as $pageSection) {
+                if (SectionRegistry::isDeletable((string) $pageSection['section_type'])) {
+                    SectionRegistry::delete($pageSection, $sections, listIsGoing: true);
+                    continue;
+                }
+
+                // A block of a module that is off right now: the row goes with the
+                // page, the way PageService::delete() detaches one.
+                $sections->delete((int) $pageSection['id']);
+            }
+
+            // Its drafts too (App\Service\Blocks\ContentBlockDrafts), as PageService::delete() does.
+            \App\Service\Blocks\ContentBlockDrafts::discardForPage($pageId);
+
             (new ContentPageRepository($db))->unlink($owner->linkTable(), $owner->linkColumn(), $ownerId);
             (new PageRepository($db))->delete($pageId);
-            $db->commit();
+
+            if ($ownTransaction) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
-            $db->rollBack();
+            if ($ownTransaction && $db->inTransaction()) {
+                $db->rollBack();
+            }
+
             throw $e;
         }
 
@@ -153,14 +169,55 @@ final class ContentPages
     }
 
     /**
-     * Whether this owner's blocks say something a visitor can read: at least
-     * one block that is switched on, of a type that is registered right now,
-     * not a page head, not decorative (Witruimte), and — for a block that can
-     * judge its own content (InspectsContent) — not empty. What a kind asks
-     * before it lets an owner be published (Articles, ARTICLES.md); the CMS's
-     * own lists keep their wider rule (SectionRegistry::hasContentBlocks()).
+     * Deletes an owner and its content page as ONE database change: the whole
+     * of deleteFor(), then $deleteOwnerRow (the owner's own row, whose
+     * translations and other children go by their foreign keys), in one
+     * transaction. Anything that fails rolls all of it back: no owner without
+     * its blocks, no blocks without their owner.
+     *
+     * Files: a block's own files are removed by its definition's
+     * deleteFiles(), before its rows (SectionRegistry), as always. No block
+     * keeps a file of its own today (a picture is a Media Library item, a
+     * reference that is never deleted), so nothing on disk can be lost to a
+     * rollback.
+     *
+     * @param \Closure(): mixed $deleteOwnerRow
      */
-    public static function hasMeaningfulBlocks(string $kind, int $ownerId): bool
+    public static function deleteOwner(string $kind, int $ownerId, \Closure $deleteOwnerRow): void
+    {
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            self::deleteFor($kind, $ownerId);
+            $deleteOwnerRow();
+            $db->commit();
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        } finally {
+            PageContent::clearCache();
+        }
+    }
+
+    /**
+     * Whether this owner's blocks say something a visitor can read: at least
+     * one block that is switched on — in the block list AND in its own editor
+     * ("Actief") — of a type that is registered right now, not a page head,
+     * not decorative (Witruimte), and — for a block that can judge its own
+     * content (InspectsContent) — not empty. What a kind asks before it lets
+     * an owner be published (Articles, ARTICLES.md), and what
+     * OwnerContentGuard asks after every block change of such an owner; the
+     * CMS's own lists keep their wider rule (SectionRegistry::hasContentBlocks()).
+     *
+     * $withoutSectionId leaves one page_sections row out: "would the owner
+     * still have content without this block?", asked before a delete or a
+     * hide.
+     */
+    public static function hasMeaningfulBlocks(string $kind, int $ownerId, ?int $withoutSectionId = null): bool
     {
         $page = self::pageFor($kind, $ownerId);
 
@@ -168,14 +225,40 @@ final class ContentPages
             return false;
         }
 
-        foreach ((new PageSectionRepository())->findForPage((int) $page['id'], true) as $pageSection) {
+        $repository = new PageSectionRepository();
+        $candidates = [];
+
+        foreach ($repository->findForPage((int) $page['id'], true) as $pageSection) {
             $definition = \App\Service\Blocks\BlockDefinitions::get((string) $pageSection['section_type']);
 
             if (
                 $definition === null
+                || (int) $pageSection['id'] === $withoutSectionId
                 || $definition->isDecorative()
                 || $definition->category() === \App\Service\Blocks\BlockCategories::HERO
             ) {
+                continue;
+            }
+
+            $candidates[] = [$pageSection, $definition];
+        }
+
+        // Switched off in its own editor: on the list, but not on the page.
+        $byTable = [];
+        foreach ($candidates as [$pageSection, $definition]) {
+            if ($definition->contentTable() !== null) {
+                $byTable[$definition->contentTable()][] = (int) $pageSection['section_id'];
+            }
+        }
+        $off = [];
+        foreach ($byTable as $table => $ids) {
+            foreach ($repository->switchedOffContentIds($table, $ids) as $id) {
+                $off[$table][$id] = true;
+            }
+        }
+
+        foreach ($candidates as [$pageSection, $definition]) {
+            if (isset($off[(string) $definition->contentTable()][(int) $pageSection['section_id']])) {
                 continue;
             }
 

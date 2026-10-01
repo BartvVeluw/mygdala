@@ -390,7 +390,7 @@ try {
 
     error_log('[api/admin/update-text-image-split-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_tis_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_tis_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_tis_old'] = $old;
     header('Location: ' . $redirect);
     exit;

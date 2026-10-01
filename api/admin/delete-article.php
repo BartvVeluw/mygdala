@@ -3,20 +3,20 @@
 /**
  * POST /api/admin/delete-article.php
  *
- * Removes one article (the pattern of api/admin/delete-blog-post.php):
+ * Removes one article through ArticleService::delete(), in ONE database
+ * transaction (ContentPages::deleteOwner()):
  *
  *   1. its content page: every block through SectionRegistry::delete()
- *      (words, child rows, the block's own files), its block drafts, the
- *      link and the page row — ContentPages::deleteFor(), in its own
- *      transaction, exactly as for a product, a project or a blog post. It
- *      goes FIRST because the link's RESTRICT key refuses the other order;
+ *      (words, child rows), its block drafts, the link and the page row —
+ *      ContentPages::deleteFor(), which goes FIRST because the link's
+ *      RESTRICT key refuses the other order;
  *   2. the article row, and with it by CASCADE its translations. Its topic
  *      stays: it belongs to every article that has it.
  *
- * Media Library items are never deleted (MEDIA.md). Redirects stay as they
- * are (REDIRECTS.md): content that is gone answers 404 at its old address.
- * If step 2 fails after step 1, the article remains as a row without blocks
- * and can be deleted again; nothing points at nothing.
+ * A failure in either step rolls both back: the article is still there,
+ * whole. Media Library items are never deleted (MEDIA.md). Redirects stay as
+ * they are (REDIRECTS.md): content that is gone answers 404 at its old
+ * address.
  */
 
 declare(strict_types=1);
@@ -25,9 +25,8 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Repository\ArticleRepository;
 use App\Service\AdminAuth;
-use App\Service\Articles\ArticleContentOwner;
 use App\Service\Articles\ArticleLocalization;
-use App\Service\ContentOwners\ContentPages;
+use App\Service\Articles\ArticleService;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
 
@@ -63,9 +62,7 @@ if ($repository->find($id) === null) {
 $name = ArticleLocalization::name($id);
 
 try {
-    ContentPages::deleteFor(ArticleContentOwner::KIND, $id);
-    $repository->delete($id);
-    ArticleLocalization::articles()->forget($id);
+    ArticleService::delete($id, $repository);
     $_SESSION['admin_articles_flash'] = AdminTranslator::trans('articles.deleted', ['name' => $name !== '' ? $name : '#' . $id]);
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-article.php] ' . $e->getMessage());

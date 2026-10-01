@@ -139,7 +139,7 @@ try {
 
     error_log('[api/admin/update-form-block.php] ' . $e->getMessage());
 
-    $_SESSION['admin_form_block_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_form_block_errors'] = [\App\Service\ContentOwners\OwnerContentGuard::messageFor($e) ?? 'Kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_form_block_old'] = $old;
     header('Location: /admin/form-block.php?section=' . urlencode($sectionParam));
     exit;
