@@ -34,9 +34,9 @@ final class ProductEditorContractTest extends TestCase
         $form = self::source('admin/product-form.php');
 
         $this->assertSame(1, substr_count($form, '<form method="post"'), 'one form for the whole product');
-        $this->assertStringContainsString('data-admin-editor data-admin-collapse-group="product-editor" data-admin-collapse-scope="product" data-admin-collapse-no-return', $form);
-        $this->assertStringContainsString('data-admin-collapse-id="images" open', $form);
-        $this->assertStringContainsString('data-admin-collapse-id="variants" open', $form);
+        $this->assertStringContainsString('data-admin-editor data-admin-collapse-group="product-editor" data-admin-collapse-scope="<?= htmlspecialchars($collapseScope, ENT_QUOTES, \'UTF-8\') ?>" data-admin-collapse-no-return', $form);
+        $this->assertStringContainsString('data-admin-collapse-id="images"<?= $imagesStartOpen . $sectionForcedOpen ?>>', $form);
+        $this->assertStringContainsString('data-admin-collapse-id="variants"<?= $variantsStartOpen . $sectionForcedOpen ?>>', $form);
         $this->assertStringContainsString('<?php admin_collapse_script(); ?>', $form);
         $this->assertStringContainsString('data-admin-editor-region="images"', $form);
         $this->assertStringContainsString('data-admin-editor-region="variants"', $form);
@@ -88,6 +88,55 @@ final class ProductEditorContractTest extends TestCase
         $this->assertSame(2, substr_count($admin, '["row-list:added", "admin-editor:replaced"].forEach'), 'the rich-text editor in a new row and in a redrawn section');
         $this->assertStringContainsString('var pair = target && target.closest ? target.closest("[data-color-sync]") : null;', $admin);
         $this->assertStringNotContainsString('data-variant-image-grid', $admin, 'the old per-variant photo grid that reloaded the page');
+    }
+
+    /**
+     * Shop Admin UX 2.0: Productafbeeldingen and Varianten fold on their own,
+     * remembered per PRODUCT (the scope is its id, so one product's folding
+     * never closes another's), closed by default once they hold something,
+     * open while empty, and always open after a refused save.
+     */
+    public function testTheLongSectionsFoldPerProductAndOpenOnARefusal(): void
+    {
+        $form = self::source('admin/product-form.php');
+        $this->assertStringContainsString("\$collapseScope = \$isEdit ? (string) (int) \$product['id'] : 'new';", $form);
+        $this->assertStringContainsString("\$imagesStartOpen = !\$isEdit || \$galleryPictures === [] ? ' open' : '';", $form);
+        $this->assertStringContainsString("\$variantsStartOpen = !\$isEdit || \$variants === [] ? ' open' : '';", $form);
+        $this->assertStringContainsString("\$sectionForcedOpen = \$errors !== [] ? ' data-admin-collapse-open' : '';", $form);
+        // The closed line: how many, and the main picture.
+        $this->assertStringContainsString('data-product-gallery-count', $form);
+        $this->assertStringContainsString('data-product-variants-count', $form);
+        $this->assertStringContainsString('data-product-gallery-thumb', $form);
+
+        $collapse = self::source('admin/assets/admin-collapse.js');
+        $this->assertStringContainsString('(group.getAttribute("data-admin-collapse-scope") || "")', $collapse, 'the scope is part of the key');
+        $this->assertStringContainsString('if (item.hasAttribute("data-admin-collapse-open") || id === returnTo) {', $collapse, 'the server\'s open wins over what was remembered');
+
+        $gallery = self::source('admin/assets/product-gallery.js');
+        $this->assertStringContainsString('document.querySelector("[data-product-gallery-thumb]")', $gallery, 'the thumbnail follows the first picture');
+    }
+
+    /**
+     * One Opslaan for the product and its companion forms (the Extra
+     * vormgeving panels of its blocks): their own button is hidden where the
+     * bar sends them, every dirty form goes once, a second click while saving
+     * gets the same save, and a refused companion opens where it is.
+     */
+    public function testOneSaveSendsEveryChangedFormOnce(): void
+    {
+        $editor = self::source('admin/assets/admin-editor.js');
+        $this->assertStringContainsString('if (saving) return saving;', $editor, 'a double click is one save');
+        $this->assertStringContainsString('saveButton.disabled = state === "saved" || state === "saving";', $editor);
+        $this->assertStringContainsString('form.inert = true;', $editor);
+        $this->assertStringContainsString('return other !== except && dirtyCompanions.indexOf(other) !== -1;', $editor, 'only changed companions, and never the one that is the way out');
+        $this->assertStringContainsString('dirtyCompanions.splice(dirtyCompanions.indexOf(other), 1);', $editor, 'a stored companion is clean, a refused one stays dirty');
+        $this->assertStringContainsString('querySelectorAll("[data-admin-editor-companion-save]")', $editor);
+        $this->assertMatchesRegularExpression('/revealTab\(other\);\s+openSection\(other\);/', $editor, 'a refused companion is opened');
+
+        $panel = self::source('admin/_block_appearance.php');
+        $this->assertStringContainsString('<button type="submit" class="admin-btn-secondary" data-admin-editor-companion-save>', $panel);
+        // save-bar.js screens (a page) keep the panel's own button.
+        $this->assertStringNotContainsString('data-admin-editor-companion-save', self::source('admin/assets/save-bar.js'));
     }
 
     /** A folded section is remembered in the browser tab only. */
