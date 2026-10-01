@@ -306,7 +306,36 @@ krijgt daarom een eigen `pages`-rij om zijn blokken te houden
 | alle gewone blokken (tekst, tekst met afbeelding, detailsectie, kaarten, galerij, mediabanner, FAQ, CTA, formulieren, witruimte, Uitgelicht product, Projecten, ...) | ja | ja | gewone inhoud, niets hangt aan de pagina |
 | Paginakop (`page_hero`) | nee | nee | de kop van een gewone pagina met haar titel; een product en een project hebben hun eigen kop |
 | Homepage Hero, Diensten-snelmenu | nee | nee | al beperkt tot hun eigen pagina (`allowed_pages`) |
-| Projectinformatie (`project_info`) | nee | ja | toont het project waarop het staat |
+| Projectafbeeldingen (`project_images`) | nee | ja, vast | de extra foto's van het project waarop het staat; nooit met de hand toegevoegd |
+
+### De foto's van een project: Projectafbeeldingen (Portfolio 3.0)
+
+Een projectpagina is een **vaste projectkop** (hoofdfoto, titel, tekst;
+`partials/project-hero.php`, vormgegeven door de Projectlayout) plus de
+**pagina-inhoud**: de blokken van het tabblad *Pagina-inhoud*. De kop is geen
+blok. De extra foto's van het project zijn één blok in die pagina-inhoud,
+**Projectafbeeldingen** (`App\Service\Blocks\ProjectImagesBlock`), zodat de
+redacteur ze tussen andere blokken kan slepen of verbergen.
+
+- **Het blok bezit de media niet.** Geen tabel, geen mediakiezer, geen kopie:
+  het leest bij elke render de foto's van het project waarvan de pagina is
+  (`ContentPages::ownerOf()` en `PortfolioGalleryContent::itemForDetailPageById()`).
+  De foto's kies je bij het project (kaart *Galerij*); het blok bepaalt alleen
+  waar ze staan en of ze zichtbaar zijn. Mediagebruik wijst naar het project.
+- **Een vast blok** (`FixedBlockDefinition`): `manual_add` en `deletable` uit,
+  `max_instances` 1, `owners` alleen `portfolio_project`, `kind` dynamisch.
+  Het komt er via `App\Service\ProjectImagesPlacement` (bij een nieuw project,
+  en bij een opslag als het ontbreekt) en via de migratie voor bestaande
+  projecten. `section_id` is het id van het project, dus
+  `UNIQUE(section_type, section_id)` weigert een tweede op databaseniveau.
+- **De gewone levensloop van de lijst**: slepen (`reorder-page-sections.php`),
+  verbergen en tonen (`toggle-page-section.php`), Extra vormgeving. Verwijderen
+  weigert de lijst (`isDeletable()`), het endpoint ook.
+- **Geen foto's, geen sectie**; nooit "leeg" genoemd (dynamisch, zoals het
+  Productraster).
+- **Projectinformatie** (`project_info`) en de vrije indeling zijn met
+  Portfolio 3.0 verwijderd (`MODULES.md`, "Vaste projectkop en verplaatsbare
+  pagina-inhoud", met de migratie).
 
 Een **artikel** (`article`, recht `articles.manage`, `ARTICLES.md`) heeft alleen
 blokken als inhoud. Voor zijn publicatieregel vraagt het
@@ -338,7 +367,7 @@ geweigerd.
 
 Een **blogbericht** (Blog 2.0, `blog_post`, recht `blog.manage`) volgt dezelfde
 regels als een product: alle gewone blokken, geen Paginakop en geen
-Projectinformatie. Het toont zijn blokken alleen in blokmodus; in de klassieke
+Projectafbeeldingen. Het toont zijn blokken alleen in blokmodus; in de klassieke
 modus blijft zijn tekst staan, ook als er blokken zijn (`BLOG.md`, "Klassieke
 tekst en contentblokken").
 
@@ -381,7 +410,7 @@ zelf, de Contentblokken-bibliotheek en `translate-fields.php`.
 
 **Recht is geen beschikbaarheid.** Het recht zegt wie een lijst mag beheren;
 `owners` in de blokmeta zegt welke blokken erin mogen. Een Shop-beheerder kan
-nog steeds geen Paginakop of Projectinformatie op een product zetten.
+nog steeds geen Paginakop of Projectafbeeldingen op een product zetten.
 
 **Het mediagebruik volgt hetzelfde recht.** Elke plek die
 `ContentBlockMediaUsage` in de Mediabibliotheek meldt, vraagt het recht van
@@ -539,7 +568,7 @@ fout is nooit een waarschuwing.
 | Galerij, Projecten | items, **of** een bron die ze kan geven (`ItemGalleryContent::isConfigured()`): een dynamisch blok wordt op zijn configuratie beoordeeld, niet op wat de bron vandaag bevat |
 
 Nooit beoordeeld, met reden (`ContentBlockLifecycleContractTest::NEVER_EMPTY`):
-Witruimte (decoratief), Productraster, Collecties en Projectinformatie
+Witruimte (decoratief), Productraster, Collecties en Projectafbeeldingen
 (dynamisch), het Offerte-/contactformulier (toont altijd de contactkaart), de
 Paginakop en de Homepage Hero.
 
@@ -1381,10 +1410,10 @@ geen uitzondering op een bestandsnaam of bloktype buiten de definitie zelf.
 |---|---|---|---|---|
 | Tekstblok, Oproep met knop, Cijferband, Stappen | ja | ja | ja | bolletjes, gloed, patroon |
 | Paginakop | ja | ja | nee (de kop heeft zijn eigen hoogte) | bolletjes, gloed, patroon |
-| Tekst met afbeelding, Kenmerken, FAQ, Kaarten-carrousel, Galerij, Projecten, Hover kaarten, Detailsectie, Uitgelicht product, Formulier | ja | ja | ja | gloed, patroon |
+| Tekst met afbeelding, Kenmerken, FAQ, Kaarten-carrousel, Galerij, Projecten, Projectafbeeldingen, Hover kaarten, Detailsectie, Uitgelicht product, Formulier | ja | ja | ja | gloed, patroon |
 | Mediabanner | ja | ja | ja | geen (het beeld ís het blok) |
 | Lopende band (marquee) | ja | ja | nee (geen sectie, de hoogte zijn de woorden) | geen |
-| Homepage-opening, Witruimte, Snelnavigatie, Contactformulier/-kaart, Projectinfo, Productgrid, Collectie-tegels | — | — | — | — |
+| Homepage-opening, Witruimte, Snelnavigatie, Contactformulier/-kaart, Productgrid, Collectie-tegels | — | — | — | — |
 
 **Waarom geen vallende bolletjes op elk blok.** Beweging achter een grid van
 kaarten, foto's, vragen die open- en dichtklappen of een formulier concurreert

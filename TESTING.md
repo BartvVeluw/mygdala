@@ -1208,16 +1208,35 @@ pagina's, welke blokken waar mogen, volgorde, taal, bestemmingskiezer,
 verwijderen, `RESTRICT`, mediagebruik) en `ProductPortfolioContentPagesHttpTest`
 (eigen `php -S` via `Tests\Support\BuiltInServer`: `product.php` en
 `portfolio-detail.php` met en zonder blokken, de vier layouts, standaard en
-eigen keuze, Projectinformatie, module uit, de admin-endpoints) zitten in
+eigen keuze, module uit, de admin-endpoints) zitten in
 `blocks` en `shop`. `ContentOwnerPagesMigrationTest` (vers en bijgewerkt,
 opnieuw draaien) zit in `migration` en `blocks`.
 
 Sinds v0.1.13 ook: `ContentBlockOwnerAccessHttpTest` (eigen `php -S`: wie de
 blokken van een pagina, product en project mag beheren, nagemaakte sleutels,
 pagina-, blok- en kaart-id's, de weg terug naar de eigenaar; `blocks` en
-`shop`) en in `ProductPortfolioContentPagesHttpTest` de echte vrije indeling
-(geen automatische kop, de overstap die één Projectinformatie-blok zet, de
-waarschuwing, terug naar vast en weer vrij, de standaard die vrij wordt).
+`shop`).
+
+Portfolio 3.0 (de foto's van een project als blok Projectafbeeldingen; de
+vrije indeling en Projectinformatie weg) heeft er drie bij.
+`ProjectImagesBlockHttpTest` (eigen `php -S`; `blocks`): één renderer, de
+volgorde van het project, slepen tussen en onder blokken, verbergen met de
+foto's en hun mediagebruik behouden, een foto erbij of eraf, geen lege
+sectie, de layout die alleen de kop raakt, één blok per project (kiezer,
+verwijderen en de database weigeren een tweede), plaatsing bij aanmaken en
+herstel bij opslaan, CSRF, recht en een sectie van een ander project, en het
+project verwijderen. `ProjectImagesBlockContractTest` (`contract`, `fast`,
+`cms`) leest alleen bron en definities. `ProjectImagesBlockMigrationTest`
+(`migration`, `blocks`, ongeveer 1 minuut) zet twee installaties over (standaard
+`image_left` en standaard `free`): de plek, zichtbaarheid en layout per
+soort project, niets van Projectinformatie over, foto's en vertalingen
+ongemoeid, opnieuw draaien verandert niets.
+
+Let op bij een test die een project via `update-portfolio-item.php` of
+`create-portfolio-item.php` opslaat: dat project heeft daarna een
+inhoudspagina (het blok Projectafbeeldingen), die `RESTRICT` het project niet
+laat overleven. Ruim op met `ContentPages::deleteFor()` vóór `deleteItem()`,
+en tel "geen pagina gemaakt" als `pages` met `owner_type IS NULL`.
 `AdminAccessControlTest` houdt de eigenaarsbewuste blokbestanden als gesloten
 lijst bij. `ContentBlockMediaUsageOwnerHttpTest` (de links in het mediagebruik
 voor een Pagina-, Shop-, Portfolio- en super-admin; `blocks` en `shop`) en

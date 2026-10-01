@@ -1375,14 +1375,24 @@ rendert haar dynamisch uit het item. Portfolio-hiërarchie en paginahiërarchie
 staan los van elkaar; er komt geen verborgen pagina, geen `parent_id` en geen
 "Nieuwe pagina maken" meer aan te pas.
 
-| Onderdeel | Waar het staat |
-|---|---|
-| Aan/uit ("Projectpagina tonen") | `portfolio_gallery_items.has_detail_page` |
-| Adres | `portfolio_gallery_items.slug`, uniek, taalneutraal |
-| Titel, korte tekst, alt | `portfolio_item_translations` (`title`, `subtitle`, `alt`) |
-| Inleiding en beschrijving (rich text) | `portfolio_item_translations` (`intro`, `description`) |
-| Hoofdafbeelding | `portfolio_gallery_items.media_id` |
-| Galerij | `portfolio_item_images` (`media_id`, `sort_order`), alt per taal in `portfolio_item_image_translations` |
+| Onderdeel | Waar het staat | Waar je het bewerkt (Portfolio 3.0) |
+|---|---|---|
+| Aan/uit ("Projectpagina tonen") | `portfolio_gallery_items.has_detail_page` | kaart *Zichtbaarheid* |
+| Adres (*Webadres*) | `portfolio_gallery_items.slug`, uniek, taalneutraal | kaart *Basisgegevens*, onder de titel |
+| Titel, korte tekst, alt | `portfolio_item_translations` (`title`, `subtitle`, `alt`) | *Basisgegevens*, alt bij *Hoofdafbeelding* |
+| Inleiding en beschrijving (rich text) | `portfolio_item_translations` (`intro`, `description`) | *Basisgegevens*, na de korte tekst |
+| Hoofdafbeelding | `portfolio_gallery_items.media_id` | kaart *Hoofdafbeelding* |
+| Galerij (de extra afbeeldingen) | `portfolio_item_images` (`media_id`, `sort_order`), alt per taal in `portfolio_item_image_translations` | kaart *Galerij*; waar ze op de pagina staan: het blok *Projectafbeeldingen* |
+
+De aparte kaart *Projectpagina* is met Portfolio 3.0 verdwenen; geen van haar
+velden. Uit de audit: alle vier hebben nog een functie die nergens anders
+zit. *Projectpagina tonen* maakt `/portfolio/<slug>` (zonder staat er alleen
+een kaart die vergroot), *Webadres* is die slug (redirects bij een rename),
+en *Inleiding* en *Beschrijving* zijn de tekst van de vaste projectkop, de
+bron van de meta description (`PortfolioSeo`) en, de inleiding, van de
+sitezoekfunctie (`PortfolioSearchProvider`). Ze zijn dus verhuisd naar de
+kaart waar ze bij horen, met dezelfde veldnamen: het endpoint, de opslag en de
+publieke pagina veranderden niet en er is niets gemigreerd.
 
 Alles hergebruikt wat er al was: de kolommen en tabellen van de projectpagina
 die Portfolio vóór fase 4B had. De enige migratie is
@@ -1514,8 +1524,9 @@ geeft de focus terug aan de opener.
 
 **De projectpagina** toont: kruimelpad *Home / Portfolio / project* (de
 Portfolio-pagina via content key `portfolio`; zolang die leeg is, of als er
-geen is, de route *Portfolio*), categorieën, titel, korte tekst, hoofdafbeelding, inleiding,
-beschrijving, galerij en *Terug naar portfolio*. SEO gaat via
+geen is, de route *Portfolio*), de vaste projectkop (categorieën, titel, korte
+tekst, hoofdafbeelding, inleiding, beschrijving, *Terug naar portfolio*) en
+daaronder de pagina-inhoud, met de galerij als blok *Projectafbeeldingen*. SEO gaat via
 `App\Service\PortfolioSeo`: titel `<project> | Portfolio — <site>`, als
 description de korte tekst, anders het begin van de inleiding of beschrijving,
 canonical in de gelezen taal, hreflang voor elke actieve taal, en de
@@ -1523,54 +1534,84 @@ hoofdafbeelding als deelafbeelding. De sitemap noemt elke projectpagina die
 antwoordt, in elke taal (`projectPagesForSitemap()`), en nooit een adres dat
 doorstuurt.
 
-**Projectlayout en pagina-inhoud** (Portfolio layout 2.0, Product & Portfolio
-Content Pages 1.0; `App\Service\PortfolioProjectLayout`). De kop van een
-project (`partials/project-hero.php`: hoofdafbeelding, categorieën, titel,
-korte tekst, inleiding, beschrijving, *Terug naar portfolio* en de extra
-foto's) staat niet meer vast met de foto links:
+**Vaste projectkop en verplaatsbare pagina-inhoud** (Portfolio 3.0, op
+Portfolio layout 2.0 en Product & Portfolio Content Pages 1.0). Een
+projectpagina heeft twee lagen:
 
-| Layout | Wat de projectpagina toont |
+| Laag | Wat | Bepaald door |
+|---|---|---|
+| **Vaste projectkop** (`partials/project-hero.php`) | hoofdafbeelding, categorieën, titel, korte tekst, inleiding, beschrijving, *Terug naar portfolio* | de **Projectlayout**, en verder niets. Geen contentblok: hij staat altijd bovenaan |
+| **Pagina-inhoud** (de blokken van het tabblad *Pagina-inhoud*) | **Projectafbeeldingen**, Tekst, Tekst met afbeelding, CTA, FAQ, Galerij, Reviews … | de blokkenlijst: slepen, verbergen, toevoegen, Extra vormgeving |
+
+De Projectlayout (`App\Service\PortfolioProjectLayout`) gaat alleen over de kop:
+
+| Layout | De kop |
 |---|---|
-| Afbeelding links (`image_left`) | de kop zoals altijd, geen modifier-klasse, dan de contentblokken |
-| Afbeelding rechts (`image_right`) | de kop met de foto rechts (`project-hero--image-right`), dan de blokken |
-| Afbeelding boven (`image_top`) | de foto breed boven de tekst (`project-hero--image-top`), dan de blokken |
-| Vrije indeling (`free`) | alleen de contentblokken, geen kop van zichzelf; het blok **Projectinformatie** zet de kop waar de redacteur het plaatst, en zonder dat blok staat er geen |
+| Afbeelding links (`image_left`) | zoals altijd, geen modifier-klasse |
+| Afbeelding rechts (`image_right`) | de foto rechts (`project-hero--image-right`) |
+| Afbeelding boven (`image_top`) | de foto breed boven de tekst (`project-hero--image-top`) |
 
 - **De standaard** staat bij *Portfolio → Instellingen* (site-instelling
-  `portfolio_project_layout`, standaard `image_left`: een bestaande site ziet
-  niets veranderen; `api/admin/update-portfolio-settings.php`).
-- **Per project** kiest het tabblad *Pagina-inhoud* van de projecteditor
-  *Gebruik standaardinstelling* (`portfolio_gallery_items.project_layout`
-  NULL) of een eigen layout. Een project op de standaard verandert mee als de
-  standaard verandert; een eigen keuze blijft staan.
-- **Projectinformatie** (`project_info`, `App\Service\Blocks\ProjectInfoBlock`)
-  is een Portfolio-blok dat alleen op de pagina van een project kan staan
-  (`owners`). Het bewaart alleen hoe (foto links, rechts of boven; de extra
-  foto's wel of niet) en toont de projectgegevens **live** uit het project:
-  een nieuwe titel of foto staat er meteen, er is niets gekopieerd. Het
-  rendert alleen bij de vrije indeling; bij een vaste layout staat de kop al
-  bovenaan en blijft het blok stil (de editor zegt dat), dus terug naar een
-  vaste layout toont het project nooit twee keer en verliest geen blok.
-- **Vrije indeling is echt vrij** (v0.1.13). `portfolio-detail.php` drukt bij
-  `free` geen kop van zichzelf af, ook niet als er geen Projectinformatie-blok
-  is. Opdat dat nooit onverwacht een lege pagina geeft, zet **de overstap**
-  naar vrij één Projectinformatie-blok bovenaan een project dat er nog geen
-  heeft (`App\Service\ProjectInfoPlacement`): bij de eigen layout van het
-  project (`update-portfolio-item.php`: vast → vrij) en bij de standaard
-  (`update-portfolio-settings.php`: voor elke projectpagina die de standaard
-  volgt). Alleen bij de overstap, nooit bij een latere opslag, en nooit een
-  tweede (`ProjectInfoContent::isPlacedOn()`, verborgen telt mee). Daarna is
-  het een gewoon blok: verplaatsen, verbergen, verwijderen. Zonder blok toont
-  het tabblad *Pagina-inhoud* de niet-blokkerende waarschuwing *Deze vrije
-  indeling bevat geen Projectinformatie-blok.* Terug naar vast en weer naar
-  vrij: alle blokken staan er nog; zet de overstap er een blok bij als het er
-  geen meer had. De vrije indeling bestond alleen op deze branch (nog niet
-  uitgebracht), dus er is geen migratie voor bestaande vrije projecten.
+  `portfolio_project_layout`, standaard `image_left`;
+  `api/admin/update-portfolio-settings.php`).
+- **Per project** kiest het tabblad *Pagina-inhoud* *Gebruik
+  standaardinstelling* (`portfolio_gallery_items.project_layout` NULL) of een
+  eigen layout. Een project op de standaard verandert mee; een eigen keuze
+  blijft staan.
+- **Projectafbeeldingen** (`project_images`, `App\Service\Blocks\ProjectImagesBlock`)
+  is de enige plek waar de extra afbeeldingen van een project renderen
+  (`partials/section-project-images.php`, dezelfde markup en stijl die de kop
+  er vroeger onder zette). **Het blok bezit de media niet**: geen eigen
+  tabel, geen mediakiezer, geen kopie van een mediareferentie. Het leest bij
+  elke render de foto's van het project waarvan de pagina is
+  (`PortfolioGalleryContent::itemForDetailPageById()`), in de volgorde van het
+  project. Een foto toevoegen of weghalen bij het project staat dus meteen
+  goed op de pagina, zonder synchronisatie; verbergen of verplaatsen raakt de
+  foto's en het mediagebruik (dat naar het project wijst) niet. Geen foto's:
+  geen sectie, ook geen lege.
+- **Een vast blok** (`FixedBlockDefinition`, badge *Beheerd elders*): niet in
+  de kiezer, nooit te verwijderen, alleen op een project (`owners`), en hoogstens
+  één per project. Zijn `page_sections.section_id` is het id van het project,
+  dus `UNIQUE(section_type, section_id)` laat de database zelf een tweede
+  weigeren. `App\Service\ProjectImagesPlacement` zet het bovenaan bij een nieuw
+  project (`create-portfolio-item.php`) en zet het terug bij een opslag als het
+  ontbreekt (`update-portfolio-item.php`). Wie de foto's niet wil tonen,
+  verbergt het blok.
+- **Eén lightbox.** De kop en het blok dragen dezelfde benoemde groep
+  (`data-lightbox-group="project-<id>"`, `assets/js/lightbox.js`), dus
+  hoofdfoto en extra foto's blijven één reeks, ook met blokken ertussen.
+- **Extra vormgeving**: achtergrond, randen, ruimte en de rustige effecten
+  (`glow`, `pattern`), zoals de galerij. Direct onder de kop en zonder eigen
+  look sluit het blok aan op de kop zoals de foto's dat vroeger deden; elders
+  heeft het de gewone sectieruimte.
+- **Niets te zoeken**: geen eigen woorden (`searchFields()` leeg); alt-teksten
+  blijven buiten de zoekfunctie (`SEARCH.md`).
+
+**Projectinformatie en de vrije indeling zijn weg** (Portfolio 3.0). Het blok
+Projectinformatie zette de kop als blok neer voor de layout *Vrije indeling*;
+nu elke projectpagina een vaste kop heeft, waren beide overbodig. Migratie
+`20261014100000_give_every_project_a_project_images_block`:
+
+| Bestaand project | Na de migratie |
+|---|---|
+| vaste layout | Projectafbeeldingen bovenaan (waar de foto's al stonden), zichtbaar; andere blokken in hun volgorde erna |
+| vrije indeling met een Projectinformatie-blok | Projectafbeeldingen op de plek van dat blok, zichtbaar alleen als dat blok zijn foto's toonde; de layout wordt de vaste layout van de kop die het toonde (foto links/rechts/boven) |
+| vrije indeling zonder Projectinformatie-blok | Projectafbeeldingen bovenaan, **verborgen** (er stonden geen foto's); layout `image_left` |
+| standaard `free` | standaard `image_left`; een project dat hem volgde en de foto rechts of boven had, krijgt dat als eigen keuze |
+
+Bij een vrij project is één ding onvermijdelijk anders: de kop staat weer
+bovenaan, dus een blok dat boven het Projectinformatie-blok stond, volgt nu
+de kop. Alle Projectinformatie-rijen, hun drafts en de tabel
+`portfolio_project_infos` zijn weg; die tabel bevatte geen projectdata, alleen
+"waar staat de foto" en "foto's tonen", allebei hierboven overgenomen. Een
+inhoudspagina wordt gemaakt voor elk project dat er geen had. Idempotent.
+
 - **Gerelateerde projecten en de oproep** van de Portfolio-pagina blijven de
   vaste slotzone onder de blokken, in elke layout. Ze als blok verplaatsbaar
   maken was geen V1-werk.
-- Het project verwijderen neemt de blokken en de inhoudspagina mee
-  (`api/admin/delete-portfolio-item.php`); met de Portfolio uit is de
+- Het project verwijderen neemt de blokken (Projectafbeeldingen ook), de
+  inhoudspagina en de fotorijen mee (`api/admin/delete-portfolio-item.php`);
+  een bibliotheekfoto blijft in de bibliotheek. Met de Portfolio uit is de
   projectpagina een 404 en blijft alles bewaard.
 - **Rechten.** De blokken van een project beheert wie het project mag
   beheren: `portfolio.manage`, niet `pages.manage` (`CONTENT-BLOCKS.md`,

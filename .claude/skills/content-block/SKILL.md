@@ -76,6 +76,14 @@ en `GenericBlockDefaultsTest` bewaken beide.
   Hangt je blok echt aan een gewone pagina (haar titel, haar adres), of alleen
   aan één soort eigenaar, zet dan `owners` in `meta()`; nooit een eigen
   `page_id`-aanname in `render()`.
+- **Toont je blok wat de eigenaar zelf al bezit, en hoort het er precies één
+  keer te staan?** Dan is het een vast blok, zoals Projectafbeeldingen
+  (`App\Service\Blocks\ProjectImagesBlock`): `FixedBlockDefinition`, geen
+  eigen tabel en geen eigen mediakiezer, de data live van de eigenaar
+  (`ContentPages::ownerOf()`), `section_id` = het id van de eigenaar zodat
+  `UNIQUE(section_type, section_id)` een tweede weigert, en een eigen
+  plaatsingsservice plus migratie (`CONTENT-BLOCKS.md`, "De foto's van een
+  project").
 - **Alle methodes van `BlockDefinition` zijn `abstract`.** Vergeet je er een,
   dan laadt de klasse niet. Dat is de bedoeling.
 - **`create()` heeft twee aanroepers**: de blokkenkiezer en de

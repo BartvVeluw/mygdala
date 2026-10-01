@@ -124,7 +124,7 @@ pas bij het eerste blok, en een geannuleerd eerste blok neemt haar weer mee.
 Dezelfde kiezer, dezelfde blok-editors, Extra vormgeving, Responsive Media,
 Knopstijlen en Kaartweergave, dezelfde woorden per taal. Het aanbod is de
 bestaande `owners`-capability: alle gewone blokken, geen Paginakop en geen
-Projectinformatie.
+Projectafbeeldingen.
 
 **Omzetten is een bewuste handeling** van de redacteur, op het tabblad
 *Inhoud*, met een vraag in de dialoog van het CMS

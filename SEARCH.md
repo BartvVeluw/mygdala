@@ -232,8 +232,9 @@ public function searchFields(): array
 
 `BlockSearchContractTest` eist dat elk blok elk veld classificeert, zodat een
 **nieuw blok** moet kiezen en Search zelf nooit verandert. Een blok zonder
-eigen woorden (Witruimte, Productraster, Collecties, Projectinformatie,
-Mediabanner, het Diensten-snelmenu) geeft niets. De koppen binnen een rich
+eigen woorden (Witruimte, Productraster, Collecties, Projectafbeeldingen,
+Mediabanner, het Diensten-snelmenu) geeft niets; ook de alt-teksten van de
+projectfoto's die Projectafbeeldingen toont niet. De koppen binnen een rich
 text (`<h1>`–`<h6>`) tellen als kop.
 
 **Alleen de eigen woorden van een blok.** Een blok dat andere records toont
@@ -277,7 +278,7 @@ ook de index terugdraait:
 | elke opslag van een blokeditor (ook items, leegmaken, uitzetten) | `ContentBlockDrafts::place()` |
 | verbergen en tonen in de bloklijst | `SectionRegistry::setActive()` |
 | een kaart van de carrousel, de twee hero-editors | hun endpoints, `BlockSearchIndex::reindexBlock()` |
-| een blok dat meteen geplaatst wordt, een Blog-conversie, Projectinformatie | `add-page-section.php`, `BlogContentConversion`, `ProjectInfoPlacement` |
+| een blok dat meteen geplaatst wordt, een Blog-conversie | `add-page-section.php`, `BlogContentConversion` (Projectafbeeldingen heeft geen woorden: `ProjectImagesPlacement` hoeft niets) |
 | een blok, pagina of eigenaar verwijderd | `CASCADE`, niets te doen |
 | volgorde wijzigen | niets: de volgorde komt bij het zoeken uit `page_sections` |
 | status, publicatiedatum, module aan/uit, titel of intro | niets: de provider leest die zelf |
