@@ -66,12 +66,16 @@ per bericht per websitetaal, gelezen en geschreven door
 blog_posts
   slug                               uniek; het laatste segment van /blog/<slug>
   featured_media_id                  → media (ON DELETE RESTRICT)
-  status                             draft | published | scheduled
+  status                             draft | published | scheduled | archived
   published_at                       wanneer het naar buiten mag
   author_name                        vrije tekst, geen koppeling naar een account
   noindex
   og_media_id                        eigen deel-afbeelding, → media
+  content_mode                       legacy | blocks (Blog 2.0, zie hieronder)
   created_at, updated_at
+
+blog_post_content_pages              bericht ↔ zijn inhoudspagina (Blog 2.0)
+  blog_post_id, page_id              één op één, echte foreign keys, RESTRICT
 
 blog_post_translations               UNIQUE(blog_post_id, language_code)
   title                              verplicht in de standaardtaal
@@ -98,13 +102,78 @@ bericht schreef en wiens account het opsloeg zijn twee verschillende vragen, en
 een naam onder een artikel hoort niet te veranderen omdat een collega een
 typefout verbeterde.
 
+### Klassieke tekst en contentblokken (Blog 2.0)
+
+Een bericht heeft **één** lichaam, en welk dat is, zegt een kolom en niets
+anders: `blog_posts.content_mode` (`App\Service\Blog\BlogContentMode`).
+
+| Modus | Wie | Wat de website toont |
+|---|---|---|
+| `legacy` | elk bericht van vóór Blog 2.0 (de standaard van migratie `20261011100000`) | de rich-text-tekst per taal, **byte voor byte** zoals vóór Blog 2.0 |
+| `blocks` | elk nieuw bericht, en een klassiek bericht dat een redacteur omzette | de contentblokken van het bericht, via de gewone blokmotor |
+
+**Geen heuristiek.** Of er blokken zijn, of een tekst, beslist niets. Een leeg
+blok kan dus nooit een klassieke tekst laten verdwijnen, en een bericht in
+blokmodus valt nooit terug op een oude tekst.
+
+**Een bericht is een eigenaar van contentblokken**, net als een product en een
+project (`CONTENT-BLOCKS.md`, "Blokken op een product of project"):
+`App\Service\Blog\BlogPostContentOwner` (`blog_post`), de koppeltabel
+`blog_post_content_pages` en het recht `blog.manage`. De inhoudspagina ontstaat
+pas bij het eerste blok, en een geannuleerd eerste blok neemt haar weer mee.
+Dezelfde kiezer, dezelfde blok-editors, Extra vormgeving, Responsive Media,
+Knopstijlen en Kaartweergave, dezelfde woorden per taal. Het aanbod is de
+bestaande `owners`-capability: alle gewone blokken, geen Paginakop en geen
+Projectinformatie.
+
+**Omzetten is een bewuste handeling** van de redacteur, op het tabblad
+*Inhoud*, met een vraag in de dialoog van het CMS
+(`api/admin/update-blog-post-content-mode.php`,
+`App\Service\Blog\BlogContentConversion`):
+
+- **Naar blokken**: heeft het bericht nog geen blokken, dan wordt de tekst in
+  elke taal waarin hij bestaat **één Tekstblok** met precies dezelfde HTML.
+  Beide gaan door `RichTextSanitizer`, en schone HTML opnieuw saneren verandert
+  niets; `BlogTwoTest` bewijst dat per taal. Daarna toont het bericht zijn
+  blokken.
+- **Terug naar de klassieke tekst**: alleen de modus wisselt. De blokken blijven
+  staan, maar worden niet getoond.
+- **Er gaat nooit iets weg.** De klassieke tekst blijft na omzetten in
+  `blog_post_translations` staan. Een opslag in blokmodus laat hem ongemoeid,
+  omdat het veld er niet is en het endpoint de sleutel weglaat. Heen en terug
+  is daardoor exact. Een tweede omzetting maakt geen tweede kopie: de blokken
+  van eerder komen terug.
+- **Er is geen massamigratie.** Een bestaande installatie, met hoeveel berichten
+  dan ook, ziet na de update precies hetzelfde. Omzetten gebeurt per bericht,
+  wanneer de redacteur dat wil.
+
+Wat na omzetten zichtbaar verandert, is het kader, niet de tekst: de eigen
+sectie en leeskolom van het Tekstblok in plaats van het klassieke
+artikellichaam.
+
+**Verwijderen.** Een bericht verwijderen ruimt eerst zijn blokken op
+(`ContentPages::deleteFor()`: woorden, kindrijen, bestanden, drafts, de
+koppeling en de inhoudspagina). De RESTRICT-sleutel weigert de andere
+volgorde. Categorieën, tags en bibliotheekbeelden blijven.
+
 ### De publicatiecyclus
 
 ```text
 draft      nooit publiek, ongeacht de datum
 scheduled  publiek zodra published_at bereikt is
 published  publiek zodra published_at nu of in het verleden ligt
+archived   (Blog 2.0) het eigen adres antwoordt, als noindex; verder nergens
 ```
+
+**Gearchiveerd** (Blog 2.0) is de vierde status van de Publishing Engine.
+Het eigen adres en de canonical blijven, met `noindex,follow`
+(`BlogSeo::forPost()`). Het bericht staat niet meer in het overzicht, de
+categorie- en tagarchieven, de feed, de sitemap, de zoekresultaten of bij
+gerelateerde berichten en buren. De detailroute, een slugredirect en een
+blokknop naar het bericht vragen *reachable*
+(`BlogPostStatus::isReachable()`, `findReachableById()`/`findReachableBySlug()`);
+al het andere vraagt *listed*. Terugzetten naar gepubliceerd laat hetzelfde
+adres weer gewoon meedoen. Er komt geen redirect en geen archiefpagina.
 
 **Sinds v0.1.15 staat de Blog op de Publishing Engine**
 ([`docs/publishing/ARCHITECTURE.md`](docs/publishing/ARCHITECTURE.md)), als
@@ -204,17 +273,26 @@ Alle drie zijn queryparameters, dus elke weergave is te bookmarken, de
 terugknop werkt en er is geen regel JavaScript nodig. Een ingepland bericht
 zegt er "nog niet zichtbaar" bij.
 
-**De editor** is één formulier over drie tabbladen (`admin/_admin_tabs.php`):
+**De editor** heeft sinds Blog 2.0 vier tabbladen (`admin/_admin_tabs.php`):
 
 ```text
-[ Inhoud ]  titel, samenvatting en tekst in één websitetaal, plus de
-            uitgelichte afbeelding, de categorieën en de tags
-[ Publicatie ]  status, publicatiedatum en -tijd, auteur, slug
-[ SEO ]  SEO-titel, meta description, indexeerbaarheid, deel-afbeelding,
-         en een voorbeeld van het zoekresultaat
+[ Algemeen ]    titel en samenvatting in één websitetaal, de uitgelichte
+                afbeelding, de categorieën en de tags
+[ Inhoud ]      klassiek: de rich-text-tekst, en een kaart "Omzetten naar
+                contentblokken"; blokken: de bloklijst van het bericht (de
+                lijst van een product en een project) en een kaart terug
+[ Publicatie ]  de gedeelde velden van de Publishing Engine (status met
+                Gearchiveerd, datum), de byline, de slug
+[ SEO ]         SEO-titel, meta description, indexeerbaarheid, deel-afbeelding,
+                en een voorbeeld van het zoekresultaat
 ```
 
-**Eén formulier, niet drie.** `api/admin/update-blog-post.php` leest het hele
+De bloklijst en de twee wisselknoppen staan ná het formulier van het bericht:
+een formulier kan geen formulier bevatten. Het tabblad *Inhoud* loopt
+daarom door na `</form>`, zoals bij een project. Een blok-editor, toevoegen,
+verwijderen en omzetten landen terug op `?tab=inhoud`.
+
+**Eén formulier voor het bericht.** `api/admin/update-blog-post.php` leest het hele
 bericht uit één verzoek, dus drie formulieren zouden elke opslag een
 gedeeltelijke POST maken die leegmaakt wat de redacteur net niet bekeek.
 Daarom eindigt elk paneel in dezelfde knop, en slaat elke knop alles op. De
@@ -480,6 +558,8 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blog   # alles
 | `tests/Blog/BlogFeedLanguageTest.php` | één feed per taal: kanaal, items, `<language>` en links in de taal van het verzoek, de terugval, XML-escaping, en `/en/blog/feed.xml` over echt HTTP |
 | `tests/Blog/BlogMediaAndSettingsTest.php` | uitgelichte afbeeldingen, gebruiksmelding, niet-verwijderbaar, en de instellingen |
 | `tests/Blog/BlogRoutingTest.php` | echte verzoeken naar alle vijf de URL's, paginering, de slugredirect, en de CMS-only stand |
+| `tests/Blog/BlogTwoTest.php` | Blog 2.0 over echt HTTP: gearchiveerd overal, concept en toekomst niet bereikbaar, de editor met Gearchiveerd, een klassiek bericht dat een blok niet kan verbergen, de levensloop van blokken op een nieuw bericht (annuleren zonder wees, opslaan, volgorde, verwijderen, bericht verwijderen), rechten en vervalste eigenaars, omzetten heen en terug zonder verlies, hreflang |
+| `tests/Install/BlogContentBlocksMigrationTest.php` | migratie `20261011100000` op een blog zoals hij live staat: geen rij verandert, elk bericht `legacy`, RESTRICT-sleutels, nogmaals draaien, vers = geüpgraded (ook in `migration`) |
 | `tests/Blog/BlogPublishingTest.php` | de Blog op de Publishing Engine: de adapter, geweigerde en toegestane wijzigingen, sitemap met hreflang, `update-publication.php` over echt HTTP, de gedeelde velden in de editor |
 
 De HTTP-tests praten met `php_test`, die daarvoor `MODULE_BLOG_ENABLED=true`
@@ -497,8 +577,14 @@ Niet gebouwd, en niet gepland tenzij er een concrete aanleiding komt:
   aanbevelingen op basis van gedrag;
 - **een redactionele goedkeuringsstroom**, revisies, versiegeschiedenis,
   gelijktijdig bewerken;
-- **een eigen blogthema** of een paginabouwer per bericht — een bericht heeft
-  in V1 een rich-text-tekst, en dat is genoeg;
+- **een eigen blogthema**, en een Paginathema per bericht: thema's horen bij
+  gewone pagina's (`THEMING.md`); een bericht in blokken gebruikt Extra
+  vormgeving per blok. Een paginabouwer per bericht is er sinds Blog 2.0
+  wél: de gewone blokmotor, geen eigen;
+- **een generieke taxonomie**: categorieën en tags blijven van de Blog. De data
+  (de repositories met hun vertalingen) staat al los van de archiefroutes
+  (`BlogUrls`, `BlogTaxonomy`). Een gedeelde laag volgt pas als Articles 1.0
+  haar echt nodig heeft (`docs/publishing/ARCHITECTURE.md`, "Taxonomie");
 - **een contentblok** ("laatste berichten" op de homepage). Dat is een echte
   functie met echte ontwerpkeuzes; een half doordacht blok is erger dan geen;
 - **koppeling met producten** ("dit product hoort bij dit artikel").

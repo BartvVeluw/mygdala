@@ -357,7 +357,8 @@ module gebruikt wat er al is:
 Redactionele content op de Publishing Engine (de Blog, later Artikelen) doet
 precies dit. De engine levert alleen de regel wie in de sitemap mag: listed,
 dus geen concept, niets wat nog moet verschijnen en niets gearchiveerds. Een
-gearchiveerd adres antwoordt wel, als `noindex`. Hreflang komt uit de echt
+gearchiveerd adres antwoordt wel, als `noindex,follow` met zijn eigen
+canonical; het blogbericht doet dat sinds Blog 2.0 (`BlogSeo::forPost()`). Hreflang komt uit de echt
 bestaande taalversies van `Publishable::alternates()`
 ([`docs/publishing/ARCHITECTURE.md`](docs/publishing/ARCHITECTURE.md), "SEO,
 sitemap en hreflang"). Er is geen tweede SEO-model.

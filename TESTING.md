@@ -750,7 +750,11 @@ bloginstellingen (`BLOG.md`):
                         klok, middernacht en zomertijd, regels, register)
                         en BlogPublishingTest (adapter, geweigerde
                         wijzigingen, sitemap, update-publication.php over
-                        echt HTTP, de gedeelde velden)
+                        echt HTTP, de gedeelde velden), en Blog 2.0:
+                        BlogTwoTest (gearchiveerd, contentmodus, blokken
+                        op een bericht, omzetten, rechten) en
+                        BlogContentBlocksMigrationTest (ook in migration;
+                        ScratchInstall, ongeveer een minuut)
 --testsuite cms         als je aan de gedeelde SEO-, redirect- of
                         mediakant zat
 ```

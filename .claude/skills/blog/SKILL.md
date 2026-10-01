@@ -27,6 +27,7 @@ alleen nodig als je aan de modulegrens zelf werkt.
 | Admin-endpoints | `api/admin/*blog*.php` |
 | Publieke routes | `blog.php`, `blog-post.php`, `blog-feed.php` |
 | Frontend | `assets/css/blog/blog.css` |
+| Blokken | `BlogPostContentOwner` (`blog_post`, `blog.manage`), `BlogContentMode`, `BlogContentConversion`, `api/admin/update-blog-post-content-mode.php`; de bloklijst is `admin/_content_blocks.php` |
 | Publicatie | de gedeelde Publishing Engine `src/Service/Publishing/` (status, klok, zichtbaarheid, regels, `Publishable`), de adapter `src/Service/Blog/BlogPostPublishable.php`, de velden `admin/_publication_fields.php`, het endpoint `api/admin/update-publication.php` — `docs/publishing/ARCHITECTURE.md` |
 | Tests | `tests/Blog/`, plus `tests/Service/PublishingContractTest.php` |
 
@@ -42,6 +43,11 @@ alleen nodig als je aan de modulegrens zelf werkt.
 - **De publicatiecyclus heeft een klok.** Een ingepland bericht wordt zichtbaar
   door de tijd, niet door een cronjob. Ga daar geen tweede mechanisme naast
   bouwen.
+- **Een bericht toont één lichaam, gekozen door `content_mode`** (Blog 2.0):
+  `legacy` de klassieke tekst, `blocks` de contentblokken van zijn
+  inhoudspagina. Leid het nooit af uit of er blokken zijn, en schrijf in
+  blokmodus nooit de klassieke tekst weg (`BlogContentMode`,
+  `BlogContentConversion`, `BLOG.md`).
 - **Status, datum en zichtbaarheid zijn van de Publishing Engine.** Schrijf
   nooit zelf `status = 'published'` of `<> 'draft'` in een query: gebruik
   `PublicationVisibility::listedSql()`/`reachableSql()` en bind

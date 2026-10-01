@@ -362,21 +362,25 @@ login heeft, is een eigen ontwerp.
 
 ## Implementatieroute
 
-### Blog 2.0
+### Blog 2.0 (gebouwd in v0.1.15, fase 5)
 
-1. Bied `archived` aan (`BlogPostStatus::ALL`). Lees het eigen adres dan via
-   `reachableSql()`, met `noindex`. Overzichten, archieven, feed en sitemap
-   blijven via `listedSql()` lopen.
-2. Voeg optioneel een snelknop in het overzicht toe met
-   `admin_publication_card()` of een eigen knop naar
-   `update-publication.php`.
-3. Voeg contentblokken toe als `ContentOwner`, naast of in plaats van de
-   rich-text-tekst. Kies dit met een migratie die de bestaande tekst als
-   eerste blok overneemt.
-4. Verhuis categorieën en tags naar `ContentTaxonomy` met redirects en
-   bewijs vóór/na (zie *Taxonomie*).
+1. **Gedaan.** De Blog biedt `archived` aan (`BlogPostStatus::ALL`). Het eigen
+   adres leest via `reachableSql()`, met `noindex`. Overzichten, archieven,
+   feed, sitemap, zoeken en gerelateerd lopen via `listedSql()`.
+2. **Niet gebouwd.** Een snelknop in het overzicht (`admin_publication_card()`)
+   bleef achterwege: de editor heeft de velden, en het endpoint staat klaar.
+3. **Gedaan, maar anders dan hier eerst stond.** Contentblokken komen via
+   `BlogPostContentOwner`, met een **expliciete** `content_mode` en **zonder
+   massamigratie**. Een klassiek bericht houdt zijn tekst tot een redacteur het
+   omzet; omzetten maakt één Tekstblok per bericht en houdt de tekst
+   (`BLOG.md`, "Klassieke tekst en contentblokken").
+4. **Bewust uitgesteld.** De taxonomie blijft van de Blog (zie *Taxonomie*).
 
 ### Articles 1.0
+
+Kopieer het Blog 2.0-model, niet de Blog 1-geschiedenis: een eigen
+`ContentOwner` en vanaf het begin alleen blokken. Een `content_mode` is dan
+niet nodig, omdat er geen klassieke tekst is om te bewaren.
 
 1. Bouw een eigen module (`articles`, standaard uit) met eigen tabellen:
    `articles` met `status`, `published_at`, `author_name`,

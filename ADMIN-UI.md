@@ -251,6 +251,11 @@ en zet de vraag zelf op elk formulier dat moet vragen:
 | `admin_confirm_dialog()` | De dialoog: een native `<dialog>` met een kop, de uitleg, *Annuleren* en de knop die doorgaat. Eén keer per scherm |
 | `admin_confirm_attributes($titel, $uitleg, $knop)` | De vraag van één formulier, als `data-admin-confirm*`-attributen. Alles ge-escaped, dus de eigen titel van een blok mag erin. Een lege titel of knop laat *Weet je het zeker?* en *Doorgaan* staan |
 
+**Een vraag op een omzetting.** Hetzelfde patroon bevestigt ook een
+handeling die niet verwijdert maar wel zichtbaar iets verandert: de blog-editor
+vraagt het voordat een klassiek bericht naar contentblokken gaat (`BLOG.md`,
+"Klassieke tekst en contentblokken").
+
 **Eén knop die vraagt.** Heeft een formulier meer knoppen en moet er maar één
 vragen, zet dan dezelfde attributen op díe verzendknop in plaats van op het
 formulier (`<button type="submit" … <?= admin_confirm_attributes(…) ?>>`). Het
