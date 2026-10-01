@@ -11,9 +11,11 @@
    THE HEIGHT STEPS are the three of App\Service\Media\ImagePresentation
    (small = Compact, medium = Normaal, large = Groot), with one meaning on
    every screen (Responsive Media 3.1, MEDIA.md "Compact, Normaal, Groot"):
-   side by side a height that grows with the window, in one column (a tablet
-   and a phone) a shape at the column's full width, so a step never turns into
-   a smaller one on a tablet. Every length below is also a constant of
+   side by side a height that grows with the window, on a tablet (one column)
+   a shape at the column's full width, so a step never turns into a smaller
+   one there, and on a phone the fixed heights a phone always had (the tablet
+   bug Responsive Media 3.1 fixed never was a phone bug). Every length below
+   is also a constant of
    App\Service\TextImageSplitContent, which the CMS preview works out its
    frames from; Tests\Service\ImagePresentationContractTest keeps the two the
    same.
@@ -98,12 +100,11 @@
 .text-image__body--lead > p:first-child{ font-size: var(--fs-lead); max-width: 46ch; }
 .text-image__button{ margin-top: 1.5rem; }
 
-/* One column (TextImageSplitContent::STACK_MAX_WIDTH: a tablet and a phone):
-   the text leads, the picture follows at the column's full width in the
-   shape of its step. The same shape on a 768px tablet as on a 375px phone,
-   so Groot stays the largest and Compact the smallest; before Responsive
-   Media 3.1 these were fixed heights meant for a phone, which made every
-   step look a step smaller on a tablet. */
+/* One column (TextImageSplitContent::STACK_MAX_WIDTH: a tablet, and a phone
+   below): the text leads, the picture follows at the column's full width in
+   the shape of its step, so on a tablet Groot stays the largest and Compact
+   the smallest. Before Responsive Media 3.1 a tablet had the phone's fixed
+   heights, which made every step look a step smaller there. */
 @media (max-width: 860px){
   .text-image{ --text-image-item-gap: var(--sp-5); }
   .text-image .text-image__item{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
@@ -112,13 +113,22 @@
   .text-image .text-image__item .text-image__media{ order: 0; width: 100%; height: auto; aspect-ratio: var(--text-image-ratio); max-height: var(--text-image-stacked-max); }
 }
 
-/* A phone's own height for one item's picture (Responsive Media 2.0,
-   text_image_split_items.image_mobile_height; none is "automatic": the step
-   chosen for a large screen): the shape of that step, the same three as
-   above. A phone is at most 640px wide, the one breakpoint of
-   assets/css/responsive-media.css. */
+/* A phone (at most 640px, the one breakpoint of
+   assets/css/responsive-media.css): fixed, modest heights at the column's
+   full width, exactly as before Responsive Media 3.1
+   (TextImageSplitContent::PHONE_HEIGHTS). A phone's own height for one
+   item's picture (Responsive Media 2.0, text_image_split_items.
+   image_mobile_height, PHONE_OWN_HEIGHTS) is a choice of its own, and its
+   Groot is deliberately taller than the automatic one; none is "automatic":
+   the step chosen for a large screen. */
 @media (max-width: 640px){
-  .text-image .text-image__item--mobile-compact{ --text-image-ratio: var(--text-image-ratio-small); }
-  .text-image .text-image__item--mobile-normal{ --text-image-ratio: var(--text-image-ratio-medium); }
-  .text-image .text-image__item--mobile-large{ --text-image-ratio: var(--text-image-ratio-large); }
+  .text-image{
+    --text-image-height-small: 12rem;
+    --text-image-height-medium: 16rem;
+    --text-image-height-large: 20rem;
+  }
+  .text-image .text-image__item .text-image__media{ height: var(--text-image-height); aspect-ratio: auto; max-height: none; }
+  .text-image .text-image__item--mobile-compact{ --text-image-height: 12rem; }
+  .text-image .text-image__item--mobile-normal{ --text-image-height: 16rem; }
+  .text-image .text-image__item--mobile-large{ --text-image-height: 24rem; }
 }

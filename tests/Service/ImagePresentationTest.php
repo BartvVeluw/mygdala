@@ -128,5 +128,47 @@ final class ImagePresentationTest extends TestCase
         // And a frame key that is not a combination of the closed lists has no frame.
         self::assertArrayNotHasKey('50|huge|', TextImageSplitContent::editorFrames()['shapes']);
         self::assertInstanceOf(ResponsiveImageSlot::class, $slot);
+
+        // A forged phone height is automatic, never a step of its own.
+        foreach (['huge', '', '24rem', 'small', 'medium', 'LARGE'] as $forged) {
+            self::assertSame(['normal', ImagePresentation::AUTOMATIC], ImagePresentation::onPhone('medium', $forged), $forged);
+            self::assertSame(TextImageSplitContent::pictureSize('mobile', '50', 'medium'), TextImageSplitContent::pictureSize('mobile', '50', 'medium', $forged), $forged);
+        }
+    }
+
+    public function testAPhoneEitherFollowsTheBlockOrHasAStepOfItsOwn(): void
+    {
+        self::assertSame(['compact', ImagePresentation::AUTOMATIC], ImagePresentation::onPhone('small', null));
+        self::assertSame(['large', ImagePresentation::AUTOMATIC], ImagePresentation::onPhone('large', null));
+        self::assertSame([null, ImagePresentation::AUTOMATIC], ImagePresentation::onPhone('xlarge', null), 'not a step: the block decides');
+        foreach (ResponsiveImage::MOBILE_HEIGHTS as $own) {
+            foreach (['small', 'medium', 'large', 'xlarge'] as $stored) {
+                self::assertSame([$own, ImagePresentation::OWN], ImagePresentation::onPhone($stored, $own), "{$own} over {$stored}");
+            }
+        }
+    }
+
+    /**
+     * Responsive Media 3.1.1: wherever a choice is one of these three steps,
+     * the editor reads Compact, Normaal and Groot (Compact, Normal, Large),
+     * while the stored words stay small / medium / large.
+     */
+    public function testTheStepsReadCompactNormaalGrootEverywhere(): void
+    {
+        $words = [
+            'nl' => ['Compact', 'Normaal', 'Groot'],
+            'en' => ['Compact', 'Normal', 'Large'],
+        ];
+        foreach ($words as $language => $labels) {
+            $messages = require __DIR__ . '/../../src/Service/Language/messages/' . $language . '.php';
+            foreach (['block_textimage.hoogte_', 'block_media_banner.height_', 'block_pagehero.height_'] as $prefix) {
+                self::assertSame($labels, [$messages[$prefix . 'small'], $messages[$prefix . 'medium'], $messages[$prefix . 'large']], $language . ' ' . $prefix);
+            }
+            self::assertSame($labels, [
+                $messages['media.responsive.mobile_height_compact'],
+                $messages['media.responsive.mobile_height_normal'],
+                $messages['media.responsive.mobile_height_large'],
+            ], $language . ' phone height');
+        }
     }
 }

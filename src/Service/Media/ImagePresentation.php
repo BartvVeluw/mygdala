@@ -93,10 +93,37 @@ final class ImagePresentation
     /** A preview frame is this fraction of the picture's size on its reference screen. */
     public const FRAME_SCALE = 0.5;
 
+    /** A phone shows the step chosen for a large screen. */
+    public const AUTOMATIC = 'automatic';
+
+    /** A phone shows a step of its own (ResponsiveImage::MOBILE_HEIGHTS). */
+    public const OWN = 'own';
+
     /** The step a stored word means, or null for a word that is no step ('xlarge', '', none). */
     public static function step(?string $stored): ?string
     {
         return $stored !== null ? (self::STEP_OF[$stored] ?? null) : null;
+    }
+
+    /**
+     * What a phone shows: the step and who chose it. A phone's own height
+     * wins when it is a step; anything else (none, '', a forged word) is
+     * AUTOMATIC, the step of the block's own stored height. The two sources
+     * stay apart because a block may give them different lengths: a phone's
+     * own Groot of Tekst met afbeelding, the Mediabanner and the Paginakop is
+     * deliberately taller than the automatic one, as it was before
+     * Responsive Media 3.1. A step on a phone is never a step on a tablet:
+     * a phone's own height stops at ResponsiveImage::MOBILE_MAX_WIDTH.
+     *
+     * @return array{0: string|null, 1: string} the step (null when the block's word is no step), AUTOMATIC or OWN
+     */
+    public static function onPhone(?string $stored, ?string $phoneStored): array
+    {
+        $own = self::step($phoneStored);
+
+        return $own !== null && $phoneStored !== null && in_array($phoneStored, ResponsiveImage::MOBILE_HEIGHTS, true)
+            ? [$own, self::OWN]
+            : [self::step($stored), self::AUTOMATIC];
     }
 
     /** The width of the core container's content on a view's reference screen. */

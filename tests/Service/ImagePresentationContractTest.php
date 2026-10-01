@@ -17,9 +17,10 @@ use PHPUnit\Framework\TestCase;
  *
  *   - every length of a step a block's Content class works with is, letter
  *     for letter, what its stylesheet uses (one source, two readers);
- *   - on every reference screen the steps keep their order, and a tablet
- *     shows a step of Tekst met afbeelding in the same shape as a phone
- *     does, never a step smaller (the bug this phase fixed);
+ *   - on every reference screen the steps keep their order; a tablet shows
+ *     a step of Tekst met afbeelding in its shape, never a step smaller (the
+ *     bug 3.1 fixed), while a phone keeps the heights it had before 3.1,
+ *     automatic and its own (3.1.1), and a large screen is unchanged;
  *   - the CMS keeps no size table of its own: the editors hand the field
  *     the block's frames, and admin.css and responsive-image.js name no step;
  *   - the field offers Desktop, Tablet and Mobiel where the block knows them.
@@ -41,12 +42,17 @@ final class ImagePresentationContractTest extends TestCase
         }
         self::assertStringContainsString('--text-image-stacked-max: ' . TextImageSplitContent::STACKED_MAX . ';', $css);
         self::assertStringContainsString('@media (max-width: ' . TextImageSplitContent::STACK_MAX_WIDTH . 'px){', $css);
-        self::assertMatchesRegularExpression('/@media \(max-width: 860px\)\{[^@]*aspect-ratio: var\(--text-image-ratio\); max-height: var\(--text-image-stacked-max\)/s', $css, 'one column: a shape, not a fixed height');
-        self::assertStringNotContainsString('--text-image-height-small: 12rem', $css, 'no phone height left on a tablet');
-        // A phone's own height is the shape of the same step.
-        foreach (ResponsiveImage::MOBILE_HEIGHTS as $mobile) {
-            $height = self::heightOfStep($mobile, TextImageSplitContent::HEIGHTS);
-            self::assertStringContainsString('.text-image__item--mobile-' . $mobile . '{ --text-image-ratio: var(--text-image-ratio-' . $height . '); }', $css);
+        self::assertMatchesRegularExpression('/@media \(max-width: 860px\)\{[^@]*aspect-ratio: var\(--text-image-ratio\); max-height: var\(--text-image-stacked-max\)/s', $css, 'a tablet: a shape, not a fixed height');
+        preg_match('/@media \(max-width: 860px\)\{(.*?)\n\}/s', $css, $tablet);
+        self::assertStringNotContainsString('--text-image-height-small', $tablet[1], 'no phone height on a tablet');
+        // A phone: the fixed heights a phone had before Responsive Media 3.1.
+        self::assertSame(1, preg_match('/@media \(max-width: ' . ResponsiveImage::MOBILE_MAX_WIDTH . 'px\)\{(.*?)\n\}/s', $css, $phone));
+        foreach (TextImageSplitContent::PHONE_HEIGHTS as $height => $length) {
+            self::assertStringContainsString('--text-image-height-' . $height . ': ' . $length . ';', $phone[1]);
+        }
+        self::assertStringContainsString('.text-image__media{ height: var(--text-image-height); aspect-ratio: auto; max-height: none; }', $phone[1], 'a phone: a height, not a shape');
+        foreach (TextImageSplitContent::PHONE_OWN_HEIGHTS as $mobile => $length) {
+            self::assertStringContainsString('.text-image__item--mobile-' . $mobile . '{ --text-image-height: ' . $length . '; }', $phone[1]);
         }
 
         $css = self::css('assets/css/blocks/media-banner.css');
@@ -100,16 +106,19 @@ final class ImagePresentationContractTest extends TestCase
         self::assertStrictlyRising(array_map(static fn (string $m): float => PageHeroContent::frameSize('mobile', PageHeroContent::IMAGE_BACKGROUND, 'medium', $m)[1], ResponsiveImage::MOBILE_HEIGHTS), 'Paginakop, own phone height');
     }
 
-    public function testATabletShowsAStepOfTekstMetAfbeeldingInThePhonesShape(): void
+    public function testATabletShowsAStepOfTekstMetAfbeeldingInItsShape(): void
     {
         foreach (TextImageSplitContent::HEIGHTS as $height) {
             [$tabletWidth, $tabletHeight] = TextImageSplitContent::pictureSize('tablet', '50', $height);
-            [$phoneWidth, $phoneHeight] = TextImageSplitContent::pictureSize('mobile', '50', $height);
             self::assertSame((float) ImagePresentation::contentWidth('tablet'), $tabletWidth, 'one column: the full width');
-            // The same shape, unless a large picture reaches the cap (never a flatter, smaller-looking step).
-            self::assertGreaterThanOrEqual($tabletWidth / $tabletHeight - 0.08, $phoneWidth / $phoneHeight, $height);
-            self::assertEqualsWithDelta($phoneWidth / $phoneHeight, $tabletWidth / $tabletHeight, 0.06, $height);
+            if ($tabletHeight < ImagePresentation::length(TextImageSplitContent::STACKED_MAX, 'tablet')) {
+                self::assertEqualsWithDelta(ImagePresentation::ratio(TextImageSplitContent::STACKED_RATIOS[$height]), $tabletWidth / $tabletHeight, 0.001, $height);
+            }
         }
+        // Compact about 16:9, Normaal about 4:3, Groot square, at 704px wide.
+        self::assertSame([704.0, 396.0], TextImageSplitContent::pictureSize('tablet', '50', 'small'));
+        self::assertSame([704.0, 528.0], TextImageSplitContent::pictureSize('tablet', '50', 'medium'));
+        self::assertSame([704.0, 672.0], TextImageSplitContent::pictureSize('tablet', '50', 'large'), 'square up to the 42rem cap');
 
         // The reported bug: on a tablet large looked like normal, and normal like compact.
         $tablet = array_combine(TextImageSplitContent::HEIGHTS, array_map(static function (string $h): float {
@@ -126,20 +135,62 @@ final class ImagePresentationContractTest extends TestCase
         self::assertLessThan($desktop['small'], $tablet['medium'], 'medium on a tablet is no flat strip');
     }
 
-    public function testAPhonesOwnHeightIsTheSameStepAsTheBlocksOwn(): void
+    /**
+     * Responsive Media 3.1.1: a phone shows Tekst met afbeelding exactly as
+     * before 3.1 (27311e9): the column's full width (375 - 2 x 24 = 327px) at
+     * 12, 16 or 20rem automatic, and 12, 16 or 24rem as a phone's own height.
+     */
+    public function testAPhoneShowsTekstMetAfbeeldingAsItAlwaysDid(): void
     {
-        foreach (ResponsiveImage::MOBILE_HEIGHTS as $mobile) {
-            $height = self::heightOfStep($mobile, TextImageSplitContent::HEIGHTS);
+        $automatic = ['small' => 192.0, 'medium' => 256.0, 'large' => 320.0];
+        foreach ($automatic as $height => $px) {
+            foreach (TextImageSplitContent::COLUMNS as $column) {
+                self::assertSame([327.0, $px], TextImageSplitContent::pictureSize('mobile', $column, $height), "automatic {$height}, {$column}%");
+            }
+        }
+
+        $own = ['compact' => 192.0, 'normal' => 256.0, 'large' => 384.0];
+        foreach ($own as $mobile => $px) {
             foreach (TextImageSplitContent::HEIGHTS as $chosen) {
-                self::assertSame(
-                    TextImageSplitContent::pictureSize('mobile', '50', $height),
-                    TextImageSplitContent::pictureSize('mobile', '50', $chosen, $mobile),
-                    "{$mobile} on a phone is {$height}"
-                );
+                self::assertSame([327.0, $px], TextImageSplitContent::pictureSize('mobile', '50', $chosen, $mobile), "own {$mobile} whatever the large screen chose ({$chosen})");
             }
             // A tablet is no phone: the phone's own height does not reach it.
             self::assertSame(TextImageSplitContent::pictureSize('tablet', '50', 'medium'), TextImageSplitContent::pictureSize('tablet', '50', 'medium', $mobile));
+            self::assertSame(TextImageSplitContent::pictureSize('desktop', '50', 'medium'), TextImageSplitContent::pictureSize('desktop', '50', 'medium', $mobile));
         }
+
+        // The explicit Groot is its own, taller step, not the automatic one.
+        self::assertGreaterThan(TextImageSplitContent::pictureSize('mobile', '50', 'large')[1], TextImageSplitContent::pictureSize('mobile', '50', 'large', 'large')[1]);
+    }
+
+    public function testALargeScreenIsUnchanged(): void
+    {
+        // 1280 wide: (1136 - 64) x 50% beside the text, clamp() heights at 1280px.
+        self::assertEquals([536, 307.2], TextImageSplitContent::pictureSize('desktop', '50', 'small'));
+        self::assertEquals([536, 460.8], TextImageSplitContent::pictureSize('desktop', '50', 'medium'));
+        self::assertEquals([536, 640.0], TextImageSplitContent::pictureSize('desktop', '50', 'large'));
+    }
+
+    public function testTheCmsPreviewFramesComeFromTheSameSizes(): void
+    {
+        $shapes = TextImageSplitContent::editorFrames()['shapes'];
+        foreach (TextImageSplitContent::COLUMNS as $column) {
+            foreach (TextImageSplitContent::HEIGHTS as $height) {
+                foreach (array_merge([''], ResponsiveImage::MOBILE_HEIGHTS) as $mobile) {
+                    $expected = [];
+                    foreach (ImagePresentation::VIEWS as $view) {
+                        [$w, $h] = TextImageSplitContent::pictureSize($view, $column, $height, $mobile === '' ? null : $mobile);
+                        $expected += ImagePresentation::frame($view, $w, $h);
+                    }
+                    self::assertSame($expected, $shapes[$column . '|' . $height . '|' . $mobile]);
+                }
+            }
+        }
+        // Mobiel: the historic phone frames; Tablet: the shapes.
+        self::assertSame('327 / 320', $shapes['50|large|']['--admin-rm-mobile-ratio']);
+        self::assertSame('327 / 384', $shapes['50|medium|large']['--admin-rm-mobile-ratio']);
+        self::assertSame('704 / 672', $shapes['50|large|large']['--admin-rm-tablet-ratio']);
+        self::assertSame('704 / 396', $shapes['50|small|']['--admin-rm-tablet-ratio']);
     }
 
     public function testTheCmsKeepsNoSizeTableOfItsOwn(): void
@@ -242,17 +293,6 @@ final class ImagePresentationContractTest extends TestCase
         for ($i = 1, $n = count($values); $i < $n; $i++) {
             self::assertGreaterThan($values[$i - 1], $values[$i], $what . ': step ' . $i . ' is larger than the one before');
         }
-    }
-
-    /** @param list<string> $heights */
-    private static function heightOfStep(string $step, array $heights): string
-    {
-        foreach ($heights as $height) {
-            if (ImagePresentation::step($height) === $step) {
-                return $height;
-            }
-        }
-        self::fail('no height for ' . $step);
     }
 
     private static function css(string $relative): string

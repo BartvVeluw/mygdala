@@ -82,13 +82,16 @@ class TextImageSplitContent
      *
      *   wide (more than STACK_MAX_WIDTH): text and picture side by side; the
      *       picture is its share of the row wide and WIDE_HEIGHTS high
-     *   one column (STACK_MAX_WIDTH and less: a tablet and a phone): the
-     *       picture is the column's full width and has its step's shape,
-     *       STACKED_RATIOS, never taller than STACKED_MAX. A shape rather than
-     *       a fixed height, so a step looks the same on a 768px tablet as on
-     *       a 375px phone instead of a step smaller.
-     *   a phone's own height (ResponsiveImage::MOBILE_HEIGHTS) is the shape of
-     *       that step on a phone (MOBILE_MAX_WIDTH and less), nothing else.
+     *   a tablet (one column, STACK_MAX_WIDTH and less, above
+     *       MOBILE_MAX_WIDTH): the picture is the column's full width and has
+     *       its step's shape, STACKED_RATIOS, never taller than STACKED_MAX.
+     *       A shape rather than a phone's fixed height, so a step on a tablet
+     *       never looks a step smaller (Responsive Media 3.1).
+     *   a phone (MOBILE_MAX_WIDTH and less): the column's full width at the
+     *       fixed heights a phone always had, PHONE_HEIGHTS, or a phone's own
+     *       height, PHONE_OWN_HEIGHTS (ImagePresentation::onPhone() decides
+     *       which). Responsive Media 3.1.1 brought these back unchanged: the
+     *       tablet bug never was a phone bug.
      */
 
     /** Up to this window width an item is one column: its text, then its picture. */
@@ -113,6 +116,20 @@ class TextImageSplitContent
 
     /** --text-image-stacked-max: in one column never taller than the large step on a wide screen. */
     public const STACKED_MAX = '42rem';
+
+    /** @var array<string, string> --text-image-height-<step> on a phone, automatic */
+    public const PHONE_HEIGHTS = [
+        'small' => '12rem',
+        'medium' => '16rem',
+        'large' => '20rem',
+    ];
+
+    /** @var array<string, string> a phone's own height (ResponsiveImage::MOBILE_HEIGHTS) */
+    public const PHONE_OWN_HEIGHTS = [
+        'compact' => '12rem',
+        'normal' => '16rem',
+        'large' => '24rem',
+    ];
 
     /** What a new item starts with: picture on the right, as a new block always had it. */
     public const DEFAULTS = [
@@ -281,15 +298,18 @@ class TextImageSplitContent
             return [$width, ImagePresentation::length(self::WIDE_HEIGHTS[$height], $view)];
         }
 
-        // One column. A phone's own height is the shape of its step there.
-        $step = $height;
-        if ($window <= ResponsiveImage::MOBILE_MAX_WIDTH && $mobileHeight !== null) {
-            $step = self::heightOfStep((string) ImagePresentation::step($mobileHeight)) ?? $height;
+        // A phone: a fixed height, the automatic one or a phone's own.
+        if ($window <= ResponsiveImage::MOBILE_MAX_WIDTH) {
+            [$step, $source] = ImagePresentation::onPhone($height, $mobileHeight);
+            $length = $source === ImagePresentation::OWN ? self::PHONE_OWN_HEIGHTS[$step] : self::PHONE_HEIGHTS[$height];
+
+            return [(float) $content, ImagePresentation::length($length, $view)];
         }
 
+        // A tablet: the shape of the step, whatever a phone chose.
         return [
             (float) $content,
-            min($content / ImagePresentation::ratio(self::STACKED_RATIOS[$step]), ImagePresentation::length(self::STACKED_MAX, $view)),
+            min($content / ImagePresentation::ratio(self::STACKED_RATIOS[$height]), ImagePresentation::length(self::STACKED_MAX, $view)),
         ];
     }
 
@@ -321,18 +341,6 @@ class TextImageSplitContent
             'controls' => ['[data-tis-column]', '[data-tis-height]', '[data-rm-mobile-height]'],
             'shapes' => $shapes,
         ];
-    }
-
-    /** The HEIGHTS key of a step of ImagePresentation, or null. */
-    private static function heightOfStep(string $step): ?string
-    {
-        foreach (self::HEIGHTS as $height) {
-            if (ImagePresentation::step($height) === $step) {
-                return $height;
-            }
-        }
-
-        return null;
     }
 
     /**
