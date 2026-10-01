@@ -74,7 +74,7 @@ final class AdminAccessControlTest extends TestCase
         'block-preview.php', 'card-carousel.php', 'carousel-card.php', 'contact-card.php', 'contact-form.php',
         'cta-band.php', 'detail-section.php', 'faq.php', 'feature-grid.php', 'featured-product.php',
         'form-block.php', 'hover-card-grid.php', 'item-gallery.php', 'marquee.php', 'media-banner.php',
-        'project-cards.php', 'reviews.php', 'rich-text.php', 'spacer.php', 'stat-strip.php',
+        'project-cards.php', 'reviews.php', 'rich-text.php', 'shop-listing.php', 'spacer.php', 'stat-strip.php',
         'step-list.php', 'text-image-split.php',
     ];
 
@@ -93,7 +93,7 @@ final class AdminAccessControlTest extends TestCase
         'update-featured-product.php', 'update-form-block.php', 'update-hover-card-grid.php', 'update-item-gallery.php',
         'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php',
         'update-rich-text-section.php', 'update-spacer.php', 'update-stat-strip.php', 'update-step-list-section.php',
-        'update-text-image-split-section.php', 'update-reviews.php',
+        'update-text-image-split-section.php', 'update-reviews.php', 'update-shop-listing.php',
         // Extra vormgeving of one block instance, for every block type.
         'update-block-appearance.php',
         // Reads, never writes: the live picture of a gallery source for the
@@ -112,6 +112,9 @@ final class AdminAccessControlTest extends TestCase
         // helpers around fields the calling editor renders behind its own
         // permission check. No endpoint of its own.
         '_localized_fields.php',
+        // The three fields of a block's optional head (Bovenkop, Titel,
+        // Tekst), printed inside an editor behind its own checks.
+        '_block_head_fields.php',
         '_order_personalization.php',
         '_personalization_builder.php',
         // The website-statistics block on the dashboard: rendered by

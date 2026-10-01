@@ -23,7 +23,7 @@ require_once dirname(__DIR__, 2) . '/partials/related-products.php';
  *     heading is empty;
  *   - the card titles of a block keep one class whichever tag they get, so
  *     only the tag changes and never the look;
- *   - a block without a title of its own (Contactkaart, Collectietegels) and
+ *   - a block without a title of its own (Contactkaart) and
  *     the product cards the browser draws follow the same rule, the latter
  *     through their grid's data-card-heading, and the script accepts only
  *     h2 and h3;
@@ -40,12 +40,13 @@ final class CardHeadingContractTest extends TestCase
         'step_list' => 'process-step__title',
         'card_carousel' => 'orbit-card__title',
         'hover_card_grid' => 'hover-card__title',
+        // An optional head of its own since v0.1.15 (App\Service\Blocks\BlockHead).
+        'shop_collections' => 'collection-tile__name',
     ];
 
     /** Blocks that have no title of their own at all, and the class of the heading of each card. */
     private const UNTITLED_BLOCKS = [
         'contact_card' => 'contact-card__title',
-        'shop_collections' => 'collection-tile__name',
     ];
 
     /** The one h3 a block partial still writes itself: the specifications under a featured product's own h2. */
@@ -149,7 +150,9 @@ final class CardHeadingContractTest extends TestCase
 
     public function testTheProductCardsTakeTheirLevelFromTheirGrid(): void
     {
-        self::assertStringContainsString('data-card-heading="h2"', self::capture(static fn () => render_section_product_grid()), 'the Productraster has no title of its own');
+        self::assertStringContainsString('data-card-heading="h2"', self::capture(static fn () => render_section_product_grid()), 'a Productgrid without a head');
+        self::assertStringContainsString('data-card-heading="h2"', self::capture(static fn () => render_section_product_grid(['eyebrow' => 'Winkel', 'title' => '', 'lead' => 'Alles'])), 'a head without a title');
+        self::assertStringContainsString('data-card-heading="h3"', self::capture(static fn () => render_section_product_grid(['eyebrow' => '', 'title' => 'Alle producten', 'lead' => ''])), 'under a title of the Productgrid');
         self::assertStringContainsString('data-card-heading="h3"', self::capture(static fn () => render_related_products(['product_ids' => [1, 2], 'heading' => 'Meer zoals dit'])), 'under the related products\' heading');
         self::assertStringContainsString('data-card-heading="h2"', self::capture(static fn () => render_related_products(['product_ids' => [1, 2], 'heading' => ''])), 'related products without a heading');
 

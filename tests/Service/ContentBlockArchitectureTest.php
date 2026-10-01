@@ -98,7 +98,7 @@ final class ContentBlockArchitectureTest extends TestCase
             $del->execute(['id' => (int) $row['id']]);
         }
 
-        foreach (['page_heroes', 'cta_bands', 'feature_grids', 'faq_sections', 'stat_strips', 'step_list_sections', 'text_image_splits', 'marquee_sections', 'rich_text_sections', 'contact_form_sections', 'contact_cards', 'detail_sections', 'card_carousels', 'item_galleries'] as $table) {
+        foreach (['page_heroes', 'cta_bands', 'feature_grids', 'faq_sections', 'stat_strips', 'step_list_sections', 'text_image_splits', 'marquee_sections', 'rich_text_sections', 'contact_form_sections', 'contact_cards', 'detail_sections', 'card_carousels', 'item_galleries', 'shop_listing_blocks'] as $table) {
             // The block's words per language first, or they stay behind as orphans.
             \Tests\Support\BlockTextFixture::removeForPage($table, self::TEST_KEY);
             $del = $db->prepare("DELETE FROM {$table} WHERE page_slug = :key");
@@ -439,10 +439,11 @@ final class ContentBlockArchitectureTest extends TestCase
     /**
      * The Shop's product grid and collection tiles on an ordinary page: added
      * by hand, one per page, removable again, and never a reason to protect
-     * the page. Their page_sections row uses the page id as section_id (no
-     * content row of their own), so two pages each holding one never collide
-     * on UNIQUE(section_type, section_id), and the historical storefront's own
-     * row (section_id 0, the way the old install bootstrap attached it) is left
+     * the page. Since v0.1.15 each has a row of its own in
+     * shop_listing_blocks (its optional head, App\Service\Blocks\ShopListingBlock):
+     * the page_sections row points at it, deleting the block deletes it, and
+     * a storefront row the old way (section_id 0, as the old install bootstrap
+     * attached it, which db/migrations/20261015100000 converts) is left
      * exactly as it was.
      *
      * @dataProvider shopBlocksWithoutContent
@@ -451,6 +452,11 @@ final class ContentBlockArchitectureTest extends TestCase
     {
         $storefront = $this->pages->findByContentKey('shop');
         $historicalId = $this->historicalStorefrontRow($type, (int) $storefront['id']);
+        $storefrontRows = static fn (): array => array_values(array_filter(
+            (new PageSectionRepository())->findForPage((int) $storefront['id']),
+            static fn (array $r): bool => $r['section_type'] === $type
+        ));
+        $before = $storefrontRows();
 
         try {
             $page = $this->testPage();
@@ -458,8 +464,9 @@ final class ContentBlockArchitectureTest extends TestCase
 
             $id = $this->addBlock($type);
             $row = $this->sections->findById($id);
-            $this->assertSame($this->pageId, (int) $row['section_id']);
-            $this->assertNull($row['section_key']);
+            $listing = (new \App\Repository\ShopListingRepository())->findBySlugAndKey(self::TEST_KEY, (string) $row['section_key']);
+            $this->assertNotNull($listing, 'its own row');
+            $this->assertSame((int) $listing['id'], (int) $row['section_id']);
 
             $this->assertArrayNotHasKey(
                 $type,
@@ -472,15 +479,14 @@ final class ContentBlockArchitectureTest extends TestCase
             $this->assertNull($this->sections->findById($id));
             $this->assertArrayHasKey($type, SectionRegistry::availableForPage($this->testPage(), $this->sections), 'and it can be placed again');
 
-            $again = $this->sections->findById($this->addBlock($type));
-            $this->assertSame($this->pageId, (int) $again['section_id']);
+            $this->assertNull((new \App\Repository\ShopListingRepository())->findBySlugAndKey(self::TEST_KEY, (string) $row['section_key']), 'its row goes with it');
 
-            $onStorefront = array_values(array_filter(
-                $this->sections->findForPage((int) $storefront['id']),
-                static fn (array $r): bool => $r['section_type'] === $type
-            ));
+            $again = $this->sections->findById($this->addBlock($type));
+            $this->assertNotSame((int) $row['section_id'], (int) $again['section_id'], 'a new row');
+
+            $onStorefront = $storefrontRows();
             $this->assertCount(1, $onStorefront, 'the storefront keeps its own block, and only that one');
-            $this->assertSame(0, (int) $onStorefront[0]['section_id']);
+            $this->assertSame($before, $onStorefront, 'exactly as it was');
         } finally {
             if ($historicalId !== null) {
                 $this->sections->delete($historicalId);

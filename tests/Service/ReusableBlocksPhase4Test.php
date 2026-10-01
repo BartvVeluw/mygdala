@@ -359,30 +359,34 @@ final class ReusableBlocksPhase4Test extends TestCase
 
     public function testTheSourceModelIsAnExplicitClosedList(): void
     {
-        // Two sources, and each one owned by whoever owns the content behind
-        // it: portfolio items are the Portfolio's
-        // (App\Module\PortfolioModule::itemGallerySources()), a collection of
-        // products is the Shop's. Still a closed list, still not a query builder.
+        // Two sources, each owned by whoever owns the content behind it and
+        // each belonging to ONE block (v0.1.15): portfolio items are the
+        // Portfolio's, for Projecten; a collection of products is the Shop's,
+        // for the Collectiegalerij. Still a closed list, not a query builder.
         $this->assertSame(
             ['portfolio', 'collection'],
             array_keys(ItemGallerySources::available()),
-            'this block ships exactly two sources; a third is one entry in its owner, not a query builder'
+            'exactly two sources; a third is one entry in its owner, not a query builder'
         );
 
         $this->assertSame('portfolio', ItemGallerySources::moduleOwnerOf(PortfolioModule::GALLERY_SOURCE));
         $this->assertSame('shop', ItemGallerySources::moduleOwnerOf(ShopModule::GALLERY_SOURCE_COLLECTION));
+        $this->assertSame(['collection'], array_keys(ItemGallerySources::availableFor('item_gallery')));
+        $this->assertSame(['portfolio'], array_keys(ItemGallerySources::availableFor('project_cards')));
 
-        $this->assertTrue(ItemGalleryContent::isSource(PortfolioModule::GALLERY_SOURCE));
-        $this->assertTrue(ItemGalleryContent::isSource(ShopModule::GALLERY_SOURCE_COLLECTION));
-        $this->assertFalse(ItemGalleryContent::isSource('products'));
-        $this->assertFalse(ItemGalleryContent::isSource('__nope__'));
+        $this->assertTrue(ItemGalleryContent::isSource('item_gallery', ShopModule::GALLERY_SOURCE_COLLECTION));
+        $this->assertFalse(ItemGalleryContent::isSource('item_gallery', PortfolioModule::GALLERY_SOURCE), 'the Collectiegalerij never shows projects');
+        $this->assertTrue(ItemGalleryContent::isSource('project_cards', PortfolioModule::GALLERY_SOURCE));
+        $this->assertFalse(ItemGalleryContent::isSource('project_cards', ShopModule::GALLERY_SOURCE_COLLECTION));
+        $this->assertFalse(ItemGalleryContent::isSource('item_gallery', 'products'));
+        $this->assertFalse(ItemGalleryContent::isSource('item_gallery', '__nope__'));
         $this->assertFalse(ItemGalleryContent::isPortfolioScope('__nope__'));
         $this->assertFalse(ItemGalleryContent::isBackground('__nope__'));
     }
 
     public function testThePortfolioSourceYieldsTheCatalogueItems(): void
     {
-        [$blockId, $sectionKey] = $this->addBlock('item_gallery');
+        [$blockId, $sectionKey] = $this->addBlock('project_cards');
         $this->configure($sectionKey, ['source_type' => PortfolioModule::GALLERY_SOURCE]);
 
         $expected = PortfolioGalleryContent::catalogueItems(false);
@@ -519,22 +523,18 @@ final class ReusableBlocksPhase4Test extends TestCase
 
     public function testAnInvalidSourceIsRefusedInsteadOfExecuted(): void
     {
-        // The save endpoint validates against the closed lists BEFORE
-        // writing: the source itself, and the scope through
-        // ItemGallerySelection, which the Projecten editor shares.
+        // The save endpoint validates against the closed list of this
+        // block's sources BEFORE writing; the scope is Projecten's, checked
+        // through ItemGallerySelection by its own endpoint.
         $endpoint = $this->sourceOf('api/admin/update-item-gallery.php');
-        $this->assertStringContainsString('ItemGalleryContent::isSource(', $endpoint);
-        $this->assertStringContainsString('ItemGallerySelection::fromRequest(', $endpoint);
+        $this->assertStringContainsString("ItemGalleryContent::isSource('item_gallery', ", $endpoint);
+        $this->assertStringNotContainsString('ItemGallerySelection::fromRequest(', $endpoint, 'a collection has no choice of items');
+        $this->assertStringContainsString('ItemGallerySelection::fromRequest(', $this->sourceOf('api/admin/update-project-cards.php'));
         $this->assertStringContainsString('ItemGalleryContent::isPortfolioScope(', $this->sourceOf('src/Service/ItemGallerySelection.php'));
         $this->assertLessThan(
             strpos($endpoint, '->upsertSection('),
-            strpos($endpoint, 'ItemGalleryContent::isSource('),
+            strpos($endpoint, "ItemGalleryContent::isSource('item_gallery', "),
             'the source must be validated before it is stored'
-        );
-        $this->assertLessThan(
-            strpos($endpoint, '->upsertSection('),
-            strpos($endpoint, 'ItemGallerySelection::fromRequest('),
-            'the scope must be validated before it is stored'
         );
 
         // And a value that got into the database anyway (a hand-edited row)
@@ -555,8 +555,10 @@ final class ReusableBlocksPhase4Test extends TestCase
 
         $content = ItemGalleryContent::forSection(self::TEST_KEY, $sectionKey);
 
-        // The first source an enabled module offers: portfolio items, here.
-        $this->assertSame(PortfolioModule::GALLERY_SOURCE, $content['source_type']);
+        // No source is guessed for it: every source belongs to one block, and
+        // this row does not say which. It shows nothing.
+        $this->assertSame('', $content['source_type']);
+        $this->assertSame([], $content['items']);
         $this->assertSame(ItemGalleryContent::SCOPE_ALL, $content['portfolio_scope']);
         $this->assertSame('default', $content['background']);
         $this->assertIsString($this->renderBlock($blockId));
@@ -568,7 +570,7 @@ final class ReusableBlocksPhase4Test extends TestCase
     {
         $this->categorisedPortfolioItem();
 
-        [$blockId, $sectionKey] = $this->addBlock('item_gallery');
+        [$blockId, $sectionKey] = $this->addBlock('project_cards');
 
         $this->configure($sectionKey, ['show_filter_bar' => true]);
         $this->assertStringContainsString('filter-bar', $this->renderBlock($blockId));
@@ -692,8 +694,8 @@ final class ReusableBlocksPhase4Test extends TestCase
     {
         $this->categorisedPortfolioItem();
 
-        [$firstId, $firstKey] = $this->addBlock('item_gallery');
-        [$secondId, $secondKey] = $this->addBlock('item_gallery');
+        [$firstId, $firstKey] = $this->addBlock('project_cards');
+        [$secondId, $secondKey] = $this->addBlock('project_cards');
 
         $this->configure($firstKey, [
             'show_filter_bar' => true,
@@ -738,7 +740,7 @@ final class ReusableBlocksPhase4Test extends TestCase
         $firstRow = $this->sections->findById($firstId);
         $secondRow = $this->sections->findById($secondId);
         $this->assertNotSame(SectionRegistry::editUrl($firstRow), SectionRegistry::editUrl($secondRow));
-        $this->assertStringContainsString('/admin/item-gallery.php?section=', (string) SectionRegistry::editUrl($firstRow));
+        $this->assertStringContainsString('/admin/project-cards.php?section=', (string) SectionRegistry::editUrl($firstRow));
     }
 
     public function testAnEmptySourceLeavesNoGapOnThePage(): void
@@ -756,7 +758,7 @@ final class ReusableBlocksPhase4Test extends TestCase
             $this->markTestSkipped('no visible portfolio items in this database');
         }
 
-        [$blockId, $sectionKey] = $this->addBlock('item_gallery');
+        [$blockId, $sectionKey] = $this->addBlock('project_cards');
 
         $this->configure($sectionKey, ['is_active' => false]);
         $this->assertSame(

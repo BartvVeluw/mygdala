@@ -27,7 +27,14 @@ use PHPUnit\Framework\TestCase;
 final class BlockSearchContractTest extends TestCase
 {
     /** Blocks without words of their own: nothing to find them by. */
-    private const NO_OWN_WORDS = ['spacer', 'quicknav', 'shop_collections', 'product_grid', 'media_banner', 'project_images'];
+    private const NO_OWN_WORDS = ['spacer', 'quicknav', 'media_banner', 'project_images'];
+
+    /**
+     * Blocks that list another module's records and offer ONLY their own head
+     * (App\Service\Blocks\BlockHead, v0.1.15): never a product's or a
+     * collection's words.
+     */
+    private const OWN_HEAD_ONLY = ['product_grid', 'shop_collections'];
 
     protected function setUp(): void
     {
@@ -83,6 +90,14 @@ final class BlockSearchContractTest extends TestCase
             $this->assertNotNull($definition, $type);
             $offered = array_filter(array_merge([], ...array_values($definition->searchFields())), static fn (string $role): bool => $role !== BlockSearchRole::NONE);
             $this->assertSame([], $offered, $type . ' has no words of its own to offer');
+        }
+
+        foreach (self::OWN_HEAD_ONLY as $type) {
+            $this->assertSame(
+                ['shop_listing_blocks' => ['eyebrow' => BlockSearchRole::TEXT, 'title' => BlockSearchRole::HEADING, 'lead' => BlockSearchRole::TEXT]],
+                BlockDefinitions::get($type)->searchFields(),
+                $type . ' offers its own head and nothing it lists'
+            );
         }
 
         $this->assertTrue(BlockDefinitions::get('spacer')->isDecorative());

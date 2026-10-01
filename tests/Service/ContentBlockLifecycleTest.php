@@ -334,14 +334,25 @@ final class ContentBlockLifecycleTest extends TestCase
     {
         $page = $this->page();
 
-        // The portfolio source, all projects: a dynamic block with a valid
-        // source is content, whatever the portfolio holds today.
-        [, $portfolio] = $this->placed($page, 'item_gallery', 'portfolio');
-        $this->assertFalse(SectionRegistry::isEmpty($portfolio));
+        // Projecten on all projects: a dynamic block with a valid source is
+        // content, whatever the portfolio holds today.
+        [, $projects] = $this->placed($page, 'project_cards');
+        $this->assertFalse(SectionRegistry::isEmpty($projects));
 
-        // A collection gallery without its collection has nothing to show.
-        [, $collection] = $this->placed($page, 'item_gallery', 'collection');
-        $this->assertTrue(SectionRegistry::isEmpty($collection));
+        // A Collectiegalerij without its collection has nothing to show; with
+        // one it is content, whatever the collection holds today.
+        [, $gallery] = $this->placed($page, 'item_gallery');
+        $this->assertTrue(SectionRegistry::isEmpty($gallery));
+
+        $collections = new \App\Repository\CollectionRepository();
+        $collection = $collections->create(['slug' => 'zz-lifecycle-' . bin2hex(random_bytes(4)), 'image_path' => null, 'is_active' => true]);
+        try {
+            \App\Database::connection()->prepare('UPDATE item_galleries SET collection_id = ? WHERE id = ?')->execute([$collection, (int) $gallery['section_id']]);
+            \App\Service\ItemGalleryContent::clearCache();
+            $this->assertFalse(SectionRegistry::isEmpty($gallery));
+        } finally {
+            $collections->delete($collection);
+        }
     }
 
     public function testAHiddenBlockIsNotCalledEmpty(): void
@@ -372,9 +383,9 @@ final class ContentBlockLifecycleTest extends TestCase
      *
      * @return array{0: int, 1: array<string, mixed>} the page_sections id and row
      */
-    private function placed(array $page, string $type, ?string $preset = null): array
+    private function placed(array $page, string $type): array
     {
-        $draft = ContentBlockDrafts::open($page, $type, $preset);
+        $draft = ContentBlockDrafts::open($page, $type);
         $row = ContentBlockDrafts::place($type, (int) $draft['section_id']);
         $this->assertNotNull($row);
 

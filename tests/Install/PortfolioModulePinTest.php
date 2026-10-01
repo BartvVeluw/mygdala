@@ -88,6 +88,9 @@ final class PortfolioModulePinTest extends TestCase
 
         // Only a category, no item: somebody started building a portfolio.
         $pdo->exec('DELETE FROM module_settings');
+        // Since Portfolio 3.0 (20261014100000) every item has a content page,
+        // whose link row holds the item (RESTRICT): that link goes first.
+        $pdo->exec('DELETE FROM portfolio_content_pages');
         $pdo->exec('DELETE FROM portfolio_gallery_items');
         // Caught up past 20260918170000, so a category's NAME is a row in
         // portfolio_category_translations, not a column here.

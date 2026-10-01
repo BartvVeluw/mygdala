@@ -359,15 +359,16 @@ final class PortfolioModuleTest extends TestCase
     /* The gallery block                                                   */
     /* ------------------------------------------------------------------ */
 
-    public function testPortfolioItemsAreAGallerySourceOnlyWhileTheModuleRuns(): void
+    public function testPortfolioItemsAreProjectensSourceOnlyWhileTheModuleRuns(): void
     {
         $this->withPortfolio(true);
         $this->assertTrue(ItemGallerySources::isAvailable(PortfolioModule::GALLERY_SOURCE));
-        $this->assertSame(
-            PortfolioModule::GALLERY_SOURCE,
-            ItemGallerySources::defaultSource(),
-            'a new gallery block still starts as the portfolio grid'
-        );
+        $this->assertSame(PortfolioModule::GALLERY_SOURCE, ItemGallerySources::defaultSourceFor('project_cards'));
+        $this->assertTrue(ItemGallerySources::belongsTo(PortfolioModule::GALLERY_SOURCE, 'project_cards'));
+        // Never the Shop's Collectiegalerij's (v0.1.15).
+        $this->assertFalse(ItemGallerySources::belongsTo(PortfolioModule::GALLERY_SOURCE, 'item_gallery'));
+        $this->assertFalse(ItemGallerySources::isAvailableFor('item_gallery', PortfolioModule::GALLERY_SOURCE));
+        $this->assertNotContains(PortfolioModule::GALLERY_SOURCE, array_keys(ItemGallerySources::availableFor('item_gallery')));
         $this->assertTrue(ItemGallerySources::needsScope(PortfolioModule::GALLERY_SOURCE));
 
         $this->withPortfolio(false);
@@ -379,26 +380,25 @@ final class PortfolioModuleTest extends TestCase
         $this->assertSame('portfolio', ItemGallerySources::moduleOwnerOf(PortfolioModule::GALLERY_SOURCE));
         $this->assertSame([], ItemGallerySources::items(PortfolioModule::GALLERY_SOURCE, ['portfolio_scope' => 'all']));
         $this->assertSame([], ItemGallerySources::filterCategories(PortfolioModule::GALLERY_SOURCE));
-        $this->assertNotSame(PortfolioModule::GALLERY_SOURCE, ItemGallerySources::defaultSource());
+        $this->assertSame('', ItemGallerySources::defaultSourceFor('project_cards'));
     }
 
     /**
-     * With neither the Portfolio nor the Shop there is nothing a gallery block
-     * could show, so the picker does not offer one. The block type itself is
-     * Core and stays registered, so every existing instance keeps its settings
-     * for the day a module comes back.
+     * The gallery is the Shop's Collectiegalerij since v0.1.15: the Portfolio
+     * running gives it nothing to show and does not bring it back. With the
+     * Shop off it is not registered; with the Shop on it is, whatever the
+     * Portfolio does.
      */
-    public function testTheGalleryBlockIsNotOfferedWhenNoModuleHasASource(): void
+    public function testTheGalleryFollowsTheShopNotThePortfolio(): void
     {
-        $this->withPortfolio(false, shop: false);
-
-        $this->assertSame([], ItemGallerySources::available());
-        $this->assertSame('', ItemGallerySources::defaultSource());
-        $this->assertTrue(SectionRegistry::exists('item_gallery'));
-        $this->assertFalse(SectionRegistry::isManuallyAddable('item_gallery'));
-
         $this->withPortfolio(true, shop: false);
+        $this->assertFalse(SectionRegistry::exists('item_gallery'));
+        $this->assertSame([], ItemGallerySources::availableFor('item_gallery'));
+        $this->assertSame('shop', SectionRegistry::disabledModuleFor('item_gallery'));
+
+        $this->withPortfolio(false, shop: true);
         $this->assertTrue(SectionRegistry::isManuallyAddable('item_gallery'));
+        $this->assertSame('collection', ItemGallerySources::defaultSourceFor('item_gallery'));
     }
 
     /* ------------------------------------------------------------------ */
@@ -422,7 +422,7 @@ final class PortfolioModuleTest extends TestCase
         $this->assertTrue(SectionRegistry::isManuallyAddable('project_cards'));
         $this->assertTrue(SectionRegistry::allowMultiple('project_cards'));
         $this->assertSame('Projecten', (new ProjectCardsBlock())->meta()['label']);
-        $this->assertSame(BlockCategories::PORTFOLIO, (new ProjectCardsBlock())->category(), 'in the Portfolio drawer, beside the Portfoliogalerij card');
+        $this->assertSame(BlockCategories::PORTFOLIO, (new ProjectCardsBlock())->category(), 'in the Portfolio drawer');
 
         $this->withPortfolio(false);
 
@@ -432,15 +432,17 @@ final class PortfolioModuleTest extends TestCase
         $this->assertSame('portfolio', SectionRegistry::disabledModuleFor('project_cards'), 'a switched-off part, not broken data');
         $this->assertTrue(
             SectionRegistry::isManuallyAddable('item_gallery'),
-            'the gallery is Core, and with the Shop on it still has a source to offer'
+            'the Collectiegalerij is the Shop\'s, and the Shop is on'
         );
     }
 
     /**
      * Whatever a save hands it, a Projecten row names the Portfolio's source
      * and none of the gallery settings this block leaves out, so no request
-     * can turn it into a collection gallery or give it a zoom, a fallback link
-     * or a button nobody could switch off again.
+     * can turn it into a collection gallery or give it a zoom or a fallback
+     * link nobody could switch off again. The button and the legacy
+     * `tight_top` are what the caller hands over: its editor offers the
+     * button, and its endpoint passes the stored `tight_top`.
      */
     public function testAProjectsRowAlwaysNamesThePortfolioAndNoGallerySettingItLeavesOut(): void
     {
@@ -467,24 +469,23 @@ final class PortfolioModuleTest extends TestCase
         $this->assertSame(PortfolioModule::GALLERY_SOURCE, $row['source_type']);
         $this->assertNull($row['collection_id']);
         $this->assertFalse($row['enable_lightbox']);
-        $this->assertFalse($row['tight_top']);
-        foreach (['fallback_link_url', 'button_url'] as $leftOut) {
-            $this->assertSame('', $row[$leftOut], $leftOut);
-        }
+        $this->assertTrue($row['tight_top']);
+        $this->assertSame('', $row['fallback_link_url']);
+        $this->assertSame('/elders', $row['button_url']);
         foreach (['button_label_nl', 'eyebrow_nl', 'footer_note_nl', 'title_nl', 'lead_nl'] as $words) {
             $this->assertArrayNotHasKey($words, $row, 'the words are stored per website language, not in the row');
         }
 
-        // The words of one language: the title and the lead, and every other
-        // gallery word empty, whatever a crafted request carries.
+        // The words of one language: the five of the table, each from the
+        // editor or empty, and nothing else.
         $this->assertSame(
-            ['eyebrow' => '', 'title' => 'Werk', 'lead' => 'Een greep', 'footer_note' => '', 'button_label' => ''],
+            ['eyebrow' => 'Boven', 'title' => 'Werk', 'lead' => 'Een greep', 'footer_note' => '', 'button_label' => 'Klik'],
             ProjectCardsBlock::rowWords([
                 'title' => 'Werk',
                 'lead' => 'Een greep',
                 'eyebrow' => 'Boven',
-                'footer_note' => 'Onder',
                 'button_label' => 'Klik',
+                'subtitle' => 'Niet van deze tabel',
             ])
         );
 

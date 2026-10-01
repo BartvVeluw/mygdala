@@ -278,6 +278,8 @@ final class ShopDisabledTest extends TestCase
         $this->assertSame('shop', SectionRegistry::disabledModuleFor('product_grid'));
         $this->assertSame('shop', SectionRegistry::disabledModuleFor('shop_collections'));
         $this->assertSame('shop', SectionRegistry::disabledModuleFor('featured_product'));
+        // The Collectiegalerij is the Shop's since v0.1.15.
+        $this->assertSame('shop', SectionRegistry::disabledModuleFor('item_gallery'));
         $this->assertNull(SectionRegistry::disabledModuleFor('__never_shipped__'));
         $this->assertNull(SectionRegistry::disabledModuleFor('rich_text'), 'a registered Core block is not "disabled"');
 
@@ -292,11 +294,15 @@ final class ShopDisabledTest extends TestCase
             [
                 'homepage_hero', 'page_hero', 'rich_text', 'cta_band', 'feature_grid', 'faq', 'stat_strip',
                 'step_list', 'text_image_split', 'marquee', 'contact_form', 'contact_card', 'detail_section',
-                'card_carousel', 'item_gallery', 'quicknav',
+                'card_carousel', 'quicknav',
             ] as $type
         ) {
             $this->assertTrue(BlockDefinitions::has($type), $type . ' is a Core block and must stay');
         }
+
+        // The Collectiegalerij shows only a collection's products, so it is
+        // the Shop's block (v0.1.15) and goes with it; its rows stay.
+        $this->assertFalse(BlockDefinitions::has('item_gallery'));
     }
 
     public function testTheCollectionGallerySourceIsNotSelectableWhileTheShopIsOff(): void
@@ -304,7 +310,8 @@ final class ShopDisabledTest extends TestCase
         $this->withShopOff();
 
         $this->assertSame(['portfolio'], array_keys(ItemGallerySources::available()));
-        $this->assertFalse(ItemGalleryContent::isSource(ShopModule::GALLERY_SOURCE_COLLECTION));
+        $this->assertSame([], ItemGallerySources::availableFor('item_gallery'));
+        $this->assertFalse(ItemGalleryContent::isSource('item_gallery', ShopModule::GALLERY_SOURCE_COLLECTION));
         $this->assertFalse(ItemGallerySources::isAvailable(ShopModule::GALLERY_SOURCE_COLLECTION));
 
         // Still KNOWN, so an existing block that names it is preserved and

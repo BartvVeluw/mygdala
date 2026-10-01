@@ -148,7 +148,10 @@ final class LegacyUpgradeTest extends TestCase
             $perPage['diensten'] ?? []
         );
         $this->assertSame(['page_hero', 'contact_form', 'contact_card'], $perPage['contact'] ?? []);
-        $this->assertSame(['page_hero', 'item_gallery', 'cta_band'], $perPage['portfolio'] ?? []);
+        // The old Portfolio grid became a gallery block (20260908290000) and,
+        // being on portfolio items, a Projecten block in v0.1.15
+        // (20261015110000), in place.
+        $this->assertSame(['page_hero', 'project_cards', 'cta_band'], $perPage['portfolio'] ?? []);
         $this->assertSame(
             ['page_hero', 'text_image_split', 'feature_grid', 'text_image_split'],
             $perPage['over-mij'] ?? []

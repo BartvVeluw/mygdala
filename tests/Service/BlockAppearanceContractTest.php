@@ -54,6 +54,10 @@ final class BlockAppearanceContractTest extends TestCase
         'hover_card_grid' => [true, true, true, ['glow', 'pattern']],
         'detail_section' => [true, true, true, ['glow', 'pattern']],
         'featured_product' => [true, true, true, ['glow', 'pattern']],
+        // The Shop's listings with their optional head (v0.1.15): a grid of
+        // things to click, so no sparks moving behind it.
+        'product_grid' => [true, true, true, ['glow', 'pattern']],
+        'shop_collections' => [true, true, true, ['glow', 'pattern']],
         'form' => [true, true, true, ['glow', 'pattern']],
         // Reviews 1.0: every effect; the carousel's stylesheet leaves the
         // sparks out behind its moving strip (reviews.css).
@@ -300,11 +304,18 @@ final class BlockAppearanceContractTest extends TestCase
 
         $definition = BlockDefinitions::get($type);
         $sample = $definition->sampleContent(new BlockSamples());
-        $this->assertNotNull($sample, "{$type} has a sample");
 
         ob_start();
         try {
-            $definition->renderSample($sample, $type . '-preview');
+            if ($sample !== null) {
+                $definition->renderSample($sample, $type . '-preview');
+            } else {
+                // The one block without a sample (the Productgrid, whose cards
+                // the browser draws): rendered as it is without a row of its
+                // own, which reads nothing from the database.
+                $this->assertSame('product_grid', $type, "{$type} has a sample");
+                $definition->render(['id' => 0, 'section_type' => $type, 'page_slug' => '', 'section_key' => '', 'section_id' => 0], false, $type . '-preview');
+            }
         } finally {
             $html = (string) ob_get_clean();
         }

@@ -71,12 +71,19 @@ final class ContentBlockLifecycleContractTest extends TestCase
             preg_match('~^/admin/([a-z-]+)\.php~', (string) $url, $editorMatch);
 
             $editor = $this->source('admin/' . $editorMatch[1] . '.php');
-            $this->assertStringContainsString("block_editor_draft_notice('{$type}', \$csrfToken)", $editor, "{$type}: its editor says it is new and offers Annuleren");
+            // One editor may serve the types that share a table (the Shop's
+            // listings): it then names the type it found from its own closed
+            // list of type keys, and passes that on.
+            $shared = str_contains($editor, "'{$type}'") && str_contains($editor, 'block_editor_draft_notice($type, $csrfToken)');
+            $this->assertTrue($shared || str_contains($editor, "block_editor_draft_notice('{$type}', \$csrfToken)"), "{$type}: its editor says it is new and offers Annuleren");
 
             $this->assertSame(1, preg_match('~<form method="post" action="/api/admin/(update-[a-z-]+\.php)"~', $editor, $actionMatch), "{$type}: one save form");
             $endpoint = $this->source('api/admin/' . $actionMatch[1]);
 
             $place = strpos($endpoint, "ContentBlockDrafts::place('{$type}', ");
+            if ($place === false && $shared && str_contains($endpoint, "'{$type}'")) {
+                $place = strpos($endpoint, 'ContentBlockDrafts::place($type, ');
+            }
             $this->assertNotFalse($place, "{$actionMatch[1]} places a new {$type}");
             $this->assertLessThan((int) strpos($endpoint, '$db->commit();'), $place, "{$actionMatch[1]}: inside the save's transaction");
             $this->assertGreaterThan((int) strpos($endpoint, '$db->beginTransaction();'), $place, "{$actionMatch[1]}: inside the save's transaction");
@@ -91,11 +98,14 @@ final class ContentBlockLifecycleContractTest extends TestCase
 
     public function testOnlyBlocksWithoutAFreshRowOfTheirOwnArePlacedAtOnce(): void
     {
-        foreach (['page_hero', 'homepage_hero', 'product_grid', 'shop_collections', 'project_images'] as $type) {
+        foreach (['page_hero', 'homepage_hero', 'project_images'] as $type) {
             $this->assertFalse(SectionRegistry::opensAsDraft($type), $type);
         }
 
-        foreach (['rich_text', 'text_image_split', 'item_gallery', 'featured_product', 'spacer'] as $type) {
+        // The Shop's listings have a row and an editor of their own since
+        // v0.1.15 (their optional head), so they open as a draft like any
+        // other block with an editor.
+        foreach (['rich_text', 'text_image_split', 'item_gallery', 'featured_product', 'spacer', 'product_grid', 'shop_collections'] as $type) {
             $this->assertTrue(SectionRegistry::opensAsDraft($type), $type);
         }
     }

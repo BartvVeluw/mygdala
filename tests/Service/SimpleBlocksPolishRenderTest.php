@@ -174,12 +174,17 @@ final class SimpleBlocksPolishRenderTest extends TestCase
         self::assertStringContainsString('data-products-grid', $html, 'the grid itself is still there');
     }
 
+    /**
+     * No fixed title: the words above the tiles are only ever the block's own
+     * optional head (v0.1.15, App\Service\Blocks\BlockHead). Without one, no
+     * heading at all.
+     */
     public function testTheCollectionTilesPrintNoTitleOfTheirOwn(): void
     {
         $definition = BlockDefinitions::get('shop_collections');
         self::assertNotNull($definition, 'the Shop module is on in this suite');
 
-        $sample = $definition->sampleContent(new BlockSamples());
+        $sample = ['eyebrow' => '', 'title' => '', 'lead' => ''] + $definition->sampleContent(new BlockSamples());
         ob_start();
         $definition->renderSample($sample, 'shop_collections-0');
         $html = (string) ob_get_clean();

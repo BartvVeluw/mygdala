@@ -335,7 +335,7 @@ final class PortfolioModuleHttpTest extends TestCase
     }
 
     /**
-     * A gallery block on another page keeps its settings while the module is
+     * A Projecten block on another page keeps its settings while the module is
      * off and simply shows nothing — never another source's content, never an
      * error — and shows the items again when the module is back.
      */
@@ -606,9 +606,9 @@ final class PortfolioModuleHttpTest extends TestCase
     }
 
     /**
-     * A published page of this test's own with one gallery block on it, added
-     * the way the page builder adds one: with the block's default source,
-     * which with the module on in this process is portfolio items.
+     * A published page of this test's own with one Projecten block on it, the
+     * Portfolio's block on a page since v0.1.15 (the gallery's portfolio
+     * source moved to it), added the way the page builder adds one.
      *
      * @return array<string, mixed>
      */
@@ -624,8 +624,8 @@ final class PortfolioModuleHttpTest extends TestCase
         ], 'ZZ Galerijtest');
         $this->pageIds[] = $id;
 
-        [$sectionId, $sectionKey] = SectionRegistry::create('item_gallery', $key);
-        (new PageSectionRepository())->create($id, $key, 'item_gallery', $sectionKey, $sectionId);
+        [$sectionId, $sectionKey] = SectionRegistry::create('project_cards', $key);
+        (new PageSectionRepository())->create($id, $key, 'project_cards', $sectionKey, $sectionId);
 
         PageContent::clearCache();
 

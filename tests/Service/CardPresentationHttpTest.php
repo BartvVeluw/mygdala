@@ -202,20 +202,26 @@ final class CardPresentationHttpTest extends TestCase
         $page = $this->page();
         [, $sectionKey] = $this->block($page, 'item_gallery');
         [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        // The Collectiegalerij (v0.1.15) shows one collection of the Shop.
+        $collections = new \App\Repository\CollectionRepository();
+        $collection = $collections->create(['slug' => 'zz-kaartweergave-' . bin2hex(random_bytes(4)), 'image_path' => null, 'is_active' => true]);
 
-        $response = self::$server->request('POST', '/api/admin/update-item-gallery.php', $session, [
-            'csrf_token' => $csrf,
-            'section' => $page['content_key'] . ':' . $sectionKey,
-            'language_code' => 'nl',
-            'source_type' => PortfolioModule::GALLERY_SOURCE,
-            'portfolio_scope' => 'all',
-            'item_sort' => 'source',
-            'card_presentation' => 'compact',
-            'is_active' => '1',
-        ]);
+        try {
+            $response = self::$server->request('POST', '/api/admin/update-item-gallery.php', $session, [
+                'csrf_token' => $csrf,
+                'section' => $page['content_key'] . ':' . $sectionKey,
+                'language_code' => 'nl',
+                'source_type' => 'collection',
+                'collection_id' => (string) $collection,
+                'card_presentation' => 'compact',
+                'is_active' => '1',
+            ]);
 
-        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, (string) $response['location']);
-        self::assertSame('compact', $this->stored($page, $sectionKey));
+            self::assertMatchesRegularExpression(SavedRedirect::PATTERN, (string) $response['location']);
+            self::assertSame('compact', $this->stored($page, $sectionKey));
+        } finally {
+            $collections->delete($collection);
+        }
     }
 
     public function testANewBlockTakesItsPresentationFromItsFirstSaveAndACancelLeavesNothing(): void

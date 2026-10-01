@@ -204,44 +204,55 @@ final class ProjectCardsEditorHttpTest extends TestCase
         self::assertStringContainsString('<option value="category" selected>', $html, 'the block still says "one category"');
     }
 
-    public function testTheGalleryOffersTheSameChoiceAndKeepsItsPickedProjects(): void
+    /**
+     * What a Portfoliogalerij had besides its projects survives as Projecten
+     * (v0.1.15, db/migrations/20261015110000): the editor shows and stores
+     * the eyebrow, the closing text and the button, refuses a label without
+     * an address, and keeps a legacy tight_top it does not offer.
+     */
+    public function testProjectenKeepsTheGallerysWordsButtonAndLegacySpacing(): void
     {
         $m = self::marker();
         $a = $this->item('ZZ A ' . $m, []);
-        $b = $this->item('ZZ B ' . $m, []);
-        [$pageKey, $sectionKey, $galleryId] = $this->block('item_gallery', ['portfolio_scope' => 'manual'], [$b, $a]);
+        [$pageKey, $sectionKey, $galleryId] = $this->block('project_cards', ['tight_top' => true, 'button_url' => '/portfolio']);
+        \App\Service\Blocks\BlockLocalization::save('item_galleries', $galleryId, 'nl', ProjectCardsBlock::rowWords([
+            'eyebrow' => 'Eerder werk', 'title' => 'Projecten', 'footer_note' => 'En nog veel meer.', 'button_label' => 'Bekijk al het werk',
+        ]));
+        \App\Service\Blocks\BlockLocalization::clearCache();
 
         [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
-        $html = (string) self::$server->request('GET', '/admin/item-gallery.php?section=' . urlencode($pageKey . ':' . $sectionKey), $session)['body'];
-        self::assertStringContainsString('data-gallery-selection', $html);
-        self::assertMatchesRegularExpression('#value="' . $b . '" checked[\s\S]*value="' . $a . '" checked#', $html, 'the picked ones first, in their order');
+        $html = (string) self::$server->request('GET', '/admin/project-cards.php?section=' . urlencode($pageKey . ':' . $sectionKey), $session)['body'];
+        foreach (['name="eyebrow" maxlength="255" value="Eerder werk"', 'En nog veel meer.</textarea>', 'value="Bekijk al het werk"', 'name="button_url" maxlength="255" value="/portfolio"'] as $shown) {
+            self::assertStringContainsString($shown, $html);
+        }
+        self::assertStringNotContainsString('name="tight_top"', $html, 'a legacy setting, not offered');
 
-        $response = self::$server->request('POST', '/api/admin/update-item-gallery.php', $session, [
-            'csrf_token' => $csrf,
-            'section' => $pageKey . ':' . $sectionKey,
-            'language_code' => 'nl',
-            'source_type' => PortfolioModule::GALLERY_SOURCE,
-            'portfolio_scope' => 'manual',
-            'item_sort' => 'source',
-            'items_submitted' => '1',
-            'item_ids' => [(string) $a, (string) $b],
-            'background' => 'default',
-            'is_active' => '1',
-        ]);
-        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $response['location']);
-        self::assertSame([$a, $b], ItemGallerySources::selectedItems(PortfolioModule::GALLERY_SOURCE, $galleryId));
+        // A label without an address is refused, and nothing is written.
+        $refused = $this->saveProjects($session, $csrf, $pageKey, $sectionKey, ['title' => 'Nieuw', 'button_label' => 'Klik', 'button_url' => '']);
+        self::assertStringStartsWith('/admin/project-cards.php?section=', $refused['location']);
+        self::assertSame('Projecten', \App\Service\Blocks\BlockLocalization::raw('item_galleries', $galleryId, 'title', 'nl'));
 
-        // A form that could not show the choice (no items_submitted) keeps it.
-        self::$server->request('POST', '/api/admin/update-item-gallery.php', $session, [
-            'csrf_token' => $csrf,
-            'section' => $pageKey . ':' . $sectionKey,
-            'language_code' => 'nl',
-            'source_type' => PortfolioModule::GALLERY_SOURCE,
-            'portfolio_scope' => 'manual',
-            'background' => 'default',
-            'is_active' => '1',
+        $saved = $this->saveProjects($session, $csrf, $pageKey, $sectionKey, [
+            'eyebrow' => 'Boven', 'title' => 'Werk', 'lead' => 'Een greep', 'footer_note' => 'Slot', 'button_label' => 'Alles', 'button_url' => '/portfolio',
+            // Never read: settings Projecten does not have.
+            'enable_lightbox' => '1', 'fallback_link_url' => '/elders', 'source_type' => 'collection', 'tight_top' => '0',
         ]);
-        self::assertSame([$a, $b], ItemGallerySources::selectedItems(PortfolioModule::GALLERY_SOURCE, $galleryId));
+        self::assertMatchesRegularExpression(SavedRedirect::PATTERN, $saved['location']);
+        \App\Service\Blocks\BlockLocalization::clearCache();
+
+        $row = (array) (new ItemGalleryRepository())->findBySlugAndKey($pageKey, $sectionKey);
+        self::assertSame(PortfolioModule::GALLERY_SOURCE, $row['source_type']);
+        self::assertSame('/portfolio', $row['button_url']);
+        self::assertSame(1, (int) $row['tight_top'], 'the stored legacy value stays');
+        self::assertSame(0, (int) $row['enable_lightbox']);
+        self::assertSame('', (string) $row['fallback_link_url']);
+        foreach (['eyebrow' => 'Boven', 'title' => 'Werk', 'lead' => 'Een greep', 'footer_note' => 'Slot', 'button_label' => 'Alles'] as $field => $words) {
+            self::assertSame($words, \App\Service\Blocks\BlockLocalization::raw('item_galleries', $galleryId, $field, 'nl'), $field);
+        }
+
+        $content = ItemGalleryContent::mapRow($row);
+        self::assertSame('Boven', $content['eyebrow']);
+        self::assertSame('/portfolio', $content['button_url']);
     }
 
     /* ------------------------------------------------------------------ */

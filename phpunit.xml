@@ -452,6 +452,7 @@
             <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
             <file>tests/Install/ProjectImagesBlockMigrationTest.php</file>
+            <file>tests/Install/ShopListingAndProjectsMigrationTest.php</file>
             <file>tests/Install/LabelModesAndGalleryFocusMigrationTest.php</file>
             <file>tests/Install/AdminAccountMigrationTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
@@ -563,6 +564,7 @@
             <file>tests/Install/DetailSectionSourcesMigrationTest.php</file>
             <file>tests/Install/ContentOwnerPagesMigrationTest.php</file>
             <file>tests/Install/ProjectImagesBlockMigrationTest.php</file>
+            <file>tests/Install/ShopListingAndProjectsMigrationTest.php</file>
             <file>tests/Install/LabelModesAndGalleryFocusMigrationTest.php</file>
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
@@ -600,6 +602,8 @@
             <file>tests/Service/MediaBannerHttpTest.php</file>
             <file>tests/Service/FeaturedProductBlockTest.php</file>
             <file>tests/Service/FeaturedProductHttpTest.php</file>
+            <file>tests/Service/ShopListingBlockTest.php</file>
+            <file>tests/Service/ShopListingEditorHttpTest.php</file>
             <file>tests/Service/FeaturedProductContractTest.php</file>
             <file>tests/Install/FeaturedProductMigrationTest.php</file>
             <file>tests/Install/HoverCardsAndMediaSequenceMigrationTest.php</file>
@@ -677,7 +681,7 @@
             <file>tests/Service/BlockAppearanceHttpTest.php</file>
             <file>tests/Service/ReviewsHttpTest.php</file>
             <file>tests/Service/CardPresentationHttpTest.php</file>
-            <file>tests/Service/GalleryPickerPresetHttpTest.php</file>
+            <file>tests/Service/CollectionGalleryHttpTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/PageHeroEditorHttpTest.php</file>
             <file>tests/Service/PageHeroHeaderTest.php</file>
@@ -1012,6 +1016,9 @@
             <file>tests/Install/ShopProductOrderingMigrationTest.php</file>
             <file>tests/Service/FeaturedProductBlockTest.php</file>
             <file>tests/Service/FeaturedProductHttpTest.php</file>
+            <file>tests/Service/ShopListingBlockTest.php</file>
+            <file>tests/Service/ShopListingEditorHttpTest.php</file>
+            <file>tests/Service/CollectionGalleryHttpTest.php</file>
             <file>tests/Service/FeaturedProductContractTest.php</file>
             <file>tests/Service/ProductPurchasePathTest.php</file>
         </testsuite>

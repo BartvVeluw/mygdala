@@ -518,8 +518,11 @@ final class PortfolioProjectPageTest extends TestCase
         ], 'ZZ Galerij');
         $this->pageIds[] = $pageId;
 
-        [$sectionId, $sectionKey] = SectionRegistry::create('item_gallery', $key);
-        $pageSectionId = (new PageSectionRepository())->create($pageId, $key, 'item_gallery', $sectionKey, $sectionId);
+        // Portfolio items are shown by Projecten since v0.1.15; the settings
+        // below are stored straight into its row, as a gallery that became
+        // Projecten (db/migrations/20261015110000) still carries them.
+        [$sectionId, $sectionKey] = SectionRegistry::create('project_cards', $key);
+        $pageSectionId = (new PageSectionRepository())->create($pageId, $key, 'project_cards', $sectionKey, $sectionId);
         $this->sectionIds[] = $pageSectionId;
 
         (new ItemGalleryRepository())->upsertSection($key, (string) $sectionKey, $settings + [

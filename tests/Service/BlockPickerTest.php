@@ -89,9 +89,8 @@ final class BlockPickerTest extends TestCase
     }
 
     /**
-     * The picker's cards as its markup posts them: one per block, or one per
-     * preset of a block that offers presets (the gallery's Collectiegalerij
-     * and Portfoliogalerij), each with the name and value its button posts.
+     * The picker's cards as its markup posts them: one per block type, each
+     * with the name and value its button posts.
      *
      * @param list<string> $existingTypes
      * @return list<array<string, mixed>>
@@ -103,8 +102,8 @@ final class BlockPickerTest extends TestCase
 
         foreach (block_picker_cards($available) as $group) {
             foreach ($group as $card) {
-                $card['name'] = $card['preset'] === null ? 'section_type' : 'section_preset';
-                $card['value'] = $card['preset'] === null ? $card['type'] : $card['type'] . ':' . $card['preset'];
+                $card['name'] = 'section_type';
+                $card['value'] = $card['type'];
                 $cards[] = $card;
             }
         }
@@ -190,75 +189,68 @@ final class BlockPickerTest extends TestCase
         $this->assertSame(
             count($this->cards()),
             substr_count($html, 'data-block-card'),
-            'one card per available block, or per preset of one, no more and no fewer'
+            'one card per available block, no more and no fewer'
         );
     }
 
     /**
-     * The gallery is ONE block type that the picker shows as two presets
-     * (App\Service\Blocks\OffersPickerPresets): Collectiegalerij under Shop,
-     * Portfoliogalerij under Portfolio, each posting its type and its source.
-     * Projecten sits under Portfolio too; no card of its own is left for the
-     * gallery under Beeld & media, and nothing else moved.
+     * One card per block type (v0.1.15). The gallery is the Shop's
+     * Collectiegalerij, one card under Shop; portfolio items are the
+     * Projecten block's, under Portfolio. There is no Portfoliogalerij card
+     * anywhere any more, and no card posts anything but a type.
      */
-    public function testTheGalleryIsTwoPresetsUnderShopAndPortfolio(): void
+    public function testTheCollectionGalleryIsOneShopCardAndProjectenThePortfolios(): void
     {
         $byValue = [];
         foreach ($this->cards() as $card) {
             $byValue[$card['value']] = [$card['name'], $card['category'], $card['label']];
         }
 
-        $this->assertSame(['section_preset', 'shop', 'Collectiegalerij'], $byValue['item_gallery:collection']);
-        $this->assertSame(['section_preset', 'portfolio', 'Portfoliogalerij'], $byValue['item_gallery:portfolio']);
-        $this->assertArrayNotHasKey('item_gallery', $byValue, 'no plain gallery card beside its presets');
+        $this->assertSame(['section_type', 'shop', 'Collectiegalerij'], $byValue['item_gallery']);
         $this->assertSame(['section_type', 'portfolio', 'Projecten'], $byValue['project_cards']);
         $this->assertSame('shop', $byValue['product_grid'][1]);
         $this->assertSame('shop', $byValue['shop_collections'][1]);
 
-        $xpath = $this->xpath($this->renderPicker());
+        $html = $this->renderPicker();
+        $this->assertStringNotContainsString('Portfoliogalerij', $html);
+        $this->assertStringNotContainsString('section_preset', $html);
+
+        $xpath = $this->xpath($html);
         $shop = $this->one($xpath, '//section[@data-block-picker-group="shop"]');
         $portfolio = $this->one($xpath, '//section[@data-block-picker-group="portfolio"]');
-        $this->assertSame('Shop', trim($this->one($xpath, './h3', $shop)->textContent));
-        $this->assertSame('Portfolio', trim($this->one($xpath, './h3', $portfolio)->textContent));
-        $this->one($xpath, './/button[@value="item_gallery:collection"]', $shop);
-        $this->one($xpath, './/button[@value="item_gallery:portfolio"]', $portfolio);
+        $this->one($xpath, './/button[@value="item_gallery"]', $shop);
         $this->one($xpath, './/button[@value="project_cards"]', $portfolio);
-        $this->assertSame(0, $xpath->query('//section[@data-block-picker-group="media"]//button[starts-with(@value, "item_gallery")]')->length);
-        $this->assertSame(1, $xpath->query('//button[@value="item_gallery:collection"]')->length, 'not twice');
-        $this->assertSame(1, $xpath->query('//button[@value="item_gallery:portfolio"]')->length, 'not twice');
+        $this->assertSame(1, $xpath->query('//button[starts-with(@value, "item_gallery")]')->length, 'one gallery card');
+        $this->assertSame(0, $xpath->query('//section[@data-block-picker-group="portfolio"]//button[starts-with(@value, "item_gallery")]')->length);
 
         // Filed categories in BlockCategories order: Portfolio after Shop, at the end.
         $keys = BlockCategories::keys();
         $this->assertSame(['shop', 'portfolio'], array_slice($keys, -2));
     }
 
-    public function testTheGalleryPresetsFollowTheirModules(): void
+    public function testTheGalleryAndProjectenFollowTheirModules(): void
     {
         ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => false, 'multilingual' => true]);
         $values = array_column($this->cards(), 'value');
-        $this->assertContains('item_gallery:collection', $values);
-        $this->assertNotContains('item_gallery:portfolio', $values);
+        $this->assertContains('item_gallery', $values);
         $this->assertNotContains('project_cards', $values);
         $this->assertStringNotContainsString('data-block-picker-group="portfolio"', $this->renderPicker(), 'no empty Portfolio heading');
-        $this->assertStringNotContainsString('data-block-picker-filter="portfolio"', $this->renderPicker());
 
         ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => true, 'multilingual' => true]);
         $values = array_column($this->cards(), 'value');
-        $this->assertContains('item_gallery:portfolio', $values);
         $this->assertContains('project_cards', $values);
-        $this->assertNotContains('item_gallery:collection', $values);
+        $this->assertNotContains('item_gallery', $values, 'the Collectiegalerij is the Shop\'s');
         $this->assertStringNotContainsString('data-block-picker-group="shop"', $this->renderPicker(), 'no empty Shop heading');
 
         ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => false, 'multilingual' => true]);
         $html = $this->renderPicker();
-        $this->assertStringNotContainsString('item_gallery', $html, 'no source, no gallery card at all');
-        $this->assertStringNotContainsString('data-block-picker-group="shop"', $html);
-        $this->assertStringNotContainsString('data-block-picker-group="portfolio"', $html);
+        $this->assertStringNotContainsString('item_gallery', $html);
+        $this->assertStringNotContainsString('project_cards', $html);
 
         ModuleRegistry::overrideForTests(null);
     }
 
-    public function testTheGalleryPresetsSpeakTheEditorsLanguage(): void
+    public function testTheGalleryCardSpeaksTheEditorsLanguage(): void
     {
         AdminLocale::overrideForTests('en');
         try {
@@ -266,45 +258,29 @@ final class BlockPickerTest extends TestCase
             foreach ($this->cards() as $card) {
                 $byValue[$card['value']] = $card['label'];
             }
-            $this->assertSame('Collection gallery', $byValue['item_gallery:collection']);
-            $this->assertSame('Portfolio gallery', $byValue['item_gallery:portfolio']);
-            $this->assertSame('Portfolio', BlockCategories::label(BlockCategories::PORTFOLIO));
+            $this->assertSame('Collection gallery', $byValue['item_gallery']);
+            $this->assertSame('Projects', $byValue['project_cards']);
         } finally {
             AdminLocale::overrideForTests('nl');
         }
-
-        $this->assertSame('Portfolio', BlockCategories::label(BlockCategories::PORTFOLIO));
     }
 
     /**
-     * A preset posts `section_preset` = "<type>:<preset>", and the endpoint
-     * accepts it only while the type is available AND the preset is one the
-     * block offers right now; the block is created with that setting and is
-     * the same type as one added without a preset.
+     * The endpoint takes a type and nothing else: the preset mechanism
+     * (`section_preset`, OffersPickerPresets) is gone with the
+     * Portfoliogalerij card, so a forged preset is just a request without a
+     * type, refused by the closed list.
      */
-    public function testTheEndpointAcceptsOnlyAPresetTheBlockOffers(): void
+    public function testTheEndpointTakesOnlyABlockType(): void
     {
         $endpoint = $this->sourceOf('api/admin/add-page-section.php');
 
-        $this->assertStringContainsString("\$presetChoice = \$_POST['section_preset'] ?? null;", $endpoint);
-        $this->assertStringContainsString("preg_match('/^([a-z0-9_]{1,64}):([a-z0-9_]{1,64})\$/', \$presetChoice, \$choice)", $endpoint);
-        $this->assertStringContainsString('($preset !== null && !SectionRegistry::offersPreset($sectionType, $preset))', $endpoint);
-        $this->assertStringContainsString("SectionRegistry::create(\$sectionType, (string) \$page['content_key'], \$preset)", $endpoint);
-        // A block with an editor opens as a draft, with the same preset
-        // (Content Blocks Lifecycle 1.0).
-        $this->assertStringContainsString('ContentBlockDrafts::open($page, $sectionType, $preset)', $endpoint);
-        // The guards still come first.
-        $this->assertLessThan(strpos($endpoint, 'section_preset'), strpos($endpoint, 'Csrf::validate'));
-
-        $this->assertTrue(SectionRegistry::offersPreset('item_gallery', 'collection'));
-        $this->assertTrue(SectionRegistry::offersPreset('item_gallery', 'portfolio'));
-        $this->assertFalse(SectionRegistry::offersPreset('item_gallery', 'products'), 'not a source');
-        $this->assertFalse(SectionRegistry::offersPreset('rich_text', 'collection'), 'a block without presets');
-        $this->assertFalse(SectionRegistry::offersPreset('no_such_block', 'collection'));
-
-        ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => true, 'multilingual' => true]);
-        $this->assertFalse(SectionRegistry::offersPreset('item_gallery', 'collection'), 'a switched-off module offers no preset');
-        ModuleRegistry::overrideForTests(null);
+        $this->assertStringNotContainsString('section_preset', $endpoint);
+        $this->assertStringNotContainsString('preset', strtolower($endpoint));
+        $this->assertStringContainsString("SectionRegistry::create(\$sectionType, (string) \$page['content_key'])", $endpoint);
+        $this->assertStringContainsString('ContentBlockDrafts::open($page, $sectionType)', $endpoint);
+        $this->assertFalse(interface_exists('App\\Service\\Blocks\\OffersPickerPresets'));
+        $this->assertFalse(method_exists(SectionRegistry::class, 'offersPreset'));
     }
 
     /**
@@ -640,8 +616,7 @@ final class BlockPickerTest extends TestCase
         foreach ($this->cards() as $card) {
             $cards[$card['value']] = [$card['label'], $card['category']];
         }
-        $this->assertSame(['Collection gallery', BlockCategories::SHOP], $cards['item_gallery:collection']);
-        $this->assertSame(['Portfolio gallery', BlockCategories::PORTFOLIO], $cards['item_gallery:portfolio']);
+        $this->assertSame(['Collection gallery', BlockCategories::SHOP], $cards['item_gallery']);
         $this->assertSame(['Projects', BlockCategories::PORTFOLIO], $cards['project_cards']);
 
         $this->assertStringContainsString('images & media', $this->one($xpath, '//button[@value="media_banner"]')->getAttribute('data-block-terms'), 'the search terms hold the name as written');

@@ -65,7 +65,7 @@ final class OptionalEyebrowTest extends TestCase
         sort($types);
 
         self::assertSame(
-            ['card_carousel', 'cta_band', 'faq', 'feature_grid', 'homepage_hero', 'hover_card_grid', 'item_gallery', 'page_hero', 'project_cards', 'reviews', 'step_list', 'text_image_split'],
+            ['card_carousel', 'cta_band', 'faq', 'feature_grid', 'homepage_hero', 'hover_card_grid', 'item_gallery', 'page_hero', 'product_grid', 'project_cards', 'reviews', 'shop_collections', 'step_list', 'text_image_split'],
             $types
         );
     }
@@ -93,9 +93,23 @@ final class OptionalEyebrowTest extends TestCase
         $definition = BlockDefinitions::get($type);
         self::assertNotNull($definition);
         $sample = $definition->sampleContent(new BlockSamples());
-        if ($sample === null || (!array_key_exists('eyebrow', $sample) && !array_key_exists('items', $sample))) {
-            // project_cards has no eyebrow input; its sample carries none.
-            self::assertSame('project_cards', $type);
+        if ($sample === null) {
+            // The one block the library cannot preview (its cards come from
+            // /api/products.php): its partial, with and without an eyebrow.
+            self::assertSame('product_grid', $type);
+            require_once dirname(__DIR__, 2) . '/partials/section-product-grid.php';
+
+            ob_start();
+            render_section_product_grid(['eyebrow' => 'Bovenlabel', 'title' => '', 'lead' => '']);
+            self::assertStringContainsString('<p class="eyebrow">Bovenlabel</p>', (string) ob_get_clean());
+
+            foreach (['', '   '] as $empty) {
+                ob_start();
+                render_section_product_grid(['eyebrow' => $empty, 'title' => '', 'lead' => '']);
+                $without = (string) ob_get_clean();
+                self::assertStringNotContainsString('eyebrow', $without);
+                self::assertStringNotContainsString('section-head', $without, 'no head at all without words');
+            }
 
             return;
         }

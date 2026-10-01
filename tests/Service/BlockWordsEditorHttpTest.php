@@ -92,8 +92,10 @@ final class BlockWordsEditorHttpTest extends TestCase
             'endpoint' => '/api/admin/update-item-gallery.php',
             'address' => 'section',
             'settings' => [
-                'source_type' => 'portfolio', 'portfolio_scope' => 'all', 'collection_id' => '', 'max_items' => '',
-                'show_filter_bar' => '1', 'enable_lightbox' => '1', 'fallback_link_url' => '', 'button_url' => '/werk',
+                // The Collectiegalerij (v0.1.15): the Shop's collection, filled
+                // in by save() with this test's own collection.
+                'source_type' => 'collection', 'portfolio_scope' => 'all', 'collection_id' => '', 'max_items' => '',
+                'enable_lightbox' => '1', 'fallback_link_url' => '', 'button_url' => '/werk',
                 'background' => 'default', 'is_active' => '1',
             ],
             'words' => ['eyebrow' => 'Werk', 'title' => 'Onze projecten', 'lead' => 'Een greep.', 'footer_note' => 'En meer.', 'button_label' => 'Al het werk'],
@@ -180,6 +182,9 @@ final class BlockWordsEditorHttpTest extends TestCase
     /** @var list<int> */
     private array $mediaIds = [];
 
+    /** A collection of this test's own, for the Collectiegalerij to show. */
+    private int $collectionId = 0;
+
     public static function setUpBeforeClass(): void
     {
         self::$server = BuiltInServer::start();
@@ -202,6 +207,7 @@ final class BlockWordsEditorHttpTest extends TestCase
         self::assertSame('nl', BlockLocalization::defaultLanguage(), 'this test expects the Dutch-default test database');
 
         $this->removePage();
+        $this->collectionId = (new \App\Repository\CollectionRepository())->create(['slug' => 'zz-bwe-' . bin2hex(random_bytes(4)), 'image_path' => null, 'is_active' => true]);
         $this->pageId = PageFixture::create(
             ['content_key' => self::KEY, 'slug' => self::KEY, 'status' => PageContent::STATUS_PUBLISHED],
             'Blokwoordentest'
@@ -211,6 +217,10 @@ final class BlockWordsEditorHttpTest extends TestCase
     protected function tearDown(): void
     {
         $this->removePage();
+        if ($this->collectionId > 0) {
+            (new \App\Repository\CollectionRepository())->delete($this->collectionId);
+            $this->collectionId = 0;
+        }
 
         // After the page: a block that shows a library item keeps it from going.
         foreach ($this->mediaIds as $id) {
@@ -443,17 +453,21 @@ final class BlockWordsEditorHttpTest extends TestCase
         $this->assertRefused($this->save($session, 'item_gallery', 'en', [], ['button_url' => '']), 'removing the URL while the default language has a label');
     }
 
-    public function testAProjectsSaveKeepsTheGalleryWordsItsEditorDoesNotShowEmpty(): void
+    /**
+     * Since v0.1.15 the Projecten editor shows all five words of its table
+     * (the old Portfoliogalerij's eyebrow, closing text and button among
+     * them), so a save writes those five and nothing a request adds.
+     */
+    public function testAProjectsSaveWritesTheFiveWordsItsEditorShows(): void
     {
         $type = 'project_cards';
         $this->place($type);
         $session = $this->signIn(null);
 
-        // Words a crafted request might carry: the endpoint reads only the two
-        // this block's editor has.
-        $this->assertSaved($this->save($session, $type, 'nl', self::BLOCKS[$type]['words'] + ['eyebrow' => 'Boven', 'footer_note' => 'Onder', 'button_label' => 'Klik']));
+        $words = ['eyebrow' => 'Boven', 'title' => 'Projecten', 'lead' => 'Wat wij maakten.', 'footer_note' => 'Onder', 'button_label' => 'Klik'];
+        $this->assertSaved($this->save($session, $type, 'nl', $words + ['subtitle' => 'Niet van deze tabel'], ['button_url' => '/portfolio']));
 
-        self::assertSame(self::BLOCKS[$type]['words'], $this->stored($type, 'nl'));
+        self::assertSame($words, $this->stored($type, 'nl'));
     }
 
     public function testTheDetailSectionBodyIsRichTextSanitizedOnSave(): void
@@ -590,6 +604,10 @@ final class BlockWordsEditorHttpTest extends TestCase
         $address = $block['address'] === 'slug'
             ? ['slug' => self::KEY]
             : ['section' => $this->blocks[$type]['section']];
+
+        if ($type === 'item_gallery') {
+            $settings += ['collection_id' => (string) $this->collectionId];
+        }
 
         $fields = array_filter(
             ['csrf_token' => (string) $this->accounts->read($session, 'csrf_token'), 'language_code' => $language]

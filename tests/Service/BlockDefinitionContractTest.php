@@ -35,13 +35,15 @@ use PHPUnit\Framework\TestCase;
 final class BlockDefinitionContractTest extends TestCase
 {
     /**
-     * Blocks an editor places by hand that still own no content row: they
-     * show something the site already has (the Shop's product grid shows the
-     * catalogue, its collection tiles the collections;
-     * App\Service\Blocks\ProductGridBlock, ShopCollectionsBlock). A closed list, so a new
-     * block cannot drift into it by forgetting its table.
+     * Blocks an editor places by hand that still own no content row. Empty
+     * since v0.1.15: the Shop's product grid and collection tiles, the last
+     * two, got a row for their optional head (App\Service\Blocks\ShopListingBlock,
+     * db/migrations/20261015100000). A closed list, so a new block cannot
+     * drift into it by forgetting its table.
+     *
+     * @var list<string>
      */
-    private const ADDABLE_WITHOUT_CONTENT = ['product_grid', 'shop_collections'];
+    private const ADDABLE_WITHOUT_CONTENT = [];
 
     /**
      * Blocks that own rows and have no words at all: every setting of theirs
