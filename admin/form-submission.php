@@ -28,7 +28,12 @@ use App\Service\Forms\FormUpload;
  * before Forms 2.0 phase 2 belongs to no field, and keeps its own card. A
  * file whose row exists but whose bytes are gone says so instead of linking.
  *
- * Opening it marks it read; that is the only state a submission has.
+ * Opening it marks it read, here on the server, before anything is shown —
+ * a reload finds it read as well, and no script is involved. Read or unread
+ * is the only state a submission has. "Markeren als ongelezen" sends it back
+ * through api/admin/bulk-form-submissions.php (one id) and lands on the
+ * OVERVIEW, not here: coming back to this screen would mark it read again
+ * at once (FORMS.md, "Gelezen en ongelezen").
  *
  * Deleting asks first, in the CMS's own dialog (ADMIN-UI.md), naming when
  * it was sent; api/admin/delete-form-submission.php deletes it for real,
@@ -100,6 +105,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <div class="admin-main__heading">
     <h1><?= $h((string) $submission['form_name']) ?></h1>
     <span class="admin-badge admin-badge--muted"><?= admin_te('forms.gelezen') ?></span>
+    <form method="post" action="/api/admin/bulk-form-submissions.php" class="admin-inline-form">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <input type="hidden" name="ids[]" value="<?= (int) $submission['id'] ?>">
+      <button type="submit" name="action" value="<?= \App\Service\Forms\FormSubmissionBulk::MARK_UNREAD ?>" class="admin-btn-text"><?= admin_te('forms.bulk.mark_unread') ?></button>
+    </form>
   </div>
 
   <section class="admin-card">

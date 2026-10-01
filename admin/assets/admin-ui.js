@@ -7,7 +7,8 @@
  *   - the line in a file input that names the chosen file, and the preview of
  *     the image a single-image file input is about to upload;
  *   - the question a form marked with data-admin-confirm asks before it is
- *     sent, in the dialog admin_confirm_dialog() prints.
+ *     sent, in the dialog admin_confirm_dialog() prints — or a submit button
+ *     marked with it, which asks only when that button sends the form.
  *
  * Loaded by admin/_header.php at the very top of <body>, without `defer`.
  * The first thing it does is put the stored preference on <html>, so a screen
@@ -605,9 +606,17 @@
     });
   }
 
+  // The question lives on the form, or on the one button of a form that
+  // asks for that button only (a bulk bar whose "Verwijderen" asks and whose
+  // "Markeren als gelezen" does not).
+  function asker(form, submitter) {
+    return submitter && submitter.hasAttribute("data-admin-confirm") ? submitter : form;
+  }
+
   function ask(form, submitter) {
-    var message = form.getAttribute("data-admin-confirm") || "";
-    var title = form.getAttribute("data-admin-confirm-title") || "";
+    var source = asker(form, submitter);
+    var message = source.getAttribute("data-admin-confirm") || "";
+    var title = source.getAttribute("data-admin-confirm-title") || "";
     var dialog = document.querySelector("[data-admin-confirm-dialog]");
 
     // No dialog on this screen, or no <dialog> in this browser: ask all the
@@ -636,7 +645,7 @@
     }
 
     if (yes) {
-      yes.textContent = form.getAttribute("data-admin-confirm-action") || yes.getAttribute("data-admin-confirm-default") || "";
+      yes.textContent = source.getAttribute("data-admin-confirm-action") || yes.getAttribute("data-admin-confirm-default") || "";
     }
 
     pendingConfirm = { dialog: dialog, form: form, submitter: submitter };
@@ -667,7 +676,7 @@
       return;
     }
 
-    if (!form.hasAttribute("data-admin-confirm") || form === confirmedForm) {
+    if (!asker(form, event.submitter || null).hasAttribute("data-admin-confirm") || form === confirmedForm) {
       return;
     }
 

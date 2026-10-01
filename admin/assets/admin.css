@@ -817,6 +817,46 @@ a{ color: var(--admin-accent); }
 .admin-row--unread{ font-weight: 600; }
 .admin-row--unread td{ background: var(--admin-accent-soft); }
 
+/* Beheer → Inzendingen in bulk (admin/form-submissions.php): a checkbox per
+   row, one compact bar above the table. The actions appear once something is
+   chosen (admin/assets/form-submissions.js); without the script they simply
+   stay. Unread keeps its weight and tint plus the word "Nieuw" in Status, so
+   the state never rests on colour alone. */
+.admin-submission-bulk__bar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: 0 0 var(--admin-sp-3);
+  padding: var(--admin-sp-2) var(--admin-sp-3);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+.admin-submission-bulk__bar.has-selection{
+  position: sticky;
+  top: var(--admin-sp-2);
+  z-index: 5;
+  background: var(--admin-surface);
+  border-color: var(--admin-accent);
+  box-shadow: var(--admin-shadow-md);
+}
+.admin-submission-bulk__count{ margin: 0; font-size: 0.88rem; font-weight: 600; }
+.admin-submission-bulk__scope{ margin: 0; font-size: 0.78rem; }
+.admin-submission-bulk__actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2);
+  margin-left: auto;
+}
+.admin-submission-bulk__actions[hidden]{ display: none; }
+.admin-submission-table th.admin-submission-table__select,
+.admin-submission-table td.admin-submission-table__select{ width: 2.5rem; padding-right: 0; }
+.admin-submission-table tbody tr.is-selected td:first-child{ box-shadow: inset 3px 0 0 var(--admin-accent); }
+@media (max-width: 640px){
+  .admin-submission-bulk__actions{ margin-left: 0; width: 100%; }
+}
+
 /* Handled orders step back visually in the order list (admin/orders.php) so
    the "Open" working list is what draws the eye. Only the plain cell text is
    muted — the order-number link, the status badges and the quick action keep
