@@ -44,11 +44,16 @@ use App\Repository\PortfolioItemImageRepository;
  * own picture, shown above the picker, until another one is chosen.
  *
  * THE PROJECT PAGE IS THE ITEM'S OWN (Portfolio 2.0, MODULES.md "Portfolio").
- * "Projectpagina tonen" switches /portfolio/<slug> on; its address, intro,
- * description and extra photos are edited right here, and
- * portfolio-detail.php renders them. No ordinary page is made for it, and
- * there is no "Nieuwe pagina maken" any more: an item's detail content is not
- * a page in the page builder.
+ * Portfolio 3.0 has no separate "Projectpagina" card any more: each of its
+ * fields sits where it belongs. "Projectpagina tonen" switches
+ * /portfolio/<slug> on and is a visibility, so it is under Zichtbaarheid; the
+ * address (Webadres) is made from the title, so it is under it in
+ * Basisgegevens; the intro and description are the text of the project's
+ * fixed head (partials/project-hero.php), so they follow the short text
+ * there. The request fields are the same as before, so
+ * api/admin/update-portfolio-item.php did not change. No ordinary page is
+ * made for a project: an item's detail content is not a page in the page
+ * builder.
  *
  * THE GALLERY is a pool of library pictures in their own order, chosen with
  * the shared picker in collect mode and ordered with ← →, a drag or ×
@@ -459,10 +464,41 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
         </div>
         <div class="admin-form-row">
           <div class="admin-field">
+            <?= admin_field_label('portfolio-slug', admin_t('portfolio.slug'), admin_t('help.portfolio.slug')) ?>
+            <?php /* Filled in from the title while no address is stored and the
+                     editor has typed none (initSlugAutoFill()); `slug_auto`
+                     tells the endpoint to make such an address unique itself,
+                     while a typed one is checked as typed. */ ?>
+            <input type="text" id="portfolio-slug" name="slug" maxlength="<?= PortfolioSlug::MAX_LENGTH ?>" value="<?= $h($slugValue) ?>" autocomplete="off" spellcheck="false" data-slug-target>
+            <input type="hidden" name="slug_auto" value="0" data-slug-auto>
+            <p class="admin-url-preview">
+              <?= admin_te('page.url_preview') ?>
+              <span class="admin-url-preview__address"><span><?= $h(\App\Service\AppUrl::canonical('/portfolio/')) ?></span><strong data-slug-preview-value data-slug-preview-empty="<?= admin_te('portfolio.slug_from_title') ?>"><?= $h($slugValue !== '' ? $slugValue : admin_t('portfolio.slug_from_title')) ?></strong></span>
+            </p>
+            <?php if ($ownPageIsPublic && !$legacyPageIsLive): ?>
+              <p class="admin-text-muted">
+                <?= admin_te('portfolio.project_page_live') ?>
+                <a href="<?= $h(PortfolioGalleryContent::publicPath($storedSlug)) ?>" target="_blank" rel="noopener"><?= $h(PortfolioGalleryContent::publicPath($storedSlug)) ?></a>
+              </p>
+              <p class="admin-text-muted"><?= admin_te('portfolio.slug_change_redirects') ?></p>
+            <?php endif; ?>
+          </div>
+        </div>
+        <div class="admin-form-row">
+          <div class="admin-field">
             <?= admin_field_label('portfolio-subtitle', admin_t('portfolio.short_text'), admin_t('help.portfolio.subtitle')) ?>
             <input type="text" id="portfolio-subtitle" name="subtitle" maxlength="<?= PortfolioLocalization::SUBTITLE_MAX_LENGTH ?>" value="<?= $h($word(PortfolioLocalization::SUBTITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </div>
         </div>
+
+        <?php /* The text of the project's fixed head (partials/project-hero.php),
+                 in the language being edited (the bar at the top of this form
+                 says which). Sanitized when saved and again when shown
+                 (RichTextSanitizer, PortfolioLocalization::itemRich()). */ ?>
+        <?php renderRichTextField(PortfolioLocalization::INTRO, admin_t('portfolio.intro'), $word(PortfolioLocalization::INTRO), 'full', 'admin-richtext-editor--md'); ?>
+        <p class="admin-text-muted"><?= admin_te('help.portfolio.intro') ?></p>
+        <?php renderRichTextField(PortfolioLocalization::DESCRIPTION, admin_t('portfolio.description'), $word(PortfolioLocalization::DESCRIPTION), 'full', 'admin-richtext-editor--lg'); ?>
+        <p class="admin-text-muted"><?= admin_te('help.portfolio.description') ?></p>
       </section>
 
       <?php /* Two cards, side by side on a wide screen and under each other on
@@ -485,54 +521,18 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
             </label>
             <?= admin_help(admin_t('portfolio.zichtbaar_portfolio_pagina'), admin_t('help.portfolio.visible')) ?>
           </div>
+          <?php /* Says the switch was on the form, so an unticked one means
+                   "off" rather than "not sent" (validatePortfolioProjectPage()). */ ?>
+          <input type="hidden" name="project_page_submitted" value="1">
+          <div class="admin-field admin-field--inline">
+            <label class="admin-checkbox-label">
+              <input type="checkbox" class="admin-switch" role="switch" name="has_detail_page" value="1" <?= $hasDetailPageChecked ? 'checked' : '' ?>>
+              <?= admin_te('portfolio.show_project_page') ?>
+            </label>
+            <?= admin_help(admin_t('portfolio.show_project_page'), admin_t('help.portfolio.show_project_page')) ?>
+          </div>
         </section>
       </div>
-
-      <section class="admin-card">
-        <h2><?= admin_te('portfolio.project_page') ?></h2>
-        <?php /* Says the section was on the form, so an unticked switch means
-                 "off" rather than "not sent" (validatePortfolioProjectPage()). */ ?>
-        <input type="hidden" name="project_page_submitted" value="1">
-        <div class="admin-field admin-field--inline">
-          <label class="admin-checkbox-label">
-            <input type="checkbox" class="admin-switch" role="switch" name="has_detail_page" value="1" <?= $hasDetailPageChecked ? 'checked' : '' ?>>
-            <?= admin_te('portfolio.show_project_page') ?>
-          </label>
-          <?= admin_help(admin_t('portfolio.show_project_page'), admin_t('help.portfolio.show_project_page')) ?>
-        </div>
-
-        <div class="admin-product-form admin-product-form--wide">
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-slug', admin_t('portfolio.slug'), admin_t('help.portfolio.slug')) ?>
-            <?php /* Filled in from the title while no address is stored and the
-                     editor has typed none (initSlugAutoFill()); `slug_auto`
-                     tells the endpoint to make such an address unique itself,
-                     while a typed one is checked as typed. */ ?>
-            <input type="text" id="portfolio-slug" name="slug" maxlength="<?= PortfolioSlug::MAX_LENGTH ?>" value="<?= $h($slugValue) ?>" autocomplete="off" spellcheck="false" data-slug-target>
-            <input type="hidden" name="slug_auto" value="0" data-slug-auto>
-            <p class="admin-url-preview">
-              <?= admin_te('page.url_preview') ?>
-              <span class="admin-url-preview__address"><span><?= $h(\App\Service\AppUrl::canonical('/portfolio/')) ?></span><strong data-slug-preview-value data-slug-preview-empty="<?= admin_te('portfolio.slug_from_title') ?>"><?= $h($slugValue !== '' ? $slugValue : admin_t('portfolio.slug_from_title')) ?></strong></span>
-            </p>
-            <?php if ($ownPageIsPublic && !$legacyPageIsLive): ?>
-              <p class="admin-text-muted">
-                <?= admin_te('portfolio.project_page_live') ?>
-                <a href="<?= $h(PortfolioGalleryContent::publicPath($storedSlug)) ?>" target="_blank" rel="noopener"><?= $h(PortfolioGalleryContent::publicPath($storedSlug)) ?></a>
-              </p>
-              <p class="admin-text-muted"><?= admin_te('portfolio.slug_change_redirects') ?></p>
-            <?php endif; ?>
-          </div>
-        </div>
-
-        <?php /* The project page's own words, in the language being edited
-                 (the bar at the top of this form says which).
-                 Sanitized when saved and again when shown
-                 (RichTextSanitizer, PortfolioLocalization::itemRich()). */ ?>
-        <?php renderRichTextField(PortfolioLocalization::INTRO, admin_t('portfolio.intro'), $word(PortfolioLocalization::INTRO), 'full', 'admin-richtext-editor--md'); ?>
-        <p class="admin-text-muted"><?= admin_te('help.portfolio.intro') ?></p>
-        <?php renderRichTextField(PortfolioLocalization::DESCRIPTION, admin_t('portfolio.description'), $word(PortfolioLocalization::DESCRIPTION), 'full', 'admin-richtext-editor--lg'); ?>
-        <p class="admin-text-muted"><?= admin_te('help.portfolio.description') ?></p>
-      </section>
 
       <section class="admin-card">
         <h2><?= admin_te('portfolio.gallery.heading') ?></h2>

@@ -200,7 +200,11 @@ final class PortfolioAdminScreenTest extends TestCase
         $nl = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
         $en = require dirname(__DIR__, 2) . '/src/Service/Language/messages/en.php';
 
-        $this->assertSame('Projectpagina', $nl['portfolio.project_page']);
+        // Portfolio 3.0: no "Projectpagina" card any more; its fields are in
+        // Basisgegevens and Zichtbaarheid.
+        $this->assertArrayNotHasKey('portfolio.project_page', $nl);
+        $this->assertArrayNotHasKey('portfolio.project_page', $en);
+        $this->assertStringNotContainsString("admin_te('portfolio.project_page')", $item);
         $this->assertSame('Projectpagina tonen', $nl['portfolio.show_project_page']);
         foreach (['portfolio.show_project_page', 'help.portfolio.show_project_page', 'portfolio.slug', 'help.portfolio.slug', 'portfolio.intro', 'portfolio.description', 'portfolio.gallery.heading', 'portfolio.gallery.add', 'portfolio.legacy_page', 'portfolio.unlink_page', 'validation.portfolio_slug_taken', 'validation.portfolio_slug_empty'] as $key) {
             $this->assertArrayHasKey($key, $nl, $key);
