@@ -49,7 +49,7 @@ final class AdminEditorContractTest extends TestCase
         $script = self::source('admin/assets/admin-editor.js');
 
         $this->assertStringContainsString('["input", "change", "admin-editor:change"].forEach', $script);
-        $this->assertStringContainsString('form.contains(target)) markDirty();', $script);
+        $this->assertMatchesRegularExpression('/if \(form\.contains\(target\)\) \{\s*markDirty\(\);/', $script);
         // A section folding fires "toggle", which the editor never listens to.
         $this->assertStringNotContainsString('"toggle"', $script);
         // Drawing a region again after a save is no edit.
@@ -67,9 +67,11 @@ final class AdminEditorContractTest extends TestCase
         $this->assertStringContainsString('if (!answer.ok) {', $script);
         $this->assertSame(1, substr_count($script, 'markClean(answer'), 'clean in one place only: after a stored save');
         $this->assertMatchesRegularExpression('/return done\.then\(function \(\) \{\s*markClean\(/', $script, 'clean after the regions are drawn again');
-        // The page is never reloaded to show a save, only when it can no
-        // longer be trusted (the regions could not be drawn again).
-        $this->assertSame(1, substr_count($script, 'window.location.reload()'));
+        // The editor's own save never reloads the page, only when it can no
+        // longer be trusted (the regions could not be drawn again). The one
+        // other reload follows saved companion forms, whose endpoints do not
+        // speak the editor contract (testCompanionForms...).
+        $this->assertSame(2, substr_count($script, 'window.location.reload()'));
         $this->assertStringContainsString('data-admin-editor-region', $script);
         $this->assertStringContainsString('new CustomEvent("admin-editor:replaced", { bubbles: true })', $script);
     }
@@ -94,10 +96,68 @@ final class AdminEditorContractTest extends TestCase
         $this->assertStringContainsString('=== "dialog") return;', $script);
 
         // "Opslaan en doorgaan" goes on only when the server stored it.
-        $this->assertMatchesRegularExpression('/save\(\{ refresh: false, follow: false \}\)\.then\(function \(stored\) \{.*?if \(stored\) \{.*?request\.go\(\);/s', $script);
+        $this->assertMatchesRegularExpression('/save\(\{ refresh: false, follow: false, except: request\.except \}\)\.then\(function \(stored\) \{.*?if \(stored\) \{.*?request\.go\(\);/s', $script);
 
         // The browser's own question: only while unsaved, never after a choice.
-        $this->assertMatchesRegularExpression('/addEventListener\("beforeunload", function \(event\) \{\s*if \(!dirty \|\| leavingOnPurpose\) return;/', $script);
+        $this->assertMatchesRegularExpression('/addEventListener\("beforeunload", function \(event\) \{\s*if \(!anyDirty\(\) \|\| leavingOnPurpose\) return;/', $script);
+    }
+
+    /**
+     * Companion forms (Extra vormgeving in a product's Inhoud tab): picked by
+     * save-bar.js's own rule, each dirty on its own, saved once after the
+     * editor and only on the endpoint's success redirect, never cleaned by
+     * the editor's save, and never sent twice when its own button is the way
+     * out of the leave dialog.
+     */
+    public function testCompanionFormsAreWatchedAndSavedOnceBySaveBarsRule(): void
+    {
+        $editor = self::source('admin/assets/admin-editor.js');
+        $bar = self::source('admin/assets/save-bar.js');
+
+        // One rule for "a form the bar watches", the same text in both scripts.
+        foreach ([
+            "\"input:not([type='hidden']):not([type='submit']):not([type='button']), select, textarea\"",
+            "document.querySelectorAll(\"main.admin-main form[method='post'], main.admin-main form[method='POST']\")",
+            '!form.classList.contains("admin-inline-form")',
+            '!form.hasAttribute("data-no-dirty-track")',
+            "querySelector(\"[type='submit'], button:not([type])\") !== null",
+            'querySelector(EDITABLE) !== null',
+        ] as $rule) {
+            $this->assertStringContainsString($rule, $bar, $rule);
+            $this->assertStringContainsString(str_replace('form.', 'other.', $rule), $editor, $rule);
+        }
+        $this->assertStringContainsString('other !== form &&', $editor, 'the editor itself is no companion');
+
+        // Dirty per form; the screen is unsaved while anything is.
+        $this->assertStringContainsString('if (other && companions.indexOf(other) !== -1) markCompanionDirty(other);', $editor);
+        $this->assertStringContainsString('return dirty || dirtyCompanions.length > 0;', $editor);
+        $this->assertMatchesRegularExpression('/function markClean\(message\) \{\s*dirty = false;.*?if \(dirtyCompanions\.length > 0\) \{\s*render\("dirty"\);\s*return;/s', $editor, 'the editor save never cleans a companion');
+        $this->assertStringContainsString('if (!anyDirty() || leavingOnPurpose) return;', $editor);
+
+        // Saved once each, in order, after the editor, accepted only on the server's marker.
+        $this->assertStringContainsString('if (saving) return saving;', $editor);
+        $this->assertStringContainsString('return other !== except && dirtyCompanions.indexOf(other) !== -1;', $editor);
+        $this->assertStringContainsString('(dirty ? saveEditor({ follow: false }) : Promise.resolve(true)).then(function (stored) {', $editor);
+        $this->assertStringContainsString('return stored ? saveCompanions(queue, follow) : false;', $editor);
+        $this->assertSame(1, substr_count($editor, 'body: new FormData(other)'), 'one request per companion');
+        $this->assertStringContainsString('response.ok && /[?&](saved|updated|created)=[1-9][0-9]*(&|$)/.test(response.url)', $editor);
+        $this->assertStringContainsString('response.ok && /[?&](saved|updated|created)=[1-9][0-9]*(&|$)/.test(response.url)', $bar);
+        $this->assertStringContainsString('dirtyCompanions.splice(dirtyCompanions.indexOf(other), 1);', $editor);
+        $this->assertStringContainsString('other.inert = true;', $editor, 'nothing typed while it travels');
+
+        // Its own button: the ordinary POST. Alone it is the save; with
+        // anything else unsaved the leave dialog asks, and "Opslaan en
+        // doorgaan" saves the rest WITHOUT that form, which go() then sends.
+        $this->assertMatchesRegularExpression('/if \(!dirtyBesides\(other\)\) \{\s*if \(companions\.indexOf\(other\) !== -1\) \{\s*leavingOnPurpose = true;/', $editor);
+        $this->assertStringContainsString('}, submitter, other);', $editor);
+        $this->assertStringContainsString('pendingLeave = { go: go, from: from, except: except || null };', $editor);
+
+        // The CMS's words for a refused companion travel as data, like the rest.
+        require_once dirname(__DIR__, 2) . '/admin/_admin_editor.php';
+        ob_start();
+        admin_editor_bar();
+        $markup = (string) ob_get_clean();
+        $this->assertMatchesRegularExpression('/data-label-error-in="[^"]*:form[^"]*"/', $markup);
     }
 
     public function testTheLeaveDialogIsANativeModalInTheCmsOwnWords(): void

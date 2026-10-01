@@ -220,6 +220,22 @@ final class BlockAppearanceHttpTest extends TestCase
         $tab = self::$server->request('GET', '/admin/product-form.php?id=' . $productId . '&tab=inhoud', $session)['body'];
         $this->assertStringContainsString('data-block-appearance-panel="' . $id . '"', $tab, 'the same panel on the Pagina-inhoud tab');
 
+        // v0.1.15: watched by the product editor's own script as a companion
+        // form (admin/assets/admin-editor.js), not by a second save bar. That
+        // takes a POST form OUTSIDE the editor's form, inside <main>, without
+        // data-no-dirty-track.
+        $editorEnd = strpos($tab, '</form>', (int) strpos($tab, 'id="product-form"'));
+        $panelForm = strpos($tab, 'action="/api/admin/update-block-appearance.php"');
+        $this->assertIsInt($editorEnd);
+        $this->assertIsInt($panelForm);
+        $this->assertGreaterThan($editorEnd, $panelForm, 'a form of its own next to the editor, never inside it');
+        $this->assertLessThan((int) strpos($tab, '</main>'), $panelForm);
+        $this->assertDoesNotMatchRegularExpression('~update-block-appearance\.php"[^>]*data-no-dirty-track~', $tab);
+        $this->assertStringContainsString('/admin/assets/admin-editor.js', $tab);
+        $this->assertStringNotContainsString('data-save-bar ', $tab, 'one bar, one tracker');
+        $this->assertStringNotContainsString('/admin/assets/save-bar.js', $tab);
+        $this->assertStringContainsString('data-label-error-in="', $tab);
+
         $saved = $this->save($session, $csrf, $id, ['background' => 'subtle', 'decoration' => 'glow']);
         $this->assertSame('/admin/product-form.php?id=' . $productId . '&tab=inhoud&saved=' . $id . '#blok-' . $id, $saved['location']);
         $this->assertSame(['subtle', 'glow'], [
