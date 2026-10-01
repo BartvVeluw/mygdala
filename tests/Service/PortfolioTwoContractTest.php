@@ -99,8 +99,10 @@ final class PortfolioTwoContractTest extends TestCase
     {
         $partial = self::source('partials/section-item-gallery.php');
 
-        $this->assertStringContainsString('<button type="button" class="gallery-item__zoom" data-lightbox-trigger', $partial);
-        $this->assertStringContainsString('aria-label="<?= $h($zoomLabel) ?>"><?= $imageTag ?></button>', $partial);
+        // The button is also the picture's frame of a card presentation (Card
+        // Presentation 2.0), whose class is '' for the default cards.
+        $this->assertStringContainsString('<button type="button" class="gallery-item__zoom<?= $cp(\'media\') ?>" data-lightbox-trigger', $partial);
+        $this->assertStringContainsString('aria-label="<?= $h($zoomLabel) ?>"><?= $image ?></button>', $partial);
         $this->assertStringContainsString("\$overlay .= '<a class=\"gallery-item__cta\" href=\"'", $partial);
         $this->assertStringContainsString("!empty(\$item['opens_lightbox'])", $partial, 'a source may ask for the zoom whatever the block says');
 
