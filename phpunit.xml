@@ -187,6 +187,7 @@
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/ContentBlockLifecycleContractTest.php</file>
+            <file>tests/Service/Search/BlockSearchContractTest.php</file>
             <file>tests/Service/BlockAppearanceContractTest.php</file>
             <file>tests/Service/ReviewsContractTest.php</file>
             <file>tests/Service/CardPresentationContractTest.php</file>
@@ -330,6 +331,7 @@
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/ContentBlockLifecycleContractTest.php</file>
+            <file>tests/Service/Search/BlockSearchContractTest.php</file>
             <file>tests/Service/BlockAppearanceContractTest.php</file>
             <file>tests/Service/ReviewsContractTest.php</file>
             <file>tests/Service/CardPresentationContractTest.php</file>
@@ -476,6 +478,7 @@
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
             <file>tests/Install/BlogContentBlocksMigrationTest.php</file>
             <file>tests/Install/ArticlesMigrationTest.php</file>
+            <file>tests/Install/SearchIndexMigrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
@@ -529,7 +532,9 @@
         <testsuite name="modules">
             <directory>tests/Module</directory>
             <file>tests/Install/ArticlesMigrationTest.php</file>
+            <file>tests/Install/SearchIndexMigrationTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
+            <file>tests/Service/Search/SearchBlockTextTest.php</file>
             <file>tests/Install/PageThemesMigrationTest.php</file>
             <file>tests/Service/ColorPalettesHttpTest.php</file>
             <file>tests/Service/FontLibraryHttpTest.php</file>
@@ -545,6 +550,7 @@
             <directory>tests/Blog</directory>
             <file>tests/Service/PublishingContractTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
+            <file>tests/Service/Search/SearchBlockTextTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
             <file>tests/Install/BlogContentBlocksMigrationTest.php</file>
@@ -656,6 +662,7 @@
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/ContentBlockLifecycleContractTest.php</file>
+            <file>tests/Service/Search/BlockSearchContractTest.php</file>
             <file>tests/Service/ContentBlockLifecycleTest.php</file>
             <file>tests/Service/ContentBlockLifecycleHttpTest.php</file>
             <file>tests/Service/BlockAppearanceContractTest.php</file>
@@ -909,6 +916,7 @@
             <file>tests/Service/ContentBlockOwnerAccessHttpTest.php</file>
             <file>tests/Service/ContentBlockMediaUsageOwnerHttpTest.php</file>
             <file>tests/Service/Search/SearchProvidersTest.php</file>
+            <file>tests/Service/Search/SearchBlockTextTest.php</file>
             <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>

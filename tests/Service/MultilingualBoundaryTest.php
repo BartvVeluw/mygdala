@@ -1053,7 +1053,9 @@ final class MultilingualBoundaryTest extends TestCase
         // The words go first: a block's child rows are found through its row,
         // and deleteContent() lets the database cascade them away.
         self::assertMatchesRegularExpression(
-            '/beginTransaction\(\);\s*try\s*\{.*?BlockLocalization::deleteOwner\(\$contentTable,.*?->deleteContent\(\$pageSection\);.*?\$db->commit\(\);/s',
+            // Its own transaction, or the caller's it joins (an owner deleted
+            // with its whole list, ContentPages::deleteOwner()); within one function.
+            '/beginTransaction\(\);\s*\}?\s*try\s*\{(?:(?!function ).)*?BlockLocalization::deleteOwner\(\$contentTable,(?:(?!function ).)*?->deleteContent\(\$pageSection\);(?:(?!function ).)*?\$db->commit\(\);/s',
             $registry
         );
     }

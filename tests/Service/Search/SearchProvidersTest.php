@@ -19,6 +19,7 @@ use App\Service\Routing\RequestLanguage;
 use App\Service\Search\SearchHit;
 use App\Service\Search\SearchQuery;
 use App\Service\Search\SearchResults;
+use App\Service\Search\BlockSearchIndex;
 use App\Service\Search\SearchService;
 use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
@@ -46,6 +47,10 @@ final class SearchProvidersTest extends TestCase
         $this->db->beginTransaction();
         ModuleRegistry::overrideForTests(self::ALL_ON);
         $this->clearCaches();
+        // The block text index (Search 2.0) is built for these modules now,
+        // inside this test's transaction, so no search below rebuilds it and
+        // the query counts measure searching only.
+        BlockSearchIndex::ensureCurrent();
     }
 
     protected function tearDown(): void
