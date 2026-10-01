@@ -805,7 +805,13 @@ zijbalk"):
 --testsuite fast        AdminEditorResponseTest (de ene antwoordvorm),
                         AdminEditorContractTest en ProductEditorContractTest
                         (wat gewijzigd maakt en wat niet, welke navigatie de
-                        dialoog krijgt, rijen op sleutel, wat later binnenkomt)
+                        dialoog krijgt, rijen op sleutel, wat later binnenkomt;
+                        sinds v0.1.15 fase 12 ook: inklappen per product,
+                        dicht met inhoud en open na een weigering, de
+                        miniatuur van de hoofdfoto, één opslag per gewijzigd
+                        formulier, dubbelklik is één opslag, de eigen knop
+                        van Extra vormgeving verborgen, een geweigerd paneel
+                        opent)
                         en AdminSidebarMenuTest (het menu als bijdrage van de
                         module, knop en links) — database noch webserver nodig
 --testsuite shop        voegt ProductVariantEditorTest toe (opties, waardes en

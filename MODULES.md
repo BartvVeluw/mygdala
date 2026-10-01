@@ -461,7 +461,11 @@ Alles wat er ook zou zijn zonder webshop.
   koppelingen weg; een bibliotheekbestand verwijdert de Shop nooit
   (`ShopMediaUsage`, `MEDIA.md`). De oude `variant_images`, met eigen
   bestanden per variant, is door `20260923120000` omgezet naar dit model en
-  wordt niet meer gelezen.
+  wordt niet meer gelezen. Een afbeelding die een variant kiest staat dus
+  óók in *Productafbeeldingen*: dat is dit model, geen dubbele relatie.
+  Afbeeldingen die alleen bij een variant horen en niet in de algemene
+  galerij, vragen een ander opslagmodel; dat is een open beslissing
+  (Shop Admin UX 2.0, v0.1.15 fase 12), niet gebouwd.
 - **Het productoverzicht** (`admin/products.php`, Shop Admin UX & Order
   Fields 2.0) is *Raster* of *Lijst*: één kaartmarkup die CSS twee keer
   tekent (`data-product-view`), met een schakelaar van twee knoppen
@@ -480,8 +484,9 @@ Alles wat er ook zou zijn zonder webshop.
   `ADMIN-UI.md`, "Een editor die opslaat zonder te herladen"). Eén
   formulier en één *Opslaan*, zonder herladen:
   - het product zelf, zijn collecties en SEO;
-  - de kaart *Afbeeldingen*, met alleen de pool van het product en de
-    *Overgang productgalerij* (zie hieronder);
+  - de kaart *Productafbeeldingen*, met alleen de pool van het product (de
+    eerste is de *Hoofdfoto*) en de *Overgang productgalerij* (zie
+    hieronder);
   - de kaart *Varianten*: de opties met hun waardes, en de varianten met
     hun prijs, schakelaar, afbeeldingen uit de pool en eigen beschrijving.
 

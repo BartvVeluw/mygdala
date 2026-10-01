@@ -77,7 +77,12 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module, en
   een rij op het scherm. `update-product.php` controleert alles en schrijft
   alles in één transactie (`ProductVariantEditor`). Voeg geen endpoint per
   rij toe. Een nieuw veld gaat in hetzelfde formulier, met een melding op
-  zijn veldnaam.
+  zijn veldnaam. De Extra vormgeving van zijn blokken is een begeleidend
+  formulier dat dezelfde *Opslaan* meeneemt. Een lange sectie klapt in met
+  `admin/_admin_collapse.php`, onthouden per product (scope = id); bouw geen
+  eigen accordeon. Een variant kiest afbeeldingen uit de pool van het
+  product (`product_variant_images`): er is geen afbeelding die alleen bij
+  een variant hoort (`MODULES.md`, "Shop").
 - **Een klantafbeelding bij een bestelvraag is privé orderdata**
   (`MODULES.md`, "Bestelvelden" → *Afbeelding uploaden*): buiten de webroot,
   nooit in de Mediabibliotheek, `assets/`, een mail of de factuur; de browser
