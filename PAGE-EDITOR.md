@@ -514,6 +514,9 @@ dat opslaat zonder de pagina te herladen, en vraagt in een eigen dialoog
 voordat je met wijzigingen wegnavigeert. De producteditor gebruikt hem sinds
 Shop Admin UX 2.0. De schermen hieronder houden de opslagbalk tot ze één voor
 één worden omgezet. Een scherm gebruikt de een of de ander, nooit beide.
+Gewone formulieren naast het editorformulier, zoals *Extra vormgeving* in de
+bloklijst van een product, bewaakt de dynamische editor zelf, met dezelfde
+selectieregel als deze balk (`ADMIN-UI.md`, "Formulieren naast de editor").
 
 ### Wat de balk NIET is
 

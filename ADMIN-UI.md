@@ -359,7 +359,7 @@ post alleen wat de test nodig heeft en zet het antwoord in een live regio
 | Het antwoord van een endpoint | `App\Service\AdminEditorResponse` |
 | Uiterlijk | `admin/assets/admin.css`, sectie "The dynamic editor" (de balk is `.admin-save-bar`, de dialoog `.admin-confirm`) |
 | Teksten | sleutels `editor.*` in `nl.php` en `en.php` |
-| Tests | `AdminEditorContractTest`, `AdminEditorResponseTest` (`contract`/`unit`, `fast`, `cms`), `ProductEditorHttpTest` (`shop`) |
+| Tests | `AdminEditorContractTest`, `AdminEditorResponseTest` (`contract`/`unit`, `fast`, `cms`), `ProductEditorHttpTest` (`shop`), `BlockAppearanceHttpTest` (het paneel als begeleidend formulier) |
 
 ### Het contract
 
@@ -432,6 +432,42 @@ Een script dat het formulier op een andere manier verandert, stuurt
 
 Na een geslaagde opslag is het scherm schoon. Na elke mislukte opslag blijft
 het gewijzigd.
+
+### Formulieren naast de editor (begeleidende formulieren)
+
+Een scherm kan naast het editorformulier gewone POST-formulieren hebben die
+hun eigen endpoint houden. Het voorbeeld is het paneel *Extra vormgeving* van
+elk blok in het tabblad *Inhoud* van de producteditor
+(`admin/_block_appearance.php`), dat buiten `form[data-admin-editor]` staat.
+Sinds v0.1.15 bewaakt `admin-editor.js` zulke formulieren zelf. Er komt dus
+geen tweede opslagbalk en geen `save-bar.js` op hetzelfde scherm: **twee
+trackers op één scherm zijn verboden**.
+
+- **Welke formulieren: dezelfde regel als `save-bar.js`.** Een POST-formulier
+  in `main.admin-main` met een bewerkbaar veld en een verzendknop, geen
+  `.admin-inline-form` (verbergen, verwijderen) en zonder
+  `data-no-dirty-track` (de blokkenkiezer). De regel staat letterlijk in
+  beide scripts, en `AdminEditorContractTest` bewaakt dat hij gelijk blijft.
+  Een nieuw ingebed formulier valt er dus vanzelf onder, op de pagina-, de
+  project- en de producteditor.
+- **Gewijzigd per formulier.** Het scherm is gewijzigd zolang de editor óf
+  een begeleidend formulier niet is opgeslagen. Een opslag van de editor maakt
+  een begeleidend formulier nooit schoon.
+- **Centraal *Opslaan*.** Eerst de editor (als die gewijzigd is), daarna elk
+  gewijzigd begeleidend formulier precies één keer, op volgorde, met
+  `fetch()`. Een begeleidend formulier is opgeslagen als zijn endpoint
+  doorstuurt naar zijn succesadres (`saved=<id>`, net als bij de opslagbalk).
+  Bij de eerste weigering stopt de reeks: dat formulier en de formulieren erna
+  blijven gewijzigd, en de balk noemt het formulier (`data-save-name`). Na de
+  laatste opslag herlaadt de pagina, want alleen de server kan tekenen wat er
+  nu is opgeslagen.
+- **De eigen knop van het formulier** blijft de gewone POST. Is verder niets
+  gewijzigd, dan is dat de opslag en vraagt het scherm niets. Is de editor of
+  een ander formulier wel gewijzigd, dan verschijnt de vertrekdialoog.
+  *Opslaan en doorgaan* slaat dan de rest op **zonder** dat formulier, en
+  verstuurt het daarna één keer zelf.
+- **`data-save-bar-unsaved`** op een begeleidend formulier werkt zoals bij de
+  opslagbalk: het formulier begint als gewijzigd.
 
 ### Meldingen
 
