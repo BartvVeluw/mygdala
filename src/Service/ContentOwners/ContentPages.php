@@ -153,6 +153,49 @@ final class ContentPages
     }
 
     /**
+     * Whether this owner's blocks say something a visitor can read: at least
+     * one block that is switched on, of a type that is registered right now,
+     * not a page head, not decorative (Witruimte), and — for a block that can
+     * judge its own content (InspectsContent) — not empty. What a kind asks
+     * before it lets an owner be published (Articles, ARTICLES.md); the CMS's
+     * own lists keep their wider rule (SectionRegistry::hasContentBlocks()).
+     */
+    public static function hasMeaningfulBlocks(string $kind, int $ownerId): bool
+    {
+        $page = self::pageFor($kind, $ownerId);
+
+        if ($page === null) {
+            return false;
+        }
+
+        foreach ((new PageSectionRepository())->findForPage((int) $page['id'], true) as $pageSection) {
+            $definition = \App\Service\Blocks\BlockDefinitions::get((string) $pageSection['section_type']);
+
+            if (
+                $definition === null
+                || $definition->isDecorative()
+                || $definition->category() === \App\Service\Blocks\BlockCategories::HERO
+            ) {
+                continue;
+            }
+
+            if (!$definition instanceof \App\Service\Blocks\InspectsContent) {
+                return true;
+            }
+
+            try {
+                if ($definition->hasContent($pageSection)) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+                error_log('[ContentPages::hasMeaningfulBlocks] ' . $e->getMessage());
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Whose content page this is, or null for an ordinary page (or a content
      * page whose link is gone).
      *

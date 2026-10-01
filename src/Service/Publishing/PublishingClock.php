@@ -133,6 +133,34 @@ final class PublishingClock
         return self::parse($value)?->format(\DateTimeInterface::RSS);
     }
 
+    /**
+     * A stored moment as a visitor reads a date ("3 maart 2026", "3 March
+     * 2026"), or ''. Month names are spelled out here rather than left to
+     * strftime(), which is deprecated and needs a locale shared hosting may
+     * not have; a language without its own names gets SiteText's fallback.
+     */
+    public static function forReader(mixed $value, ?string $language = null): string
+    {
+        $moment = self::parse($value);
+
+        if ($moment === null) {
+            return '';
+        }
+
+        $month = (int) $moment->format('n');
+        $names = \App\Service\Language\SiteText::pick(array_map(
+            static fn (array $months): string => $months[$month],
+            self::MONTHS
+        ), $language);
+
+        return $moment->format('j') . ' ' . $names . ' ' . $moment->format('Y');
+    }
+
+    private const MONTHS = [
+        'nl' => [1 => 'januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'],
+        'en' => [1 => 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    ];
+
     /** ISO 8601 with offset, for structured data and a future search index. */
     public static function forAtom(mixed $value): string
     {

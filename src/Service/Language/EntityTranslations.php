@@ -148,6 +148,24 @@ final class EntityTranslations
     }
 
     /**
+     * Every owner with an address in this language: what a listing in that
+     * language may show. A failed lookup is an empty list (reads never
+     * throw), so a listing degrades to "nothing here".
+     *
+     * @return list<int>
+     */
+    public function ownersWithSlug(string $languageCode): array
+    {
+        try {
+            return (new EntityTranslationRepository($this->table))->ownerIdsWithSlug($languageCode);
+        } catch (\Throwable $e) {
+            error_log('[EntityTranslations] ' . $this->table->name . ' address list failed: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
      * Is this address already another owner's, in this language?
      *
      * A lookup that FAILS counts as taken: refusing a save an editor can

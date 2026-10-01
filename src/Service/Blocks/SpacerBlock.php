@@ -42,6 +42,12 @@ final class SpacerBlock extends BlockDefinition
         return 'Extra ruimte tussen twee blokken, in een vaste hoogte die je kiest. Er staat verder niets in: de bezoeker ziet alleen de ruimte.';
     }
 
+    /** Witruimte is space, not content (BlockDefinition::isDecorative()). */
+    public function isDecorative(): bool
+    {
+        return true;
+    }
+
     public function category(): string
     {
         return BlockCategories::CONTENT;

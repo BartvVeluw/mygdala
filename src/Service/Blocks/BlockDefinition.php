@@ -436,6 +436,18 @@ abstract class BlockDefinition
     }
 
     /**
+     * Whether this block only shapes the page and says nothing by itself
+     * (Witruimte). Such a block is never "empty" and never "content": a page
+     * of only spacers has nothing to read, which is what a kind that demands
+     * real content before it publishes asks
+     * (App\Service\ContentOwners\ContentPages::hasMeaningfulBlocks()).
+     */
+    public function isDecorative(): bool
+    {
+        return false;
+    }
+
+    /**
      * @param array<string, mixed> $pageSection
      */
     protected function pageSlug(array $pageSection): string

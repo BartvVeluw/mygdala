@@ -23,7 +23,7 @@ namespace App\Module;
  * WANTED vs ACTIVE. App\Module\ModuleConfig says what the deployment asked
  * for (MODULE_<KEY>_ENABLED in .env, then the stored preference, then the
  * module's own ModuleDefinition::enabledByDefault() — on for every module
- * except the Blog and the Portfolio). enabled() below turns that
+ * except the Blog, Articles and the Portfolio). enabled() below turns that
  * into what actually runs by also applying dependencies(): Personalisatie
  * depends on the Shop, so a configuration that asks for Personalisatie while
  * the Shop is off gets Personalisatie off as well, with one line in the error
@@ -37,6 +37,7 @@ final class ModuleRegistry
         'shop' => ShopModule::class,
         'personalization' => PersonalizationModule::class,
         'blog' => BlogModule::class,
+        'articles' => ArticlesModule::class,
         'portfolio' => PortfolioModule::class,
         'multilingual' => MultilingualModule::class,
         'page_themes' => PageThemesModule::class,

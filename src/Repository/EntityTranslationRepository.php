@@ -174,6 +174,26 @@ final class EntityTranslationRepository extends Repository
         return $row === false ? null : (int) $row['owner_id'];
     }
 
+    /**
+     * Every owner that has an address IN THIS LANGUAGE, in one query: the
+     * owners a listing in that language may show at all.
+     *
+     * @return list<int>
+     */
+    public function ownerIdsWithSlug(string $languageCode): array
+    {
+        $this->assertSlug();
+
+        $stmt = $this->db->prepare(
+            "SELECT `{$this->table->ownerColumn}` AS owner_id
+               FROM `{$this->table->name}`
+              WHERE language_code = :language_code AND slug IS NOT NULL AND slug <> ''"
+        );
+        $stmt->execute(['language_code' => $languageCode]);
+
+        return array_map(static fn (array $row): int => (int) $row['owner_id'], $stmt->fetchAll());
+    }
+
     /** Is this address already taken IN THIS LANGUAGE by another owner? */
     public function slugExists(string $slug, string $languageCode, ?int $excludeOwnerId = null): bool
     {
