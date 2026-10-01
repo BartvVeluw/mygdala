@@ -91,8 +91,8 @@ final class ProjectImagesBlock extends FixedBlockDefinition
     public function useCases(): array
     {
         return [
-            'de extra foto\'s van een project',
-            'projectfoto\'s tussen andere blokken',
+            'de extra beelden van een project',
+            'projectbeelden tussen andere blokken',
         ];
     }
 
