@@ -474,6 +474,7 @@
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
+            <file>tests/Install/BlogContentBlocksMigrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
@@ -544,6 +545,7 @@
             <file>tests/Service/Search/SearchProvidersTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
+            <file>tests/Install/BlogContentBlocksMigrationTest.php</file>
         </testsuite>
 
         <testsuite name="blocks">
