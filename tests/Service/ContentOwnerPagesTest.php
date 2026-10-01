@@ -213,9 +213,15 @@ final class ContentOwnerPagesTest extends TestCase
         $this->assertNotContains('page_hero', $project);
         $this->assertContains('page_hero', $page);
 
-        $this->assertContains('project_info', $project);
-        $this->assertNotContains('project_info', $product, 'there is no project to show on a product');
-        $this->assertNotContains('project_info', $page);
+        // Portfolio 3.0: Projectinformatie is gone; Projectafbeeldingen is a
+        // fixed block, placed with the project, never offered by hand.
+        foreach ([$project, $product, $page] as $offered) {
+            $this->assertNotContains('project_info', $offered);
+            $this->assertNotContains('project_images', $offered);
+        }
+        $this->assertTrue(SectionRegistry::isAllowedOnPage('project_images', ContentPages::placeholder('portfolio_project', 1)));
+        $this->assertFalse(SectionRegistry::isAllowedOnPage('project_images', ContentPages::placeholder('product', 1)), 'there are no project photos on a product');
+        $this->assertFalse(SectionRegistry::isAllowedOnPage('project_images', ['id' => 0, 'content_key' => 'zz-gewone-pagina']));
 
         $this->assertNotContains('homepage_hero', $product);
         $this->assertNotContains('quicknav', $product, 'a fixed block is never added by hand');
@@ -314,9 +320,13 @@ final class ContentOwnerPagesTest extends TestCase
     {
         $project = $this->project('ZZ Tafel');
         $page = ContentPages::ensure(PortfolioContentOwner::KIND, $project);
-        $this->addBlock($page, 'project_info', []);
+        $this->addBlock($page, 'rich_text', []);
+        \App\Service\ProjectImagesPlacement::ensure($project);
 
         ContentPages::deleteFor(PortfolioContentOwner::KIND, $project);
+
+        // The fixed Projectafbeeldingen row goes with the list, as every row does.
+        $this->assertNull((new PageSectionRepository())->findBySectionTypeAndId('project_images', $project));
 
         $this->assertNull(ContentPages::pageFor(PortfolioContentOwner::KIND, $project));
         $this->assertNotNull((new PortfolioGalleryRepository())->findItemById($project));

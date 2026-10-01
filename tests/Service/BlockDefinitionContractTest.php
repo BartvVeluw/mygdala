@@ -51,7 +51,6 @@ final class BlockDefinitionContractTest extends TestCase
     private const WORDLESS_WITH_ROWS = [
         'spacer' => 'only a height (App\Service\SpacerContent::SIZES)',
         'media_banner' => 'a library item, a layout and video options; the alt text is the library\'s (App\Service\MediaBannerContent)',
-        'project_info' => 'where the picture sits and whether the photos follow; the words are the project\'s own, read live (App\Service\ProjectInfoContent)',
     ];
 
     /**

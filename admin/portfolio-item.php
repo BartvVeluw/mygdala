@@ -83,12 +83,15 @@ use App\Repository\PortfolioItemImageRepository;
  *
  * TWO TABS on an existing item (Product & Portfolio Content Pages 1.0): Project
  * — everything above, one form, as it always was — and Pagina-inhoud: the
- * project's layout (Portfolio layout 2.0, App\Service\PortfolioProjectLayout)
- * at the top, part of the same form and saved by the same Opslaan, then the
- * project's content blocks through the block list every page has
- * (admin/_content_blocks.php), which is not part of that form: each block is
- * saved in its own editor. The block list asks pages.manage, like every block
- * editor; without it the tab says so.
+ * layout of the project's fixed head (Portfolio layout 2.0,
+ * App\Service\PortfolioProjectLayout) at the top, part of the same form and
+ * saved by the same Opslaan, then the project's content blocks through the
+ * block list every page has (admin/_content_blocks.php), which is not part of
+ * that form: each block is saved in its own editor. The extra photos are one
+ * of those blocks, Projectafbeeldingen (Portfolio 3.0): the photos are chosen
+ * here on the Project tab, the block only says where they stand and whether
+ * they show. The block list asks the project's own permission
+ * (ContentBlockAccess); without it the tab says so.
  *
  * Built from the shared admin controls (ADMIN-UI.md): field help, the media
  * picker, a switch per on/off setting, a checkbox per category, the shared
@@ -183,9 +186,6 @@ $projectLayoutValue = $old !== null && array_key_exists('project_layout', $old)
     ? (string) $old['project_layout']
     : (string) (\App\Service\PortfolioProjectLayout::ownChoice($item['project_layout'] ?? null) ?? '');
 $defaultLayoutLabel = \App\Service\PortfolioProjectLayout::label(\App\Service\PortfolioProjectLayout::siteDefault());
-$effectiveLayout = $projectLayoutValue !== '' && \App\Service\PortfolioProjectLayout::isValid($projectLayoutValue)
-    ? $projectLayoutValue
-    : \App\Service\PortfolioProjectLayout::siteDefault();
 $projectKind = \App\Service\PortfolioContentOwner::KIND;
 
 // The item's legacy linked page (phase 4B), only when it has one.
@@ -706,11 +706,7 @@ $writesDefaultLanguage = $editingLanguage === admin_localized_default();
             <?php endforeach; ?>
           </select>
         </div>
-        <p class="admin-text-muted"><?= $effectiveLayout === \App\Service\PortfolioProjectLayout::FREE ? admin_te('content_blocks.project_intro_free') : admin_te('content_blocks.project_intro') ?></p>
-        <?php if ($effectiveLayout === \App\Service\PortfolioProjectLayout::FREE && !\App\Service\ProjectInfoContent::isPlacedOn((int) $item['id'])): ?>
-          <?php /* A choice the editor may make, so a warning and never a block. */ ?>
-          <p class="admin-alert admin-alert--warning" data-project-info-missing><?= admin_te('content_blocks.project_info_missing') ?></p>
-        <?php endif; ?>
+        <p class="admin-text-muted"><?= admin_te('content_blocks.project_intro') ?></p>
         <?php if ((int) ($item['has_detail_page'] ?? 0) !== 1): ?>
           <p class="admin-alert admin-alert--warning"><?= admin_te('content_blocks.project_page_off') ?></p>
         <?php endif; ?>

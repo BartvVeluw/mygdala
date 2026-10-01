@@ -105,7 +105,9 @@ final class PortfolioModuleHttpTest extends TestCase
             }
 
             // Its category links go with the row (ON DELETE CASCADE); its files
-            // only go through the processor — the order the delete endpoint uses.
+            // only go through the processor — the order the delete endpoint uses,
+            // after its content page (its Projectafbeeldingen block, Portfolio 3.0).
+            \App\Service\ContentOwners\ContentPages::deleteFor(\App\Service\PortfolioContentOwner::KIND, $id);
             $gallery->deleteItem($id);
             $processor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
         }

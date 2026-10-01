@@ -74,7 +74,7 @@ final class AdminAccessControlTest extends TestCase
         'block-preview.php', 'card-carousel.php', 'carousel-card.php', 'contact-card.php', 'contact-form.php',
         'cta-band.php', 'detail-section.php', 'faq.php', 'feature-grid.php', 'featured-product.php',
         'form-block.php', 'hover-card-grid.php', 'item-gallery.php', 'marquee.php', 'media-banner.php',
-        'project-cards.php', 'project-info.php', 'reviews.php', 'rich-text.php', 'spacer.php', 'stat-strip.php',
+        'project-cards.php', 'reviews.php', 'rich-text.php', 'spacer.php', 'stat-strip.php',
         'step-list.php', 'text-image-split.php',
     ];
 
@@ -91,7 +91,7 @@ final class AdminAccessControlTest extends TestCase
         'discard-block-draft.php', 'update-card-carousel.php', 'update-carousel-card.php', 'update-contact-card.php', 'update-contact-form.php',
         'update-cta-band.php', 'update-detail-section.php', 'update-faq-section.php', 'update-feature-grid.php',
         'update-featured-product.php', 'update-form-block.php', 'update-hover-card-grid.php', 'update-item-gallery.php',
-        'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php', 'update-project-info.php',
+        'update-marquee-section.php', 'update-media-banner.php', 'update-project-cards.php',
         'update-rich-text-section.php', 'update-spacer.php', 'update-stat-strip.php', 'update-step-list-section.php',
         'update-text-image-split-section.php', 'update-reviews.php',
         // Extra vormgeving of one block instance, for every block type.

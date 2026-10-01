@@ -89,6 +89,9 @@ final class PortfolioItemEditingHttpTest extends TestCase
                 continue;
             }
 
+            // Every saved project has its content page (its Projectafbeeldingen
+            // block, Portfolio 3.0), which the item cannot outlive.
+            \App\Service\ContentOwners\ContentPages::deleteFor(\App\Service\PortfolioContentOwner::KIND, $id);
             $gallery->deleteItem($id);
             $processor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
         }
@@ -770,9 +773,10 @@ final class PortfolioItemEditingHttpTest extends TestCase
         ]);
     }
 
+    /** Ordinary pages: a project's content page (owner_type) is no page. */
     private function pageCount(): int
     {
-        return (int) Database::connection()->query('SELECT COUNT(*) FROM pages')->fetchColumn();
+        return (int) Database::connection()->query('SELECT COUNT(*) FROM pages WHERE owner_type IS NULL')->fetchColumn();
     }
 
     private function itemCount(): int

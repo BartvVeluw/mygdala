@@ -322,9 +322,9 @@ final class PortfolioModule extends ModuleDefinition
     {
         return [
             'project_cards' => ProjectCardsBlock::class,
-            // A project's own head as a block, for the free project layout
-            // (Product & Portfolio Content Pages 1.0); only on a project's page.
-            'project_info' => \App\Service\Blocks\ProjectInfoBlock::class,
+            // Where a project's extra photos stand on its own page (Portfolio
+            // 3.0): a fixed block on every project, only on a project's page.
+            'project_images' => \App\Service\Blocks\ProjectImagesBlock::class,
         ];
     }
 

@@ -27,7 +27,7 @@ use App\Service\Language\SiteLanguages;
  * KEPT CURRENT where a block's words change, inside the transaction of that
  * change (ContentBlockDrafts::place() — every block editor's save —,
  * SectionRegistry::setActive(), the hero editors, a carousel card, a block
- * placed at once, a Blog conversion, Projectinformatie). A deleted block,
+ * placed at once, a Blog conversion). A deleted block,
  * page or owner takes its rows along by CASCADE. Reordering needs nothing:
  * the order is read from page_sections at search time.
  *

@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Service;
 
 /**
- * How a project page is built (Portfolio layout 2.0, MODULES.md "Portfolio"):
- * the project's own head — main picture, categories, title, short text,
- * intro, description and its extra photos (partials/project-hero.php) — with
- * the picture on the left, on the right or on top and the project's content
- * blocks below it; or FREE, where the content blocks are the whole page and
- * the Projectinformatie block puts the project's own head wherever the
- * editor places it.
+ * How a project's FIXED HEAD is laid out (Portfolio layout 2.0, MODULES.md
+ * "Portfolio"): the main picture, categories, title, short text, intro and
+ * description (partials/project-hero.php), with the picture on the left, on
+ * the right or on top. That is all it decides. The project's content blocks
+ * follow the head in their own order, and its extra photos are one of them
+ * (the Projectafbeeldingen block, Portfolio 3.0), so no layout moves them.
+ *
+ * Portfolio 3.0 retired the fourth layout, "free" (the blocks as the whole
+ * page, the head a Projectinformatie block among them): every project page
+ * has its fixed head now. db/migrations/20261014100000 gave every free
+ * project, and a free default, the fixed layout matching where its
+ * Projectinformatie block put the picture; a stored "free" that would still
+ * turn up reads as the default, like every word that is not a layout.
  *
  * TWO LEVELS. The Portfolio default is the site setting
  * `portfolio_project_layout` (Portfolio → Instellingen), `image_left` unless
@@ -29,10 +35,9 @@ final class PortfolioProjectLayout
     public const IMAGE_LEFT = 'image_left';
     public const IMAGE_RIGHT = 'image_right';
     public const IMAGE_TOP = 'image_top';
-    public const FREE = 'free';
 
     /** Every layout a project can have, in the order the editor offers them. */
-    public const LAYOUTS = [self::IMAGE_LEFT, self::IMAGE_RIGHT, self::IMAGE_TOP, self::FREE];
+    public const LAYOUTS = [self::IMAGE_LEFT, self::IMAGE_RIGHT, self::IMAGE_TOP];
 
     /** What the Portfolio default may be: every layout. */
     public const DEFAULTS = self::LAYOUTS;
@@ -74,11 +79,7 @@ final class PortfolioProjectLayout
         return self::ownChoice($item['project_layout'] ?? null) ?? self::siteDefault();
     }
 
-    /**
-     * Where the picture sits in the project's head for a layout that has one:
-     * left, right or top. FREE has no fixed head; the Projectinformatie block
-     * decides for itself.
-     */
+    /** Where the picture sits in the project's head: left, right or top. */
     public static function imagePosition(string $layout): string
     {
         return match ($layout) {

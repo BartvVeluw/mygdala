@@ -56,8 +56,8 @@ abstract class BlockDefinition
      * an owner kind such as 'product' or 'portfolio_project'. Absent means
      * every kind — the block is ordinary content and does not care whose page
      * it is on. Name it only for a block that really needs one kind (the
-     * Paginakop is a page's own head; Projectinformatie reads the project it
-     * is on).
+     * Paginakop is a page's own head; Projectafbeeldingen shows the photos
+     * of the project it is on).
      *
      * @return array{label: string, manual_add: bool, allow_multiple: bool, max_instances: ?int, allowed_pages: ?list<string>, denied_pages?: list<string>, deletable: bool, app_critical?: bool, kind?: string, badge_label?: string, note?: string, edit_links?: list<array{label: string, url: string}>, owners?: list<string>}
      */

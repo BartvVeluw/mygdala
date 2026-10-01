@@ -140,31 +140,38 @@ final class ContentOwnerPagesRoutingTest extends TestCase
 
     // ------------------------------------------------------------- portfolio
 
-    public function testAFreeLayoutProjectShowsItsBlocksWherePlacedAtItsPrettyUrl(): void
+    public function testAProjectsPhotosStandWhereTheirBlockStandsAtItsPrettyUrl(): void
     {
-        $id = $this->project('ZZ Vrij routeproject');
-        (new PortfolioGalleryRepository())->setItemProjectLayout($id, PortfolioProjectLayout::FREE);
+        $id = $this->project('ZZ Foto routeproject');
+        Database::connection()->prepare(
+            "INSERT INTO portfolio_item_images (portfolio_item_id, image_path, thumbnail_path, sort_order, created_at, updated_at)
+             VALUES (:id, 'assets/images/sections/zz-route-foto.jpg', NULL, 1, NOW(), NOW())"
+        )->execute(['id' => $id]);
         $page = ContentPages::ensure(PortfolioContentOwner::KIND, $id);
         $this->block($page, 'rich_text', ['body' => '<p>ZZ routeblok vooraf</p>']);
-        $info = $this->block($page, 'project_info', []);
+        \App\Service\ProjectImagesPlacement::ensure($id);
+        $photos = (new PageSectionRepository())->findBySectionTypeAndId('project_images', $id);
         $this->block($page, 'rich_text', ['body' => '<p>ZZ routeblok achteraf</p>']);
+        $rows = (new PageSectionRepository())->findForPage((int) $page['id']);
+        (new PageSectionRepository())->reorder((int) $page['id'], [(int) $rows[1]['id'], (int) $photos['id'], (int) $rows[2]['id']]);
 
         $response = $this->get(TestEnvironment::baseUrl(), '/portfolio/' . $this->projectSlug($id));
 
         $this->assertSame(200, $response['status']);
         $body = $response['body'];
-        $before = strpos($body, 'ZZ routeblok vooraf');
         $head = strpos($body, 'project-hero__title');
+        $before = strpos($body, 'ZZ routeblok vooraf');
+        $gallery = strpos($body, 'zz-route-foto.jpg');
         $after = strpos($body, 'ZZ routeblok achteraf');
+        $this->assertIsInt($head);
         $this->assertIsInt($before);
-        $this->assertIsInt($head, 'the Projectinformatie block renders the project');
+        $this->assertIsInt($gallery, 'the photos render through their block');
         $this->assertIsInt($after);
-        $this->assertLessThan($head, $before);
-        $this->assertLessThan($after, $head);
-        $this->assertSame(1, substr_count($body, 'project-hero__title'), 'one head: the block\'s, no automatic one');
-        $this->assertStringContainsString('project-hero--in-flow', $body);
-        $this->assertStringContainsString('data-reveal-group="project_info-' . $info . '"', $body);
-        $this->assertStringContainsString('ZZ Vrij routeproject', $body);
+        $this->assertLessThan($before, $head, 'the fixed head first');
+        $this->assertLessThan($gallery, $before);
+        $this->assertLessThan($after, $gallery);
+        $this->assertSame(1, substr_count($body, 'class="project-gallery"'), 'the photos once');
+        $this->assertStringContainsString('data-reveal-group="project_images-' . (int) $photos['id'] . '"', $body);
     }
 
     public function testWithPortfolioOffTheProjectAddressIsNotFound(): void

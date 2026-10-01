@@ -846,8 +846,8 @@ class PortfolioGalleryContent
 
     /**
      * itemForDetailPage() for the project with this id: the same answer, the
-     * same visibility rules — what the Projectinformatie block asks about the
-     * project whose content page it is on (App\Service\Blocks\ProjectInfoBlock).
+     * same visibility rules — what the Projectafbeeldingen block asks about
+     * the project whose content page it is on (App\Service\Blocks\ProjectImagesBlock).
      *
      * @return array<string, mixed>|null
      */

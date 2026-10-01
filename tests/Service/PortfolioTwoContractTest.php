@@ -69,15 +69,18 @@ final class PortfolioTwoContractTest extends TestCase
         $script = self::source('assets/js/lightbox.js');
 
         $this->assertStringContainsString('trigger.closest("[data-lightbox-group]")', $script);
-        $this->assertStringContainsString('group.querySelectorAll("[data-lightbox-trigger]")', $script);
+        $this->assertStringContainsString('element.querySelectorAll("[data-lightbox-trigger]")', $script);
+        // A named group (Portfolio 3.0) spans every element with that name.
+        $this->assertStringContainsString('return element.getAttribute("data-lightbox-group") === name;', $script);
         $this->assertStringContainsString('return element.getClientRects().length > 0;', $script, 'a card hidden by the filter is left out');
         $this->assertStringContainsString('(current + delta + slides.length) % slides.length', $script, 'it wraps around, like the project lightbox always did');
 
         $this->assertStringContainsString('data-gallery-block data-lightbox-group', self::source('partials/section-item-gallery.php'), 'each gallery block is its own group');
-        // The project's head is one partial now (Portfolio layout 2.0), printed by
-        // the page and by the Projectinformatie block alike.
-        $this->assertStringContainsString('<section class="project-hero<?= $modifiers ?>" data-lightbox-group>', self::source('partials/project-hero.php'), 'a project page is one group');
-        $this->assertStringContainsString('render_project_hero(', self::source('portfolio-detail.php'));
+        // A project's head and its Projectafbeeldingen block (Portfolio 3.0)
+        // share one named group, wherever the block stands.
+        $this->assertStringContainsString('<section class="project-hero<?= $modifiers ?>" data-lightbox-group="<?= $h($lightboxGroup) ?>">', self::source('partials/project-hero.php'), 'a project page is one group');
+        $this->assertStringContainsString('<section class="project-images" data-lightbox-group="<?= $h($lightboxGroup) ?>">', self::source('partials/section-project-images.php'));
+        $this->assertStringContainsString('ProjectImagesBlock::lightboxGroup((int) $portfolioItem[\'id\'])', self::source('portfolio-detail.php'));
     }
 
     public function testKeyboardAndFocusAreHandled(): void

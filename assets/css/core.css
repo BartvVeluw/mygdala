@@ -1444,11 +1444,6 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
   .project-hero--image-right .project-hero__media{ order: 0; }
   .project-hero--image-top .project-hero__image{ aspect-ratio: 4 / 3; }
 }
-/* The head placed by the Projectinformatie block below other blocks: ordinary
-   section spacing, not the room a page head leaves under the site header.
-   Directly under the breadcrumb, `.breadcrumb-bar + .project-hero` still wins. */
-.project-hero--in-flow{ padding-top: var(--sp-6); }
-
 @media (prefers-reduced-motion: reduce){
   .project-hero__zoom, .project-hero__image{ transition: none; }
   .project-hero__zoom:hover{ transform: none; }
@@ -1458,7 +1453,13 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 /* Project gallery — CSS multi-column "masonry" so every image keeps its own
    natural aspect ratio (no forced square/4:5 crop per cell); reads as an
    editorial grid instead of a uniform product grid. */
-.project-gallery-section{ padding-top: 0; margin-top: var(--sp-6); }
+.project-gallery-section{ padding-top: 0; }
+/* The Projectafbeeldingen block (partials/section-project-images.php, Portfolio
+   3.0): ordinary section spacing wherever it stands. Directly under the
+   project's head and without a look of its own, it closes up to the head the
+   way the photos sat inside it before: the head's own bottom spacing above
+   them, the same below them. */
+.project-hero + .project-images:not(.block-appearance){ padding-top: 0; padding-bottom: var(--sp-6); }
 .project-gallery{ columns: 3 280px; column-gap: var(--sp-3); }
 @media (max-width: 900px){ .project-gallery{ columns: 2 220px; } }
 @media (max-width: 560px){ .project-gallery{ columns: 1; } }

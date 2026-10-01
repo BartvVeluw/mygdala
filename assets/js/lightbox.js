@@ -17,6 +17,12 @@
      [data-lightbox-group]    the element whose triggers form one sequence:
                               a gallery block, or a project page's pictures
 
+   A NAMED GROUP (data-lightbox-group="project-12") is one sequence across
+   every element that carries the same name, in page order: a project's head
+   and its Projectafbeeldingen block (Portfolio 3.0) are two sections with
+   other blocks between them, and still one run of pictures. An unnamed group
+   is just the one element, as before.
+
    WHICH PICTURES, AND IN WHAT ORDER, is decided the moment the lightbox
    opens: every trigger of the opener's group that is shown right now, in
    page order. A gallery filtered on a category hides its other cards
@@ -85,11 +91,18 @@
     }
 
     function open(trigger) {
-      var group = trigger.closest("[data-lightbox-group]") || document;
-      var triggers = Array.prototype.filter.call(
-        group.querySelectorAll("[data-lightbox-trigger]"),
-        isShown
+      var group = trigger.closest("[data-lightbox-group]");
+      var name = group ? group.getAttribute("data-lightbox-group") : "";
+      var groups = !group ? [document] : !name ? [group] : Array.prototype.filter.call(
+        document.querySelectorAll("[data-lightbox-group]"),
+        function (element) { return element.getAttribute("data-lightbox-group") === name; }
       );
+      var triggers = [];
+      groups.forEach(function (element) {
+        Array.prototype.forEach.call(element.querySelectorAll("[data-lightbox-trigger]"), function (t) {
+          if (isShown(t)) triggers.push(t);
+        });
+      });
       if (triggers.indexOf(trigger) === -1) triggers = [trigger];
 
       slides = triggers.map(function (t) {

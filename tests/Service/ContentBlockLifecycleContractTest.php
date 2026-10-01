@@ -35,7 +35,6 @@ final class ContentBlockLifecycleContractTest extends TestCase
         // Dynamic: they show what their source holds, whatever that is today.
         'product_grid' => 'dynamic',
         'shop_collections' => 'dynamic',
-        'project_info' => 'dynamic: the project it stands on',
         // Always prints the site's contact details beside its form.
         'contact_form' => 'always shows the direct contact card',
         // The heroes always carry the page's own title or the homepage's opening.
@@ -92,11 +91,11 @@ final class ContentBlockLifecycleContractTest extends TestCase
 
     public function testOnlyBlocksWithoutAFreshRowOfTheirOwnArePlacedAtOnce(): void
     {
-        foreach (['page_hero', 'homepage_hero', 'product_grid', 'shop_collections'] as $type) {
+        foreach (['page_hero', 'homepage_hero', 'product_grid', 'shop_collections', 'project_images'] as $type) {
             $this->assertFalse(SectionRegistry::opensAsDraft($type), $type);
         }
 
-        foreach (['rich_text', 'text_image_split', 'item_gallery', 'featured_product', 'project_info', 'spacer'] as $type) {
+        foreach (['rich_text', 'text_image_split', 'item_gallery', 'featured_product', 'spacer'] as $type) {
             $this->assertTrue(SectionRegistry::opensAsDraft($type), $type);
         }
     }

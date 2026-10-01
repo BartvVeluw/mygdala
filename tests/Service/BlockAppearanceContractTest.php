@@ -50,6 +50,7 @@ final class BlockAppearanceContractTest extends TestCase
         'card_carousel' => [true, true, true, ['glow', 'pattern']],
         'item_gallery' => [true, true, true, ['glow', 'pattern']],
         'project_cards' => [true, true, true, ['glow', 'pattern']],
+        'project_images' => [true, true, true, ['glow', 'pattern']],
         'hover_card_grid' => [true, true, true, ['glow', 'pattern']],
         'detail_section' => [true, true, true, ['glow', 'pattern']],
         'featured_product' => [true, true, true, ['glow', 'pattern']],

@@ -35,20 +35,16 @@ use Tests\Support\SavedRedirect;
  * after the product detail and before the related products, in their order;
  * the Shop off, a 404 whatever blocks the product has.
  *
- * Project: the layout of the Portfolio default (picture left unless chosen
- * otherwise, which prints no modifier class), right, top; a project that
- * follows the default changes with it, one with its own layout does not; the
- * free layout with the Projectinformatie block where the editor put it, and
- * without that block no head at all (the switch to it places the block, see
- * the admin part); related projects still below; the Portfolio off, a 404.
+ * Project: the layout of its fixed head, from the Portfolio default (picture
+ * left unless chosen otherwise, which prints no modifier class), right, top;
+ * a project that follows the default changes with it, one with its own
+ * layout does not; the blocks below the head; related projects still below;
+ * the Portfolio off, a 404. (Its photos as a block: ProjectImagesBlockHttpTest.)
  *
  * Admin: a content page's own id sends the editor to its owner; the first
  * block makes the content page; a block that is not offered is refused; the
  * product editor's Pagina-inhoud tab; the project's layout saved and a wrong
- * one refused; the Portfolio default saved. The switch to the free layout,
- * for one project and through the default, places one Projectinformatie
- * block at the top of a project without one (App\Service\ProjectInfoPlacement),
- * and only then: moved, deleted, warned about, kept through a fixed layout.
+ * one ("free" too, since Portfolio 3.0) refused; the Portfolio default saved.
  */
 final class ProductPortfolioContentPagesHttpTest extends TestCase
 {
@@ -188,7 +184,7 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
 
         $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $slug);
 
-        $this->assertStringContainsString('<section class="project-hero" data-lightbox-group>', $body, 'left prints no modifier');
+        $this->assertStringContainsString('<section class="project-hero" data-lightbox-group="project-' . $this->lastProject . '">', $body, 'left prints no modifier');
         $this->assertStringContainsString('data-reveal-group="project-hero"', $body);
     }
 
@@ -203,13 +199,13 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
 
             $followsBody = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($follows));
             if ($class === null) {
-                $this->assertStringContainsString('<section class="project-hero" data-lightbox-group>', $followsBody, $default);
+                $this->assertStringContainsString('<section class="project-hero" data-lightbox-group="project-' . $follows . '">', $followsBody, $default);
             } else {
-                $this->assertStringContainsString('<section class="project-hero ' . $class . '" data-lightbox-group>', $followsBody, $default);
+                $this->assertStringContainsString('<section class="project-hero ' . $class . '" data-lightbox-group="project-' . $follows . '">', $followsBody, $default);
             }
 
             $ownBody = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($own));
-            $this->assertStringContainsString('<section class="project-hero project-hero--image-top" data-lightbox-group>', $ownBody, 'its own choice stays with default ' . $default);
+            $this->assertStringContainsString('<section class="project-hero project-hero--image-top" data-lightbox-group="project-' . $own . '">', $ownBody, 'its own choice stays with default ' . $default);
         }
     }
 
@@ -238,45 +234,6 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
         $this->assertLessThan($related, $block);
     }
 
-    public function testTheFreeLayoutPutsTheProjectInformationWhereTheEditorPlacedIt(): void
-    {
-        $this->setDefault(null);
-        $id = $this->project('ZZ Vrij');
-        (new PortfolioGalleryRepository())->setItemProjectLayout($id, PortfolioProjectLayout::FREE);
-        $page = ContentPages::ensure(PortfolioContentOwner::KIND, $id);
-
-        // Without the block: the blocks and nothing else, no head as a fallback.
-        $this->block($page, 'rich_text', ['body' => '<p>ZZ intro vrij</p>']);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertStringContainsString('ZZ intro vrij', $body);
-        $this->assertStringNotContainsString('project-hero', $body, 'the free layout has no automatic head');
-
-        // With it, second: the text first, then the project's head as a block.
-        $info = $this->block($page, 'project_info', []);
-        $row = (new PageSectionRepository())->findById($info);
-        Database::connection()->prepare("UPDATE portfolio_project_infos SET image_position = 'right', show_gallery = 0 WHERE id = :id")
-            ->execute(['id' => (int) $row['section_id']]);
-
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertSame(1, substr_count($body, 'project-hero__title'), 'one head, the block\'s');
-        $this->assertLessThan(strpos($body, 'project-hero__title'), strpos($body, 'ZZ intro vrij'));
-        $this->assertStringContainsString('<section class="project-hero project-hero--image-right project-hero--in-flow" data-lightbox-group>', $body);
-        $this->assertStringContainsString('data-reveal-group="project_info-' . $info . '"', $body, 'the block\'s own reveal group');
-        $this->assertStringContainsString('ZZ Vrij', $body, 'the title comes from the project, live');
-
-        // A rename shows at once: nothing was copied into the block.
-        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [PortfolioLocalization::TITLE => 'ZZ Vrij hernoemd']);
-        $this->assertStringContainsString('ZZ Vrij hernoemd', $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id)));
-
-        // Back to a fixed layout: the page's own head, and the block quiet —
-        // never the project twice.
-        (new PortfolioGalleryRepository())->setItemProjectLayout($id, PortfolioProjectLayout::IMAGE_LEFT);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertSame(1, substr_count($body, 'project-hero__title'));
-        $this->assertStringNotContainsString('project-hero--in-flow', $body);
-        $this->assertLessThan(strpos($body, 'ZZ intro vrij'), strpos($body, 'project-hero__title'));
-    }
-
     public function testFixedLayoutsKeepTheirHeadAboveTheBlocksInEachPosition(): void
     {
         $this->setDefault(null);
@@ -287,128 +244,9 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
             (new PortfolioGalleryRepository())->setItemProjectLayout($id, $layout);
             $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
 
-            $this->assertStringContainsString('<section class="' . $class . '" data-lightbox-group>', $body, $layout);
+            $this->assertStringContainsString('<section class="' . $class . '" data-lightbox-group="project-' . $id . '">', $body, $layout);
             $this->assertSame(1, substr_count($body, 'project-hero__title'), $layout);
             $this->assertLessThan(strpos($body, 'ZZ vast blok'), strpos($body, 'project-hero__title'), $layout);
-        }
-    }
-
-    public function testSwitchingToTheFreeLayoutPlacesOneProjectInformationBlockOnTopAndOnlyThen(): void
-    {
-        $this->setDefault(null);
-        $id = $this->project('ZZ Naar vrij');
-        $page = ContentPages::ensure(PortfolioContentOwner::KIND, $id);
-        $this->block($page, 'rich_text', ['body' => '<p>ZZ tekst eerst</p>']);
-        [$session, $csrf] = $this->accounts->signIn(['portfolio.manage']);
-        $save = fn (string $layout): array => self::$on->request('POST', '/api/admin/update-portfolio-item.php', $session, [
-            'csrf_token' => $csrf, 'item_id' => (string) $id, 'language_code' => PortfolioLocalization::defaultLanguage(),
-            'title' => 'ZZ Naar vrij', 'is_active' => '1', 'project_page_submitted' => '1', 'has_detail_page' => '1',
-            'slug' => self::projectSlugStatic($id), 'project_layout_submitted' => '1', 'project_layout' => $layout,
-        ]);
-
-        // Fixed → free: one Projectinformatie block, on top.
-        $this->assertSame(302, $save('free')['status']);
-        $rows = $this->rows($id);
-        $this->assertSame(['project_info', 'rich_text'], array_column($rows, 'section_type'));
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertSame(1, substr_count($body, 'project-hero__title'));
-        $this->assertStringContainsString('project-hero--in-flow', $body, 'the head is the block');
-        $this->assertLessThan(strpos($body, 'ZZ tekst eerst'), strpos($body, 'project-hero__title'));
-        $this->assertStringNotContainsString('data-project-info-missing', self::$on->request('GET', '/admin/portfolio-item.php?id=' . $id . '&tab=inhoud', $session)['body']);
-
-        // Saving free again: no second block.
-        $this->assertSame(302, $save('free')['status']);
-        $this->assertCount(2, $this->rows($id));
-
-        // Moved below the text, it renders there.
-        $reorder = self::$on->request('POST', '/api/admin/reorder-page-sections.php', $session, [
-            'csrf_token' => $csrf, 'page_id' => (string) $page['id'], 'section_ids' => $rows[1]['id'] . ',' . $rows[0]['id'],
-        ]);
-        $this->assertSame(200, $reorder['status']);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertLessThan(strpos($body, 'project-hero__title'), strpos($body, 'ZZ tekst eerst'));
-
-        // Deleted: allowed, not put back on the next save, a warning on the tab
-        // and no head on the page.
-        $deleted = self::$on->request('POST', '/api/admin/delete-page-section.php', $session, ['csrf_token' => $csrf, 'id' => (string) $rows[0]['id']]);
-        $this->assertSame(302, $deleted['status']);
-        $this->assertSame(302, $save('free')['status']);
-        $this->assertSame(['rich_text'], array_column($this->rows($id), 'section_type'));
-        $tab = self::$on->request('GET', '/admin/portfolio-item.php?id=' . $id . '&tab=inhoud', $session)['body'];
-        $this->assertStringContainsString('data-project-info-missing', $tab);
-        $this->assertStringContainsString('Deze vrije indeling bevat geen Projectinformatie-blok.', $tab);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertStringNotContainsString('project-hero', $body);
-        $this->assertStringContainsString('ZZ tekst eerst', $body);
-
-        // Free → fixed: the page's own head is back and every block is kept.
-        $this->assertSame(302, $save('image_right')['status']);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertStringContainsString('<section class="project-hero project-hero--image-right" data-lightbox-group>', $body);
-        $this->assertSame(['rich_text'], array_column($this->rows($id), 'section_type'));
-        $this->assertStringNotContainsString('data-project-info-missing', self::$on->request('GET', '/admin/portfolio-item.php?id=' . $id . '&tab=inhoud', $session)['body']);
-
-        // And free again: the switch places the block once more.
-        $this->assertSame(302, $save('free')['status']);
-        $this->assertSame(['project_info', 'rich_text'], array_column($this->rows($id), 'section_type'));
-    }
-
-    public function testAFixedLayoutKeepsAPlacedProjectInformationBlockAndNeverShowsTheProjectTwice(): void
-    {
-        $this->setDefault(null);
-        $id = $this->project('ZZ Heen en terug');
-        (new PortfolioGalleryRepository())->setItemProjectLayout($id, PortfolioProjectLayout::FREE);
-        $page = ContentPages::ensure(PortfolioContentOwner::KIND, $id);
-        $this->block($page, 'project_info', []);
-        $this->block($page, 'rich_text', ['body' => '<p>ZZ blijft staan</p>']);
-
-        (new PortfolioGalleryRepository())->setItemProjectLayout($id, PortfolioProjectLayout::IMAGE_TOP);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertSame(1, substr_count($body, 'project-hero__title'), 'the fixed head only');
-        $this->assertStringNotContainsString('project-hero--in-flow', $body);
-        $this->assertStringContainsString('ZZ blijft staan', $body);
-
-        (new PortfolioGalleryRepository())->setItemProjectLayout($id, PortfolioProjectLayout::FREE);
-        $body = $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($id));
-        $this->assertSame(1, substr_count($body, 'project-hero__title'));
-        $this->assertStringContainsString('project-hero--in-flow', $body, 'the stored block is back');
-        $this->assertSame(['project_info', 'rich_text'], array_column($this->rows($id), 'section_type'));
-    }
-
-    public function testTheDefaultTurningFreePlacesTheBlockOnEveryProjectThatFollowsIt(): void
-    {
-        $this->setDefault(PortfolioProjectLayout::IMAGE_LEFT);
-        $follows = $this->project('ZZ Volgt vrij');
-        $own = $this->project('ZZ Eigen vast');
-        $gallery = new PortfolioGalleryRepository();
-        $gallery->setItemProjectLayout($own, PortfolioProjectLayout::IMAGE_RIGHT);
-
-        // Other projects in this database keep what they had: pinned for the
-        // length of the test, so the switch touches only this test's rows.
-        $pinned = [];
-        foreach ($gallery->findItemsByGalleryId((int) $gallery->ensureCatalogue()['id']) as $item) {
-            if (!in_array((int) $item['id'], [$follows, $own], true) && ($item['project_layout'] ?? null) === null) {
-                $gallery->setItemProjectLayout((int) $item['id'], PortfolioProjectLayout::IMAGE_LEFT);
-                $pinned[] = (int) $item['id'];
-            }
-        }
-
-        try {
-            [$session, $csrf] = $this->accounts->signIn(['portfolio.manage']);
-            $saved = self::$on->request('POST', '/api/admin/update-portfolio-settings.php', $session, ['csrf_token' => $csrf, 'project_layout' => 'free']);
-            $this->assertSame(302, $saved['status']);
-
-            $this->assertSame(['project_info'], array_column($this->rows($follows), 'section_type'));
-            $this->assertSame([], $this->rows($own), 'a project with its own fixed layout is not touched');
-            $this->assertStringContainsString('project-hero--in-flow', $this->get(self::$on, '/portfolio-detail.php?slug=' . $this->projectSlug($follows)));
-
-            // Saving the same default again places nothing more.
-            self::$on->request('POST', '/api/admin/update-portfolio-settings.php', $session, ['csrf_token' => $csrf, 'project_layout' => 'free']);
-            $this->assertCount(1, $this->rows($follows));
-        } finally {
-            foreach ($pinned as $id) {
-                $gallery->setItemProjectLayout($id, null);
-            }
         }
     }
 
@@ -498,21 +336,25 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
             'slug' => self::projectSlugStatic($id), 'project_layout_submitted' => '1', 'project_layout' => $layout,
         ];
 
-        $this->assertSame(302, self::$on->request('POST', '/api/admin/update-portfolio-item.php', $session, $post('free'))['status']);
-        $this->assertSame('free', $this->storedLayout($id));
+        $this->assertSame(302, self::$on->request('POST', '/api/admin/update-portfolio-item.php', $session, $post('image_top'))['status']);
+        $this->assertSame('image_top', $this->storedLayout($id));
 
         $this->assertSame(302, self::$on->request('POST', '/api/admin/update-portfolio-item.php', $session, $post(''))['status']);
         $this->assertNull($this->storedLayout($id), 'follow the default again');
 
-        self::$on->request('POST', '/api/admin/update-portfolio-item.php', $session, $post('diagonal'));
-        $this->assertNull($this->storedLayout($id), 'an unknown layout is refused, nothing stored');
+        foreach (['diagonal', 'free'] as $retired) {
+            self::$on->request('POST', '/api/admin/update-portfolio-item.php', $session, $post($retired));
+            $this->assertNull($this->storedLayout($id), $retired . ': not a layout, nothing stored');
+        }
 
         $screen = self::$on->request('GET', '/admin/portfolio-item.php?id=' . $id . '&tab=inhoud', $session)['body'];
         $this->assertStringContainsString('name="project_layout"', $screen);
-        // The switch to free made the content page (its Projectinformatie
-        // block), so the picker now posts that page rather than the owner.
+        $this->assertStringNotContainsString('value="free"', $screen, 'no free layout to choose');
+        // A save puts the project's Projectafbeeldingen block on a project
+        // that has none (App\Service\ProjectImagesPlacement), so the picker
+        // now posts that page rather than the owner.
         $this->assertStringContainsString('data-page-section-zone', $screen);
-        $this->assertSame(['project_info'], array_column($this->rows($id), 'section_type'));
+        $this->assertSame(['project_images'], array_column($this->rows($id), 'section_type'));
     }
 
     public function testThePortfolioDefaultIsSaved(): void
@@ -528,6 +370,10 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
         self::$on->request('POST', '/api/admin/update-portfolio-settings.php', $session, ['csrf_token' => $csrf, 'project_layout' => 'sideways']);
         SiteSettings::clearCache();
         $this->assertSame('image_right', PortfolioProjectLayout::siteDefault(), 'an unknown word changes nothing');
+
+        self::$on->request('POST', '/api/admin/update-portfolio-settings.php', $session, ['csrf_token' => $csrf, 'project_layout' => 'free']);
+        SiteSettings::clearCache();
+        $this->assertSame('image_right', PortfolioProjectLayout::siteDefault(), 'the free layout is retired');
 
         [$noPortfolio, $csrfNo] = $this->accounts->signIn(['pages.manage']);
         $this->assertSame(403, self::$on->request('POST', '/api/admin/update-portfolio-settings.php', $noPortfolio, ['csrf_token' => $csrfNo, 'project_layout' => 'free'])['status']);
@@ -560,6 +406,8 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
         return $id;
     }
 
+    private int $lastProject = 0;
+
     private function project(string $title): int
     {
         $repository = new PortfolioGalleryRepository();
@@ -574,6 +422,7 @@ final class ProductPortfolioContentPagesHttpTest extends TestCase
         ]);
         $repository->setItemProjectPage($id, true, self::projectSlugStatic($id));
         PortfolioGalleryContent::clearCache();
+        $this->lastProject = $id;
 
         return $id;
     }

@@ -49,8 +49,6 @@ if (!in_array($layout, PortfolioProjectLayout::DEFAULTS, true)) {
     exit;
 }
 
-$before = PortfolioProjectLayout::siteDefault();
-
 try {
     (new SiteSettingRepository())->upsertMany([PortfolioProjectLayout::SETTING => $layout]);
     SiteSettings::clearCache();
@@ -59,17 +57,6 @@ try {
     $_SESSION['admin_portfolio_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
     header('Location: /admin/portfolio.php#portfolio-instellingen');
     exit;
-}
-
-// The default turned free: every project page that follows it gets its
-// Projectinformatie block at the top when it has none
-// (App\Service\ProjectInfoPlacement). The default itself is already saved.
-if (\App\Service\ProjectInfoPlacement::isSwitchToFree($before, $layout)) {
-    try {
-        \App\Service\ProjectInfoPlacement::ensureOnTopOfFollowers();
-    } catch (\Throwable $e) {
-        error_log('[api/admin/update-portfolio-settings.php] project information blocks: ' . $e->getMessage());
-    }
 }
 
 header('Location: /admin/portfolio.php?saved=1#portfolio-instellingen');

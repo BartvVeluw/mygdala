@@ -16,7 +16,7 @@ namespace App\Service\Blocks;
  * NOT IMPLEMENTING THIS IS A CHOICE, made on purpose and listed in
  * Tests\Service\ContentBlockLifecycleContractTest::NEVER_EMPTY: a decorative
  * block (Witruimte is its size) and a dynamic block whose content is its
- * source (Productraster, Projectinformatie) are never "empty".
+ * source (Productraster, Projectafbeeldingen) are never "empty".
  */
 interface InspectsContent
 {

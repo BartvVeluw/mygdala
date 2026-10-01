@@ -64,8 +64,10 @@
  * THE PROJECT LAYOUT (Portfolio layout 2.0): `project_layout` is '' for "Gebruik
  * standaardinstelling" (stored NULL, so the project follows the Portfolio
  * default whenever that changes) or one of PortfolioProjectLayout::LAYOUTS;
- * anything else is refused. Only read when the form says it carries the field
- * (`project_layout_submitted`).
+ * anything else is refused — "free" too, since Portfolio 3.0. Only read when
+ * the form says it carries the field (`project_layout_submitted`). It lays
+ * out the project's fixed head and nothing else; where the extra photos
+ * stand is their block's place in the page content.
  */
 
 declare(strict_types=1);
@@ -242,20 +244,15 @@ try {
     $db->commit();
     PortfolioGalleryContent::clearCache();
 
-    // The switch to the free layout places a Projectinformatie block at the
-    // top when the project has none, so the page never loses its title and
-    // picture by surprise (App\Service\ProjectInfoPlacement). Only on the
-    // switch: a block deleted later stays deleted. A failure here leaves the
-    // saved project as it is; the tab then warns that the block is missing.
-    if (\App\Service\ProjectInfoPlacement::isSwitchToFree(
-        PortfolioProjectLayout::forItem($item),
-        PortfolioProjectLayout::forItem(['project_layout' => $projectLayout])
-    )) {
-        try {
-            \App\Service\ProjectInfoPlacement::ensureOnTop($itemId);
-        } catch (\Throwable $e) {
-            error_log('[api/admin/update-portfolio-item.php] project information block: ' . $e->getMessage());
-        }
+    // Every project has its Projectafbeeldingen block (Portfolio 3.0). It can
+    // never be deleted, so this places one only where creating the project
+    // failed to: at the top, directly under the head, where the photos stood
+    // before. Already there, it does nothing; a failure leaves the saved
+    // project as it is.
+    try {
+        \App\Service\ProjectImagesPlacement::ensure($itemId);
+    } catch (\Throwable $e) {
+        error_log('[api/admin/update-portfolio-item.php] project images block: ' . $e->getMessage());
     }
 
     // Files that were this item's alone go after the commit, never before: a

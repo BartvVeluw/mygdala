@@ -27,7 +27,7 @@ use PHPUnit\Framework\TestCase;
 final class BlockSearchContractTest extends TestCase
 {
     /** Blocks without words of their own: nothing to find them by. */
-    private const NO_OWN_WORDS = ['spacer', 'quicknav', 'shop_collections', 'product_grid', 'media_banner', 'project_info'];
+    private const NO_OWN_WORDS = ['spacer', 'quicknav', 'shop_collections', 'product_grid', 'media_banner', 'project_images'];
 
     protected function setUp(): void
     {
@@ -137,7 +137,8 @@ final class BlockSearchContractTest extends TestCase
         $this->assertStringContainsString('BlockSearchIndex::reindexSection($pageSection)', $registry, 'hide and show');
 
         // A service that places a block on a page itself reindexes it.
-        foreach (['src/Service/Blog/BlogContentConversion.php', 'src/Service/ProjectInfoPlacement.php', 'api/admin/add-page-section.php'] as $relative) {
+        // (App\Service\ProjectImagesPlacement places a block without words.)
+        foreach (['src/Service/Blog/BlogContentConversion.php', 'api/admin/add-page-section.php'] as $relative) {
             $this->assertStringContainsString('BlockSearchIndex::reindex', (string) file_get_contents($root . '/' . $relative), $relative);
         }
     }

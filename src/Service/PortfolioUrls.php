@@ -115,8 +115,8 @@ final class PortfolioUrls
      * Where a project page's "Terug naar portfolio" goes, or null when there
      * is no overview a visitor may open: the overview page while it is
      * published (and its module on), the module's own overview while there is
-     * no page. Shared by portfolio-detail.php and the Projectinformatie block
-     * (partials/project-hero.php), which print the same link.
+     * no page. portfolio-detail.php hands it to the project's head
+     * (partials/project-hero.php), which prints it.
      */
     public static function backLink(): ?string
     {

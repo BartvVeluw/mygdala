@@ -196,9 +196,6 @@ class AdminNavigation
                     // guarded by pages.manage like the rest (the Portfolio's
                     // Projecten). While its module is off it answers 404.
                     'project-cards.php',
-                    // The Portfolio's Projectinformatie, a block on a
-                    // project's own page; 404 too while the Portfolio is off.
-                    'project-info.php',
                     // The Shop's Uitgelicht product; while the Shop is off
                     // App\Module\ModuleGuard answers with the no-access page.
                     'featured-product.php',

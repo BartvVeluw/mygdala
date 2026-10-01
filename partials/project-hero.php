@@ -3,35 +3,28 @@
 declare(strict_types=1);
 
 /**
- * A Portfolio project's own head: its main picture, categories, title, short
- * text, intro and description, the way back to the Portfolio, and its extra
- * photos — one lightbox group (Portfolio 2.0).
+ * A Portfolio project's fixed head: its main picture, categories, title, short
+ * text, intro and description and the way back to the Portfolio (Portfolio
+ * 2.0). Not a content block: portfolio-detail.php prints it above the
+ * project's blocks, laid out by the project layout
+ * (App\Service\PortfolioProjectLayout) and by nothing else.
  *
- * TWO CALLERS, ONE MARKUP (Portfolio layout 2.0, App\Service\PortfolioProjectLayout):
- * portfolio-detail.php for a project whose layout puts the picture on the
- * left, on the right or on top, and the Projectinformatie block
- * (App\Service\Blocks\ProjectInfoBlock) wherever an editor places it on a
- * project with the free layout. Both hand in the project as
- * App\Service\PortfolioGalleryContent::itemForDetailPage() read it for this
- * request — live, in the request's language; nothing here is a copy.
+ * The project's extra photos are no longer part of it (Portfolio 3.0): they
+ * are the Projectafbeeldingen block (partials/section-project-images.php),
+ * which stands wherever the editor put it among the blocks. The head and that
+ * block carry the same named lightbox group, so the main picture and the
+ * photos are still one sequence.
  *
  * $imagePosition is left, right or top. "left" prints no modifier class, so
- * the project page every site already had is the same markup, byte for byte.
- * $revealGroup null keeps the page's own reveal groups ("project-hero",
- * "project-gallery"); a block passes its instance's own, so two blocks never
- * share a stagger (CONTENT-BLOCKS.md, "Instantie-identiteit"). $inFlow marks a
- * head that is not the page's first section: ordinary section spacing
- * instead of the room a page head leaves under the site header.
+ * the project page every site already had is the same markup.
  *
- * @param array<string, mixed> $portfolioItem itemForDetailPage()
+ * @param array<string, mixed> $portfolioItem App\Service\PortfolioGalleryContent::itemForDetailPage()
  */
 function render_project_hero(
     array $portfolioItem,
     string $imagePosition = 'left',
-    bool $showGallery = true,
     ?string $backUrl = null,
-    ?string $revealGroup = null,
-    bool $inFlow = false
+    string $lightboxGroup = ''
 ): void {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $projectName = trim((string) $portfolioItem['title']) !== ''
@@ -39,18 +32,13 @@ function render_project_hero(
         : \App\Service\Language\SiteText::pick(['nl' => 'Project', 'en' => 'Project']);
     $zoomLabel = static fn (string $name): string => \App\Service\Language\SiteText::pick(['nl' => 'Vergroot afbeelding: ', 'en' => 'Enlarge image: ']) . $name;
     $hasMainImage = (string) $portfolioItem['image_path'] !== '';
-    $heroGroup = $revealGroup ?? 'project-hero';
-    $galleryGroup = $revealGroup === null ? 'project-gallery' : $revealGroup . '-gallery';
 
     $modifiers = '';
     if ($imagePosition === 'right' || $imagePosition === 'top') {
         $modifiers .= ' project-hero--image-' . $imagePosition;
     }
-    if ($inFlow) {
-        $modifiers .= ' project-hero--in-flow';
-    }
     ?>
-  <section class="project-hero<?= $modifiers ?>" data-lightbox-group>
+  <section class="project-hero<?= $modifiers ?>" data-lightbox-group="<?= $h($lightboxGroup) ?>">
     <div class="container">
       <div class="project-hero__grid">
         <?php if ($hasMainImage): ?>
@@ -65,7 +53,7 @@ function render_project_hero(
         </figure>
         <?php endif; ?>
 
-        <div class="project-hero__panel" data-reveal data-reveal-group="<?= $h($heroGroup) ?>">
+        <div class="project-hero__panel" data-reveal data-reveal-group="project-hero">
           <?php if ($portfolioItem['categories'] !== []): ?>
             <ul class="tag-list">
               <?php foreach ($portfolioItem['categories'] as $category): ?>
@@ -101,25 +89,6 @@ function render_project_hero(
           <?php endif; ?>
         </div>
       </div>
-
-      <?php if ($showGallery && $portfolioItem['images'] !== []): ?>
-      <div class="project-gallery-section">
-        <h2 class="visually-hidden"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Meer afbeeldingen', 'en' => 'More images']) ?></h2>
-        <div class="project-gallery">
-          <?php foreach ($portfolioItem['images'] as $position => $extraImage): ?>
-            <?php $photoName = $extraImage['alt'] !== '' ? $extraImage['alt'] : $projectName . ' (' . ($position + 2) . ')'; ?>
-            <button type="button" class="project-gallery__item" data-lightbox-trigger
-              data-src="/<?= $h($extraImage['image_path']) ?>"
-              data-alt="<?= $h($extraImage['alt']) ?>"
-              data-caption="<?= $h($extraImage['alt']) ?>"
-              aria-label="<?= $h($zoomLabel($photoName)) ?>"
-              data-reveal data-reveal-group="<?= $h($galleryGroup) ?>">
-              <img src="/<?= $h($extraImage['thumbnail_path']) ?>" alt="<?= $h($extraImage['alt']) ?>" loading="lazy">
-            </button>
-          <?php endforeach; ?>
-        </div>
-      </div>
-      <?php endif; ?>
     </div>
   </section>
 <?php

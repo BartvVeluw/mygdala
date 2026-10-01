@@ -23,17 +23,22 @@ require_once __DIR__ . '/partials/project-hero.php';
  * description, the extra photos and a way back to the Portfolio — through
  * App\Service\PortfolioGalleryContent::itemForDetailPage().
  *
- * THE LAYOUT AND THE BLOCKS (Product & Portfolio Content Pages 1.0, Portfolio
- * layout 2.0, App\Service\PortfolioProjectLayout): the project's own head
- * (partials/project-hero.php) with the picture on the left — how every
- * project page looked before —, on the right or on top, followed by the
- * content blocks of the project's Pagina-inhoud tab; or the FREE layout,
- * where those blocks are the whole page and the Projectinformatie block puts
- * the project's head wherever the editor placed it. The blocks come from the
- * project's content page through the one block engine
- * (App\Service\ContentOwners\ContentPages); a project without blocks renders
- * exactly what it did. The title, canonical and share image stay the
- * project's own (PortfolioSeo): a block adds content, never metadata.
+ * TWO LAYERS (Portfolio 3.0, MODULES.md "Portfolio"):
+ *
+ *   1. the project's FIXED HEAD (partials/project-hero.php): main picture,
+ *      categories, title, short text, intro, description and the way back.
+ *      Not a block; always first, laid out by the project layout
+ *      (App\Service\PortfolioProjectLayout: picture left, right or top) and
+ *      by nothing else;
+ *   2. the project's PAGE CONTENT: the blocks of its Pagina-inhoud tab, in
+ *      their own order, through the one block engine
+ *      (App\Service\ContentOwners\ContentPages). The extra photos are one of
+ *      them, the Projectafbeeldingen block (App\Service\Blocks\ProjectImagesBlock):
+ *      they render there and nowhere else, so moving or hiding that block is
+ *      the whole say over where they stand.
+ *
+ * The title, canonical and share image stay the project's own (PortfolioSeo):
+ * a block adds content, never metadata.
  *
  * Four answers, in this order:
  *
@@ -47,8 +52,10 @@ require_once __DIR__ . '/partials/project-hero.php';
  *      (App\Service\PortfolioSlug::recordRename()), and then the 404 below.
  *
  * ONE LIGHTBOX (assets/js/lightbox.js, partials/lightbox.php): the main
- * picture and every photo are one group, so previous and next step through
- * this project's own pictures and nothing else on the site.
+ * picture and every photo are one NAMED group (ProjectImagesBlock::lightboxGroup()),
+ * shared by the head and the Projectafbeeldingen block wherever it stands,
+ * so previous and next step through this project's own pictures and nothing
+ * else on the site.
  *
  * RELATED PROJECTS, when the project has them switched on
  * (App\Service\PortfolioRelatedProjects): below the project, the very cards
@@ -151,7 +158,7 @@ $breadcrumb = \App\Service\Breadcrumbs\BreadcrumbTrail::home()
 // while it is published, the module's own overview while there is no page.
 $portfolioUrl = \App\Service\PortfolioUrls::backLink();
 
-// How this project's page is built, and where its content blocks are stored.
+// How this project's head is laid out, and where its content blocks are stored.
 $projectLayout = $portfolioItem !== null ? \App\Service\PortfolioProjectLayout::forItem($portfolioItem) : null;
 $projectContentKey = $portfolioItem !== null
     ? \App\Service\ContentOwners\ContentPages::contentKey(\App\Service\PortfolioContentOwner::KIND, (int) $portfolioItem['id'])
@@ -167,8 +174,9 @@ $projectContentKey = $portfolioItem !== null
 <?php
 // Frontend assets for this page: App\Service\PageAssets always puts Core
 // and the site shell first, and this page adds whatever it needs on top.
-// This page is not built out of content blocks, so it asks for the site's
-// one lightbox itself, and the stylesheet of the CTA band it borrows.
+// The fixed head is not a content block, so the page asks for the site's
+// one lightbox itself (its main picture opens it), and the stylesheet of the
+// CTA band it borrows.
 if ($portfolioItem !== null) {
     \App\Service\PageAssets::requireScript('assets/js/lightbox.js');
 }
@@ -208,19 +216,14 @@ require __DIR__ . '/partials/header.php';
   </section>
 <?php else: ?>
   <?php
-  // A fixed layout: the project's own head, then its content blocks. The
-  // free layout: the blocks and nothing else, a Projectinformatie block
-  // wherever the editor put it or none at all — no head of its own as a
-  // fallback (App\Service\ProjectInfoPlacement places the block when a
-  // project turns free, so that is never a surprise).
-  if ($projectLayout !== \App\Service\PortfolioProjectLayout::FREE) {
-      render_project_hero(
-          $portfolioItem,
-          \App\Service\PortfolioProjectLayout::imagePosition((string) $projectLayout),
-          true,
-          $portfolioUrl
-      );
-  }
+  // The fixed head, then the page content — the photos among it, wherever
+  // their block stands.
+  render_project_hero(
+      $portfolioItem,
+      \App\Service\PortfolioProjectLayout::imagePosition((string) $projectLayout),
+      $portfolioUrl,
+      \App\Service\Blocks\ProjectImagesBlock::lightboxGroup((int) $portfolioItem['id'])
+  );
   \App\Service\SectionRegistry::renderPage((string) $projectContentKey);
   ?>
 

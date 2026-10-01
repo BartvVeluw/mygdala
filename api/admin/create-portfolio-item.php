@@ -115,5 +115,16 @@ try {
     exit;
 }
 
+// The project's photos are a block on its page (Portfolio 3.0): every project
+// has its Projectafbeeldingen block from the start, at the top of its page
+// content, directly under its head (App\Service\ProjectImagesPlacement). The
+// project itself is already saved; without the block its photos would only
+// be missing from its page, so a failure is logged, not refused.
+try {
+    \App\Service\ProjectImagesPlacement::ensure($itemId);
+} catch (\Throwable $e) {
+    error_log('[api/admin/create-portfolio-item.php] project images block for #' . $itemId . ': ' . $e->getMessage());
+}
+
 header('Location: /admin/portfolio-item.php?id=' . $itemId . '&created=1');
 exit;

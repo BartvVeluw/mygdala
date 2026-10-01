@@ -234,7 +234,7 @@ final class ContentBlockOwnerAccessHttpTest extends TestCase
         $productId = $this->product('ZZ Rechten paginakop');
         [$shop, $csrf] = $this->accounts->signIn(['products.manage']);
 
-        foreach (['page_hero', 'project_info'] as $type) {
+        foreach (['page_hero', 'project_images'] as $type) {
             $refused = $this->post('/api/admin/add-page-section.php', $shop, [
                 'csrf_token' => $csrf, 'page_id' => '0', 'content_owner' => 'product', 'content_owner_id' => (string) $productId, 'section_type' => $type,
             ]);

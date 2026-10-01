@@ -79,6 +79,9 @@ final class MediaLibraryTwoHttpTest extends TestCase
         $db = Database::connection();
 
         foreach ($this->portfolioItemIds as $id) {
+            // A new project comes with its content page (its Projectafbeeldingen
+            // block, Portfolio 3.0), which the row cannot outlive.
+            \App\Service\ContentOwners\ContentPages::deleteFor(\App\Service\PortfolioContentOwner::KIND, $id);
             $db->prepare('DELETE FROM portfolio_gallery_items WHERE id = :id')->execute(['id' => $id]);
         }
 

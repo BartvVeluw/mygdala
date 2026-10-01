@@ -63,6 +63,8 @@ final class PortfolioRelatedEditorHttpTest extends TestCase
     {
         $gallery = new PortfolioGalleryRepository();
         foreach ($this->itemIds as $id) {
+            // A saved project has its content page (Portfolio 3.0).
+            \App\Service\ContentOwners\ContentPages::deleteFor(\App\Service\PortfolioContentOwner::KIND, $id);
             $gallery->deleteItem($id);
         }
         $this->itemIds = [];

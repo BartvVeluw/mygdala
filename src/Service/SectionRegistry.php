@@ -963,7 +963,7 @@ class SectionRegistry
      * that inspects its own content can be judged
      * (App\Service\Blocks\InspectsContent): a decorative block (Witruimte)
      * and a dynamic one that shows what its source holds (Productraster,
-     * Projectinformatie) never are. A block hidden in the page builder is not
+     * Projectafbeeldingen) never are. A block hidden in the page builder is not
      * judged either — it shows nothing on purpose — and a row whose type is
      * not registered already has its own notice.
      *
