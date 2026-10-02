@@ -34,6 +34,14 @@ use App\Service\PageAssets;
  * is rendered without this class being involved at all: byte for byte the
  * markup of before.
  *
+ * A CHOSEN BACKGROUND REPLACES THE BLOCK'S SURFACE, NOT ONLY ITS FILL. Any
+ * background other than 'default' takes the block's own surface role
+ * (`surface-<word>`, SURFACE_ROLES) off its root, so nothing a theme draws
+ * for that role — lines, text colours, a clip-path, a `::before` — stays
+ * under the editor's choice. Lines, room and effects are other fields and
+ * leave the role where it is. Which role a block prints stays the block's
+ * own business: this class only knows the vocabulary.
+ *
  * ON THE BLOCK'S OWN ROOT, NOT AROUND IT. apply() adds the classes to the
  * block's root element (its `<section>`) and draws a decorative layer as that
  * element's first child. No wrapper: sibling selectors, anchors, the reveal
@@ -59,6 +67,14 @@ final class BlockAppearance
     public const SPACINGS = ['default', 'compact', 'normal', 'spacious', 'extra'];
 
     public const DECORATIONS = ['none', 'sparks', 'glow', 'pattern'];
+
+    /**
+     * The surface roles a block may print on its root as its own default
+     * (THEMING.md, "Oppervlakken"): the backgrounds above, plus `contrast`,
+     * which only a block chooses. apply() takes them off when a background
+     * is chosen.
+     */
+    public const SURFACE_ROLES = ['surface-page', 'surface-subtle', 'surface-primary', 'surface-secondary', 'surface-contrast', 'surface-transparent'];
 
     /** The stylesheet for background, lines and room. */
     public const STYLESHEET = 'assets/css/block-appearance.css';
@@ -327,7 +343,9 @@ final class BlockAppearance
 
     /**
      * Puts a look on a block's rendered markup: the classes on its root
-     * element and the decorative layer as that element's first child.
+     * element and the decorative layer as that element's first child. A
+     * chosen background also takes the root's own surface role off it
+     * (SURFACE_ROLES); every other class of the root stays, in its order.
      *
      * The root is the first element the partial prints (a `<section>`, or a
      * `<div>`/`<aside>`/`<article>`); what a block renders is escaped
@@ -350,7 +368,11 @@ final class BlockAppearance
         $added = implode(' ', $classes);
 
         if (preg_match('/\sclass="([^"]*)"/', $attributes, $classMatch, PREG_OFFSET_CAPTURE)) {
-            $joined = trim($classMatch[1][0] . ' ' . $added);
+            $own = $classMatch[1][0];
+            if ($values['background'] !== 'default') {
+                $own = implode(' ', array_diff(preg_split('/\s+/', trim($own)) ?: [], self::SURFACE_ROLES));
+            }
+            $joined = trim($own . ' ' . $added);
             $attributes = substr_replace($attributes, ' class="' . $joined . '"', $classMatch[0][1], strlen($classMatch[0][0]));
         } else {
             $attributes = ' class="' . $added . '"' . $attributes;

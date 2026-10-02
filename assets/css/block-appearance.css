@@ -19,7 +19,9 @@
    ========================================================================== */
 
 /* --- Background: replaces the block's own surface ------------------------
-   'default' prints no class: the block keeps whatever it had. */
+   'default' prints no class: the block keeps whatever it had. Any other
+   word also takes the block's surface role (.surface-subtle, …) off its
+   root (BlockAppearance::apply()), so only the choice below is drawn. */
 .block-appearance.block-appearance--bg-page{
   background: var(--color-bg);
 }

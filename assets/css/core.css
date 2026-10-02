@@ -945,8 +945,9 @@ section{ position: relative; padding-block: var(--sp-7); }
 /* --- Surfaces: the role a block's own root plays on the page -------------
    A block prints the role (`surface-subtle`, `surface-contrast`) as one
    class on its root, never a colour; this is how the default theme draws
-   each role. One class on purpose: a choice in Extra vormgeving is two
-   classes (block-appearance.css) and so always wins. THEMING.md,
+   each role. A background chosen in Extra vormgeving takes the role off
+   the root (BlockAppearance::apply()); lines, room and effects are two
+   classes (block-appearance.css) and win over the role. THEMING.md,
    "Oppervlakken".
 
    .bg-soft and .bg-forest are the old names of these two roles, kept as

@@ -361,8 +361,9 @@ final class BlockAppearanceContractTest extends TestCase
     /**
      * The Kaarten-carrousel's own surface is the fixed `.surface-subtle` on
      * its <section> (partials/section-card-carousel.php). Standaard keeps it;
-     * Websiteachtergrond sits next to it with two classes, which the
-     * stylesheet lets win, so the carousel can take the page's ground.
+     * Websiteachtergrond takes its place on the root, so the carousel takes
+     * the page's ground and nothing of the soft surface stays
+     * (SurfaceContractTest, the precedence).
      */
     public function testTheCarouselKeepsItsSoftSurfaceUntilAnotherIsChosen(): void
     {
@@ -378,8 +379,7 @@ final class BlockAppearanceContractTest extends TestCase
         $this->assertSame($html, BlockAppearance::apply($html, BlockAppearance::defaults()), 'Standaard: as it was');
 
         $page = BlockAppearance::apply($html, ['background' => 'page'] + BlockAppearance::defaults());
-        $this->assertMatchesRegularExpression('/^\s*<section class="surface-subtle block-appearance block-appearance--bg-page">/', $page);
-        $this->assertStringContainsString('.block-appearance.block-appearance--bg-page{', self::css(BlockAppearance::STYLESHEET), 'two classes beat the one of .surface-subtle');
+        $this->assertMatchesRegularExpression('/^\s*<section class="block-appearance block-appearance--bg-page">/', $page);
 
         $transparent = BlockAppearance::apply($html, ['background' => 'transparent', 'border' => 'none'] + BlockAppearance::defaults());
         $this->assertStringContainsString('block-appearance--bg-transparent block-appearance--border-none', $transparent, 'no surface and no lines: the page around it');
