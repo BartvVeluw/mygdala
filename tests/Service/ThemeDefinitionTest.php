@@ -134,6 +134,30 @@ final class ThemeDefinitionTest extends TestCase
         new ThemeDefinition('proof', 'Proof', $path);
     }
 
+    /**
+     * The dependency points one way: PageAssets → ThemeRegistry →
+     * ThemeDefinition → AssetPath. A definition is declarative data and
+     * knows nothing of the renderer that consumes it, of the registry that
+     * lists it or of the stored setting; it reads no file.
+     */
+    public function testTheDefinitionKnowsNothingOfItsConsumers(): void
+    {
+        $names = [];
+        foreach (token_get_all((string) file_get_contents(dirname(__DIR__, 2) . '/src/Service/Theme/ThemeDefinition.php')) as $token) {
+            if (is_array($token) && in_array($token[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true)) {
+                $names[] = $token[1];
+            }
+        }
+
+        $this->assertContains('App\\Service\\AssetPath', $names, 'the path shape comes from AssetPath');
+
+        foreach (['PageAssets', 'AssetVersion', 'ThemeRegistry', 'ThemeSettings', 'ThemeCss', 'is_file', 'file_exists', 'filemtime', 'file_get_contents', 'realpath'] as $forbidden) {
+            foreach ($names as $name) {
+                $this->assertStringNotContainsString($forbidden, $name, 'ThemeDefinition must not use ' . $forbidden);
+            }
+        }
+    }
+
     /** A definition is data: building one never touches the disk. */
     public function testAValidStylesheetNeedNotExistYet(): void
     {

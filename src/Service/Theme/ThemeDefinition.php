@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Theme;
 
-use App\Service\PageAssets;
+use App\Service\AssetPath;
 
 /**
  * One Global Theme as trusted code declares it: a key, a label for the
@@ -23,13 +23,15 @@ use App\Service\PageAssets;
  *               slash, backslash, whitespace or anything URL-like, so a key
  *               can never pass for a path even by accident.
  *   stylesheet  null (the theme adds no stylesheet: `legacy`), or a local
- *               project-relative .css path in the shape PageAssets prints
- *               (PageAssets::isAssetPath()): under assets/, no traversal,
- *               no protocol, no query or fragment.
+ *               project-relative .css path in the shape App\Service\AssetPath
+ *               allows: under assets/, no traversal, no protocol, no query
+ *               or fragment.
  *
  * Whether the file is really there is NOT checked here: that is runtime
  * availability, which PageAssets checks when it prints the link. A value
- * object does no filesystem I/O. The stylesheet is deliberately not tied to
+ * object does no filesystem I/O and knows nothing of PageAssets, the
+ * renderer that consumes it later: PageAssets reaches the definitions
+ * through ThemeRegistry, so the arrow only ever points that way. The stylesheet is deliberately not tied to
  * assets/css/themes/<key>.css: a first-party theme lives there by
  * convention (a contract test can hold Core themes to it), but the path is
  * always written out, never derived from the key.
@@ -66,9 +68,9 @@ final class ThemeDefinition
         return preg_match(self::KEY_PATTERN, $key) === 1;
     }
 
-    /** A path PageAssets could print as a stylesheet, judged on its shape alone. */
+    /** A well-formed local stylesheet path, judged on its shape alone. */
     public static function isValidStylesheet(string $path): bool
     {
-        return str_ends_with($path, '.css') && PageAssets::isAssetPath($path);
+        return str_ends_with($path, '.css') && AssetPath::isValid($path);
     }
 }

@@ -68,6 +68,7 @@
             <file>tests/Service/AdminThemeTest.php</file>
             <file>tests/Service/ThemeDefinitionTest.php</file>
             <file>tests/Service/ThemeRegistryTest.php</file>
+            <file>tests/Service/AssetPathTest.php</file>
             <file>tests/Service/AdminUserServiceTest.php</file>
             <file>tests/Service/Analytics/BotDetectorTest.php</file>
             <file>tests/Service/Analytics/DeviceTypeTest.php</file>
@@ -300,6 +301,7 @@
             <file>tests/Service/AdminThemeTest.php</file>
             <file>tests/Service/ThemeDefinitionTest.php</file>
             <file>tests/Service/ThemeRegistryTest.php</file>
+            <file>tests/Service/AssetPathTest.php</file>
             <file>tests/Service/AdminUserServiceTest.php</file>
             <file>tests/Service/Analytics/BotDetectorTest.php</file>
             <file>tests/Service/Analytics/DeviceTypeTest.php</file>
@@ -794,6 +796,7 @@
             <file>tests/Service/AdminThemeTest.php</file>
             <file>tests/Service/ThemeDefinitionTest.php</file>
             <file>tests/Service/ThemeRegistryTest.php</file>
+            <file>tests/Service/AssetPathTest.php</file>
             <file>tests/Service/AdminUserServiceTest.php</file>
             <file>tests/Service/AppUrlTest.php</file>
             <file>tests/Service/BrandingTest.php</file>

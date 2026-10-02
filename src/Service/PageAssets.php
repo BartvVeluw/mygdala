@@ -305,27 +305,13 @@ final class PageAssets
     }
 
     /**
-     * Whether a path is one this class would actually print: local, under
-     * assets/, no traversal, and present on disk.
+     * Whether a path is one this class would actually print: the shape
+     * AssetPath allows (local, under assets/, no traversal), and present on
+     * disk.
      */
     public static function isLoadable(string $path): bool
     {
-        return self::isAssetPath($path) && is_file(self::projectRoot() . '/' . $path);
-    }
-
-    /**
-     * The shape half of isLoadable(), without touching the disk: a
-     * project-relative .css or .js path under assets/, no traversal, no
-     * protocol, no query or fragment. App\Service\Theme\ThemeDefinition
-     * holds a theme's stylesheet to it.
-     */
-    public static function isAssetPath(string $path): bool
-    {
-        if (str_contains($path, '..')) {
-            return false;
-        }
-
-        return preg_match('#^assets/[A-Za-z0-9_/-]+\.(css|js)\z#', $path) === 1;
+        return AssetPath::isValid($path) && is_file(self::projectRoot() . '/' . $path);
     }
 
     /**
