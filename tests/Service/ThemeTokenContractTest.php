@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\Theme\PageAppearance;
+use App\Service\Theme\ThemeColor;
 use App\Service\Theme\ThemeCss;
 use App\Service\Theme\ThemePalette;
 use App\Service\Theme\ThemeSettings;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -25,6 +27,9 @@ use PHPUnit\Framework\TestCase;
  *   - no hover lifts or zooms by a literal distance;
  *   - a page theme recomputes the shadows and restates the sheen in its own
  *     colours, and never carries a shape, border or movement token;
+ *   - the status colours keep their shipped shades wherever those are
+ *     readable (the default theme, a dark palette) and become readable on a
+ *     light one, as part of the palette a page theme restates (phase 1A.1);
  *   - --color-on-primary is never the background of a panel (it is the
  *     colour of text and marks on a primary fill).
  *
@@ -44,6 +49,7 @@ final class ThemeTokenContractTest extends TestCase
         '--color-danger-text' => '#F0897E',
         '--color-danger-text-rgb' => '240, 137, 126',
         '--color-danger-on-wash' => '#F5B4AC',
+        '--color-success' => '#78B482',
         '--color-success-rgb' => '120, 180, 130',
         '--color-success-on-wash' => '#B7E0C0',
         '--fw-heading' => '500',
@@ -324,5 +330,77 @@ final class ThemeTokenContractTest extends TestCase
                 'a page theme is colours and fonts only, never ' . $property
             );
         }
+    }
+
+    /** @return iterable<string, array{0: array<string, string>}> */
+    public static function darkPalettes(): iterable
+    {
+        yield 'the default theme' => [[
+            'primary_color' => '#C9A063', 'on_primary_color' => '#1B140D', 'background_color' => '#120D09',
+            'surface_color' => '#1C150E', 'text_color' => '#F5EFE4',
+        ]];
+        yield 'a dark page theme' => [[
+            'primary_color' => '#FF7518', 'on_primary_color' => '#111111', 'background_color' => '#1A0F1F',
+            'surface_color' => '#2A1A30', 'text_color' => '#F7F1E8',
+        ]];
+    }
+
+    /** @param array<string, string> $colors */
+    #[DataProvider('darkPalettes')]
+    public function testADarkPaletteKeepsTheShippedStatusShades(array $colors): void
+    {
+        $tokens = ThemeCss::paletteDeclarations($colors);
+
+        foreach (self::SHIPPED as $property => $value) {
+            if (str_starts_with($property, '--color-danger') || str_starts_with($property, '--color-success')) {
+                self::assertSame($value, $tokens[$property] ?? null, $property . ' keeps the shade core.css ships');
+            }
+        }
+    }
+
+    /** @return iterable<string, array{0: array<string, string>}> */
+    public static function lightPalettes(): iterable
+    {
+        yield 'white with a grey card' => [[
+            'primary_color' => '#2B6CB0', 'on_primary_color' => '#FFFFFF', 'background_color' => '#FFFFFF',
+            'surface_color' => '#F4F6F8', 'text_color' => '#1A202C',
+        ]];
+        yield 'warm cream' => [[
+            'primary_color' => '#7A4E1D', 'on_primary_color' => '#FFFFFF', 'background_color' => '#F3EBDD',
+            'surface_color' => '#FBF7EF', 'text_color' => '#2A2118',
+        ]];
+    }
+
+    /** @param array<string, string> $colors */
+    #[DataProvider('lightPalettes')]
+    public function testALightPageThemeGetsReadableStatusColours(array $colors): void
+    {
+        $appearance = PageAppearance::fromTheme('licht', $colors, ThemeSettings::defaults()['font_pairing']);
+        self::assertNotNull($appearance);
+        $tokens = $appearance->declarations();
+
+        $grounds = [$colors['background_color'], $colors['surface_color']];
+        foreach ($grounds as $ground) {
+            self::assertGreaterThanOrEqual(3.0, ThemeColor::contrastRatio($tokens['--color-danger'], $ground), 'an error border');
+            self::assertGreaterThanOrEqual(4.5, ThemeColor::contrastRatio($tokens['--color-danger-text'], $ground), 'an error message');
+            self::assertGreaterThanOrEqual(3.0, ThemeColor::contrastRatio($tokens['--color-success'], $ground), 'a success mark');
+
+            $dangerWash = ThemePalette::mix($ground, $tokens['--color-danger'], 0.12);
+            $successWash = ThemePalette::mix($ground, $tokens['--color-success'], 0.12);
+            self::assertGreaterThanOrEqual(4.5, ThemeColor::contrastRatio($tokens['--color-danger-on-wash'], $dangerWash), 'text on the error wash');
+            self::assertGreaterThanOrEqual(4.5, ThemeColor::contrastRatio($tokens['--color-danger-text'], $dangerWash), 'an error message on a faint wash');
+            self::assertGreaterThanOrEqual(4.5, ThemeColor::contrastRatio($tokens['--color-success-on-wash'], $successWash), 'text on the success wash');
+        }
+
+        // Still the same meaning: an error stays red, a success green.
+        [$r, $g, $b] = ThemePalette::rgb($tokens['--color-danger-text']);
+        self::assertGreaterThan(max($g, $b), $r);
+        [$r, $g, $b] = ThemePalette::rgb($tokens['--color-success-on-wash']);
+        self::assertGreaterThan(max($r, $b), $g);
+
+        // The -rgb channels are the same colours, for the washes.
+        self::assertSame(ThemePalette::channels($tokens['--color-danger']), $tokens['--color-danger-rgb']);
+        self::assertSame(ThemePalette::channels($tokens['--color-danger-text']), $tokens['--color-danger-text-rgb']);
+        self::assertSame(ThemePalette::channels($tokens['--color-success']), $tokens['--color-success-rgb']);
     }
 }

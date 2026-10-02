@@ -47,6 +47,15 @@ final class ThemePalette
     /** How close to black a modal/lightbox backdrop sits, whatever the ground. */
     private const SCRIM_TOWARDS_BLACK = 0.85;
 
+    /** The contrast a status MARK needs on its ground: a border, an outline (WCAG 1.4.11). */
+    private const STATUS_MARK_CONTRAST = 3;
+
+    /** The contrast a status MESSAGE needs on its ground or its wash (WCAG 1.4.3). */
+    private const STATUS_TEXT_CONTRAST = 4.5;
+
+    /** The alpha of a status wash over the ground, as core.css paints it. */
+    private const STATUS_WASH = 0.12;
+
     /**
      * THE FORMULAS, as data: every derived property and how it is made, in
      * the order derive() returns them. One definition with two readers —
@@ -62,6 +71,7 @@ final class ThemePalette
      *   ['lighten', expr, delta]                        shiftLightness()
      *   ['mix', expr, expr, weight]                     mix()
      *   ['channels', expr]                              channels(): 'r, g, b'
+     *   ['readable', expr, ground, ratio]               readable()
      *
      * The keys match the derived defaults in assets/css/core.css one for one,
      * so a test can prove the two lists never drift apart.
@@ -91,6 +101,50 @@ final class ThemePalette
         // theme, dark on a light one, where pure white would vanish. The
         // default theme keeps the white core.css declares.
         '--color-sheen-rgb' => ['channels', 'text'],
+        // Status keeps its meaning in every palette (an error red, a success
+        // green) and keeps the shipped shade wherever that shade is readable
+        // — the default theme and any dark ground. Only where it is not, on
+        // a light ground, does it move along lightness, hue kept, until it
+        // is: on the ground and on a card, since a message sits on either.
+        // A mark (border, outline) needs 3:1, a message 4.5:1; the text on a
+        // wash is measured against that wash.
+        '--color-danger' => ['readable', ['readable', '#E2685C', 'background', self::STATUS_MARK_CONTRAST], 'surface', self::STATUS_MARK_CONTRAST],
+        '--color-danger-rgb' => ['channels', '--color-danger'],
+        // An error message also sits on a faint error wash (the
+        // personalizer, a remove button's hover), so it is measured there.
+        '--color-danger-text' => [
+            'readable',
+            ['readable', '#F0897E', ['mix', 'background', '--color-danger', self::STATUS_WASH], self::STATUS_TEXT_CONTRAST],
+            ['mix', 'surface', '--color-danger', self::STATUS_WASH],
+            self::STATUS_TEXT_CONTRAST,
+        ],
+        '--color-danger-text-rgb' => ['channels', '--color-danger-text'],
+        '--color-danger-on-wash' => [
+            'readable',
+            ['readable', '#F5B4AC', ['mix', 'background', '--color-danger', self::STATUS_WASH], self::STATUS_TEXT_CONTRAST],
+            ['mix', 'surface', '--color-danger', self::STATUS_WASH],
+            self::STATUS_TEXT_CONTRAST,
+        ],
+        '--color-success' => ['readable', ['readable', '#78B482', 'background', self::STATUS_MARK_CONTRAST], 'surface', self::STATUS_MARK_CONTRAST],
+        '--color-success-rgb' => ['channels', '--color-success'],
+        '--color-success-on-wash' => [
+            'readable',
+            ['readable', '#B7E0C0', ['mix', 'background', '--color-success', self::STATUS_WASH], self::STATUS_TEXT_CONTRAST],
+            ['mix', 'surface', '--color-success', self::STATUS_WASH],
+            self::STATUS_TEXT_CONTRAST,
+        ],
+    ];
+
+    /** The status colours: they follow the ground and the card they sit on. */
+    private const STATUS = [
+        '--color-danger',
+        '--color-danger-rgb',
+        '--color-danger-text',
+        '--color-danger-text-rgb',
+        '--color-danger-on-wash',
+        '--color-success',
+        '--color-success-rgb',
+        '--color-success-on-wash',
     ];
 
     /** The four chosen colours an expression may name. */
@@ -154,6 +208,11 @@ final class ThemePalette
                 (float) $expression[3]
             ),
             'channels' => self::channels(self::evaluate($expression[1], $colors, $done)),
+            'readable' => self::readable(
+                self::evaluate($expression[1], $colors, $done),
+                self::evaluate($expression[2], $colors, $done),
+                (float) $expression[3]
+            ),
         };
     }
 
@@ -182,11 +241,13 @@ final class ThemePalette
                 '--color-bg-veil-rgb',
                 '--color-media-scrim-rgb',
                 '--color-surface-2',
+                ...self::STATUS,
             ],
             'surface' => [
                 '--color-surface-hover',
                 '--color-surface-veil-rgb',
                 '--color-surface-2',
+                ...self::STATUS,
             ],
             'text' => [
                 '--color-text-rgb',
@@ -241,6 +302,36 @@ final class ThemePalette
         [$h, $s, $l] = self::toHsl($hex);
 
         return self::fromHsl($h, $s, max(0.0, min(1.0, $l + $delta)));
+    }
+
+    /**
+     * $hex itself when it already reaches $ratio against $ground; otherwise
+     * the first colour of the same hue and saturation, a hundredth of
+     * lightness at a time away from the ground (darker on a ground that
+     * black text reads better on, lighter on one white reads better on),
+     * that does — or the end of that axis. Never a light/dark switch of
+     * shades: a colour that is readable is left exactly as it is.
+     */
+    public static function readable(string $hex, string $ground, float $ratio): string
+    {
+        if (ThemeColor::contrastRatio($hex, $ground) >= $ratio) {
+            return $hex;
+        }
+
+        $step = ThemeColor::contrastRatio($ground, '#000000') >= ThemeColor::contrastRatio($ground, '#FFFFFF') ? -0.01 : 0.01;
+        [$h, $s, $l] = self::toHsl($hex);
+        $candidate = $hex;
+
+        for ($i = 1; $i <= 100; $i++) {
+            $lightness = max(0.0, min(1.0, $l + $step * $i));
+            $candidate = self::fromHsl($h, $s, $lightness);
+
+            if (ThemeColor::contrastRatio($candidate, $ground) >= $ratio || $lightness === 0.0 || $lightness === 1.0) {
+                break;
+            }
+        }
+
+        return $candidate;
     }
 
     /**

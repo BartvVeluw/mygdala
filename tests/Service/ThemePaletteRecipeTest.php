@@ -19,8 +19,10 @@ use PHPUnit\Framework\TestCase;
  *
  *   - derive() returns exactly what it returned before the recipe (values
  *     pinned from v0.1.13), so no existing site renders differently; the
- *     one later addition is --color-sheen-rgb (Themes 2.0 phase 1A), the
- *     text colour's channels, so a light theme's sheen stays visible;
+ *     later additions are --color-sheen-rgb (Themes 2.0 phase 1A), the
+ *     text colour's channels, so a light theme's sheen stays visible, and
+ *     the status colours (phase 1A.1), whose contract is in
+ *     ThemeTokenContractTest;
  *   - dependencies() — which ThemeCss uses to emit only what changed — names
  *     exactly the roles each recipe entry reads, directly or through an
  *     earlier property;
@@ -105,7 +107,7 @@ final class ThemePaletteRecipeTest extends TestCase
     #[DataProvider('pinnedPalettes')]
     public function testDeriveReturnsExactlyWhatItReturnedBeforeTheRecipe(array $colors, array $expected): void
     {
-        self::assertSame($expected, ThemePalette::derive($colors));
+        self::assertSame($expected, array_intersect_key(ThemePalette::derive($colors), $expected));
     }
 
     public function testEachDependencyListNamesExactlyTheRolesTheRecipeReads(): void
@@ -155,7 +157,7 @@ final class ThemePaletteRecipeTest extends TestCase
         }
 
         $script = (string) file_get_contents(dirname(__DIR__, 2) . '/admin/assets/theme-admin.js');
-        self::assertSame(['channels', 'lighten', 'mix'], self::sorted(array_keys($ops)));
+        self::assertSame(['channels', 'lighten', 'mix', 'readable'], self::sorted(array_keys($ops)));
         foreach (array_keys($ops) as $op) {
             self::assertStringContainsString("case '" . $op . "':", $script, 'MygdalaTheme evaluates ' . $op);
         }

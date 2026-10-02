@@ -161,7 +161,9 @@ draait het hele mechanisme op:
   het actieve palet worden de standaard. Andere paletten blijven staan.
 
 Meldingskleuren (fout, gelukt) zijn geen thema-instelling, maar wel tokens
-op `:root` (`--color-danger…`, `--color-success…`, zie "Presentatietokens").
+(`--color-danger…`, `--color-success…`, zie "Presentatietokens"). Een palet
+of paginathema rekent ze na, zodat ze op een lichte ondergrond leesbaar
+blijven.
 Het adminpaneel heeft zijn eigen,
 volledig losstaande tokens (`--admin-*` in `admin/assets/admin.css`) en
 verandert nooit mee.
@@ -216,10 +218,10 @@ ze in het overrideblok. Voor het standaardthema draaien die formules nooit —
 `core.css` heeft de exacte waarden al.
 
 De formules staan **één keer, als data**: `ThemePalette::RECIPE`, per
-afgeleide eigenschap een uitdrukking (`lighten`, `mix`, `channels` op een
-gekozen kleur, een eerdere eigenschap of een vaste kleur). `derive()` voert
-dat recept uit; `recipe()` geeft het aan de live preview van de
-paletteneditor, die het met dezelfde drie bewerkingen uitvoert
+afgeleide eigenschap een uitdrukking (`lighten`, `mix`, `channels`,
+`readable` op een gekozen kleur, een eerdere eigenschap of een vaste kleur).
+`derive()` voert dat recept uit; `recipe()` geeft het aan de live preview van
+de paletteneditor, die het met dezelfde vier bewerkingen uitvoert
 (`MygdalaTheme.tokens()` in `admin/assets/theme-admin.js`). Zo kan de preview
 geen tint tonen die de website niet krijgt. `ThemePaletteRecipeTest` pint de
 uitkomst op die van v0.1.13 en houdt `dependencies()` gelijk aan wat het
@@ -245,9 +247,10 @@ die niets verandert rendert exact zoals vóór deze tokens.
 | `--color-shadow-rgb` | `0, 0, 0` | kleur van elke schaduw | `--shadow-soft`, `--shadow-lift`, header, submenu, kaart-hover, checkout |
 | `--color-sheen-rgb` | `255, 255, 255` | het licht dat een vlak vangt | glans van `.bg-soft` en *Subtiele achtergrond*, hover en open rij in het submenu |
 | `--color-danger`, `-rgb` | `#E2685C` | het merkteken van een fout: rand, outline, was | ongeldige velden, foutmeldingen, verwijderknoppen |
-| `--color-danger-text`, `-rgb` | `#F0897E` | foutmelding op de ondergrond | `.form-error`, Shop-meldingen, personalisatie |
+| `--color-danger-text`, `-rgb` | `#F0897E` | foutmelding op de ondergrond of een lichte foutwas | `.form-error`, Shop-meldingen, personalisatie |
 | `--color-danger-on-wash` | `#F5B4AC` | tekst op de foutwas | `.form-error-summary`, `.form-status--error` |
-| `--color-success-rgb`, `--color-success-on-wash` | `120, 180, 130`, `#B7E0C0` | was en tekst van een geslaagde melding | `.form-status--ok` |
+| `--color-success`, `-rgb` | `#78B482` | het merkteken van een geslaagde melding: was en rand | `.form-status--ok` |
+| `--color-success-on-wash` | `#B7E0C0` | tekst op de succeswas | `.form-status--ok` |
 | `--fw-heading`, `--fw-h1` | `500`, `400` | gewicht van de koppen, en van de h1 | `h1–h4` |
 | `--tracking-heading` | `0.01em` | letterafstand van de koppen | `h1–h4` |
 | `--eyebrow-weight`, `--eyebrow-tracking`, `--eyebrow-case` | `700`, `0.18em`, `uppercase` | karakter van het bovenkopje | `.eyebrow` (hoofdletters ook `.article-eyebrow`, `.personalizer__eyebrow`) |
@@ -259,6 +262,21 @@ Wat daaruit volgt:
 
 - **Schaduwen** zijn opgebouwd uit `--color-shadow-rgb` en staan daarom in
   de regel `:root, main[data-page-theme]` (zie "Paginathema's").
+- **Meldingskleuren volgen de ondergrond, alleen waar het moet.** Ze staan
+  in het recept als `readable`: de geleverde tint blijft precies zoals hij
+  is zolang hij op de ondergrond én op een kaart leesbaar is (een rand of
+  outline 3:1, tekst 4.5:1, tekst op een was gemeten tegen die was). Is hij
+  dat niet, op een lichte ondergrond, dan schuift alleen zijn lichtheid,
+  tint en verzadiging blijven, tot hij het wel is. Geen aparte licht/donker-
+  kleuren en geen instelling. Het standaardthema en een donker palet houden
+  exact de waarden van `core.css`; een licht paginathema krijgt ze in zijn
+  eigen blok, een licht websitepalet in het overrideblok (ze hangen af van
+  `background` en `surface`). Vóór Themes 2.0 fase 1A.1 bleven ze op een
+  lichte pagina de lichte tinten voor een donkere ondergrond: een fout-
+  melding haalde daar 2.3:1, de tekst op de succeswas 1.3:1. Een palet
+  waarin ondergrond en kaart tegengesteld zijn (licht en donker) kan niet
+  op beide tegelijk voldoen; de paletteneditor waarschuwt daar al voor de
+  tekst.
 - **De glans volgt de tekstkleur.** `--color-sheen-rgb` staat in het recept
   (`ThemePalette`, `['channels', 'text']`): een ander palet of een
   paginathema krijgt de kanalen van zijn tekstkleur, dus op een licht thema

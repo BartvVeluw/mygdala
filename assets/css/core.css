@@ -78,17 +78,20 @@
   --color-media-scrim-rgb: 10, 8, 6;          /* the ground bleeding over photography */
   --color-sheen-rgb:       255, 255, 255;     /* the light a surface catches: section sheen, menu hover */
 
-  /* --- Depth and status: not chosen per palette ---------------------------
+  /* --- Depth and status ----------------------------------------------------
      A shadow is the absence of light, so it does not follow the palette; a
      theme may still tint it. Status keeps its meaning in every theme (an
-     error stays red, a success green), but the shades are tokens, so a
-     light theme can darken them for contrast. */
+     error stays red, a success green). These shades are readable on this
+     dark ground; on a ground where one is not, ThemePalette darkens it
+     until it is (recomputed server-side), and leaves it exactly as it is
+     everywhere else. */
   --color-shadow-rgb:       0, 0, 0;
   --color-danger:           #E2685C;          /* the mark of an error: borders, outlines */
   --color-danger-rgb:       226, 104, 92;
   --color-danger-text:      #F0897E;          /* an error message on the ground */
   --color-danger-text-rgb:  240, 137, 126;
   --color-danger-on-wash:   #F5B4AC;          /* text on the error wash */
+  --color-success:          #78B482;          /* the mark of a success: its wash and border */
   --color-success-rgb:      120, 180, 130;
   --color-success-on-wash:  #B7E0C0;          /* text on the success wash */
 

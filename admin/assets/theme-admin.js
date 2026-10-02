@@ -120,8 +120,8 @@
 
      derive() carries NO formulas of its own. It evaluates the recipe the
      server prints (App\Service\Theme\ThemePalette::recipe()) with the same
-     three operations ThemePalette has — an HSL lightness shift, an sRGB mix
-     and the 'r, g, b' channels — so a tint in the preview is the tint the
+     four operations ThemePalette has — an HSL lightness shift, an sRGB mix,
+     the 'r, g, b' channels and the readable step of a status colour — so a tint in the preview is the tint the
      website will get. luminance()/contrastRatio() are the WCAG formulas of
      App\Service\Theme\ThemeColor. */
 
@@ -187,6 +187,25 @@
     return fromHsl(hsl[0], hsl[1], Math.max(0, Math.min(1, hsl[2] + delta)));
   }
 
+  // ThemePalette::readable(): the colour itself when it reaches the ratio
+  // on the ground, else the first lightness step away from the ground that does.
+  function readable(hex, ground, ratio) {
+    if (contrastRatio(hex, ground) >= ratio) {
+      return hex;
+    }
+    var step = contrastRatio(ground, '#000000') >= contrastRatio(ground, '#FFFFFF') ? -0.01 : 0.01;
+    var hsl = toHsl(hex);
+    var candidate = hex;
+    for (var i = 1; i <= 100; i++) {
+      var lightness = Math.max(0, Math.min(1, hsl[2] + step * i));
+      candidate = fromHsl(hsl[0], hsl[1], lightness);
+      if (contrastRatio(candidate, ground) >= ratio || lightness === 0 || lightness === 1) {
+        break;
+      }
+    }
+    return candidate;
+  }
+
   function evaluate(expression, roles, done) {
     if (typeof expression === 'string') {
       if (Object.prototype.hasOwnProperty.call(roles, expression)) {
@@ -201,6 +220,8 @@
         return mix(evaluate(expression[1], roles, done), evaluate(expression[2], roles, done), Number(expression[3]));
       case 'channels':
         return channels(evaluate(expression[1], roles, done));
+      case 'readable':
+        return readable(evaluate(expression[1], roles, done), evaluate(expression[2], roles, done), Number(expression[3]));
     }
     return '';
   }
