@@ -1,0 +1,328 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Service;
+
+use App\Service\Theme\PageAppearance;
+use App\Service\Theme\ThemeCss;
+use App\Service\Theme\ThemePalette;
+use App\Service\Theme\ThemeSettings;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Themes 2.0 phase 1A (THEMING.md, "Presentatietokens"): the public
+ * stylesheets draw borders, pills, shadows, sheen, status colours, the
+ * heading and eyebrow character and the hover movement from tokens, so a
+ * theme can change them in one place.
+ *
+ *   - core.css declares every one of those tokens with the shipped value, so
+ *     the default theme renders exactly as before;
+ *   - no public stylesheet writes a colour as a literal (hex, rgb() with
+ *     numbers) outside core.css's token declarations, except a short list of
+ *     colours that sit on a photograph or are a mask, each with its reason;
+ *   - no status colour, border weight or pill radius is written out;
+ *   - no hover lifts or zooms by a literal distance;
+ *   - a page theme recomputes the shadows and restates the sheen in its own
+ *     colours, and never carries a shape, border or movement token;
+ *   - --color-on-primary is never the background of a panel (it is the
+ *     colour of text and marks on a primary fill).
+ *
+ * Pure: no database, no web server. Suites contract, fast and cms.
+ */
+final class ThemeTokenContractTest extends TestCase
+{
+    /** The tokens of this phase, with the value core.css ships. */
+    private const SHIPPED = [
+        '--border-width' => '1px',
+        '--border-width-strong' => '1.5px',
+        '--radius-pill' => '999px',
+        '--color-shadow-rgb' => '0, 0, 0',
+        '--color-sheen-rgb' => '255, 255, 255',
+        '--color-danger' => '#E2685C',
+        '--color-danger-rgb' => '226, 104, 92',
+        '--color-danger-text' => '#F0897E',
+        '--color-danger-text-rgb' => '240, 137, 126',
+        '--color-danger-on-wash' => '#F5B4AC',
+        '--color-success-rgb' => '120, 180, 130',
+        '--color-success-on-wash' => '#B7E0C0',
+        '--fw-heading' => '500',
+        '--fw-h1' => '400',
+        '--tracking-heading' => '0.01em',
+        '--eyebrow-weight' => '700',
+        '--eyebrow-tracking' => '0.18em',
+        '--eyebrow-case' => 'uppercase',
+        '--eyebrow-rule-display' => 'inline-block',
+        '--hover-lift' => '1',
+        '--hover-zoom' => '1',
+    ];
+
+    /** Stylesheets an admin screen owns (a preview frame), not the website. */
+    private const ADMIN_OWNED = [
+        'block-preview.css',
+        'button-style-preview.css',
+        'color-palette-preview.css',
+        'page-preview.css',
+        'page-theme-preview.css',
+    ];
+
+    /**
+     * Literal colours that stay literal, per file, with how often they occur.
+     * Each one sits on a photograph or a product picture, whose colours no
+     * theme decides, or is a mask, where only the alpha counts.
+     */
+    private const LITERAL_COLOURS = [
+        // A mask fades the decoration out: black is "fully shown", not a colour.
+        'block-decorations.css' => ['#000' => 2, 'rgba(0,0,0,0.35)' => 2],
+        // The caption over a gallery photo: light text on a dark scrim, on the photo.
+        'blocks/detail-section.css' => ['rgba(0,0,0,0.72)' => 1, 'rgba(0,0,0,0)' => 1, '#fff' => 1],
+        // The engraving preview on the product picture, and a colour swatch's edge.
+        'shop/personalization.css' => [
+            '#F7F1E6' => 1,
+            'rgba(27, 20, 13, 0.9)' => 1,
+            'rgba(27, 20, 13, 0.7)' => 4,
+            'rgba(0, 0, 0, 0.45)' => 1,
+            'rgba(0, 0, 0, 0.25)' => 1,
+        ],
+        // The checkout's "redirecting to payment" overlay: a backdrop (THEMING.md, fase 1B).
+        'shop/shop.css' => ['rgba(15,11,7,0.72)' => 1],
+    ];
+
+    private static function root(): string
+    {
+        return dirname(__DIR__, 2);
+    }
+
+    private static function source(string $path): string
+    {
+        $file = self::root() . '/' . $path;
+        self::assertFileExists($file);
+
+        return str_replace("\r\n", "\n", (string) file_get_contents($file));
+    }
+
+    private static function withoutComments(string $css): string
+    {
+        return preg_replace('#/\*.*?\*/#s', '', $css) ?? '';
+    }
+
+    /** @return array<string, string> path under assets/css => source without comments */
+    private static function publicStylesheets(): array
+    {
+        $base = self::root() . '/assets/css/';
+        $files = array_merge(glob($base . '*.css') ?: [], glob($base . '*/*.css') ?: []);
+
+        $out = [];
+        foreach ($files as $file) {
+            $name = substr($file, strlen($base));
+            if (in_array($name, self::ADMIN_OWNED, true)) {
+                continue;
+            }
+            $out[$name] = self::withoutComments(self::source('assets/css/' . $name));
+        }
+        self::assertArrayHasKey('core.css', $out);
+        self::assertGreaterThan(20, count($out), 'every public stylesheet is read');
+
+        return $out;
+    }
+
+    /**
+     * core.css without its two token rules (`:root{…}` and
+     * `:root, main[data-page-theme]{…}`): what is left draws the page.
+     */
+    private static function coreRules(): string
+    {
+        $css = self::withoutComments(self::source('assets/css/core.css'));
+        $stripped = preg_replace('/(?:^|(?<=\}))\s*:root(,\s*main\[data-page-theme\])?\s*\{[^{}]*\}/', '', $css, -1, $count);
+        self::assertSame(2, $count, 'core.css has its two token rules');
+
+        return (string) $stripped;
+    }
+
+    /** @return array<string, string> custom property => value, from one rule body */
+    private static function declarations(string $body): array
+    {
+        preg_match_all('/(--[a-z0-9-]+)\s*:\s*([^;]+);/', $body, $matches, PREG_SET_ORDER);
+
+        $out = [];
+        foreach ($matches as $match) {
+            $out[$match[1]] = preg_replace('/\s+/', ' ', trim($match[2])) ?? '';
+        }
+
+        return $out;
+    }
+
+    /** @return array{0: array<string, string>, 1: array<string, string>} :root tokens, shared-rule tokens */
+    private static function tokenRules(): array
+    {
+        $css = self::withoutComments(self::source('assets/css/core.css'));
+        self::assertSame(1, preg_match('/(?:^|\})\s*:root\s*\{([^{}]*)\}/', $css, $root));
+        self::assertSame(1, preg_match('/:root,\s*main\[data-page-theme\]\s*\{([^{}]*)\}/', $css, $shared));
+
+        return [self::declarations($root[1]), self::declarations($shared[1])];
+    }
+
+    /** @return list<string> every rule in $css as "selector{body}", @media wrappers flattened */
+    private static function rules(string $css): array
+    {
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $matches, PREG_SET_ORDER);
+
+        $out = [];
+        foreach ($matches as $match) {
+            $selector = trim(preg_replace('/\s+/', ' ', $match[1]) ?? '');
+            $out[] = $selector . '{' . $match[2] . '}';
+        }
+
+        return $out;
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    public function testCoreCssShipsEveryTokenWithTheDefaultThemesValue(): void
+    {
+        [$root] = self::tokenRules();
+
+        foreach (self::SHIPPED as $property => $value) {
+            self::assertArrayHasKey($property, $root, $property . ' is declared on :root');
+            self::assertSame($value, $root[$property], $property . ' keeps the shipped look');
+        }
+    }
+
+    public function testTheShadowsAreBuiltOnTheShadowChannelAndRecomputeInsideAPageTheme(): void
+    {
+        [$root, $shared] = self::tokenRules();
+
+        self::assertArrayNotHasKey('--shadow-soft', $root);
+        self::assertArrayNotHasKey('--shadow-lift', $root);
+        self::assertSame('0 16px 36px -18px rgba(var(--color-shadow-rgb), 0.6)', $shared['--shadow-soft'] ?? null);
+        self::assertSame('0 30px 60px -22px rgba(var(--color-shadow-rgb), 0.7)', $shared['--shadow-lift'] ?? null);
+    }
+
+    public function testNoPublicStylesheetWritesAColourOutsideTheTokens(): void
+    {
+        $sheets = self::publicStylesheets();
+        $sheets['core.css'] = self::coreRules();
+
+        foreach ($sheets as $name => $css) {
+            preg_match_all('/#[0-9a-fA-F]{3,8}\b|rgba?\(\s*\d[^)]*\)/', $css, $found);
+            $counts = array_count_values($found[0]);
+            ksort($counts);
+            $allowed = self::LITERAL_COLOURS[$name] ?? [];
+            ksort($allowed);
+
+            self::assertSame(
+                $allowed,
+                $counts,
+                $name . ' writes a colour as a literal. Use a token (--color-…, rgba(var(--color-…-rgb), a)); '
+                    . 'a colour on a photograph goes in LITERAL_COLOURS with its reason'
+            );
+        }
+    }
+
+    public function testNoStatusColourBorderWeightOrPillRadiusIsWrittenOut(): void
+    {
+        $statusLiterals = [];
+        foreach (self::SHIPPED as $property => $value) {
+            if (str_starts_with($property, '--color-danger') || str_starts_with($property, '--color-success')) {
+                $statusLiterals[] = $value;
+            }
+        }
+
+        foreach (self::publicStylesheets() as $name => $css) {
+            if ($name === 'core.css') {
+                $css = self::coreRules();
+            }
+            foreach ($statusLiterals as $literal) {
+                self::assertStringNotContainsStringIgnoringCase(
+                    str_replace(', ', ',', $literal),
+                    str_replace(', ', ',', $css),
+                    $name . ' writes a status colour out: use --color-danger… / --color-success…'
+                );
+            }
+            // A system colour (forced-colors mode) is the one border that keeps its pixel width.
+            $borders = preg_replace('/[^;{]*\b(ButtonText|CanvasText|Highlight)\b[^;}]*/', '', $css) ?? '';
+            self::assertDoesNotMatchRegularExpression(
+                '/\bborder(-[a-z]+)*\s*:\s*1(\.5)?px\s+(solid|dashed|dotted)/',
+                $borders,
+                $name . ' writes a border weight out: use --border-width or --border-width-strong'
+            );
+            self::assertDoesNotMatchRegularExpression(
+                '/border-radius\s*:\s*999px/',
+                $css,
+                $name . ' writes a pill out: use --radius-pill'
+            );
+        }
+    }
+
+    public function testNothingLiftsOrZoomsOnHoverByALiteralDistance(): void
+    {
+        foreach (self::publicStylesheets() as $name => $css) {
+            foreach (self::rules($css) as $rule) {
+                $selector = substr($rule, 0, (int) strpos($rule, '{'));
+                if (!preg_match('/:(hover|focus-visible|focus-within)/', $selector)) {
+                    continue;
+                }
+                self::assertDoesNotMatchRegularExpression(
+                    '/translateY\(\s*-[\d.]+px\s*\)|scale\(\s*1\.\d+\s*\)/',
+                    $rule,
+                    $name . ': "' . $selector . '" moves by a fixed distance; multiply it by '
+                        . 'var(--hover-lift) or var(--hover-zoom)'
+                );
+            }
+        }
+    }
+
+    public function testTheHeadingAndTheEyebrowTakeTheirCharacterFromTokens(): void
+    {
+        $css = self::coreRules();
+
+        self::assertMatchesRegularExpression('/h1, h2, h3, h4\{[^}]*font-weight: var\(--fw-heading\);[^}]*letter-spacing: var\(--tracking-heading\);/', $css);
+        self::assertStringContainsString('h1{ font-size: var(--fs-h1); font-weight: var(--fw-h1); }', $css);
+        self::assertMatchesRegularExpression(
+            '/\.eyebrow\{[^}]*letter-spacing: var\(--eyebrow-tracking\);[^}]*text-transform: var\(--eyebrow-case\);[^}]*font-weight: var\(--eyebrow-weight\);/',
+            $css
+        );
+        self::assertMatchesRegularExpression('/\.eyebrow::before\{[^}]*display: var\(--eyebrow-rule-display\);/', $css);
+    }
+
+    public function testOnPrimaryIsNeverTheBackgroundOfAPanel(): void
+    {
+        foreach (self::publicStylesheets() as $name => $css) {
+            foreach (self::rules($name === 'core.css' ? self::coreRules() : $css) as $rule) {
+                self::assertDoesNotMatchRegularExpression(
+                    '/(^|[;{\s])background(-color)?\s*:[^;{}]*var\(--color-on-primary\)/',
+                    $rule,
+                    $name . ': "' . strtok($rule, '{') . '" paints a surface in --color-on-primary, the colour of '
+                        . 'text on a primary fill. A panel is --color-surface'
+                );
+            }
+        }
+    }
+
+    public function testAPageThemeRestatesTheSheenInItsOwnColoursAndCarriesNoShapeOrMovement(): void
+    {
+        $colors = [
+            'primary_color' => '#2B6CB0',
+            'on_primary_color' => '#FFFFFF',
+            'background_color' => '#FFFFFF',
+            'surface_color' => '#F4F6F8',
+            'text_color' => '#1A202C',
+        ];
+        $appearance = PageAppearance::fromTheme('licht', $colors, ThemeSettings::defaults()['font_pairing']);
+        self::assertNotNull($appearance);
+        $declarations = $appearance->declarations();
+
+        // Light ground, dark text: the sheen darkens instead of vanishing in white.
+        self::assertSame('26, 32, 44', $declarations['--color-sheen-rgb'] ?? null);
+        self::assertSame(ThemeCss::paletteDeclarations($colors)['--color-sheen-rgb'], $declarations['--color-sheen-rgb']);
+        self::assertContains('--color-sheen-rgb', ThemePalette::dependencies()['text']);
+
+        foreach (array_keys($declarations) as $property) {
+            self::assertDoesNotMatchRegularExpression(
+                '/^--(radius|border|hover|shadow|fw-|tracking|eyebrow)/',
+                $property,
+                'a page theme is colours and fonts only, never ' . $property
+            );
+        }
+    }
+}

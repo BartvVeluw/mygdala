@@ -220,6 +220,7 @@
             <file>tests/Service/InventoryContractTest.php</file>
             <file>tests/Service/ProductEditorTabsTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
+            <file>tests/Service/ThemeTokenContractTest.php</file>
             <file>tests/Module/PageThemesModuleTest.php</file>
         </testsuite>
 
@@ -410,6 +411,7 @@
             <file>tests/Service/ButtonStyleCssTest.php</file>
             <file>tests/Service/ButtonStyleBlocksTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
+            <file>tests/Service/ThemeTokenContractTest.php</file>
             <file>tests/Module/PageThemesModuleTest.php</file>
         </testsuite>
 
@@ -915,6 +917,7 @@
             <file>tests/Service/ModuleChildPagesTest.php</file>
             <file>tests/Service/ThemeColorTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
+            <file>tests/Service/ThemeTokenContractTest.php</file>
             <file>tests/Service/ThemePaletteRecipeTest.php</file>
             <file>tests/Service/ColorPaletteTest.php</file>
             <file>tests/Service/ColorPalettesHttpTest.php</file>
