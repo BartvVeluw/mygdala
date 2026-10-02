@@ -37,7 +37,9 @@ use PHPUnit\Framework\TestCase;
  *     ground, while --color-primary-bright stays a free highlight; the
  *     faint text tone keeps its shipped alpha on a dark ground and rises on
  *     a light one until it reads like it does on the default theme
- *     (phase 1A.2).
+ *     (phase 1A.2);
+ *   - the display titles that set their own weight take it from a heading
+ *     token (phase 1A.2).
  *
  * Pure: no database, no web server. Suites contract, fast and cms.
  */
@@ -68,6 +70,17 @@ final class ThemeTokenContractTest extends TestCase
         '--eyebrow-rule-display' => 'inline-block',
         '--hover-lift' => '1',
         '--hover-zoom' => '1',
+    ];
+
+    /**
+     * Display titles that set a weight of their own instead of the one their
+     * h1–h4 element gets, per stylesheet: each takes it from a heading token.
+     */
+    private const TITLE_WEIGHTS = [
+        'shop/shop.css' => ['.product-detail__title'],
+        'shop/personalization.css' => ['.personalizer__title'],
+        'blog/blog.css' => ['.blog-card__title', '.blog-related__heading'],
+        'articles/articles.css' => ['.article-row__title'],
     ];
 
     /** Stylesheets an admin screen owns (a preview frame), not the website. */
@@ -464,5 +477,28 @@ final class ThemeTokenContractTest extends TestCase
         [$pr, $pg, $pb] = ThemePalette::rgb($colors['primary_color']);
         [$br, $bg, $bb] = ThemePalette::rgb($tokens['--color-primary-bright']);
         self::assertGreaterThan($pr + $pg + $pb, $br + $bg + $bb);
+    }
+
+    public function testTheDisplayTitlesWithAWeightOfTheirOwnTakeItFromAHeadingToken(): void
+    {
+        $sheets = self::publicStylesheets();
+
+        foreach (self::TITLE_WEIGHTS as $name => $selectors) {
+            foreach ($selectors as $selector) {
+                $found = false;
+                foreach (self::rules($sheets[$name]) as $rule) {
+                    if (strtok($rule, '{') !== $selector || !str_contains($rule, 'font-weight')) {
+                        continue;
+                    }
+                    $found = true;
+                    self::assertMatchesRegularExpression(
+                        '/font-weight\s*:\s*var\(--fw-(heading|h1)\)/',
+                        $rule,
+                        $name . ': ' . $selector . ' writes its weight out; use --fw-heading or --fw-h1'
+                    );
+                }
+                self::assertTrue($found, $name . ' still sets the weight of ' . $selector);
+            }
+        }
     }
 }

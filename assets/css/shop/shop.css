@@ -283,7 +283,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   .product-detail__thumb:focus-visible{ transform: none; }
 }
 
-.product-detail__title{ margin: 0 0 0.3rem; font-size: clamp(1.5rem, 1.2vw + 1.1rem, 1.9rem); font-weight: 500; line-height: 1.2; }
+.product-detail__title{ margin: 0 0 0.3rem; font-size: clamp(1.5rem, 1.2vw + 1.1rem, 1.9rem); font-weight: var(--fw-heading); line-height: 1.2; }
 .product-detail__price{ font-family: var(--font-display); font-size: 1.5rem; color: var(--color-primary-text); margin: 0 0 var(--sp-3); }
 .product-detail__desc{ font-size: 0.95rem; line-height: 1.65; color: var(--color-text-muted); max-width: 52ch; margin: var(--sp-3) 0; }
 .product-detail__meta{ display: flex; gap: var(--sp-4); flex-wrap: wrap; margin: var(--sp-3) 0; padding: var(--sp-3) 0; border-top: var(--border-width) solid var(--color-line); border-bottom: var(--border-width) solid var(--color-line); }
