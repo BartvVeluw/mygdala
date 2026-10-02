@@ -399,15 +399,36 @@ en geen merkstijl in de markup.
 | Laag | Wie | Waar | Voorbeeld |
 |---|---|---|---|
 | Standaardoppervlak | het blok zelf, vast in zijn renderer | één klasse op de root: `surface-<woord>` | de Kaarten-carrousel print `surface-subtle` |
-| Expliciete keuze | de redacteur, per blok, in *Extra vormgeving* | `block-appearance--bg-<woord>` naast die klasse | *Websiteachtergrond* op de Cijferbalk |
+| Expliciete keuze | de redacteur, per blok, in *Extra vormgeving* | `block-appearance--bg-<woord>` in plaats van die klasse | *Websiteachtergrond* op de Cijferbalk |
 | Uitvoering | het thema | `core.css` (het standaardthema), later een themastylesheet | het verloop en de lijnen van `surface-subtle` |
 
-**Voorrang.** 1) een expliciete keuze in Extra vormgeving, 2) het
-standaardoppervlak van het blok, 3) de gewone ondergrond van de pagina of
-site. Dit is geen code maar specificiteit: een rol is één klasse, een keuze
-twee (`.block-appearance.block-appearance--…`), dus de keuze wint ongeacht de
-volgorde van de stylesheets. `BlockAppearance::apply()` laat de rolklasse
-staan; *Standaard* zet niets en laat de rol dus over.
+**Voorrang** (fase 1B-a.1):
+
+1. een expliciete achtergrond in Extra vormgeving;
+2. het standaardoppervlak van het blok;
+3. de gewone ondergrond van de pagina of site.
+
+Een expliciete achtergrond **vervangt het standaardoppervlak helemaal**, niet
+alleen de vulling. `BlockAppearance::apply()` haalt de rolklasse
+(`BlockAppearance::SURFACE_ROLES`) van de root zodra de achtergrond iets
+anders is dan *Standaard*. Alles wat een thema op de rol tekent, valt dan
+weg: lijnen, haarlijn, tekstkleur, `clip-path`, `::before`. Dat is markup,
+geen CSS, dus er is geen resetregel per rol en per keuze.
+
+- *Standaard* (opgeslagen `default`; een ontbrekende kolom, `NULL`, een lege
+  of onbekende waarde leest ook zo) laat de rol staan.
+- *Transparant* is een echte keuze: geen eigen vlak, en dus ook geen rol.
+- Dezelfde keuze als de rol (*Subtiele achtergrond* op de Kaarten-carrousel)
+  is ook een keuze: de rol gaat eraf, zodat een thema het standaardoppervlak
+  van een blok en een keuze van de redacteur uit elkaar kan houden.
+- *Randen*, *Ruimte rondom* en een effect laten de rol staan. Die winnen als
+  twee klassen (`.block-appearance.block-appearance--…`) van de ene klasse
+  van de rol, ongeacht de volgorde van de stylesheets. Een gekozen rand
+  vervangt ook de haarlijn van `surface-contrast`.
+
+`BlockAppearance` kent alleen de woorden. Welk blok welke rol heeft, staat in
+de renderer van dat blok. Gerelateerde producten (Shop) hebben geen Extra
+vormgeving en houden hun rol altijd.
 
 ### De woorden
 
@@ -432,10 +453,14 @@ zijn.
 - **`.surface-subtle`**: vulling `--surface-subtle` (een zacht verloop van
   het accent rechtsboven plus een glans van `--color-sheen-rgb`) en een lijn
   boven en onder in `--color-line-soft`. *Subtiele achtergrond* in Extra
-  vormgeving is dezelfde vulling, zonder de lijnen (die zijn *Randen*).
+  vormgeving is dezelfde vulling, zonder de lijnen (die zijn *Randen*). Op
+  een blok met deze rol vallen de lijnen dus weg zodra *Subtiele
+  achtergrond* gekozen is; *Randen* *Boven en onder* met *Subtiel* tekent
+  precies dezelfde lijnen terug.
 - **`.surface-contrast`**: vulling `--surface-contrast` (`--color-bg-deep`),
   tekst in `--color-text`, lijnen in `--color-line`, en een haarlijn van het
-  accent bovenaan (`::before`). Een gekozen rand vervangt ook die haarlijn.
+  accent bovenaan (`::before`). Een gekozen rand vervangt ook die haarlijn;
+  een gekozen achtergrond neemt lijnen en haarlijn mee weg.
 
 `--surface-subtle` en `--surface-contrast` zijn tokens in de regel
 `:root, main[data-page-theme]`, omdat ze uit paletkleuren gebouwd zijn: zo
@@ -452,16 +477,16 @@ zonder één componentselector. Bewezen met een tijdelijke stresstest (niet
 gecommit): een ruw donker profiel en een rustig licht profiel veranderden de
 vier blokken volledig, met alleen deze twee klassen en hun tokens.
 
-Twee grenzen, bewust:
+Een thema hoeft niets af te vangen voor een gekozen achtergrond: die blokken
+hebben de rol niet meer (zie *Voorrang*). Tot fase 1B-a.1 bleef de rol
+staan, en hield een blok met *Websiteachtergrond* bijvoorbeeld de donkere
+tekst en de `clip-path` die een thema op `.surface-contrast` zette. Bewezen
+met dezelfde tijdelijke stresstest: na een gekozen achtergrond rekent geen
+enkele eigenschap van zo'n blok nog met de rol; alleen *Subtiele
+achtergrond* volgt de token `--surface-subtle` van het thema, zoals bedoeld.
 
-- **Een expliciete achtergrond vervangt alleen de vulling** (en een gekozen
-  rand de lijnen). Wat een thema verder op de rol zet, blijft: een
-  `clip-path`, en ook kleurtokens die het op de rol opnieuw zet. Zet een
-  thema op `.surface-contrast` donkere tekst voor een lichte band, en kiest
-  de redacteur daar *Websiteachtergrond* op een donkere site, dan blijft die
-  tekst donker. Het standaardthema zet geen tokens op een rol, dus daar
-  speelt dit niet. Een thema dat dat wel doet, moet het nu zelf afvangen;
-  een kern-oplossing volgt pas als een echt thema hem nodig heeft.
+Eén grens, bewust:
+
 - **Een paginathema** bepaalt alleen kleur en lettertype. Het kiest geen
   oppervlak en krijgt geen oppervlak-instelling: de rollen volgen zijn
   kleuren vanzelf.
@@ -493,8 +518,11 @@ nooit een eigen regel krijgt.
 `Tests\Service\SurfaceContractTest` (`contract`, `fast`, `cms`) houdt vast:
 de rolklasse op de root van elk blok met een vast oppervlak, geen `bg-soft`
 of `bg-forest` in een renderer of template, één regel per rol op zijn token,
-dezelfde vulling voor *Subtiele achtergrond*, de rol die blijft staan naast
-een keuze van twee klassen, en geen site- of themanaam in deze code.
+dezelfde vulling voor *Subtiele achtergrond*, de voorrang (elke gekozen
+achtergrond haalt de rol weg, op elk blok met Extra vormgeving en een rol;
+*Standaard*, randen, ruimte en effecten laten haar staan), geen resetregel
+voor een rol met een gekozen achtergrond, geen bloktype in `BlockAppearance`,
+en geen site- of themanaam in deze code.
 
 ## Nieuwe thema-instelling toevoegen
 

@@ -1533,6 +1533,12 @@ en de footer liggen buiten de `<main>` en veranderen nooit mee.
 | Secundaire themakleur | `--color-surface`, het tweede vlak van het palet (de kleur van de kaarten). Het palet heeft geen aparte secundaire kleur, dit is de tweede kleur die het wel heeft |
 | Transparant | Geen eigen achtergrond: de ondergrond van de pagina schijnt door |
 
+Elke keuze behalve *Standaard*, ook *Transparant*, vervangt het
+standaardoppervlak van het blok helemaal: `apply()` haalt de rolklasse
+(`surface-subtle`, `surface-contrast`) van de root, dus ook haar lijnen,
+haarlijn en wat een thema er verder op tekent (`THEMING.md`,
+"Oppervlakken", *Voorrang*). Randen, ruimte en effecten laten de rol staan.
+
 Een keuze vervangt de achtergrond van de `<section>` van het blok, niet die
 van kaarten erin. Een oproep als kaart houdt zijn kaart; bij een oproep over
 de volle breedte is de sectie het vlak en wordt dat vervangen. De afbeelding
@@ -1542,7 +1548,9 @@ en overlay liggen daar gewoon overheen.
 
 **Randen**: *Standaard* houdt de eigen lijnen van het blok (de lijnen van
 `.surface-subtle`, `.surface-contrast` met zijn haarlijn, de lijn boven een Detailsectie of
-een oproep over de volle breedte). *Geen*, *Alleen boven*, *Alleen onder* en
+een oproep over de volle breedte). De lijnen van een rol gaan mee weg met een
+gekozen achtergrond; de lijn boven een Detailsectie of oproep is van het blok
+zelf en blijft. *Geen*, *Alleen boven*, *Alleen onder* en
 *Boven en onder* vervangen ze. *Randkleur*: *Subtiel* (`--color-line-soft`),
 *Normaal* (`--color-line`), *Accentkleur* (`--color-primary`), steeds 1px.
 Geen numerieke velden.
@@ -1590,9 +1598,12 @@ een blok een effect toont, één keer, hoeveel blokken het ook hebben.
 Bij `null` (alles standaard, of niets ondersteund) rendert het blok direct,
 zoals altijd: **byte voor byte de oude markup**. Anders buffert het de
 uitvoer en zet `apply()` de klassen naast de eigen klassen van het
-root-element (`<section class="surface-subtle block-appearance
-block-appearance--bg-page">`). Een eigen `style` (de hoogte van een oproep)
-blijft staan. Er komt geen wrapper, zodat sibling-selectors
+root-element (`<section class="service-detail block-appearance
+block-appearance--border-top block-appearance--line-normal">`). Een gekozen
+achtergrond haalt daarbij de rolklasse weg: de Kaarten-carrousel met
+*Websiteachtergrond* wordt `<section class="block-appearance
+block-appearance--bg-page">`, zonder `surface-subtle`. Elke andere eigen
+klasse en een eigen `style` (de hoogte van een oproep) blijven staan. Er komt geen wrapper, zodat sibling-selectors
 (`.rich-text-section + .rich-text-section`), ankers, reveal-groepen en de
 stacking van blokken die zichzelf isoleren blijven werken. Rendert een blok
 niets (verborgen, leeg), dan blijft het leeg: een onzichtbaar blok wordt
