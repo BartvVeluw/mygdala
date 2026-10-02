@@ -315,8 +315,9 @@ final class AdminUiPrimitivesTest extends TestCase
             // sample page of a page theme in its editor's frame
             // (admin/page-theme-preview.php), like that of a colour palette
             // (admin/color-palette-preview.php) and of a button style
-            // (admin/button-style-preview.php).
-            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php', 'color-palette-preview.php', 'button-style-preview.php'], true)) {
+            // (admin/button-style-preview.php), and the start page in a
+            // Global Theme (admin/theme-preview.php).
+            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php', 'page-theme-preview.php', 'color-palette-preview.php', 'button-style-preview.php', 'theme-preview.php'], true)) {
                 continue;
             }
 

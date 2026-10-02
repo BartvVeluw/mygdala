@@ -15,6 +15,7 @@ use App\Service\Theme\ColorPaletteService;
 use App\Service\Theme\FontLibrary;
 use App\Service\Theme\ThemeCss;
 use App\Service\Theme\ThemeFonts;
+use App\Service\Theme\ThemeRegistry;
 use App\Service\Theme\ThemeSettings;
 
 AdminAuth::requireLogin();
@@ -99,6 +100,31 @@ $buttonsNotice = is_string($_GET['buttons'] ?? null)
 $buttonsError = $_SESSION['admin_buttons_error'] ?? null;
 unset($_SESSION['admin_buttons_error']);
 
+/**
+ * The Global Themes (Themes 2.0, THEMING.md "Theme kiezen"), on the tab Thema:
+ * every theme of the closed list in code, which one the website uses, and
+ * a preview of each (admin/theme-preview.php). Three readings, each from its
+ * owner, so this screen repeats no fallback rule:
+ *
+ *   $storedThemeKey  the row as it is (ThemeSettings), '' when there is none
+ *   $activeTheme     what the website really uses (ThemeRegistry::active())
+ *   $unknownTheme    a stored key the list does not know: the site runs on
+ *                    legacy meanwhile, and the editor is told, but the row is
+ *                    left as it is until they choose a theme themselves.
+ *
+ * ?themes=activated is a switch's outcome, a failure comes back as a session
+ * flash.
+ */
+$themes = ThemeRegistry::all();
+$activeTheme = ThemeRegistry::active();
+$storedThemeKey = ThemeSettings::activeThemeKey();
+$unknownTheme = $storedThemeKey !== '' && ThemeRegistry::find($storedThemeKey) === null;
+$themesNotice = ($_GET['themes'] ?? '') === 'activated';
+$themesError = $_SESSION['admin_themes_error'] ?? null;
+unset($_SESSION['admin_themes_error']);
+$themeLabel = static fn (\App\Service\Theme\ThemeDefinition $theme): string
+    => admin_registry_label('globaltheme.' . $theme->key . '.label', $theme->label);
+
 /** The typography preview: the site as it is, with the choice in the form. */
 $typographyPreviewQuery = http_build_query(array_intersect_key($values, array_flip(['font_pairing', 'heading_font_family_id', 'body_font_family_id'])));
 
@@ -144,6 +170,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </div>
   <?php endif; ?>
 
+  <?php if ($themesNotice): ?>
+    <p class="admin-alert admin-alert--success" data-themes-notice><?= admin_te('themes.done_activated', ['name' => $themeLabel($activeTheme)]) ?></p>
+  <?php endif; ?>
+
+  <?php if (is_string($themesError)): ?>
+    <p class="admin-alert admin-alert--error" data-themes-error><?= $h($themesError) ?></p>
+  <?php endif; ?>
+
   <?php if ($paletteNotice !== ''): ?>
     <p class="admin-alert admin-alert--success" data-palette-notice="<?= $h($paletteNotice) ?>"><?= $paletteNotice === 'activated'
         ? admin_te('palettes.done_activated', ['name' => (string) ($activePalette['name'] ?? '')])
@@ -170,22 +204,91 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <p class="admin-alert admin-alert--error" data-fonts-error><?= $h($fontsError) ?></p>
   <?php endif; ?>
 
-  <?php /* Three tabs: the look of the site, the Font Library it can choose
-           from, and the button styles (admin/_admin_tabs.php). Every form
-           keeps its own endpoint. */ ?>
+  <?php /* Four tabs: the Global Theme (the highest layer, so first), the
+           look of the site, the Font Library it can choose from, and the
+           button styles (admin/_admin_tabs.php). Every form keeps its own
+           endpoint. */ ?>
   <?php admin_tabs_start('theme', [
+      'thema' => admin_t('themes.tab'),
       'stijl' => admin_t('fonts.tab_style'),
       'lettertypen' => admin_t('fonts.tab_fonts'),
       'knoppen' => admin_t('buttons.tab'),
   ], [
       'label' => admin_t('fonts.tabs_label'),
       'force' => match (true) {
+          $themesNotice || is_string($themesError) || $unknownTheme || ($_GET['tab'] ?? '') === 'thema' => 'thema',
           $fontsNotice || is_string($fontsError) || ($_GET['tab'] ?? '') === 'lettertypen' => 'lettertypen',
           $buttonsNotice !== '' || is_string($buttonsError) || ($_GET['tab'] ?? '') === 'knoppen' => 'knoppen',
           $saved || $errors !== [] => 'stijl',
           default => null,
       },
   ]); ?>
+
+  <?php admin_tab_panel('thema'); ?>
+  <section class="admin-card" id="thema" data-themes>
+    <header class="admin-page-head">
+      <div>
+        <h2 class="admin-page-head__title"><?= admin_te('themes.title') ?></h2>
+        <p class="admin-page-head__desc"><?= admin_te('themes.intro') ?></p>
+      </div>
+    </header>
+
+    <?php if ($unknownTheme): ?>
+      <p class="admin-alert admin-alert--warning" data-themes-unknown><?= admin_te('themes.unknown_stored', [
+          'key' => $storedThemeKey,
+          'fallback' => $themeLabel($activeTheme),
+      ]) ?></p>
+    <?php endif; ?>
+
+    <div class="admin-page-sections">
+      <?php foreach ($themes as $themeKey => $theme): ?>
+        <?php
+        $themeIsActive = $themeKey === $activeTheme->key;
+        // The fallback in use for an unknown stored key is active, but not
+        // chosen: storing it is how the editor settles the warning.
+        $themeCanActivate = !$themeIsActive || $unknownTheme;
+        ?>
+        <div class="admin-section-row admin-palette-row" data-theme-row="<?= $h($themeKey) ?>"<?= $themeIsActive ? ' data-theme-active' : '' ?>>
+          <div class="admin-section-row__body">
+            <p class="admin-section-row__name">
+              <?= $h($themeLabel($theme)) ?>
+              <?php if ($themeIsActive): ?>
+                <span class="admin-badge admin-badge--published" data-theme-status="active"><?= admin_te('themes.status_active') ?></span>
+              <?php endif; ?>
+            </p>
+          </div>
+          <div class="admin-section-row__actions">
+            <?php /* Loads the preview into the frame below (target = the
+                     frame's name): no script, and without a frame it still
+                     opens the preview on its own. */ ?>
+            <a href="/admin/theme-preview.php?theme=<?= $h(rawurlencode($themeKey)) ?>" class="admin-section-row__edit" target="theme-preview" data-theme-preview-link><?= admin_te('themes.preview') ?><span class="admin-visually-hidden">: <?= $h($themeLabel($theme)) ?></span></a>
+            <?php if ($themeCanActivate): ?>
+              <form method="post" action="/api/admin/save-active-theme.php" class="admin-inline-form" data-theme-activate>
+                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                <input type="hidden" name="theme" value="<?= $h($themeKey) ?>">
+                <button type="submit" class="admin-btn-text"><?= admin_te('themes.activate') ?><span class="admin-visually-hidden">: <?= $h($themeLabel($theme)) ?></span></button>
+              </form>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+
+    <p class="admin-text-muted" data-themes-keeps><?= admin_te('themes.keeps') ?></p>
+
+    <?php /* The website's start page in a theme (admin/theme-preview.php),
+             first the one the website uses. Sandboxed like the block
+             library's preview: allow-scripts and nothing else, so the
+             page's own scripts run (the hero, the menu) in an opaque origin
+             that cannot reach this screen, its session or its storage; no
+             forms, no popups, no navigation of this screen. */ ?>
+    <h3><?= admin_te('themes.preview_title') ?></h3>
+    <p class="admin-text-muted"><?= admin_te('themes.preview_intro') ?></p>
+    <iframe class="admin-theme-preview" name="theme-preview" title="<?= admin_te('themes.preview_frame') ?>"
+            src="/admin/theme-preview.php?theme=<?= $h(rawurlencode($activeTheme->key)) ?>"
+            data-theme-preview sandbox="allow-scripts" referrerpolicy="same-origin" loading="lazy"></iframe>
+  </section>
+  <?php admin_tab_panel_end(); ?>
 
   <?php admin_tab_panel('stijl'); ?>
   <section class="admin-card" id="paletten" data-palettes>

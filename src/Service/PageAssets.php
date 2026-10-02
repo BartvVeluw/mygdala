@@ -128,8 +128,15 @@ final class PageAssets
      * that renders lower down the page has already been accounted for by
      * SectionRegistry::collectPageAssets(), which runs before the head is
      * written — see that method for the ordering rationale.
+     *
+     * $theme is the Global Theme for THIS call only: null (every public
+     * page) means the website's own, ThemeRegistry::active(). The one
+     * caller that passes a definition is the admin theme preview
+     * (admin/theme-preview.php), which shows a theme that is not stored
+     * yet. A parameter rather than a switch on this class, so it cannot
+     * outlive the call: no other request, test or later render sees it.
      */
-    public static function renderStyles(): void
+    public static function renderStyles(?ThemeDefinition $theme = null): void
     {
         self::seed();
 
@@ -146,7 +153,7 @@ final class PageAssets
         // the asset ownership lists stay what they are. `legacy` has no
         // stylesheet and prints nothing at all. See
         // App\Service\Theme\ThemeRegistry.
-        echo self::themeStylesheet(ThemeRegistry::active());
+        echo self::themeStylesheet($theme ?? ThemeRegistry::active());
 
         // The theme override goes after every stylesheet so it wins over
         // core.css, any block or Shop stylesheet and the Global Theme. For

@@ -93,6 +93,7 @@ final class ThemeTokenContractTest extends TestCase
         'color-palette-preview.css',
         'page-preview.css',
         'page-theme-preview.css',
+        'theme-preview.css',
     ];
 
     /**

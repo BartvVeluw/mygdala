@@ -3921,6 +3921,20 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   .admin-typography-preview{ height: 20rem; }
 }
 
+/* Global Theme preview (Vormgeving -> Thema, admin/theme-preview.php;
+   THEMING.md "Preview"): the website's start page in a frame, tall enough
+   to show the header, the hero and what follows. The page scrolls inside
+   it. The frame only; nothing of the theme styles this screen. */
+.admin-theme-preview{
+  display: block;
+  width: 100%;
+  height: min(42rem, 75vh);
+  margin: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-sunken);
+}
+
 /* Button Styles 2.0 (Vormgeving -> Knoppen, admin/button-style.php;
    THEMING.md "Knopstijlen"). The editor reuses the palette editor's two
    columns and sticky preview; these rules only add the colour choice's

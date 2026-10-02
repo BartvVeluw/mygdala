@@ -405,7 +405,7 @@ final class ThemeRenderingTest extends TestCase
         $order = [
             'fonts' => 'self::renderFontStylesheet()',
             'collected' => 'foreach (self::$styles',
-            'global theme' => 'self::themeStylesheet(ThemeRegistry::active())',
+            'global theme' => 'self::themeStylesheet($theme ?? ThemeRegistry::active())',
             'site-theme' => 'ThemeCss::renderStyleBlock()',
             'site-buttons' => 'ButtonStyles::renderStyleBlock()',
             'page-theme' => 'PageThemeCss::renderStyleBlock()',
@@ -427,6 +427,8 @@ final class ThemeRenderingTest extends TestCase
     /**
      * The active theme reaches the page through PageAssets alone; nothing
      * else in the public site reads it (no body class, no data attribute).
+     * The one other reader is the theme picker on Vormgeving
+     * (admin/theme.php), which shows which theme is active.
      */
     public function testOnlyPageAssetsReadsTheActiveTheme(): void
     {
@@ -450,7 +452,7 @@ final class ThemeRenderingTest extends TestCase
         sort($readers);
 
         $this->assertSame(
-            ['src/Service/PageAssets.php', 'src/Service/Theme/ThemeRegistry.php', 'src/Service/Theme/ThemeSettings.php'],
+            ['admin/theme.php', 'src/Service/PageAssets.php', 'src/Service/Theme/ThemeRegistry.php', 'src/Service/Theme/ThemeSettings.php'],
             $readers
         );
     }
