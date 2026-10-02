@@ -46,13 +46,46 @@ final class ThemeRegistryTest extends TestCase
     }
 
     /**
-     * Phase 2B ships legacy and nothing else: no second name for the same
-     * look, no proof or test theme in the release. A real first-party
-     * theme adds itself here deliberately.
+     * Core ships legacy and minimal, in that order, and nothing else: no
+     * second name for the same look (`default`, `light`), no proof or test
+     * theme in the release. A new first-party theme adds itself here
+     * deliberately.
      */
-    public function testTheListHoldsExactlyLegacy(): void
+    public function testTheListHoldsExactlyLegacyAndMinimal(): void
     {
-        $this->assertSame(['legacy'], array_keys(ThemeRegistry::all()));
+        $this->assertSame(['legacy', 'minimal'], array_keys(ThemeRegistry::all()));
+    }
+
+    public function testMinimalIsAFirstPartyThemeWithItsOwnStylesheet(): void
+    {
+        $minimal = ThemeRegistry::find('minimal');
+
+        $this->assertInstanceOf(ThemeDefinition::class, $minimal);
+        $this->assertSame('Minimal', $minimal->label);
+        $this->assertSame('assets/css/themes/minimal.css', $minimal->stylesheet);
+    }
+
+    /**
+     * Registering a theme activates nothing: every site without a stored
+     * key, existing or fresh, stays on legacy.
+     */
+    public function testRegisteringMinimalDoesNotMakeItTheActiveTheme(): void
+    {
+        ThemeSettings::overrideForTests([]);
+        $this->assertSame('legacy', ThemeRegistry::active()->key);
+
+        ThemeSettings::overrideForTests([ThemeSettings::ACTIVE_THEME_KEY => '']);
+        $this->assertSame('legacy', ThemeRegistry::active()->key);
+
+        $this->assertNotSame('minimal', ThemeRegistry::fallback()->key);
+        $this->assertArrayNotHasKey(ThemeSettings::ACTIVE_THEME_KEY, ThemeSettings::defaults());
+    }
+
+    public function testAStoredMinimalResolvesToMinimal(): void
+    {
+        ThemeSettings::overrideForTests([ThemeSettings::ACTIVE_THEME_KEY => 'minimal']);
+
+        $this->assertSame(ThemeRegistry::find('minimal'), ThemeRegistry::active());
     }
 
     public function testTheListIsTheSameEveryTime(): void
@@ -93,6 +126,10 @@ final class ThemeRegistryTest extends TestCase
             'unknown' => ['kobold'],
             'removed later' => ['light-minimal'],
             'uppercase' => ['LEGACY'],
+            'capitalised label of a listed theme' => ['Minimal'],
+            'whitespace around a listed theme' => ['minimal '],
+            'the stylesheet of a listed theme' => ['assets/css/themes/minimal.css'],
+            'its file name' => ['minimal.css'],
             'whitespace around' => [' legacy '],
             'traversal to a stylesheet' => ['../../evil.css'],
             'a stylesheet path' => ['assets/css/core.css'],

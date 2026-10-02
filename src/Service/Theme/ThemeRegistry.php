@@ -33,7 +33,13 @@ use App\Service\AppEnvironment;
  * (an extension not deployed yet) comes back by itself, and repairing the
  * row would destroy what the owner chose.
  *
- * ## What it deliberately is not
+ * ## The first-party themes
+
+`legacy` and `minimal` (THEMING.md, "First-party themes"). Registering a
+theme never activates it: only the stored key does, and nothing writes that
+key yet, so a site without one stays on legacy.
+
+## What it deliberately is not
  *
  * No writer: choosing a theme is a later phase (THEMING.md). No CRUD, no
  * repository. A theme never writes palettes, fonts or button styles; see
@@ -140,6 +146,7 @@ final class ThemeRegistry
     {
         return [
             self::fallback(),
+            new ThemeDefinition('minimal', 'Minimal', 'assets/css/themes/minimal.css'),
         ];
     }
 }

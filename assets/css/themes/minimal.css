@@ -1,0 +1,162 @@
+/* ==========================================================================
+   Global Theme: Minimal (key `minimal`, App\Service\Theme\ThemeRegistry)
+
+   A quiet presentation: small corners, thin lines, almost no depth, light
+   headings, a soft eyebrow, cards that stay still on hover, flat surfaces
+   and no ornament in the homepage hero. Printed by PageAssets after every
+   collected stylesheet and before the owner's own settings (THEMING.md,
+   "Global Theme"), so it changes how Core and the blocks are drawn, and the
+   owner's palette, fonts, button styles and page themes still win over it.
+
+   WHAT THIS FILE NEVER SETS (Tests\Service\ThemeStylesheetContractTest):
+     - a colour token. Every colour below is var(--color-...), so it is the
+       active palette's, and inside a page theme's <main> that theme's. The
+       one colour token a theme may tint, --color-shadow-rgb, is left alone.
+     - --font-display / --font-body, or a font-family of its own.
+     - anything a button style resolves to: --btn-*, --button-radius, and
+       the shared scale its words point at (--radius-sm/-md/-lg,
+       --shadow-soft/-lift, --color-glow). So corners and shadows change per
+       component here, not by rescaling those tokens.
+     - !important, @import, a url(), a transition or an animation (motion is
+       the duration and hover tokens, so prefers-reduced-motion keeps Core's
+       rules), an id, a page theme's name, a block instance.
+   Surfaces are styled on their one class, so a background, border, room or
+   effect chosen in Extra vormgeving (two classes) still wins.
+   ========================================================================== */
+
+/* --- Character: plain tokens, declared on :root only ---------------------
+   Core declares these on :root alone and a page theme never sets them, so a
+   page theme's <main> inherits them from here. */
+:root{
+  --fw-heading: 400;
+  --fw-h1: 300;
+  --tracking-heading: 0em;
+
+  --eyebrow-weight: 600;
+  --eyebrow-tracking: 0.06em;
+  --eyebrow-case: none;
+  --eyebrow-rule-display: none;
+
+  --border-width-strong: 1px;
+
+  --hover-lift: 0;
+  --hover-zoom: 0.4;
+
+  --dur-base: 260ms;
+  --dur-slow: 420ms;
+  --dur-premium: 260ms;
+}
+
+/* --- Surface fills: var()-built, so on the same pair as core.css ---------
+   On :root alone a page theme's <main> would go back to Core's fills. */
+:root,
+main[data-page-theme]{
+  --surface-subtle: var(--color-surface-2);
+  --surface-contrast: var(--color-surface);
+  --surface-emphasis:
+    linear-gradient(var(--color-primary-wash), var(--color-primary-wash)),
+    var(--color-surface);
+}
+
+/* The ground: the palette's own colour, flat, no accent pools. */
+body,
+main[data-page-theme]{
+  background: var(--color-bg);
+}
+
+/* --- Header and navigation --------------------------------------------- */
+.site-header.is-scrolled,
+body:has(> main[data-page-theme]) .site-header{
+  box-shadow: none;
+  border-color: var(--color-line-soft);
+}
+.main-nav__list a::after{ height: var(--border-width); }
+.main-nav__submenu{
+  border-color: var(--color-line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 16px -10px rgba(var(--color-shadow-rgb), 0.35);
+}
+
+/* --- Footer: the page ground, set apart by one thin line ---------------- */
+.site-footer{
+  background: transparent;
+  border-top-color: var(--color-line-soft);
+}
+.footer-col h4{
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* --- Sections ----------------------------------------------------------- */
+.surface-contrast{
+  border-block: var(--border-width) solid var(--color-line-soft);
+}
+.surface-contrast::before{ content: none; }
+.surface-emphasis{
+  border-block: var(--border-width) solid var(--color-line);
+  border-top-color: var(--color-primary);
+}
+.surface-emphasis::before{ content: none; }
+
+/* --- Homepage hero: no ornament ------------------------------------------
+   The canvas takes no room and homepage-hero.js adds no particles to a
+   canvas that is not displayed (THEMING.md, "Decoratie"). */
+.hero-decoration{ display: none; }
+.hero__media-frame{
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.hero__badge{
+  border-color: var(--color-line);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* --- Cards: a line and the surface, no glow, no lift --------------------- */
+.feature-card,
+.product-card,
+.collection-tile,
+.blog-card,
+.article-row,
+.contact-card,
+.testimonial,
+.review--card,
+.review--featured,
+.orbit-card__inner,
+.text-image__media{
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.feature-card::before{ display: none; }
+.feature-card:hover:hover,
+a.product-card:hover,
+.collection-tile:hover,
+.blog-card:hover{
+  box-shadow: none;
+  border-color: var(--color-line-strong);
+}
+.feature-card:hover .feature-card__icon{ box-shadow: none; }
+.orbit-card:hover .orbit-card__inner,
+.orbit-card:focus-within .orbit-card__inner{
+  box-shadow: 0 0 0 var(--border-width) var(--color-primary);
+}
+.review--featured{
+  background: var(--color-surface);
+  border-color: var(--color-line);
+}
+
+/* --- The call to action card: the emphasis surface, as a card ----------- */
+.cta-band--card{
+  background:
+    linear-gradient(var(--color-primary-wash), var(--color-primary-wash)),
+    var(--color-surface);
+  border: var(--border-width) solid var(--color-line);
+  border-top-color: var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+.cta-band--card::before{ content: none; }
+.cta-band__content--panel{ border-radius: var(--radius-sm); }
+
+/* --- Figures: the numbers keep the headings' weight ---------------------- */
+.stat strong{ font-weight: var(--fw-heading); }
