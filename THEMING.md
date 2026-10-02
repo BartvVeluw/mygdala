@@ -743,13 +743,30 @@ het CMS, geen preview en geen schrijver (zie *Nog niet*).
 Een sleutel is een technisch woord: `^[a-z][a-z0-9-]{1,39}$`. Geen punt,
 slash, backslash, spatie of hoofdletter, dus nooit iets dat op een pad lijkt.
 Een stylesheet is `null` of een lokaal `.css`-pad onder `assets/` in de vorm
-die `PageAssets` print (`PageAssets::isAssetPath()`): geen `..`, geen
-protocol, geen query of fragment. Of het bestand er echt staat controleert
-`PageAssets` bij het printen, niet de definitie. Het pad staat altijd
+die `App\Service\AssetPath::isValid()` toestaat: geen `..`, geen slash
+vooraan, geen backslash, geen protocol, geen query of fragment. Of het
+bestand er echt staat controleert `PageAssets` bij het printen, niet de
+definitie. Het pad staat altijd
 uitgeschreven in de definitie en wordt nooit uit de sleutel afgeleid. Een
 first-party thema staat volgens afspraak in `assets/css/themes/`; die
 afspraak zit bewust niet in `ThemeDefinition`, zodat een latere Client
 Extension een stylesheet in zijn eigen map kan meebrengen.
+
+De afhankelijkheden lopen één kant op:
+
+```text
+PageAssets → ThemeRegistry → ThemeDefinition → AssetPath
+PageAssets ──────────────────────────────────→ AssetPath
+```
+
+`ThemeDefinition` is declaratieve data en kent `PageAssets` niet, net zo
+min als de registry of de opgeslagen instelling. Hij controleert alleen of
+vertrouwde code een goedgevormd pad schreef. `AssetPath` is de pure
+vormregel die beide delen: geen bestandssysteem, geen andere klasse.
+`PageAssets` blijft eigenaar van alles wat met laden te maken heeft:
+`isLoadable()` (vorm plus "staat op schijf"), cachebusting, de `<link>`,
+escaping en de plek in de cascade. `ThemeDefinitionTest` en
+`AssetPathTest` bewaken die richting.
 
 ### `legacy`
 
@@ -871,8 +888,9 @@ thema dat ze herdefinieert doet dat op datzelfde paar, anders valt een
 
 ### Testen
 
-`ThemeDefinitionTest` en `ThemeRegistryTest` (`unit`, `fast`, `cms`): de
-vorm van sleutel en stylesheet, de gesloten lijst, `legacy` als terugval,
+`ThemeDefinitionTest`, `ThemeRegistryTest` en `AssetPathTest` (`unit`,
+`fast`, `cms`): de vorm van sleutel en stylesheet, dat `ThemeDefinition`
+niets van `PageAssets` weet en `AssetPath` puur is, de gesloten lijst, `legacy` als terugval,
 elke onbekende of padachtige opgeslagen waarde, de dubbele-sleutelbewaking,
 en dat `active_theme` geen vormgevingsinstelling is. `ThemeRenderingTest`
 (`contract`, `fast`, `cms`): niets in de themaplek bij `legacy`,
