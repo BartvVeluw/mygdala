@@ -10,13 +10,14 @@
   var prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ---------------------------------------------------------------------
-     Hero flourish (GSAP) — headline rise, laser line draw, spark burst.
-     Falls back silently if GSAP hasn't loaded or motion is reduced.
+     Hero flourish (GSAP) — headline rise, the decoration layers drawn in,
+     particles in the decoration canvas. Only the neutral hooks
+     (data-hero-decoration, data-decoration-layer) are used; what they look
+     like is the stylesheet's (THEMING.md, "Decoratie van de
+     homepage-opening"). Falls back silently if GSAP hasn't loaded or
+     motion is reduced.
      --------------------------------------------------------------------- */
-  function initHeroMotion() {
-    var hero = document.querySelector(".hero");
-    if (!hero) return;
-
+  function initHeroMotion(hero) {
     if (prefersReducedMotion || typeof gsap === "undefined") {
       hero.querySelectorAll(".gsap-init-hide").forEach(function (el) {
         el.style.opacity = 1;
@@ -29,7 +30,7 @@
     tl.from(hero.querySelectorAll(".hero__eyebrow, .hero h1, .hero__lead, .hero__actions, .hero__meta"), {
       opacity: 0, y: 26, duration: 0.8, stagger: 0.12
     })
-      .from(hero.querySelectorAll(".laser-line"), {
+      .from(hero.querySelectorAll("[data-decoration-layer]"), {
         scaleX: 0, duration: 0.9, ease: "power2.inOut", stagger: 0.08
       }, "-=0.5")
       .from(hero.querySelector(".hero__media-frame"), {
@@ -39,17 +40,24 @@
         opacity: 0, scale: 0.85, duration: 0.6, ease: "back.out(1.6)"
       }, "-=0.3");
 
-    spawnSparks(hero.querySelector(".spark-field"));
+    spawnParticles(hero.querySelector("[data-hero-decoration]"));
   }
 
-  function spawnSparks(field) {
+  // A theme that hides the canvas, or the particles, gets none: the first
+  // particle is measured and taken out again before any tween starts.
+  function spawnParticles(field) {
     if (!field || prefersReducedMotion || typeof gsap === "undefined") return;
+    if (window.getComputedStyle(field).display === "none") return;
     var count = window.innerWidth < 640 ? 6 : 14;
     for (var i = 0; i < count; i++) {
-      (function () {
-        var s = document.createElement("span");
-        s.className = "spark";
-        field.appendChild(s);
+      var s = document.createElement("span");
+      s.className = "hero-decoration__particle";
+      field.appendChild(s);
+      if (i === 0 && window.getComputedStyle(s).display === "none") {
+        field.removeChild(s);
+        return;
+      }
+      (function (s) {
         function burst() {
           var x = Math.random() * field.clientWidth;
           var y = Math.random() * field.clientHeight;
@@ -66,7 +74,7 @@
           });
         }
         gsap.delayedCall(Math.random() * 2, burst);
-      })();
+      })(s);
     }
   }
 
@@ -74,6 +82,6 @@
      Boot
      --------------------------------------------------------------------- */
   document.addEventListener("DOMContentLoaded", function () {
-    initHeroMotion();
+    document.querySelectorAll(".hero").forEach(initHeroMotion);
   });
 })();

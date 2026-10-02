@@ -61,9 +61,14 @@ function render_section_homepage_hero(array $hero): void
     $heroClasses = array_filter(['hero', $heroLayoutClass, $heroHasMedia ? '' : 'hero--no-media']);
     ?>
     <section class="<?= $h(implode(' ', $heroClasses)) ?>">
-      <div class="spark-field" aria-hidden="true"></div>
-      <div class="laser-line" style="top: 22%; left: 0; width: 38%" aria-hidden="true"></div>
-      <div class="laser-line" style="bottom: 14%; right: 0; width: 26%" aria-hidden="true"></div>
+      <?php /* Decoration only, never content (THEMING.md, "Decoratie van de
+               homepage-opening"): one canvas with two neutral layers. The
+               stylesheet decides whether and how they are drawn, and
+               homepage-hero.js may add particles to the canvas. */ ?>
+      <div class="hero-decoration" data-hero-decoration aria-hidden="true">
+        <div class="hero-decoration__layer" data-decoration-layer="1"></div>
+        <div class="hero-decoration__layer" data-decoration-layer="2"></div>
+      </div>
       <div class="container hero__grid">
         <div class="hero__content">
           <?php render_eyebrow($hero['eyebrow'], 'hero__eyebrow'); ?>

@@ -141,18 +141,29 @@
   .hero__badge{ left: 0.75rem; bottom: -1rem; max-width: 170px; padding: var(--sp-2); }
 }
 
-/* Laser beam decoration */
-.laser-line{
+/* ==========================================================================
+   Decoration (THEMING.md, "Decoratie van de homepage-opening")
+   The markup only offers hooks: the canvas `.hero-decoration`, two empty
+   `.hero-decoration__layer`s, and the `.hero-decoration__particle`s that
+   homepage-hero.js adds to the canvas. Everything they look like below is
+   the default theme's choice (two glowing lines and falling points), and a
+   theme stylesheet may replace it or hide all of it with `display: none`;
+   the script then adds no particles. The canvas never takes a click.
+   ========================================================================== */
+.hero-decoration{ position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+/* Above the particles, which the script appends after the layers. */
+.hero-decoration__layer{
   position: absolute;
+  z-index: 1;
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(90deg, transparent, var(--color-primary-bright), var(--color-primary), transparent);
   filter: drop-shadow(0 0 6px rgba(var(--color-primary-bright-rgb), 0.6));
   transform-origin: left center;
 }
-
-.spark-field{ position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
-.spark{
+.hero-decoration__layer:nth-child(1){ top: 22%; left: 0; width: 38%; }
+.hero-decoration__layer:nth-child(2){ bottom: 14%; right: 0; width: 26%; }
+.hero-decoration__particle{
   position: absolute;
   width: 4px; height: 4px;
   border-radius: 50%;
