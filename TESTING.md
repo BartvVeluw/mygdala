@@ -1436,7 +1436,7 @@ Extra vormgeving (`CONTENT-BLOCKS.md`, "Extra vormgeving"):
 - dat een leeg blok leeg blijft en Standaard byte voor byte is;
 - de capability-tabel `SUPPORT`, en per ondersteunend blok zijn echte
   voorbeeld met een root en een `.container`;
-- de carrousel met `.bg-soft` en de CTA-hoogte naast een vormgeving;
+- de carrousel met `.surface-subtle` en de CTA-hoogte naast een vormgeving;
 - de stylesheets: alleen tokens, twee klassen, geen hoogte, het effect
   binnen het blok met `pointer-events: none`, reduced motion, geen script.
 

@@ -1526,9 +1526,9 @@ en de footer liggen buiten de `<main>` en veranderen nooit mee.
 
 | Keuze | Wat het wordt |
 |---|---|
-| Standaard | Het blok zoals het was, inclusief een eigen vaste achtergrond (`.bg-soft`, `.bg-forest`, de kaart van een oproep) |
+| Standaard | Het blok zoals het was, inclusief zijn eigen standaardoppervlak (`.surface-subtle`, `.surface-contrast`, de kaart van een oproep; `THEMING.md`, "Oppervlakken") |
 | Websiteachtergrond | `--color-bg`, effen: de grondkleur van de pagina |
-| Subtiele achtergrond | De zachte achtergrond van de site (het verloop van `.bg-soft`), zonder zijn lijnen (die zijn *Randen*) |
+| Subtiele achtergrond | De vulling van het subtiele oppervlak (`--surface-subtle`, zoals `.surface-subtle`), zonder zijn lijnen (die zijn *Randen*) |
 | Primaire themakleur | Een tint van de accentkleur (`--color-primary-rgb` op 0.14) over de grondkleur. Bewust geen volle vulling: tekst, links en de gevulde `.btn` zijn voor de grondkleur ontworpen en blijven zo leesbaar. Een volle vulling vraagt een `--color-on-primary`-tokenset voor tekst en knoppen die er nog niet is |
 | Secundaire themakleur | `--color-surface`, het tweede vlak van het palet (de kleur van de kaarten). Het palet heeft geen aparte secundaire kleur, dit is de tweede kleur die het wel heeft |
 | Transparant | Geen eigen achtergrond: de ondergrond van de pagina schijnt door |
@@ -1541,7 +1541,7 @@ en overlay liggen daar gewoon overheen.
 ### Randen, ruimte
 
 **Randen**: *Standaard* houdt de eigen lijnen van het blok (de lijnen van
-`.bg-soft`, `.bg-forest` met zijn haarlijn, de lijn boven een Detailsectie of
+`.surface-subtle`, `.surface-contrast` met zijn haarlijn, de lijn boven een Detailsectie of
 een oproep over de volle breedte). *Geen*, *Alleen boven*, *Alleen onder* en
 *Boven en onder* vervangen ze. *Randkleur*: *Subtiel* (`--color-line-soft`),
 *Normaal* (`--color-line`), *Accentkleur* (`--color-primary`), steeds 1px.
@@ -1590,7 +1590,7 @@ een blok een effect toont, één keer, hoeveel blokken het ook hebben.
 Bij `null` (alles standaard, of niets ondersteund) rendert het blok direct,
 zoals altijd: **byte voor byte de oude markup**. Anders buffert het de
 uitvoer en zet `apply()` de klassen naast de eigen klassen van het
-root-element (`<section class="bg-soft block-appearance
+root-element (`<section class="surface-subtle block-appearance
 block-appearance--bg-page">`). Een eigen `style` (de hoogte van een oproep)
 blijft staan. Er komt geen wrapper, zodat sibling-selectors
 (`.rich-text-section + .rich-text-section`), ankers, reveal-groepen en de
@@ -1621,7 +1621,7 @@ stylesheets.
    verhuisd.** Dat was de *Achtergrond* van de galerij en Projecten
    (`item_galleries.background`, `default`/`soft`). De migratie geeft een
    geplaatste galerij op `soft` *Subtiele achtergrond* plus *Boven en onder*
-   in *Subtiel*: precies `.bg-soft`, dus dezelfde pagina. Haar eigen kolom
+   in *Subtiel*: precies het oude `.bg-soft`, dus dezelfde pagina. Haar eigen kolom
    gaat naar `default`. Het veld is uit beide editors weg. Een verzoek zonder
    het veld houdt wat er staat. Een galerij die nog een draft was, houdt haar
    eigen waarde, want zij heeft geen rij voor de nieuwe.
@@ -1629,10 +1629,11 @@ stylesheets.
 ### Waarom de Kaarten-carrousel een andere achtergrond had
 
 Een vaste klasse op de buitenste sectie:
-`partials/section-card-carousel.php` print altijd `<section class="bg-soft">`.
-Dat is een zacht verloop van de accentkleur rechtsboven, een witte waas en
-lijnen boven en onder (`core.css`, `.bg-soft`). Het is geen blokinstelling
-en geen afgeleide themakleur, en de binnenste carrouselcontainer heeft geen
+`partials/section-card-carousel.php` print altijd `<section class="surface-subtle">`,
+de rol *subtiel oppervlak* (`THEMING.md`, "Oppervlakken"). Het
+standaardthema tekent die als een zacht verloop van de accentkleur
+rechtsboven, een witte waas en lijnen boven en onder (`core.css`). Het is
+geen blokinstelling, en de binnenste carrouselcontainer heeft geen
 achtergrond; alleen de kaarten zelf hebben `--color-surface`. *Standaard*
 houdt dat. *Websiteachtergrond* of *Transparant*, met *Randen: Geen*, geeft
 de carrousel de achtergrond van de omringende pagina.

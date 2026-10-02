@@ -250,7 +250,7 @@ die niets verandert rendert exact zoals vóór deze tokens.
 | `--border-width-strong` | `1.5px` | sterke rand: velden, pillen, een benadrukt paneel | formuliervelden, taalkeuze, filterchips, stepper, CTA-kaart |
 | `--radius-pill` | `999px` | volledig ronde uiteinden | tags, chips, badges, taalkeuze, stepper (niet `.btn`: dat is `--button-radius`) |
 | `--color-shadow-rgb` | `0, 0, 0` | kleur van elke schaduw | `--shadow-soft`, `--shadow-lift`, header, submenu, kaart-hover, checkout |
-| `--color-sheen-rgb` | `255, 255, 255` | het licht dat een vlak vangt | glans van `.bg-soft` en *Subtiele achtergrond*, hover en open rij in het submenu |
+| `--color-sheen-rgb` | `255, 255, 255` | het licht dat een vlak vangt | glans van `--surface-subtle` (`.surface-subtle` en *Subtiele achtergrond*), hover en open rij in het submenu |
 | `--color-danger`, `-rgb` | `#E2685C` | het merkteken van een fout: rand, outline, was | ongeldige velden, foutmeldingen, verwijderknoppen |
 | `--color-danger-text`, `-rgb` | `#F0897E` | foutmelding op de ondergrond of een lichte foutwas | `.form-error`, Shop-meldingen, personalisatie |
 | `--color-danger-on-wash` | `#F5B4AC` | tekst op de foutwas | `.form-error-summary`, `.form-status--error` |
@@ -385,6 +385,116 @@ uitgeschreven, geen hover die met een vaste afstand beweegt, geen paneel op
 `--color-primary-bright`, geen focusring of knoplabel in de highlight,
 leesbare accent- en zachte tekst op een licht palet met de geleverde waarden
 op een donker, en de eigen titelgewichten op een kop-token.
+
+## Oppervlakken (Themes 2.0, fase 1B-a)
+
+Een **oppervlak** is de rol die de root van een blok (zijn `<section>`) op
+de pagina speelt: gewoon op de ondergrond, zacht afgezet, of als band die
+zich duidelijk onderscheidt. Het blok zegt welke rol. Hoe die rol eruitziet
+(kleur, verloop, lijnen, textuur) bepaalt het thema. Er staat dus geen kleur
+en geen merkstijl in de markup.
+
+### Drie lagen
+
+| Laag | Wie | Waar | Voorbeeld |
+|---|---|---|---|
+| Standaardoppervlak | het blok zelf, vast in zijn renderer | één klasse op de root: `surface-<woord>` | de Kaarten-carrousel print `surface-subtle` |
+| Expliciete keuze | de redacteur, per blok, in *Extra vormgeving* | `block-appearance--bg-<woord>` naast die klasse | *Websiteachtergrond* op de Cijferbalk |
+| Uitvoering | het thema | `core.css` (het standaardthema), later een themastylesheet | het verloop en de lijnen van `surface-subtle` |
+
+**Voorrang.** 1) een expliciete keuze in Extra vormgeving, 2) het
+standaardoppervlak van het blok, 3) de gewone ondergrond van de pagina of
+site. Dit is geen code maar specificiteit: een rol is één klasse, een keuze
+twee (`.block-appearance.block-appearance--…`), dus de keuze wint ongeacht de
+volgorde van de stylesheets. `BlockAppearance::apply()` laat de rolklasse
+staan; *Standaard* zet niets en laat de rol dus over.
+
+### De woorden
+
+Eén woordenlijst. Extra vormgeving had hem al (`BlockAppearance::BACKGROUNDS`);
+deze fase voegt één woord toe dat alleen een blok als standaard gebruikt.
+
+| Woord | Rol | Standaard van | Kies je in Extra vormgeving |
+|---|---|---|---|
+| `page` | de ondergrond zelf | — | *Websiteachtergrond* |
+| `subtle` | zacht afgezet van wat erboven staat | Kaarten-carrousel, Feature grid met een kop, Gerelateerde producten, elke tweede Detailsectie, een galerij met de oude waarde `soft` | *Subtiele achtergrond* |
+| `primary` | een was van het accent | — | *Primaire themakleur* |
+| `secondary` | het tweede vlak van het palet | — | *Secundaire themakleur* |
+| `contrast` | de band die zich het sterkst van de pagina onderscheidt | Cijferbalk | — (geen nieuwe CMS-keuze) |
+| `transparent` | geen eigen vlak | — | *Transparant* |
+
+Een woord noemt de rol, nooit de uitvoering: `contrast` is in het
+standaardthema donker, en in een licht thema mag het een rustige lichte band
+zijn.
+
+### Hoe het standaardthema ze tekent
+
+- **`.surface-subtle`**: vulling `--surface-subtle` (een zacht verloop van
+  het accent rechtsboven plus een glans van `--color-sheen-rgb`) en een lijn
+  boven en onder in `--color-line-soft`. *Subtiele achtergrond* in Extra
+  vormgeving is dezelfde vulling, zonder de lijnen (die zijn *Randen*).
+- **`.surface-contrast`**: vulling `--surface-contrast` (`--color-bg-deep`),
+  tekst in `--color-text`, lijnen in `--color-line`, en een haarlijn van het
+  accent bovenaan (`::before`). Een gekozen rand vervangt ook die haarlijn.
+
+`--surface-subtle` en `--surface-contrast` zijn tokens in de regel
+`:root, main[data-page-theme]`, omdat ze uit paletkleuren gebouwd zijn: zo
+rekenen ze binnen een paginathema opnieuw met zijn kleuren. Een
+themastylesheet die de vulling verandert, zet ze in diezelfde regel; alleen
+op `:root` zou een paginathema ze weer terugzetten.
+
+### Wat een thema kan, en wat niet
+
+Een thema stijlt `.surface-subtle` en `.surface-contrast` (vulling, lijnen,
+`::before`, `clip-path`, padding) en kan op de rol de kleurtokens opnieuw
+zetten (`--color-text`, `--color-primary-text`, …), zodat de inhoud meekleurt
+zonder één componentselector. Bewezen met een tijdelijke stresstest (niet
+gecommit): een ruw donker profiel en een rustig licht profiel veranderden de
+vier blokken volledig, met alleen deze twee klassen en hun tokens.
+
+Twee grenzen, bewust:
+
+- **Een expliciete achtergrond vervangt alleen de vulling** (en een gekozen
+  rand de lijnen). Wat een thema verder op de rol zet, blijft: een
+  `clip-path`, en ook kleurtokens die het op de rol opnieuw zet. Zet een
+  thema op `.surface-contrast` donkere tekst voor een lichte band, en kiest
+  de redacteur daar *Websiteachtergrond* op een donkere site, dan blijft die
+  tekst donker. Het standaardthema zet geen tokens op een rol, dus daar
+  speelt dit niet. Een thema dat dat wel doet, moet het nu zelf afvangen;
+  een kern-oplossing volgt pas als een echt thema hem nodig heeft.
+- **Een paginathema** bepaalt alleen kleur en lettertype. Het kiest geen
+  oppervlak en krijgt geen oppervlak-instelling: de rollen volgen zijn
+  kleuren vanzelf.
+
+### Oude namen
+
+`.bg-soft` en `.bg-forest` zijn de oude namen van `subtle` en `contrast`. Ze
+staan nog als **alias** in dezelfde regels in `core.css` (en de haarlijnregel
+in `block-appearance.css`), maar geen renderer print ze meer. Ze blijven
+voor markup buiten Core die ze nog kan bevatten: opgeslagen HTML of een eigen
+stylesheet op een bestaande installatie. De ontwikkeldatabase bevat ze niet;
+de productiesites zijn niet nagekeken. Weghalen kan zodra dat op elke
+installatie is nagekeken, uiterlijk samen met de eerste echte
+themastylesheet. `Tests\Service\SurfaceContractTest` bewaakt dat een alias
+nooit een eigen regel krijgt.
+
+### Open punten
+
+- **De Feature grid** krijgt zijn oppervlak alleen met een kop. Dat is
+  historie (de twee oorspronkelijke grids op de homepage en "Over mij"),
+  geen regel van het blok. Het blijft zo, zodat bestaande pagina's gelijk
+  blijven.
+- **De CTA over de volle breedte** (`.cta-section--full`) heeft nog een
+  eigen vlak onder zijn componentnaam, gekoppeld aan zijn lay-outkeuze. Een
+  thema moet daar nog een componentselector voor gebruiken.
+- `primary` en `secondary` hebben nog geen eigen `--surface-*`-token: geen
+  blok gebruikt ze als standaard. Ze lezen hun paletkleuren direct.
+
+`Tests\Service\SurfaceContractTest` (`contract`, `fast`, `cms`) houdt vast:
+de rolklasse op de root van elk blok met een vast oppervlak, geen `bg-soft`
+of `bg-forest` in een renderer of template, één regel per rol op zijn token,
+dezelfde vulling voor *Subtiele achtergrond*, de rol die blijft staan naast
+een keuze van twee klassen, en geen site- of themanaam in deze code.
 
 ## Nieuwe thema-instelling toevoegen
 
@@ -1209,7 +1319,7 @@ kleurkiezer: elke keuze is een theme-token.
 | Keuze | Token |
 |---|---|
 | Websiteachtergrond | `--color-bg` |
-| Subtiele achtergrond | het verloop van `.bg-soft` op `--color-primary-rgb` |
+| Subtiele achtergrond | `--surface-subtle`, de vulling van `.surface-subtle` ("Oppervlakken") |
 | Primaire themakleur | `--color-primary-rgb` op 0.14 over `--color-bg` |
 | Secundaire themakleur | `--color-surface` |
 | Randkleur subtiel / normaal / accent | `--color-line-soft` / `--color-line` / `--color-primary` |
