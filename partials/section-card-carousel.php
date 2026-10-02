@@ -86,7 +86,7 @@ function render_section_card_carousel(array $content): void
         ? ' orbit-carousel--flat orbit-carousel--flat-' . $flatRatio
         : '';
     ?>
-      <section class="bg-soft">
+      <section class="surface-subtle">
         <div class="container">
           <?php if ($hasHead): ?>
           <div class="section-head<?= $headClass ?>" data-reveal>

@@ -733,8 +733,8 @@ final class ReusableBlocksPhase4Test extends TestCase
 
         $this->assertStringContainsString('filter-bar', $firstHtml);
         $this->assertStringNotContainsString('filter-bar', $secondHtml);
-        $this->assertStringNotContainsString('bg-soft', $firstHtml);
-        $this->assertStringContainsString('bg-soft', $secondHtml);
+        $this->assertStringNotContainsString('surface-subtle', $firstHtml);
+        $this->assertStringContainsString('surface-subtle', $secondHtml);
 
         // Each block's own editor URL, so the CMS never edits the wrong one.
         $firstRow = $this->sections->findById($firstId);

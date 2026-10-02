@@ -28,8 +28,9 @@ use App\Service\PageAssets;
  * assets/css/block-appearance.css maps those to theme tokens.
  *
  * THE DEFAULT IS THE BLOCK AS IT WAS. 'default' (and 'none') means "what this
- * block already does", including a block's own fixed surface (the carousel's
- * `.bg-soft`, the figures' `.bg-forest`). A block with nothing but defaults
+ * block already does", including a block's own default surface (the
+ * carousel's `.surface-subtle`, the figures' `.surface-contrast`; THEMING.md,
+ * "Oppervlakken"). A block with nothing but defaults
  * is rendered without this class being involved at all: byte for byte the
  * markup of before.
  *

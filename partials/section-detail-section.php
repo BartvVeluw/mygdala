@@ -57,7 +57,7 @@ function render_section_detail_section(array $content, array $markers, string $r
     $hasMainImage = (string) $content['main_image_path'] !== '';
     $flip = $hasMainImage && $content['image_position'] === 'image_left';
     ?>
-  <section class="service-detail<?= $markers['bg_soft'] ? ' bg-soft' : '' ?>"<?= $anchor !== '' ? ' id="' . $h($anchor) . '"' : '' ?>>
+  <section class="service-detail<?= $markers['bg_soft'] ? ' surface-subtle' : '' ?>"<?= $anchor !== '' ? ' id="' . $h($anchor) . '"' : '' ?>>
     <div class="container">
       <div class="service-detail__head<?= $flip ? ' service-detail__head--image-left' : '' ?>">
         <div data-reveal>

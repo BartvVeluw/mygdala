@@ -359,8 +359,8 @@ final class BlockAppearanceContractTest extends TestCase
     // ------------------------------------------------------------ the blocks the brief names
 
     /**
-     * The Kaarten-carrousel's own surface is the fixed `.bg-soft` on its
-     * <section> (partials/section-card-carousel.php). Standaard keeps it;
+     * The Kaarten-carrousel's own surface is the fixed `.surface-subtle` on
+     * its <section> (partials/section-card-carousel.php). Standaard keeps it;
      * Websiteachtergrond sits next to it with two classes, which the
      * stylesheet lets win, so the carousel can take the page's ground.
      */
@@ -374,12 +374,12 @@ final class BlockAppearanceContractTest extends TestCase
             $html = (string) ob_get_clean();
         }
 
-        $this->assertMatchesRegularExpression('/^\s*<section class="bg-soft">/', $html, 'the cause of its different background');
+        $this->assertMatchesRegularExpression('/^\s*<section class="surface-subtle">/', $html, 'the cause of its different background');
         $this->assertSame($html, BlockAppearance::apply($html, BlockAppearance::defaults()), 'Standaard: as it was');
 
         $page = BlockAppearance::apply($html, ['background' => 'page'] + BlockAppearance::defaults());
-        $this->assertMatchesRegularExpression('/^\s*<section class="bg-soft block-appearance block-appearance--bg-page">/', $page);
-        $this->assertStringContainsString('.block-appearance.block-appearance--bg-page{', self::css(BlockAppearance::STYLESHEET), 'two classes beat the one of .bg-soft');
+        $this->assertMatchesRegularExpression('/^\s*<section class="surface-subtle block-appearance block-appearance--bg-page">/', $page);
+        $this->assertStringContainsString('.block-appearance.block-appearance--bg-page{', self::css(BlockAppearance::STYLESHEET), 'two classes beat the one of .surface-subtle');
 
         $transparent = BlockAppearance::apply($html, ['background' => 'transparent', 'border' => 'none'] + BlockAppearance::defaults());
         $this->assertStringContainsString('block-appearance--bg-transparent block-appearance--border-none', $transparent, 'no surface and no lines: the page around it');
@@ -439,7 +439,7 @@ final class BlockAppearanceContractTest extends TestCase
     {
         $css = self::stripComments(self::css(BlockAppearance::STYLESHEET));
 
-        // Two classes against the one class of .bg-soft, .bg-forest and .cta-section--full.
+        // Two classes against the one class of .surface-subtle, .surface-contrast and .cta-section--full.
         preg_match_all('/([^{}]+)\{/', $css, $selectors);
         foreach ($selectors[1] as $selector) {
             foreach (explode(',', $selector) as $one) {

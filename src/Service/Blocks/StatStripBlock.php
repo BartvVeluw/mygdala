@@ -170,7 +170,7 @@ final class StatStripBlock extends BlockDefinition implements InspectsContent
 
     /**
      * Every part of Extra vormgeving: a short band of figures, calm enough for
-     * every effect. Standaard keeps its deep band (.bg-forest).
+     * every effect. Standaard keeps its contrast surface (.surface-contrast).
      */
     public function appearanceSupport(): AppearanceSupport
     {

@@ -113,7 +113,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
     $overlayTag = $presents ? 'div' : 'span';
     $titleTag = $presents ? \App\Service\Blocks\CardHeading::under($text('title') !== '') : 'p';
 
-    $sectionAttrs = $content['background'] === 'soft' ? ' class="bg-soft"' : '';
+    $sectionAttrs = $content['background'] === 'soft' ? ' class="surface-subtle"' : '';
     $sectionAttrs .= $content['tight_top'] ? ' style="padding-top:0;"' : '';
     $sectionAttrs .= ' data-gallery-block data-lightbox-group';
     $sectionAttrs .= $lightbox ? ' data-gallery-lightbox' : '';

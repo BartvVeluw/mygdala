@@ -334,7 +334,7 @@ final class ProjectCardsBlockTest extends TestCase
         $html = $this->renderBlock($blockId);
         $this->assertStringContainsString('ZZ Projecten ' . $marker, $html, 'on again: the same block');
         $this->assertStringContainsString('ZZ Blijft ' . $marker, $html);
-        $this->assertStringContainsString('bg-soft', $html);
+        $this->assertStringContainsString('surface-subtle', $html);
         $this->assertSame($stored, (new ItemGalleryRepository())->findBySlugAndKey($pageKey, $sectionKey));
     }
 

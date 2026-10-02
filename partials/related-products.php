@@ -51,11 +51,11 @@ function render_related_products(array $related): void
     // (App\Service\RelatedProductsContent::heading()).
     $heading = $related['heading'];
     ?>
-    <?php // .bg-soft is the site's existing "next section, softly separated"
-          // modifier (index.php, over-mij.php, diensten.php) — it sets this
-          // block apart from the product above it without one line of new
-          // CSS. data-related-products is a hook, not styling. ?>
-    <section class="bg-soft" data-related-products>
+    <?php // The subtle surface is the site's "next section, softly separated"
+          // role (core.css, THEMING.md "Oppervlakken") — it sets this block
+          // apart from the product above it; the theme decides how.
+          // data-related-products is a hook, not styling. ?>
+    <section class="surface-subtle" data-related-products>
       <div class="container">
         <?php if ($heading !== ''): ?>
         <div class="section-head" data-reveal>

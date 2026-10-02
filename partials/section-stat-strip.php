@@ -27,7 +27,7 @@ function render_section_stat_strip(array $strip, string $revealGroup = 'stats'):
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
-    <section class="bg-forest">
+    <section class="surface-contrast">
       <div class="container">
         <div class="stat-strip">
           <?php foreach ($strip['items'] as $stat): ?>
