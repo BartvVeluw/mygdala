@@ -257,7 +257,7 @@
   font-weight: 700;
   font-size: 0.9rem;
   line-height: 1.3;
-  color: var(--color-primary-bright);
+  color: var(--color-primary-text);
 }
 .hover-card__cta svg{ width: 1rem; height: 1rem; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out); }
 /* A chosen button style (Button Styles 2.0): the link's words are that .btn,
@@ -428,9 +428,9 @@
 .hover-cards--open .hover-card__cta{ color: var(--color-primary); }
 .hover-cards--open.hover-cards--circle .hover-card__content,
 .hover-cards--open.hover-cards--organic .hover-card__content{ text-align: center; }
-.hover-cards--open .hover-card:focus-within .hover-card__title{ color: var(--color-primary-bright); }
+.hover-cards--open .hover-card:focus-within .hover-card__title{ color: var(--color-primary-text); }
 @media (hover: hover){
-  .hover-cards--open .hover-card:hover .hover-card__title{ color: var(--color-primary-bright); }
+  .hover-cards--open .hover-card:hover .hover-card__title{ color: var(--color-primary-text); }
 }
 
 /* ==========================================================================

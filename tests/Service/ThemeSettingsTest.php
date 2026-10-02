@@ -81,7 +81,11 @@ final class ThemeSettingsTest extends TestCase
 
     public function testEveryDerivedPropertyThePaletteComputesAlsoHasADefaultInCoreCss(): void
     {
-        $root = $this->coreCssRootBlock();
+        // An alpha tone (--color-text-faint) has its default in the rule that
+        // also recomputes it inside a page theme; a tint on :root itself.
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/core.css');
+        $this->assertSame(1, preg_match('/:root,\s*main\[data-page-theme\]\s*\{(.*?)\n\}/s', $css, $shared));
+        $root = $this->coreCssRootBlock() . "\n" . $shared[1];
 
         $derived = ThemePalette::derive([
             'primary' => '#C9A063',

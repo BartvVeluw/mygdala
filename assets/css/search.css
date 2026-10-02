@@ -28,7 +28,7 @@
 }
 .site-search__toggle svg{ width: 20px; height: 20px; }
 .site-search__toggle:hover,
-.site-search.is-open .site-search__toggle{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-bright); }
+.site-search.is-open .site-search__toggle{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-text); }
 .site-search__toggle:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 3px; }
 
 /* The panel: closed until the magnifier opens it (a wide screen), a
@@ -132,7 +132,7 @@
   padding: 0.6rem;
   text-align: center;
   border-top: var(--border-width) solid var(--color-line);
-  color: var(--color-primary-bright);
+  color: var(--color-primary-text);
   font-weight: 600;
 }
 

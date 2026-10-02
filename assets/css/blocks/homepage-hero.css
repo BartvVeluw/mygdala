@@ -50,7 +50,7 @@
 .hero__actions{ display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
 .hero__meta{ display: flex; gap: var(--sp-4); border-top: var(--border-width) solid var(--color-line); padding-top: var(--sp-3); }
 .hero__meta div{ display: flex; flex-direction: column; gap: 0.2rem; flex: 1 1 0; min-width: 0; }
-.hero__meta strong{ font-family: var(--font-display); font-size: 1.1rem; color: var(--color-primary-bright); line-height: 1.25; }
+.hero__meta strong{ font-family: var(--font-display); font-size: 1.1rem; color: var(--color-primary-text); line-height: 1.25; }
 .hero__meta span{ font-size: 0.72rem; color: var(--color-text-faint); letter-spacing: 0.02em; }
 @media (max-width: 560px){
   .hero__meta{ flex-direction: column; gap: var(--sp-2); }
@@ -136,7 +136,7 @@
   max-width: 220px;
   font-size: var(--fs-small);
 }
-.hero__badge strong{ display: block; font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--color-primary-bright); }
+.hero__badge strong{ display: block; font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--color-primary-text); }
 @media (max-width: 640px){
   .hero__badge{ left: 0.75rem; bottom: -1rem; max-width: 170px; padding: var(--sp-2); }
 }

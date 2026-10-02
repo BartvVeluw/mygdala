@@ -191,8 +191,8 @@
   transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
 }
 
-.personalizer__tab:hover{ color: var(--color-primary-bright); border-color: var(--color-primary-bright); }
-.personalizer__tab.is-active{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-bright); font-weight: 700; }
+.personalizer__tab:hover{ color: var(--color-primary-text); border-color: var(--color-primary-bright); }
+.personalizer__tab.is-active{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-text); font-weight: 700; }
 .personalizer__tab:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
 
 /* -------------------------------------------------------------------------
@@ -239,12 +239,12 @@
   border: var(--border-width) solid var(--color-line-strong);
 }
 
-.personalizer__required{ color: var(--color-primary-bright); border-color: var(--color-primary); background: var(--color-primary-wash); }
+.personalizer__required{ color: var(--color-primary-text); border-color: var(--color-primary); background: var(--color-primary-wash); }
 .personalizer__optional{ color: var(--color-text-faint); }
 
 .personalizer__surcharge-tag{
   font-size: 0.72rem;
-  color: var(--color-primary-bright);
+  color: var(--color-primary-text);
   background: var(--color-primary-wash);
   border-radius: var(--radius-pill);
   padding: 0.15rem 0.55rem;
@@ -318,7 +318,7 @@
 .personalizer__color:has(input:checked){
   border-color: var(--color-primary);
   background: var(--color-primary-wash);
-  color: var(--color-primary-bright);
+  color: var(--color-primary-text);
   font-weight: 700;
 }
 .personalizer__color:has(input:focus-visible){ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
@@ -380,7 +380,7 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.personalizer__clear:hover{ color: var(--color-primary-bright); }
+.personalizer__clear:hover{ color: var(--color-primary-text); }
 .personalizer__clear:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
 .personalizer__clear--all{ align-self: center; }
 
@@ -426,7 +426,7 @@
   margin-top: 0.2rem;
   color: var(--color-text);
 }
-.personalizer__price-row--total strong{ font-family: var(--font-display); font-size: 1.25rem; color: var(--color-primary-bright); }
+.personalizer__price-row--total strong{ font-family: var(--font-display); font-size: 1.25rem; color: var(--color-primary-text); }
 
 .personalizer__status{ margin: 0; font-size: 0.85rem; color: var(--color-text-muted); }
 .personalizer__status[hidden]{ display: none; }
@@ -455,7 +455,7 @@
   font-size: 0.9rem;
   color: var(--color-text-muted);
 }
-.product-detail__personalize-cue a{ color: var(--color-primary-bright); }
+.product-detail__personalize-cue a{ color: var(--color-primary-text); }
 
 @media (max-width: 560px){
   .personalizer{ padding: var(--sp-3) var(--sp-2); }

@@ -66,7 +66,8 @@
   --color-text-rgb:           245, 239, 228;
 
   /* --- Tint derivations (recomputed server-side; see ThemePalette) ------ */
-  --color-primary-bright:  #E4C78E;           /* hover, emphasis */
+  --color-primary-bright:  #E4C78E;           /* highlight: glints, gradients, rings */
+  --color-primary-text:    #E4C78E;           /* the accent as text: prices, numbers, links, hover text */
   --color-primary-deep:    #8A6A3E;           /* recessed: numerals, faint marks */
   --color-bg-deep:         #0C0906;           /* footer / capability band */
   --color-bg-gradient-end: #100B07;           /* foot of the fixed body gradient */
@@ -181,7 +182,10 @@
    which redefines the triplets on `main[data-page-theme]` only. So they are
    declared on both, and recompute inside a themed page's <main>. Every
    var()-based token of :root belongs in this rule;
-   Tests\Service\PageThemeCssContractTest fails when one is left behind. */
+   Tests\Service\PageThemeCssContractTest fails when one is left behind.
+   --color-text-faint is also in ThemePalette's recipe: a palette or page
+   theme on a light ground restates it with a higher alpha, because 0.46
+   reads far less there than it does on this dark ground. */
 :root,
 main[data-page-theme]{
   --color-primary-wash: rgba(var(--color-primary-rgb), 0.10);
@@ -1016,7 +1020,7 @@ section{ position: relative; padding-block: var(--sp-7); }
 .feature-card:hover .feature-card__icon{
   transform: scale(calc(1 + 0.14 * var(--hover-zoom))) translateY(calc(-3px * var(--hover-lift))) rotate(calc(-4deg * var(--hover-lift)));
   border-color: var(--color-primary);
-  color: var(--color-primary-bright);
+  color: var(--color-primary-text);
   box-shadow: 0 0 24px -4px rgba(var(--color-primary-rgb), 0.6);
 }
 .feature-card__icon svg{ width: 24px; height: 24px; }
@@ -1033,7 +1037,7 @@ section{ position: relative; padding-block: var(--sp-7); }
   margin-bottom: 0.5rem;
   transition: color var(--dur-premium) var(--ease-premium);
 }
-.feature-card:hover .feature-card__title{ color: var(--color-primary-bright); }
+.feature-card:hover .feature-card__title{ color: var(--color-primary-text); }
 .feature-card p{
   position: relative;
   z-index: 1;
@@ -1182,7 +1186,7 @@ section{ position: relative; padding-block: var(--sp-7); }
 /* Stats */
 .stat-strip{ display: flex; flex-wrap: wrap; gap: var(--sp-6); justify-content: space-between; }
 .stat{ flex: 1 1 160px; }
-.stat strong{ display: block; font-family: var(--font-display); font-size: clamp(2rem,3vw,2.8rem); color: var(--color-primary-bright); }
+.stat strong{ display: block; font-family: var(--font-display); font-size: clamp(2rem,3vw,2.8rem); color: var(--color-primary-text); }
 .stat span{ font-size: var(--fs-small); color: var(--color-text-faint); }
 
 /* ==========================================================================
@@ -1245,7 +1249,7 @@ section{ position: relative; padding-block: var(--sp-7); }
   accent-color: var(--color-primary); width: 19px; height: 19px; flex-shrink: 0;
   margin-top: 0.1rem;
 }
-.checkbox-field a{ color: var(--color-primary-bright); text-decoration: underline; text-underline-offset: 2px; }
+.checkbox-field a{ color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 2px; }
 .cf-turnstile{ min-height: 65px; }
 
 .form-status{
@@ -1282,7 +1286,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .contact-detail svg{ width: 22px; height: 22px; color: var(--color-primary); flex-shrink: 0; margin-top: 2px; }
 .contact-detail strong{ display: block; color: var(--color-text); }
 .contact-detail span, .contact-detail a{ color: var(--color-text-muted); font-size: 0.92rem; }
-.contact-detail a:hover{ color: var(--color-primary-bright); }
+.contact-detail a:hover{ color: var(--color-primary-text); }
 
 /* Footer */
 .site-footer{ background: var(--color-bg-deep); color: var(--color-text); padding-block: var(--sp-6) var(--sp-4); border-top: var(--border-width) solid var(--color-line); }
@@ -1295,18 +1299,18 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .footer-brand__name{ color: var(--color-text); font-weight: 700; margin-bottom: var(--sp-1); }
 .site-footer p{ color: var(--color-text-faint); font-size: 0.9rem; }
 .site-footer p a{ color: var(--color-text-faint); transition: color var(--dur-fast); }
-.site-footer p a:hover{ color: var(--color-primary-bright); }
+.site-footer p a:hover{ color: var(--color-primary-text); }
 .footer-col h4{ color: var(--color-text); font-family: var(--font-body); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: var(--sp-2); }
 .footer-col ul{ display: flex; flex-direction: column; gap: 0.6rem; }
 .footer-col a, .footer-col__action-link{ color: var(--color-text-faint); font-size: 0.92rem; transition: color var(--dur-fast); }
-.footer-col a:hover, .footer-col__action-link:hover{ color: var(--color-primary-bright); }
+.footer-col a:hover, .footer-col__action-link:hover{ color: var(--color-primary-text); }
 .footer-col__action-link{ background: none; border: none; padding: 0; margin: 0; font: inherit; cursor: pointer; text-align: left; }
 .footer-bottom{ display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); border-top: var(--border-width) solid var(--color-line-soft); padding-top: var(--sp-4); font-size: 0.82rem; color: var(--color-text-faint); }
 .footer-legal-links{ display: flex; align-items: center; gap: var(--sp-3); }
 .footer-legal-links a{ color: var(--color-text-faint); transition: color var(--dur-fast); }
-.footer-legal-links a:hover{ color: var(--color-primary-bright); }
+.footer-legal-links a:hover{ color: var(--color-primary-text); }
 .footer-legal-links__btn{ background: none; border: none; padding: 0; margin: 0; font: inherit; color: var(--color-text-faint); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; transition: color var(--dur-fast); }
-.footer-legal-links__btn:hover, .footer-legal-links__btn:focus-visible{ color: var(--color-primary-bright); }
+.footer-legal-links__btn:hover, .footer-legal-links__btn:focus-visible{ color: var(--color-primary-text); }
 /* Social profiles, in the footer's brand column. Rendered only when at least
    one is configured (App\Service\SocialProfiles), so this never styles an
    empty row. Icon-only by design: every link carries its own aria-label, and
@@ -1314,7 +1318,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .social-row{ display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: var(--sp-3); }
 .social-row a{ width: 38px; height: 38px; border-radius: 50%; border: var(--border-width) solid var(--color-line-strong); color: var(--color-text-faint); display: flex; align-items: center; justify-content: center; transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .social-row svg{ width: 17px; height: 17px; }
-.social-row a:hover, .social-row a:focus-visible{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-bright); }
+.social-row a:hover, .social-row a:focus-visible{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-text); }
 
 /* Anchor offset so fixed header never covers a jumped-to section */
 [id]{ scroll-margin-top: 6.5rem; }
@@ -1335,7 +1339,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
   gap: 0.45rem;
 }
 .quicknav a svg{ width: 16px; height: 16px; }
-.quicknav a:hover{ border-color: var(--color-primary); background: var(--color-primary-wash); color: var(--color-primary-bright); }
+.quicknav a:hover{ border-color: var(--color-primary); background: var(--color-primary-wash); color: var(--color-primary-text); }
 
 /* Service detail block (used on diensten.html) */
 .service-detail{ padding-block: var(--sp-7); border-top: var(--border-width) solid var(--color-line); }
@@ -1390,7 +1394,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
    always underlined, in the accent colour, a thicker line on hover, and a
    visible focus ring. A button-styled link (.btn) keeps its own look. */
 .rich-content a:not(.btn){
-  color: var(--color-primary-bright);
+  color: var(--color-primary-text);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
@@ -1429,7 +1433,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
   margin-bottom: var(--sp-5);
   transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.project-hero__back:hover{ color: var(--color-primary-bright); transform: translateX(-3px); }
+.project-hero__back:hover{ color: var(--color-primary-text); transform: translateX(-3px); }
 .project-hero__panel .project-hero__back{ margin-top: var(--sp-5); margin-bottom: 0; }
 
 .project-hero__grid{ display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--sp-6); align-items: center; }
@@ -1652,7 +1656,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .breadcrumb__separator{ color: var(--color-text-faint); }
 .breadcrumb__current{ color: var(--color-text); }
 .breadcrumb a{ color: var(--color-text-muted); }
-.breadcrumb a:hover{ color: var(--color-primary-bright); }
+.breadcrumb a:hover{ color: var(--color-primary-text); }
 
 /* Reveal animation base state (JS adds .is-visible) */
 [data-reveal]{ opacity: 0; transform: translateY(28px); }
@@ -1698,7 +1702,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .cookie-banner__text{ flex: 1 1 340px; min-width: 0; }
 .cookie-banner__title{ font-family: var(--font-display); font-size: 1.05rem; color: var(--color-text); margin: 0 0 0.3rem; }
 .cookie-banner__desc{ font-size: 0.86rem; color: var(--color-text-muted); margin: 0; }
-.cookie-banner__desc a{ color: var(--color-primary-bright); text-decoration: underline; text-underline-offset: 2px; }
+.cookie-banner__desc a{ color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 2px; }
 .cookie-banner__actions{ display: flex; flex-wrap: wrap; gap: 0.6rem; flex-shrink: 0; }
 @media (max-width: 720px){
   .cookie-banner__inner{ flex-direction: column; align-items: stretch; }
@@ -1744,11 +1748,11 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .cookie-category__toggle input{ accent-color: var(--color-primary); width: 20px; height: 20px; flex-shrink: 0; }
 .cookie-category__toggle input:disabled{ opacity: 0.6; cursor: not-allowed; }
 .cookie-category__label{ font-weight: 700; color: var(--color-text); font-size: 0.95rem; }
-.cookie-category__badge{ font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-primary-bright); border: var(--border-width) solid var(--color-line-strong); border-radius: var(--radius-pill); padding: 0.2rem 0.6rem; white-space: nowrap; }
+.cookie-category__badge{ font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-primary-text); border: var(--border-width) solid var(--color-line-strong); border-radius: var(--radius-pill); padding: 0.2rem 0.6rem; white-space: nowrap; }
 .cookie-category__desc{ font-size: 0.84rem; color: var(--color-text-faint); margin: 0.5rem 0 0; }
 
 .cookie-modal__policy-link{ font-size: 0.86rem; margin: 0 0 var(--sp-4); }
-.cookie-modal__policy-link a{ color: var(--color-primary-bright); text-decoration: underline; text-underline-offset: 2px; }
+.cookie-modal__policy-link a{ color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 2px; }
 
 .cookie-modal__actions{ display: flex; flex-wrap: wrap-reverse; gap: 0.6rem; }
 .cookie-modal__actions .btn{ flex: 1 1 200px; }
@@ -1757,7 +1761,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .cookie-policy-table-wrap{ overflow-x: auto; border: var(--border-width) solid var(--color-line); border-radius: var(--radius-md); }
 .cookie-policy-table{ width: 100%; border-collapse: collapse; min-width: 720px; font-size: 0.88rem; }
 .cookie-policy-table th, .cookie-policy-table td{ text-align: left; padding: var(--sp-2) var(--sp-3); border-bottom: var(--border-width) solid var(--color-line); vertical-align: top; }
-.cookie-policy-table th{ font-family: var(--font-body); font-weight: 700; color: var(--color-primary-bright); background: var(--color-surface-2); white-space: nowrap; }
+.cookie-policy-table th{ font-family: var(--font-body); font-weight: 700; color: var(--color-primary-text); background: var(--color-surface-2); white-space: nowrap; }
 .cookie-policy-table td{ color: var(--color-text-muted); }
 .cookie-policy-table tr:last-child td{ border-bottom: none; }
 .cookie-policy-table code{ font-size: 0.85em; color: var(--color-text); }

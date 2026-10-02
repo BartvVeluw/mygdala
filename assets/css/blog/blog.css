@@ -118,7 +118,7 @@
   font-weight: 700;
   font-size: var(--fs-small);
 }
-.blog-card:hover .blog-card__more{ color: var(--color-primary-bright); }
+.blog-card:hover .blog-card__more{ color: var(--color-primary-text); }
 
 /* ==========================================================================
    Category filters and the pager

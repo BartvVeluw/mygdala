@@ -31,7 +31,13 @@ use PHPUnit\Framework\TestCase;
  *     readable (the default theme, a dark palette) and become readable on a
  *     light one, as part of the palette a page theme restates (phase 1A.1);
  *   - --color-on-primary is never the background of a panel (it is the
- *     colour of text and marks on a primary fill).
+ *     colour of text and marks on a primary fill);
+ *   - the accent is text only as --color-primary-text, which keeps the
+ *     bright accent wherever that reads and becomes readable on a light
+ *     ground, while --color-primary-bright stays a free highlight; the
+ *     faint text tone keeps its shipped alpha on a dark ground and rises on
+ *     a light one until it reads like it does on the default theme
+ *     (phase 1A.2).
  *
  * Pure: no database, no web server. Suites contract, fast and cms.
  */
@@ -52,6 +58,7 @@ final class ThemeTokenContractTest extends TestCase
         '--color-success' => '#78B482',
         '--color-success-rgb' => '120, 180, 130',
         '--color-success-on-wash' => '#B7E0C0',
+        '--color-primary-text' => '#E4C78E',
         '--fw-heading' => '500',
         '--fw-h1' => '400',
         '--tracking-heading' => '0.01em',
@@ -402,5 +409,60 @@ final class ThemeTokenContractTest extends TestCase
         self::assertSame(ThemePalette::channels($tokens['--color-danger']), $tokens['--color-danger-rgb']);
         self::assertSame(ThemePalette::channels($tokens['--color-danger-text']), $tokens['--color-danger-text-rgb']);
         self::assertSame(ThemePalette::channels($tokens['--color-success']), $tokens['--color-success-rgb']);
+    }
+
+    public function testTheAccentIsTextOnlyThroughItsTextRole(): void
+    {
+        foreach (self::publicStylesheets() as $name => $css) {
+            foreach (self::rules($name === 'core.css' ? self::coreRules() : $css) as $rule) {
+                self::assertDoesNotMatchRegularExpression(
+                    '/(^|[;{\s])color\s*:[^;{}]*var\(--color-primary-bright\)/',
+                    $rule,
+                    $name . ': "' . strtok($rule, '{') . '" sets text in --color-primary-bright, the highlight. '
+                        . 'Text in the accent is --color-primary-text, which stays readable on a light ground'
+                );
+            }
+        }
+    }
+
+    /** @param array<string, string> $colors */
+    #[DataProvider('darkPalettes')]
+    public function testADarkPaletteKeepsTheBrightAccentAsTextAndTheShippedFaintAlpha(array $colors): void
+    {
+        $tokens = ThemeCss::paletteDeclarations($colors);
+
+        self::assertSame($tokens['--color-primary-bright'], $tokens['--color-primary-text']);
+        self::assertSame('rgba(' . ThemePalette::channels($colors['text_color']) . ', 0.46)', $tokens['--color-text-faint']);
+    }
+
+    /** @param array<string, string> $colors */
+    #[DataProvider('lightPalettes')]
+    public function testALightPageThemeGetsReadableAccentTextAndFaintTextAndKeepsItsHighlight(array $colors): void
+    {
+        $appearance = PageAppearance::fromTheme('licht', $colors, ThemeSettings::defaults()['font_pairing']);
+        self::assertNotNull($appearance);
+        $tokens = $appearance->declarations();
+
+        self::assertSame(1, preg_match('/^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/', $tokens['--color-text-faint'], $faint));
+        self::assertSame(ThemePalette::channels($colors['text_color']), $faint[1] . ', ' . $faint[2] . ', ' . $faint[3]);
+        $alpha = (float) $faint[4];
+        self::assertGreaterThan(0.46, $alpha, 'the faint tone rises on a light ground');
+        self::assertLessThan(0.70, $alpha, 'and stays quieter than --color-text-muted');
+
+        // On the ground, a card and the footer's deeper ground; accent text
+        // also on the accent wash over the ground and the card.
+        foreach ([$colors['background_color'], $colors['surface_color'], $tokens['--color-bg-deep']] as $ground) {
+            self::assertGreaterThanOrEqual(4.5, ThemeColor::contrastRatio($tokens['--color-primary-text'], $ground), 'accent text');
+            self::assertGreaterThanOrEqual(4.0, ThemeColor::contrastRatio(ThemePalette::mix($ground, $colors['text_color'], $alpha), $ground), 'faint text');
+        }
+        foreach ([$colors['background_color'], $colors['surface_color']] as $ground) {
+            $wash = ThemePalette::mix($ground, $colors['primary_color'], 0.10);
+            self::assertGreaterThanOrEqual(4.5, ThemeColor::contrastRatio($tokens['--color-primary-text'], $wash), 'accent text on the accent wash');
+        }
+
+        // The highlight is still the lighter accent: a theme picks it freely.
+        [$pr, $pg, $pb] = ThemePalette::rgb($colors['primary_color']);
+        [$br, $bg, $bb] = ThemePalette::rgb($tokens['--color-primary-bright']);
+        self::assertGreaterThan($pr + $pg + $pb, $br + $bg + $bb);
     }
 }

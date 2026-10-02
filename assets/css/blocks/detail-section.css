@@ -66,7 +66,7 @@
     cursor: pointer;
     transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
   }
-  .service-detail__gallery-nav:hover:not(:disabled){ background: var(--color-primary-wash); color: var(--color-primary-bright); border-color: var(--color-primary); }
+  .service-detail__gallery-nav:hover:not(:disabled){ background: var(--color-primary-wash); color: var(--color-primary-text); border-color: var(--color-primary); }
   .service-detail__gallery-nav:focus-visible{ outline: 2px solid var(--color-primary); outline-offset: 2px; }
   .service-detail__gallery-nav:disabled{ opacity: 0.35; cursor: default; }
   .service-detail__gallery-nav svg{ width: 20px; height: 20px; }

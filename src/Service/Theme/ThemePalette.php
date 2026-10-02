@@ -56,6 +56,22 @@ final class ThemePalette
     /** The alpha of a status wash over the ground, as core.css paints it. */
     private const STATUS_WASH = 0.12;
 
+    /** The contrast the accent needs where it is text: a price, a number, a link. */
+    private const ACCENT_TEXT_CONTRAST = 4.5;
+
+    /** The alpha of the accent wash (--color-primary-wash) over a ground, as core.css paints it. */
+    private const PRIMARY_WASH = 0.10;
+
+    /** The alpha of the faint text tone, as core.css ships it. */
+    private const FAINT_ALPHA = 0.46;
+
+    /**
+     * The contrast the faint text tone keeps: what FAINT_ALPHA gives on the
+     * default theme's ground and card (4.2:1) and on any near-black one,
+     * rounded down so a dark palette keeps the shipped alpha exactly.
+     */
+    private const FAINT_TEXT_CONTRAST = 4;
+
     /**
      * THE FORMULAS, as data: every derived property and how it is made, in
      * the order derive() returns them. One definition with two readers —
@@ -72,6 +88,7 @@ final class ThemePalette
      *   ['mix', expr, expr, weight]                     mix()
      *   ['channels', expr]                              channels(): 'r, g, b'
      *   ['readable', expr, ground, ratio]               readable()
+     *   ['fade', expr, alpha, ratio, ground, …]         fade(): 'rgba(r, g, b, a)'
      *
      * The keys match the derived defaults in assets/css/core.css one for one,
      * so a test can prove the two lists never drift apart.
@@ -80,11 +97,47 @@ final class ThemePalette
         '--color-primary-rgb' => ['channels', 'primary'],
         '--color-primary-bright' => ['lighten', 'primary', self::BRIGHT_LIFT],
         '--color-primary-bright-rgb' => ['channels', '--color-primary-bright'],
-        '--color-primary-deep' => ['lighten', 'primary', -self::DEEP_DROP],
+        '--color-primary-deep' =>['lighten', 'primary', -self::DEEP_DROP],
         '--color-primary-deep-rgb' => ['channels', '--color-primary-deep'],
         '--color-text-rgb' => ['channels', 'text'],
         '--color-bg-deep' => ['lighten', 'background', -self::GROUND_DROP],
         '--color-bg-gradient-end' => ['lighten', 'background', -self::GRADIENT_DROP],
+        // The accent where it is text (a price, a number, a link, a hover)
+        // rather than a glint, a gradient or a ring. It is the bright accent
+        // wherever that reads — the default theme and any dark ground — and
+        // only on a light ground, where "brighter" means "fainter", does it
+        // move along lightness until it reads: on the ground, on a card, on
+        // the footer's deeper ground and on the accent wash over either (an
+        // active tab, a chip, a stepper's hover). --color-primary-bright
+        // itself stays free: a theme may pick any highlight it likes for
+        // what is not text.
+        '--color-primary-text' => [
+            'readable',
+            [
+                'readable',
+                [
+                    'readable',
+                    [
+                        'readable',
+                        ['readable', '--color-primary-bright', 'background', self::ACCENT_TEXT_CONTRAST],
+                        'surface',
+                        self::ACCENT_TEXT_CONTRAST,
+                    ],
+                    '--color-bg-deep',
+                    self::ACCENT_TEXT_CONTRAST,
+                ],
+                ['mix', 'background', 'primary', self::PRIMARY_WASH],
+                self::ACCENT_TEXT_CONTRAST,
+            ],
+            ['mix', 'surface', 'primary', self::PRIMARY_WASH],
+            self::ACCENT_TEXT_CONTRAST,
+        ],
+        // Quiet supporting text (meta lines, notes, the footer) is the text
+        // colour at an alpha. The same alpha reads far less on a light
+        // ground than on a dark one, so the alpha rises, only where it has
+        // to, until the tone keeps the contrast it has on the default
+        // theme: on the ground, on a card and on the footer's ground.
+        '--color-text-faint' => ['fade', 'text', self::FAINT_ALPHA, self::FAINT_TEXT_CONTRAST, 'background', 'surface', '--color-bg-deep'],
         '--color-scrim-rgb' => ['channels', ['mix', 'background', '#000000', self::SCRIM_TOWARDS_BLACK]],
         // The translucent veils are the ground and a raised panel seen
         // through blur, and the media scrim is the ground bleeding over a
@@ -213,6 +266,12 @@ final class ThemePalette
                 self::evaluate($expression[2], $colors, $done),
                 (float) $expression[3]
             ),
+            'fade' => self::fade(
+                self::evaluate($expression[1], $colors, $done),
+                (float) $expression[2],
+                (float) $expression[3],
+                array_map(static fn (mixed $ground): string => self::evaluate($ground, $colors, $done), array_slice($expression, 4))
+            ),
         };
     }
 
@@ -230,6 +289,7 @@ final class ThemePalette
                 '--color-primary-rgb',
                 '--color-primary-bright',
                 '--color-primary-bright-rgb',
+                '--color-primary-text',
                 '--color-primary-deep',
                 '--color-primary-deep-rgb',
                 '--color-surface-hover',
@@ -241,16 +301,21 @@ final class ThemePalette
                 '--color-bg-veil-rgb',
                 '--color-media-scrim-rgb',
                 '--color-surface-2',
+                '--color-primary-text',
+                '--color-text-faint',
                 ...self::STATUS,
             ],
             'surface' => [
                 '--color-surface-hover',
                 '--color-surface-veil-rgb',
                 '--color-surface-2',
+                '--color-primary-text',
+                '--color-text-faint',
                 ...self::STATUS,
             ],
             'text' => [
                 '--color-text-rgb',
+                '--color-text-faint',
                 '--color-sheen-rgb',
             ],
         ];
@@ -332,6 +397,35 @@ final class ThemePalette
         }
 
         return $candidate;
+    }
+
+    /**
+     * $hex at $alpha, as 'rgba(r, g, b, a)', when that already reaches
+     * $ratio on every ground; otherwise at the first alpha, a hundredth at a
+     * time, that does — or fully opaque. Measured as the browser paints it:
+     * the colour composited over each ground. Like readable(), a tone that
+     * reads is left exactly as it is.
+     *
+     * @param list<string> $grounds
+     */
+    public static function fade(string $hex, float $alpha, float $ratio, array $grounds): string
+    {
+        $percent = (int) round($alpha * 100);
+
+        for (; $percent < 100; $percent++) {
+            $reads = true;
+            foreach ($grounds as $ground) {
+                if (ThemeColor::contrastRatio(self::mix($ground, $hex, $percent / 100), $ground) < $ratio) {
+                    $reads = false;
+                    break;
+                }
+            }
+            if ($reads) {
+                break;
+            }
+        }
+
+        return 'rgba(' . self::channels($hex) . ', ' . ($percent >= 100 ? '1' : rtrim(sprintf('%.2f', $percent / 100), '0')) . ')';
     }
 
     /**

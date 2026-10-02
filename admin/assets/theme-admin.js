@@ -120,8 +120,9 @@
 
      derive() carries NO formulas of its own. It evaluates the recipe the
      server prints (App\Service\Theme\ThemePalette::recipe()) with the same
-     four operations ThemePalette has — an HSL lightness shift, an sRGB mix,
-     the 'r, g, b' channels and the readable step of a status colour — so a tint in the preview is the tint the
+     five operations ThemePalette has — an HSL lightness shift, an sRGB mix,
+     the 'r, g, b' channels, the readable step of a status colour and the
+     alpha step of the faint text — so a tint in the preview is the tint the
      website will get. luminance()/contrastRatio() are the WCAG formulas of
      App\Service\Theme\ThemeColor. */
 
@@ -206,6 +207,21 @@
     return candidate;
   }
 
+  // ThemePalette::fade(): the colour at that alpha when it reaches the ratio
+  // composited over every ground, else at the first higher alpha that does.
+  function fade(hex, alpha, ratio, grounds) {
+    var percent = Math.round(alpha * 100);
+    for (; percent < 100; percent++) {
+      var reads = grounds.every(function (ground) {
+        return contrastRatio(mix(ground, hex, percent / 100), ground) >= ratio;
+      });
+      if (reads) {
+        break;
+      }
+    }
+    return 'rgba(' + channels(hex) + ', ' + (percent >= 100 ? '1' : String(percent / 100)) + ')';
+  }
+
   function evaluate(expression, roles, done) {
     if (typeof expression === 'string') {
       if (Object.prototype.hasOwnProperty.call(roles, expression)) {
@@ -222,6 +238,13 @@
         return channels(evaluate(expression[1], roles, done));
       case 'readable':
         return readable(evaluate(expression[1], roles, done), evaluate(expression[2], roles, done), Number(expression[3]));
+      case 'fade':
+        return fade(
+          evaluate(expression[1], roles, done),
+          Number(expression[2]),
+          Number(expression[3]),
+          expression.slice(4).map(function (ground) { return evaluate(ground, roles, done); })
+        );
     }
     return '';
   }

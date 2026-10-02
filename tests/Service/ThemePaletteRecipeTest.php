@@ -21,7 +21,8 @@ use PHPUnit\Framework\TestCase;
  *     pinned from v0.1.13), so no existing site renders differently; the
  *     later additions are --color-sheen-rgb (Themes 2.0 phase 1A), the
  *     text colour's channels, so a light theme's sheen stays visible, and
- *     the status colours (phase 1A.1), whose contract is in
+ *     the status colours (phase 1A.1), and the accent as text and the
+ *     faint text tone (phase 1A.2), whose contracts are in
  *     ThemeTokenContractTest;
  *   - dependencies() — which ThemeCss uses to emit only what changed — names
  *     exactly the roles each recipe entry reads, directly or through an
@@ -157,7 +158,7 @@ final class ThemePaletteRecipeTest extends TestCase
         }
 
         $script = (string) file_get_contents(dirname(__DIR__, 2) . '/admin/assets/theme-admin.js');
-        self::assertSame(['channels', 'lighten', 'mix', 'readable'], self::sorted(array_keys($ops)));
+        self::assertSame(['channels', 'fade', 'lighten', 'mix', 'readable'], self::sorted(array_keys($ops)));
         foreach (array_keys($ops) as $op) {
             self::assertStringContainsString("case '" . $op . "':", $script, 'MygdalaTheme evaluates ' . $op);
         }

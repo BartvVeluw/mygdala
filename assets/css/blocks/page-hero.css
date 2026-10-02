@@ -182,7 +182,7 @@
    colour as everywhere, and a keyboard focus ring stays the site's own. */
 .page-hero--background .breadcrumb,
 .page-hero--background .breadcrumb a{ color: var(--color-text); }
-.page-hero--background .breadcrumb a:hover{ color: var(--color-primary-bright); }
+.page-hero--background .breadcrumb a:hover{ color: var(--color-primary-text); }
 .page-hero--background .breadcrumb__separator{ color: var(--color-text-muted); }
 
 /* --- A picture beside the header ------------------------------------------- */
