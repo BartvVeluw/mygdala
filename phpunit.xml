@@ -921,6 +921,7 @@
             <file>tests/Service/SitemapRoutingTest.php</file>
             <file>tests/Service/SitemapTest.php</file>
             <file>tests/Service/ThemePersistenceTest.php</file>
+            <file>tests/Service/GlobalThemePickerHttpTest.php</file>
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Service/AdminEditorResponseTest.php</file>

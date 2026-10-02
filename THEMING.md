@@ -728,8 +728,8 @@ instelling uit "De negen instellingen" en geen stijlset: het kiest geen
 kleur, geen lettertype en geen knopstijl, die blijven van de eigenaar.
 
 Fase 2B bouwde de runtime, fase 2C het eerste echte thema, `minimal` (zie
-*First-party themes* hieronder). Er is nog geen keuze in het CMS, geen
-preview en geen schrijver (zie *Nog niet*).
+*First-party themes* hieronder), fase 2D de keuze in het CMS met een veilige
+preview (zie *Theme kiezen*).
 
 ### Het model
 
@@ -778,7 +778,8 @@ blijvende terugval: een ontbrekende, lege of onbekende sleutel wordt
 `legacy`, nu en later. Het is geen tweede naam voor "de standaard": een
 echte first-party standaard krijgt later een eigen sleutel, en pas dan
 schrijft de installatiewizard die sleutel bij een verse installatie. Tot die
-tijd schrijft niets `active_theme`, ook de wizard niet.
+tijd schrijft alleen de beheerder `active_theme`, op Vormgeving → Thema; de
+wizard niet.
 
 ### Van sleutel naar stylesheet
 
@@ -868,8 +869,8 @@ thema dat ze herdefinieert doet dat op datzelfde paar, anders valt een
   Theme.
 - **Eigen instellingen**: palet, lettertypen en knopstijlen staan na het
   Global Theme en winnen dus altijd.
-- **Wisselen is niet-destructief**: een wissel verandert straks uitsluitend
-  `theme_settings.active_theme`. Paletten, lettertypen, knopstijlen,
+- **Wisselen is niet-destructief**: een wissel verandert uitsluitend
+  `theme_settings.active_theme` (bewezen in `GlobalThemePickerHttpTest`). Paletten, lettertypen, knopstijlen,
   paginathema's, blokken, inhoud, navigatie, Shop en moduledata blijven
   onaangeraakt.
 - **"Standaardvormgeving herstellen"** raakt `active_theme` niet:
@@ -882,8 +883,6 @@ thema dat ze herdefinieert doet dat op datzelfde paar, anders valt een
 
 ### Nog niet
 
-- Fase 2D: kiezen in het CMS (de schrijver, het endpoint) met een preview en
-  een waarschuwing bij een onbekende sleutel.
 - Fase 2E: expliciete suggesties van een thema voor palet, lettertypen en
   knoppen.
 - Een first-party standaardthema (en de wizard die het schrijft) en Client
@@ -918,9 +917,9 @@ Core levert twee Global Themes, in deze volgorde:
 | `minimal` | *Minimal* | `assets/css/themes/minimal.css` | een rustige presentatie, het eerste echte thema |
 
 Een thema registreren activeert niets. Alleen de rij
-`theme_settings.active_theme` doet dat, en niets schrijft die rij nog (geen
-scherm, geen wizard). Een bestaande of verse installatie zonder rij blijft
-dus op `legacy`, byte voor byte.
+`theme_settings.active_theme` doet dat, en alleen de beheerder schrijft die
+rij (Vormgeving → Thema, zie *Theme kiezen*; geen wizard). Een bestaande of
+verse installatie zonder rij blijft dus op `legacy`, byte voor byte.
 
 ### Waarom "Minimal", en geen "Licht" of "Standaard"
 
@@ -1110,6 +1109,130 @@ worktree. Niets daarvan staat in de repository.
   lichte palet (`#B07A3A` op `#FAF7F2`) 3.45:1 op de ondergrond en 3.69:1 op
   een kaart: genoeg voor een focusring; een lichter accent haalt het niet, in
   elk thema.
+
+## Theme kiezen (Themes 2.0, fase 2D)
+
+Het Global Theme wordt gekozen op **Vormgeving → Thema**, het eerste
+tabblad van `admin/theme.php`: het thema is de hoogste visuele laag, dus
+staat het vóór *Kleuren en stijl*, *Lettertypen* en *Knoppen*. Zelfde
+rechten als de rest van Vormgeving: `settings.manage`. Geen eigen permissie.
+
+### Wat de beheerder ziet
+
+Elk thema uit `ThemeRegistry::all()`, in de volgorde van de lijst, als een
+rij in dezelfde vorm als de paletrijen erboven (`admin-section-row`): het
+label (`globaltheme.<sleutel>.label` in de CMS-taal, anders het label uit de
+definitie), een badge **Actief** op het thema dat de website gebruikt, een
+link **Voorbeeld** en, op elk ander thema, **Activeren**. Geen
+bevestigingsvenster: een wissel verwijdert en verandert niets anders, en is
+met één klik terug te draaien. Eén regel onder de rijen zegt dat: alleen het
+thema verandert. De sleutel zelf staat niet in beeld, behalve in de
+waarschuwing hieronder. Geen beschrijving en geen afbeelding per thema: de
+echte preview zegt meer, en met twee thema's mist de lijst er niets door.
+
+Drie toestanden, elk uit zijn eigen bron (het scherm herhaalt geen
+terugvalregel):
+
+| Opgeslagen (`ThemeSettings::activeThemeKey()`) | Website (`ThemeRegistry::active()`) | Scherm |
+|---|---|---|
+| geen rij | `legacy` | *Klassiek — Actief*, geen waarschuwing |
+| `minimal` | `minimal` | *Minimal — Actief* |
+| `kobold` (onbekend voor `ThemeRegistry::find()`) | `legacy` | waarschuwing die `kobold` en *Klassiek* noemt, *Klassiek — Actief*, en beide thema's **Activeren** |
+
+Een onbekende sleutel wordt nooit vanzelf gerepareerd: de rij blijft staan
+tot de beheerder zelf een thema kiest (ook Klassiek), want een thema dat even
+ontbreekt (een extensie die nog niet is uitgerold) komt dan vanzelf terug.
+
+### Opslaan
+
+`api/admin/save-active-theme.php`, met het vaste patroon van de buren
+(`activate-color-palette.php`): inloggen, `settings.manage`, alleen POST
+(anders 405 met `Allow: POST`), CSRF (403). De enige invoer is `theme`, en
+die telt alleen als hij **lid** is van de gesloten lijst
+(`ThemeRegistry::find()`); geen patroon als enige controle. `LEGACY`,
+`Minimal`, `minimal.css`, een pad, een URL, markup, een lege waarde of een
+array: 404, en er wordt niets geschreven. Daarna PRG terug naar
+`/admin/theme.php?themes=activated&tab=thema#thema` met *Thema 'Minimal' is
+geactiveerd*; een databasefout komt terug als sessiemelding.
+
+De schrijver is `ThemeSettings::saveActiveThemeKey()`: één `upsertMany` op
+`theme_settings` met alleen `active_theme`, en daarna `clearCache()`, zodat
+dezelfde request en elke volgende de nieuwe sleutel leest. Hij vraagt
+`ThemeRegistry` niets (dat doet het endpoint vóór hem), dus er is geen kring
+`ThemeSettings → ThemeRegistry → ThemeSettings`; hij weigert wel alles wat
+nooit een sleutel kan zijn (`ThemeDefinition::isValidKey()`), wie hem ook
+aanroept. **Klassiek wordt opgeslagen als `legacy`**, niet als het
+verwijderen van de rij: een bewuste keuze blijft zichtbaar als keuze, en een
+latere standaard (wizard) verandert er niets aan. Geen rij blijft
+`legacy`, zoals altijd.
+
+Na opslaan gebruikt de publieke site het thema bij de volgende request:
+geen build, geen herstart, geen cache om te legen.
+
+### Wat een wissel wel en niet verandert
+
+Alleen `theme_settings.active_theme`. Niet: paletten en het actieve palet,
+de Font Library, de lettertyperollen en -combinatie, knopstijlen en hun
+standaarden, paginathema's, Extra vormgeving, blokken en hun inhoud,
+pagina's, navigatie, header en footer, site-instellingen, Shop-gegevens en
+moduleschakelaars. `GlobalThemePickerHttpTest` maakt van al die tabellen een
+momentopname en wisselt `legacy → minimal → legacy` via het echte endpoint.
+Het CMS-uiterlijk (`App\Service\AdminTheme`, `admin_settings`) is een
+ander ding en verandert evenmin; `minimal.css` laadt nooit op een
+beheerscherm.
+
+### Preview
+
+`admin/theme-preview.php?theme=<sleutel>` toont de **echte startpagina**
+(`index`, zoals `index.php` hem rendert: zijn blokken en hun assets, zijn
+paginathema als hij er een heeft, de echte header en footer) met de eigen
+kleuren, lettertypen en knopstijlen van de site, in het gevraagde thema. Geen
+specimen en geen afbeelding: de beheerder beoordeelt het thema mét de eigen
+vormgeving. Later kan de preview naar andere pagina's; daar is geen tweede
+routering voor gebouwd.
+
+- **Request-lokaal.** Het enige verschil met de publieke pagina is de
+  themaplek: `PageAssets::renderStyles($theme)` krijgt de definitie voor die
+  ene aanroep (zonder argument blijft het `ThemeRegistry::active()`). Geen
+  statische override, geen sessie, cookie of storage, dus niets kan naar een
+  andere request of test lekken. Geen `body.theme-…` of attribuut: het
+  stylesheet is het hele verschil, zoals op de site.
+- **Beide kanten op.** Ook `legacy` is te previewen terwijl de site op
+  Minimal staat, en andersom.
+- **Alleen beheer.** Ingelogd en `settings.manage`, net als het scherm.
+  Onbekende sleutel (ook `LEGACY`, een pad of een URL): 404, nooit een
+  terugval die Klassiek onder een andere naam zou tonen. Geen publieke
+  override: geen `/?theme=…`, geen cookie, sessie of localStorage die de
+  publieke site een ander thema geeft. Niets buiten `/admin/` leest de
+  parameter.
+- **Muteert niets.** Geen `theme_settings`-rij, en de beheersessie wordt
+  gesloten vóór er iets rendert. Bezoekersstatistiek slaat `/admin` over.
+- **Ingekaderd** op het tabblad Thema, eerst in het actieve thema; elke link
+  *Voorbeeld* laadt zijn thema in dat kader (`target` = de naam van het
+  kader, geen script nodig). `sandbox="allow-scripts"` en verder niets, het
+  contract van de blokkenbibliotheek: de scripts van de pagina draaien (de
+  opening, het menu, de onthulling bij scrollen) in een eigen, ondoorzichtige
+  origin zonder toegang tot het CMS, zijn sessie of zijn opslag; geen
+  formulieren, popups of navigatie van het CMS. De CSP verbiedt elk
+  formulier (`form-action 'none'`, `frame-ancestors 'self'`,
+  `base-uri 'none'`), en `assets/js/theme-preview.js` houdt linkklikken en
+  submits tegen, zodat een klik in de preview nooit naar een pagina in het
+  thema van de website springt. Het script van de cookiemelding laadt niet
+  (de melding blijft verborgen markup). Een balkje *Voorbeeld · Thema X,
+  niet opgeslagen* (`assets/css/theme-preview.css`) zegt wat je ziet.
+
+### Testen
+
+`GlobalThemePickerHttpTest` (`cms`, over `php -S`): de drie toestanden, de
+tabvolgorde, het kader en zijn sandbox, opslaan in beide richtingen met de
+publieke site erachter, de momentopname, alle weigeringen van het endpoint
+(GET, niet ingelogd, ander recht, CSRF ontbreekt of fout, geen of onbekende
+of kwaadaardige sleutel), en de preview: alleen beheer, alleen geregistreerde
+sleutels, beide richtingen zonder dat de rij of de publieke site beweegt, geen
+publieke override. `ThemePersistenceTest`: de schrijver schrijft één rij,
+leegt de cache en weigert wat nooit een sleutel kan zijn.
+`ThemeRenderingTest`: `admin/theme.php` is naast `PageAssets` de enige
+lezer van het actieve thema.
 
 ## Nieuwe thema-instelling toevoegen
 

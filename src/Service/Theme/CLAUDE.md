@@ -37,7 +37,12 @@ CSS-overrideblok.
   geen `--btn-*`/`--button-radius` en geen `!important`: `site-theme` en
   `site-buttons` schrijven alleen verschillen. Paginathema's blijven kleur
   en lettertype. Wisselen verandert alleen `active_theme`, en
-  `active_theme` staat nooit in `ThemeSettings::DEFAULTS`.
+  `active_theme` staat nooit in `ThemeSettings::DEFAULTS`. Kiezen gebeurt op
+  Vormgeving → Thema: het endpoint toetst lidmaatschap
+  (`ThemeRegistry::find()`), `ThemeSettings::saveActiveThemeKey()` schrijft
+  (ook `legacy`, nooit een verwijderde rij) zonder de registry te kennen.
+  De preview geeft de definitie mee aan `PageAssets::renderStyles($theme)`:
+  request-lokaal, alleen in `/admin/`, nooit een statische override.
 - **Een themastylesheet** (first-party: `assets/css/themes/<sleutel>.css`,
   nu `minimal`) volgt `ThemeStylesheetContractTest`: geen `--color-*` behalve
   `--color-shadow-rgb`, geen token waar een knopstijl naar verwijst
