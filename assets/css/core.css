@@ -198,6 +198,14 @@ main[data-page-theme]{
                 0 14px 36px -14px rgba(var(--color-primary-rgb), 0.28);
   --shadow-soft: 0 16px 36px -18px rgba(var(--color-shadow-rgb), 0.6);
   --shadow-lift: 0 30px 60px -22px rgba(var(--color-shadow-rgb), 0.7);
+
+  /* The fill of a semantic surface (THEMING.md, "Oppervlakken"): what a
+     block's .surface-<word> root and the same word in Extra vormgeving both
+     paint. A theme changes the fill here, once, for both. */
+  --surface-subtle:
+    radial-gradient(ellipse 800px 420px at 85% 0%, rgba(var(--color-primary-rgb), 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(var(--color-sheen-rgb), 0.018), rgba(var(--color-sheen-rgb), 0) 40%);
+  --surface-contrast: var(--color-bg-deep);
 }
 
 *, *::before, *::after{ box-sizing: border-box; }
@@ -934,19 +942,30 @@ section{ position: relative; padding-block: var(--sp-7); }
    and must leave no gap above the heading. */
 .section-head .eyebrow + h2{ margin-top: var(--sp-2); }
 
+/* --- Surfaces: the role a block's own root plays on the page -------------
+   A block prints the role (`surface-subtle`, `surface-contrast`) as one
+   class on its root, never a colour; this is how the default theme draws
+   each role. One class on purpose: a choice in Extra vormgeving is two
+   classes (block-appearance.css) and so always wins. THEMING.md,
+   "Oppervlakken".
+
+   .bg-soft and .bg-forest are the old names of these two roles, kept as
+   aliases for markup outside Core that may still print them; no renderer
+   does. */
+.surface-subtle,
 .bg-soft{
   position: relative;
-  background:
-    radial-gradient(ellipse 800px 420px at 85% 0%, rgba(var(--color-primary-rgb), 0.07), transparent 60%),
-    linear-gradient(180deg, rgba(var(--color-sheen-rgb), 0.018), rgba(var(--color-sheen-rgb), 0) 40%);
+  background: var(--surface-subtle);
   border-block: var(--border-width) solid var(--color-line-soft);
 }
+.surface-contrast,
 .bg-forest{
-  background: var(--color-bg-deep);
+  background: var(--surface-contrast);
   color: var(--color-text);
   border-block: var(--border-width) solid var(--color-line);
   position: relative;
 }
+.surface-contrast::before,
 .bg-forest::before{
   content: "";
   position: absolute; inset: 0 0 auto 0;
@@ -954,9 +973,10 @@ section{ position: relative; padding-block: var(--sp-7); }
   background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
   opacity: 0.5;
 }
+.surface-contrast h2, .surface-contrast h3, .surface-contrast p,
 .bg-forest h2, .bg-forest h3, .bg-forest p{ color: var(--color-text); }
-.bg-forest .lead{ color: var(--color-text-muted); }
-.bg-forest .eyebrow{ color: var(--color-primary); }
+.surface-contrast .lead, .bg-forest .lead{ color: var(--color-text-muted); }
+.surface-contrast .eyebrow, .bg-forest .eyebrow{ color: var(--color-primary); }
 
 /* Value props / features */
 .feature-grid{

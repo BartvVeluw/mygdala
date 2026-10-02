@@ -11,7 +11,8 @@
    The classes sit on the block's OWN root element (its <section>), next to
    its own classes, never on a wrapper. They are written as two classes
    (`.block-appearance.block-appearance--…`) so a chosen look wins over a
-   block's own one-class surface (.bg-soft, .bg-forest, .cta-section--full)
+   block's own one-class surface (.surface-subtle, .surface-contrast,
+   .cta-section--full)
    whatever the order of the stylesheets. An inline `padding-top:0` of a
    block right under a page header still wins over a chosen room: that tight
    top belongs to the header above it.
@@ -22,11 +23,10 @@
 .block-appearance.block-appearance--bg-page{
   background: var(--color-bg);
 }
-/* The site's soft surface (.bg-soft) without its lines: those are Randen. */
+/* The fill of the subtle surface (.surface-subtle) without its lines: those
+   are Randen. */
 .block-appearance.block-appearance--bg-subtle{
-  background:
-    radial-gradient(ellipse 800px 420px at 85% 0%, rgba(var(--color-primary-rgb), 0.07), transparent 60%),
-    linear-gradient(180deg, rgba(var(--color-sheen-rgb), 0.018), rgba(var(--color-sheen-rgb), 0) 40%);
+  background: var(--surface-subtle);
 }
 /* A tint of the accent over the ground, not a solid fill: text, links and the
    filled .btn are designed for the ground and stay readable on it. */
@@ -61,8 +61,12 @@
 .block-appearance.block-appearance--border-bottom{ border-bottom: var(--border-width) solid var(--block-appearance-line, var(--color-line-soft)); }
 .block-appearance.block-appearance--border-both{ border-block: var(--border-width) solid var(--block-appearance-line, var(--color-line-soft)); }
 
-/* The figures' band draws one more hairline of its own (core.css,
-   .bg-forest::before); a chosen border replaces that one too. */
+/* The contrast surface draws one more hairline of its own (core.css,
+   .surface-contrast::before); a chosen border replaces that one too. */
+.block-appearance.block-appearance--border-none.surface-contrast::before,
+.block-appearance.block-appearance--border-top.surface-contrast::before,
+.block-appearance.block-appearance--border-bottom.surface-contrast::before,
+.block-appearance.block-appearance--border-both.surface-contrast::before,
 .block-appearance.block-appearance--border-none.bg-forest::before,
 .block-appearance.block-appearance--border-top.bg-forest::before,
 .block-appearance.block-appearance--border-bottom.bg-forest::before,

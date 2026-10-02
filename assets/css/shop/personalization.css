@@ -34,7 +34,7 @@
    partials/product-personalization.php.
    ========================================================================== */
 .personalizer-section{
-  /* .bg-soft's tint would fight the related-products block that usually
+  /* The subtle surface would fight the related-products block that usually
      follows it, so this section separates itself with a rule and its own
      surface instead. */
   border-top: var(--border-width) solid var(--color-line);
