@@ -536,6 +536,9 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
     // the product editor; changing this changes every product that does not.
     $transitionValue = \App\Service\ProductGalleryTransition::normalise($values[\App\Service\ProductGalleryTransition::SETTING_KEY] ?? null)
         ?? \App\Service\ProductGalleryTransition::DEFAULT;
+    // Whether the big picture opens the lightbox (App\Service\ProductGalleryLightbox):
+    // off unless exactly '1' is stored.
+    $lightboxOn = \App\Service\ProductGalleryLightbox::isOn($values[\App\Service\ProductGalleryLightbox::SETTING_KEY] ?? null);
   ?>
   <section class="admin-card">
     <h2><?= admin_te('shop.gallery_transition.heading') ?></h2>
@@ -552,6 +555,15 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
             <?php endforeach; ?>
           </select>
         </div>
+      </div>
+
+      <div class="admin-field admin-field--inline">
+        <input type="hidden" name="shop_gallery_lightbox" value="0">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-switch" role="switch" id="shop-gallery-lightbox" name="shop_gallery_lightbox" value="1"<?= $lightboxOn ? ' checked' : '' ?>>
+          <?= admin_te('shop.gallery_lightbox.label') ?>
+        </label>
+        <?= admin_help(admin_t('shop.gallery_lightbox.label'), admin_t('help.shop.gallery_lightbox')) ?>
       </div>
 
       <button type="submit"><?= admin_te('common.save') ?></button>

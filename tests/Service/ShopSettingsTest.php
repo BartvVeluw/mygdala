@@ -12,6 +12,7 @@ use App\Service\AdminNavigation;
 use App\Service\AdminPermissions;
 use App\Service\InvoiceService;
 use App\Service\Language\AdminLocale;
+use App\Service\ProductGalleryLightbox;
 use App\Service\ShopSettings;
 use App\Service\SiteSettings;
 use App\Service\SiteSettingsValidator;
@@ -295,7 +296,7 @@ final class ShopSettingsTest extends TestCase
 
     public function testTheGalleryTransitionHasItsOwnTabAndKeepsTheOldLookByDefault(): void
     {
-        $this->assertSame(['shop_gallery_transition'], ShopSettings::TABS['productpagina']);
+        $this->assertSame(['shop_gallery_transition', 'shop_gallery_lightbox'], ShopSettings::TABS['productpagina']);
         $this->assertContains('shop_gallery_transition', ShopSettings::CHOICES);
         $this->assertSame('fade', SiteSettings::defaults()['shop_gallery_transition']);
 
@@ -319,6 +320,57 @@ final class ShopSettingsTest extends TestCase
             $this->assertArrayHasKey('help.shop.gallery_transition.shop', $catalog);
             $this->assertArrayHasKey('help.shop.gallery_transition.product', $catalog);
             $this->assertArrayHasKey('validation.gallery_transition_invalid', $catalog);
+        }
+    }
+
+    // --- the product gallery's lightbox (Product Gallery 2.1) --------------
+
+    public function testTheGalleryLightboxIsOnOrOffAndOffByDefault(): void
+    {
+        $this->assertSame('0', SiteSettings::defaults()['shop_gallery_lightbox'], 'off: the gallery never opened a lightbox before');
+        $this->assertFalse(ProductGalleryLightbox::isOn(SiteSettings::defaults()['shop_gallery_lightbox']));
+        $this->assertContains('shop_gallery_lightbox', ShopSettings::CHOICES);
+
+        foreach (['1', '0'] as $value) {
+            $result = ShopSettings::validate(['shop_gallery_lightbox' => $value], SiteSettings::defaults());
+
+            $this->assertSame([], $result['errors'], $value);
+            $this->assertSame(['shop_gallery_lightbox' => $value], $result['values'], $value);
+        }
+
+        foreach (['', 'on', 'true', ' 1', '2', ['1']] as $other) {
+            $result = ShopSettings::validate(['shop_gallery_lightbox' => $other], SiteSettings::defaults());
+
+            $this->assertSame(['Kies aan of uit voor de lightbox.'], $result['errors'], var_export($other, true));
+            $this->assertArrayNotHasKey('shop_gallery_lightbox', $result['values'], 'a refused value is never written');
+        }
+
+        // Only exactly '1' is on, whatever is stored.
+        foreach (['0', '', 'yes', 'true', ' 1', null, 1, true] as $stored) {
+            $this->assertFalse(ProductGalleryLightbox::isOn($stored), var_export($stored, true));
+        }
+        $this->assertTrue(ProductGalleryLightbox::isOn('1'));
+
+        // A save of another tab never touches it.
+        $this->assertArrayNotHasKey('shop_gallery_lightbox', ShopSettings::validate(['order_number_prefix' => 'ORD'], SiteSettings::defaults())['values']);
+    }
+
+    public function testTheLightboxSwitchSendsAnExplicitOff(): void
+    {
+        $panel = $this->panels()['productpagina'];
+
+        // The hidden '0' comes BEFORE the switch, so an unticked switch posts '0' and a ticked one '1'.
+        $this->assertMatchesRegularExpression(
+            '/<input type="hidden" name="shop_gallery_lightbox" value="0">\s*<label class="admin-checkbox-label">\s*<input type="checkbox" class="admin-switch" role="switch" id="shop-gallery-lightbox" name="shop_gallery_lightbox" value="1"/',
+            $panel
+        );
+        $this->assertStringContainsString("admin_help(admin_t('shop.gallery_lightbox.label'), admin_t('help.shop.gallery_lightbox'))", $panel);
+
+        foreach (['nl' => 'Grote foto opent in een lightbox', 'en' => 'Large photo opens in a lightbox'] as $locale => $label) {
+            $catalog = self::catalog($locale);
+            $this->assertSame($label, $catalog['shop.gallery_lightbox.label'], $locale);
+            $this->assertArrayHasKey('help.shop.gallery_lightbox', $catalog);
+            $this->assertArrayHasKey('validation.gallery_lightbox_invalid', $catalog);
         }
     }
 

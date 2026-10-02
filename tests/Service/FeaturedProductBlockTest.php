@@ -18,9 +18,11 @@ use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\BlockSamples;
 use App\Service\FeaturedProductContent;
+use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
 use App\Service\Personalization\ProductPersonalizationContent;
 use App\Service\ProductDetail;
+use App\Service\ProductGalleryLightbox;
 use App\Service\ProductGalleryTransition;
 use App\Service\ProductSeo;
 use App\Service\Routing\RequestLanguage;
@@ -518,6 +520,52 @@ final class FeaturedProductBlockTest extends TestCase
         (new ProductRepository())->updateGalleryTransition($product, 'none');
         $this->clearCaches();
         self::assertStringContainsString('data-gallery-transition="none"', $this->render($row), 'the product\'s own choice wins');
+    }
+
+    /**
+     * Product Gallery 2.1: the Shop's lightbox switch. Off — the default and
+     * every stored value but '1' — prints and asks for exactly what the
+     * block always did. On, every block's gallery carries the attribute, the
+     * block asks for the site's one lightbox script, and the overlay is
+     * printed once for the whole page, also when a gallery block claimed it
+     * first.
+     */
+    public function testTheGalleryOpensTheLightboxOnlyWithTheShopsSwitchOn(): void
+    {
+        $product = $this->shop->product('Lichtbak', null, 10.00);
+        (new ProductImageRepository())->create($product, 'assets/images/products/zz-featured-lichtbak.png');
+        $first = $this->place(['product_id' => $product]);
+        $second = $this->place(['product_id' => $product, 'image_mode' => 'main']);
+        $definition = BlockDefinitions::get('featured_product');
+        self::assertNotNull($definition);
+        $ownScripts = ['assets/js/shop/product-gallery.js', 'assets/js/shop/shop.js'];
+
+        foreach ([null, '0', '', 'yes', 'true', ' 1'] as $stored) {
+            SiteSettings::overrideForTests($stored === null ? null : [ProductGalleryLightbox::SETTING_KEY => $stored]);
+            ItemGalleryContent::clearCache();
+            $this->clearCaches();
+            $off = $this->render($first) . $this->render($second);
+
+            self::assertStringNotContainsString('data-gallery-lightbox', $off, var_export($stored, true));
+            self::assertStringNotContainsString('data-lightbox', $off, 'no overlay: ' . var_export($stored, true));
+            self::assertSame($ownScripts, $definition->scripts(), var_export($stored, true));
+        }
+
+        SiteSettings::overrideForTests([ProductGalleryLightbox::SETTING_KEY => '1']);
+        ItemGalleryContent::clearCache();
+        $this->clearCaches();
+        $on = $this->render($first) . $this->render($second);
+
+        self::assertSame(2, substr_count($on, ' data-gallery-lightbox>'), 'every gallery, "Alleen de hoofdafbeelding" included');
+        self::assertSame(1, substr_count($on, '<div class="lightbox" data-lightbox '), 'one overlay for both blocks');
+        self::assertGreaterThan(strpos($on, '</section>') ?: 0, strpos($on, 'data-lightbox '), 'after the first block\'s section, outside it');
+        self::assertSame(['assets/js/lightbox.js', ...$ownScripts], $definition->scripts(), 'the shared lightbox first, then the product page\'s own');
+
+        // A gallery block printed it already: not a second time.
+        ItemGalleryContent::clearCache();
+        self::assertTrue(ItemGalleryContent::claimLightboxOverlay());
+        self::assertStringNotContainsString('data-lightbox ', $this->render($first));
+        ItemGalleryContent::clearCache();
     }
 
     // ------------------------------------------------------------ safety

@@ -6,6 +6,7 @@ namespace App\Service\Blocks;
 
 use App\Repository\FeaturedProductRepository;
 use App\Service\FeaturedProductContent;
+use App\Service\ProductGalleryLightbox;
 use App\Service\ProductPurchasePath;
 use App\Service\ShopLocalization;
 
@@ -214,7 +215,12 @@ final class FeaturedProductBlock extends BlockDefinition implements InspectsCont
 
     public function scripts(): array
     {
-        return ['assets/js/shop/product-gallery.js', 'assets/js/shop/shop.js'];
+        $scripts = ['assets/js/shop/product-gallery.js', 'assets/js/shop/shop.js'];
+
+        // The site's one lightbox, only when the Shop switched the gallery's
+        // lightbox on (App\Service\ProductGalleryLightbox); off asks for
+        // exactly what the block always did.
+        return ProductGalleryLightbox::enabled() ? ['assets/js/lightbox.js', ...$scripts] : $scripts;
     }
 
     public function editUrl(array $pageSection): ?string

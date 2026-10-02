@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/product-purchase.php';
+require_once __DIR__ . '/lightbox.php';
 
 use App\Service\FeaturedProductContent;
+use App\Service\ProductGalleryLightbox;
 use App\Service\ProductPurchasePath;
 use App\Service\ShopScriptText;
 
@@ -90,6 +92,9 @@ function render_section_featured_product(array $content, string $revealGroup): v
     $url = (string) ($product['url'] ?? '');
     $specifications = is_array($product['specifications'] ?? null) ? $product['specifications'] : [];
     $transition = (string) ($product['gallery_transition'] ?? '');
+    // The Shop's lightbox switch, as on product.php (App\Service\ProductGalleryLightbox):
+    // off adds nothing at all.
+    $lightbox = ProductGalleryLightbox::enabled();
     ?>
     <section class="featured-product-section">
       <div class="container">
@@ -100,7 +105,7 @@ function render_section_featured_product(array $content, string $revealGroup): v
                    "Alleen de hoofdafbeelding" has no thumbnail row, and
                    shop.js hands the stage one picture: the first of the
                    product, or of the variant on show. */ ?>
-          <div class="product-detail__gallery featured-product__gallery" data-product-gallery data-gallery-transition="<?= $h($transition) ?>"<?= $imageMode === 'main' ? ' data-gallery-main-only' : '' ?>>
+          <div class="product-detail__gallery featured-product__gallery" data-product-gallery data-gallery-transition="<?= $h($transition) ?>"<?= $imageMode === 'main' ? ' data-gallery-main-only' : '' ?><?= $lightbox ? ' data-gallery-lightbox' : '' ?>>
             <div class="product-detail__media" data-product-media></div>
             <?php if ($imageMode === 'gallery'): ?>
             <div class="product-detail__thumbs" data-product-thumbs hidden></div>
@@ -178,4 +183,9 @@ function render_section_featured_product(array $content, string $revealGroup): v
       </div>
     </section>
     <?php
+    // The lightbox the gallery opens, printed outside the section and at most
+    // once per page, shared with every other gallery that opens it.
+    if ($lightbox && \App\Service\ItemGalleryContent::claimLightboxOverlay()) {
+        render_lightbox_overlay();
+    }
 }

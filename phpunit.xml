@@ -1004,6 +1004,7 @@
             <file>tests/Service/ProductEditorHttpTest.php</file>
             <file>tests/Service/ProductVariantOnlyPicturesHttpTest.php</file>
             <file>tests/Service/ProductGalleryTransitionHttpTest.php</file>
+            <file>tests/Service/ProductGalleryLightboxHttpTest.php</file>
             <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Service/AdminSidebarMenuHttpTest.php</file>
             <file>tests/Service/Payment/ShopPaymentMethodsTest.php</file>

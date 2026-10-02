@@ -325,7 +325,8 @@
         stage: mediaEl,
         thumbs: thumbsEl,
         rootPath: S.rootPath,
-        placeholder: S.genericProductIcon
+        placeholder: S.genericProductIcon,
+        text: S.text
       }) : null;
 
       /* "Alleen de hoofdafbeelding" (a block's data-gallery-main-only): the

@@ -41,6 +41,12 @@
    cancelled), and nothing here ever calls preventDefault(). A swipe counts
    when it is at least SWIPE_DISTANCE long and clearly more sideways than up
    or down. The thumbnails always work too: swiping is never the only way.
+
+   THE LIGHTBOX (Product Gallery 2.1) is opt-in: only a gallery with
+   data-gallery-lightbox turns its stage into a button that opens the
+   site's one lightbox (assets/js/lightbox.js, window.VVLLightbox.open())
+   on the pictures on show, at the one on the stage. Every change the
+   visitor makes is announced in the gallery's own hidden status region.
    ========================================================================= */
 (function () {
   "use strict";
@@ -84,12 +90,35 @@
    *   thumbs       the thumbnail row ([data-product-thumbs]), may be null
    *   rootPath     function(path) -> URL (assets/js/shop/cart.js)
    *   placeholder  trusted markup for a product without any picture
+   *   text         function(key, values) -> sentence in the page's language
+   *                (assets/js/shop/cart.js, App\Service\ShopScriptText)
    */
   function create(options) {
     var root = options.root;
     var stage = options.stage;
     var thumbs = options.thumbs || null;
     var rootPath = options.rootPath || function (path) { return path; };
+    var text = options.text || function () { return ""; };
+
+    // The lightbox (Product Gallery 2.1) only where the server switched it
+    // on (App\Service\ProductGalleryLightbox writes data-gallery-lightbox)
+    // and the page has the site's one lightbox (assets/js/lightbox.js).
+    // Without the attribute nothing below adds a role, a tab stop or a
+    // click: the gallery is exactly what it was.
+    var lightboxOn = !!(root && root.hasAttribute("data-gallery-lightbox"));
+
+    // What a screen reader hears when the picture changes ("Afbeelding 2
+    // van 5"): one polite status region per gallery, visually hidden, so
+    // two galleries on one page never speak for each other.
+    var status = null;
+    if (root) {
+      status = document.createElement("p");
+      status.className = "visually-hidden";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-atomic", "true");
+      status.setAttribute("data-product-gallery-status", "");
+      root.appendChild(status);
+    }
 
     // Normalised once, so the CSS only ever sees one of the three words.
     var transition = transitionOf(root ? root.getAttribute("data-gallery-transition") : null);
@@ -236,12 +265,18 @@
         swapToken++;
         stage.innerHTML = options.placeholder || "";
         index = 0;
+        updateOpener(null);
+        announce(false);
         return;
       }
 
       index = wrapIndex(target, images.length);
       var image = images[index];
       markThumb(index);
+      updateOpener(image);
+      // A change the visitor made (a thumbnail, a swipe, an arrow key, another
+      // variant) is announced; the page loading is not.
+      announce(animate);
 
       settle();
       var outgoing = shownPicture();
@@ -272,6 +307,64 @@
     function step(delta) {
       if (images.length < 2) return;
       show(index + delta, delta, true);
+    }
+
+    /* "Afbeelding 2 van 5" in the status region. Only for a change, and only
+       when there is more than one picture to be the 2nd of; otherwise the
+       region is emptied, so an old position is never read out later. */
+    function announce(changed) {
+      if (!status) return;
+      if (images.length < 2) {
+        status.textContent = "";
+        return;
+      }
+      if (!changed) return;
+      var sentence = text("gallery_position", { index: index + 1, count: images.length });
+      if (sentence) status.textContent = sentence;
+    }
+
+    function lightbox() {
+      var api = window.VVLLightbox;
+      return lightboxOn && api && typeof api.open === "function" ? api : null;
+    }
+
+    /* With the lightbox on, the stage is the button that opens it: a role,
+       a tab stop and a name that says what it does and which picture it
+       shows. Without a picture (the placeholder) it is not a button. The
+       attribute is the server's promise that the page has the lightbox's
+       script and overlay; whether that script has started yet is only
+       asked at the moment of opening. */
+    function updateOpener(image) {
+      if (!lightboxOn) return;
+      if (!image) {
+        stage.removeAttribute("role");
+        stage.removeAttribute("tabindex");
+        stage.removeAttribute("aria-haspopup");
+        stage.removeAttribute("aria-label");
+        stage.removeAttribute("data-lightbox-opener");
+        return;
+      }
+      var alt = altOf(image);
+      var label = text("gallery_enlarge");
+      stage.setAttribute("role", "button");
+      stage.setAttribute("tabindex", "0");
+      stage.setAttribute("aria-haspopup", "dialog");
+      stage.setAttribute("aria-label", label && alt ? label + ": " + alt : (label || alt));
+      stage.setAttribute("data-lightbox-opener", "");
+    }
+
+    /* Opens the site's lightbox on the pictures on show RIGHT NOW — the
+       chosen variant's, or the product's, or only the first one in
+       "Alleen de hoofdafbeelding" — at the one on the stage. The list is
+       built at the moment of opening, so a picture of another variant can
+       never be in it. The focus comes back to the stage on close. */
+    function openLightbox() {
+      var api = lightbox();
+      if (!api || images.length === 0) return;
+      settle();
+      api.open(images.map(function (image) {
+        return { src: srcOf(image), alt: altOf(image), caption: "" };
+      }), index, stage);
     }
 
     /* The pictures on both sides, fetched ahead the moment a finger lands
@@ -345,10 +438,32 @@
       });
     }
 
+    // A swipe that just changed the picture is not also a click that opens
+    // the lightbox.
+    var swiped = false;
+
+    if (lightboxOn) {
+      stage.addEventListener("click", function () {
+        if (swiped) {
+          swiped = false;
+          return;
+        }
+        openLightbox();
+      });
+
+      stage.addEventListener("keydown", function (event) {
+        if (event.target !== stage || (event.key !== "Enter" && event.key !== " ")) return;
+        if (!lightbox() || images.length === 0) return;
+        event.preventDefault();
+        openLightbox();
+      });
+    }
+
     if (window.PointerEvent) {
       var start = null;
 
       stage.addEventListener("pointerdown", function (event) {
+        swiped = false;
         if (event.pointerType === "mouse" || !event.isPrimary || images.length < 2) {
           start = null;
           return;
@@ -364,6 +479,7 @@
         start = null;
         if (Math.abs(dx) >= SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy) * SWIPE_RATIO) {
           // A finger moving left pulls the next picture in from the right.
+          swiped = true;
           step(dx < 0 ? 1 : -1);
         }
       });

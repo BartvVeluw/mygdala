@@ -65,6 +65,7 @@ final class ShopSettings
     public const CHOICES = [
         ShopOverview::SETTING_KEY,
         ProductGalleryTransition::SETTING_KEY,
+        ProductGalleryLightbox::SETTING_KEY,
     ];
 
     /**
@@ -80,7 +81,7 @@ final class ShopSettings
         'bestellingen' => ['order_number_prefix'],
         'emails' => OrderConfirmationBuilder::CUSTOMER_COPY_KEYS,
         'overzicht' => [ShopOverview::SETTING_KEY],
-        'productpagina' => [ProductGalleryTransition::SETTING_KEY],
+        'productpagina' => [ProductGalleryTransition::SETTING_KEY, ProductGalleryLightbox::SETTING_KEY],
     ];
 
     /**
@@ -173,6 +174,22 @@ final class ShopSettings
                 $errors[] = AdminTranslator::trans('validation.gallery_transition_invalid');
             } else {
                 $values[ProductGalleryTransition::SETTING_KEY] = $transition;
+            }
+        }
+
+        /*
+         * Whether the product gallery's big picture opens the lightbox
+         * (App\Service\ProductGalleryLightbox): '1' or '0' and nothing else.
+         * The screen sends '0' from a hidden field before the switch, so an
+         * unticked switch is an explicit "off", never a missing value.
+         */
+        if (array_key_exists(ProductGalleryLightbox::SETTING_KEY, $post)) {
+            $lightbox = ProductGalleryLightbox::normalise($post[ProductGalleryLightbox::SETTING_KEY]);
+
+            if ($lightbox === null) {
+                $errors[] = AdminTranslator::trans('validation.gallery_lightbox_invalid');
+            } else {
+                $values[ProductGalleryLightbox::SETTING_KEY] = $lightbox;
             }
         }
 

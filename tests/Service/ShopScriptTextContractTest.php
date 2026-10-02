@@ -51,7 +51,8 @@ final class ShopScriptTextContractTest extends TestCase
     {
         $asked = array_unique(array_merge(
             self::keysAskedIn('assets/js/shop/cart.js'),
-            self::keysAskedIn('assets/js/shop/shop.js')
+            self::keysAskedIn('assets/js/shop/shop.js'),
+            self::keysAskedIn('assets/js/shop/product-gallery.js')
         ));
         sort($asked);
         $catalogue = ShopScriptText::keys();
@@ -126,7 +127,7 @@ final class ShopScriptTextContractTest extends TestCase
 
     public function testNoShopScriptHoldsALanguagePairOrPicksALanguage(): void
     {
-        foreach (['assets/js/shop/cart.js', 'assets/js/shop/shop.js', 'assets/js/personalization.js'] as $script) {
+        foreach (['assets/js/shop/cart.js', 'assets/js/shop/shop.js', 'assets/js/shop/product-gallery.js', 'assets/js/personalization.js'] as $script) {
             $code = self::withoutComments(self::read($script));
             if ($script === 'assets/js/shop/cart.js') {
                 $code = self::withoutFunction($code, 'upgradeLegacyLines');

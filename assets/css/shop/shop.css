@@ -198,6 +198,10 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   touch-action: pan-y pinch-zoom;
 }
 .product-detail__media svg{ width: 28%; height: 28%; color: var(--color-primary); }
+/* Only with the Shop's lightbox switch on (Product Gallery 2.1): the stage
+   is then the button that opens it, and the pointer says so. The focus ring
+   is the site-wide :focus-visible one. */
+.product-detail__media[data-lightbox-opener]{ cursor: zoom-in; }
 .product-detail__badge{ position: absolute; top: var(--sp-3); left: var(--sp-3); background: var(--color-primary); color: var(--color-on-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.35rem 0.8rem; border-radius: 999px; }
 /* min-width: 0 lets the grid column shrink to its track, so a long row of
    thumbnails wraps inside it instead of widening the whole page on a

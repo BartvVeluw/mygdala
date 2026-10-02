@@ -624,6 +624,32 @@ Alles wat er ook zou zijn zonder webshop.
     `data-gallery-transition`, en het script controleert het nogmaals tegen
     dezelfde drie woorden. Een onbekende opgeslagen waarde valt terug en komt
     nooit zelf op de pagina.
+  - **Lightbox, standaard uit** (Product Gallery 2.1). Shop-instellingen →
+    Productpagina → *Grote foto opent in een lightbox*
+    (`site_settings.shop_gallery_lightbox`, `'1'` aan, standaard `'0'`;
+    `App\Service\ProductGalleryLightbox`). Alleen precies `'1'` is aan, dus
+    een installatie zonder de instelling houdt exact de oude pagina: geen
+    attribuut, geen `lightbox.js`, geen overlay, niets om op te klikken.
+    Aan: `product.php` en het blok Uitgelicht product zetten
+    `data-gallery-lightbox` op de galerij, vragen `assets/js/lightbox.js`
+    en printen de gedeelde overlay één keer per pagina
+    (`ItemGalleryContent::claimLightboxOverlay()`, dus ook naast een
+    Collectiegalerij of Projecten-blok). Het vak van de grote foto wordt dan
+    een knop (`role="button"`, tabstop, Enter/Spatie, naam *Afbeelding
+    vergroten: <alt>*). Er is geen tweede lightbox: de galerij roept
+    `window.VVLLightbox.open(pictures, index, from)` aan, met de foto's die
+    hij **op dat moment** toont (die van de gekozen variant, anders de
+    algemene; bij *Alleen de hoofdafbeelding* alleen die ene), op de actieve
+    foto. Een foto van een andere variant kan er dus nooit in staan. Elke
+    galerij geeft zijn eigen lijst en zijn eigen vak mee, zodat meerdere
+    galerijen op één pagina elkaar niet raken. Een veeg wisselt de foto en
+    opent de lightbox niet.
+  - **Aankondiging bij een wissel** (Product Gallery 2.1). Elke galerij
+    heeft een eigen, visueel verborgen statusregio (`role="status"`). Een
+    wissel door de bezoeker (thumbnail, veeg, pijltje, andere variant) zegt
+    *Afbeelding 2 van 5* / *Image 2 of 5* (`ShopScriptText`
+    `gallery_position`); het laden van de pagina en een galerij met één foto
+    zeggen niets.
 - **In de zijbalk één menu *Shop*** (`ShopModule::adminNavigationMenus()`,
   `ADMIN-UI.md`, "Menu's in de zijbalk"). Het staat op de plek waar
   Producten stond en bevat alle Shop-schermen plus Personalisatie, in hun
@@ -1594,7 +1620,10 @@ beperkt tot wat op dat moment getoond wordt. Filteren op een categorie beperkt
 dus ook vorige/volgende; een projectpagina stapt nooit in de beelden van een
 ander blok. Hij loopt rond aan beide kanten, is een dialoog met benoemde
 knoppen, houdt de focus vast, reageert op Escape, ← →, Tab en een veeg, en
-geeft de focus terug aan de opener.
+geeft de focus terug aan de opener. Een script met een eigen reeks (de
+productgalerij van de Shop, Product Gallery 2.1) gebruikt dezelfde overlay
+via `window.VVLLightbox.open(pictures, index, from)`; de triggers hierboven
+werken ongewijzigd.
 
 **De projectpagina** toont: kruimelpad *Home / Portfolio / project* (de
 Portfolio-pagina via content key `portfolio`; zolang die leeg is, of als er

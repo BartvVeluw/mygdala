@@ -183,6 +183,12 @@ class SiteSettings
         // faded before this setting existed, so no shop changes by it.
         'shop_gallery_transition' => 'fade',
 
+        // Whether the big picture of a product gallery opens the site's
+        // lightbox: '1' on, '0' off (App\Service\ProductGalleryLightbox).
+        // Off, because the gallery never opened one before this setting
+        // existed, so no shop changes by it.
+        'shop_gallery_lightbox' => '0',
+
         // Whether the webshop takes test or real payments when its Mollie
         // keys are stored in the CMS: 'test' or 'live'
         // (App\Service\Payment\MollieConfiguration). 'test' until the owner

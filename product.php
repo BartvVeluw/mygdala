@@ -12,6 +12,7 @@ require_once __DIR__ . '/partials/related-products.php';
 require_once __DIR__ . '/partials/product-personalization.php';
 require_once __DIR__ . '/partials/product-order-fields.php';
 require_once __DIR__ . '/partials/product-purchase.php';
+require_once __DIR__ . '/partials/lightbox.php';
 
 
 /**
@@ -151,6 +152,15 @@ $productSpecifications = ($productId > 0 && $seo !== null)
 $galleryTransition = \App\Service\ProductGalleryTransition::forProduct($seo !== null ? $productId : 0);
 
 /**
+ * Whether the big picture opens the site's one lightbox (Product Gallery 2.1,
+ * App\Service\ProductGalleryLightbox; off by default). Off: no attribute, no
+ * script and no overlay — the page is what it was. On: data-gallery-lightbox
+ * on the gallery, assets/js/lightbox.js, and the shared overlay once per page
+ * (also when a block below the product already printed it).
+ */
+$galleryLightbox = $seo !== null && \App\Service\ProductGalleryLightbox::enabled();
+
+/**
  * The quantity stepper plus the add-to-cart button, with the sold-out block
  * and the order questions (partials/product-purchase.php, the same markup the
  * Uitgelicht product block draws). Rendered exactly once per page — that is
@@ -234,6 +244,10 @@ if ($personalization !== null) {
     \App\Service\PageAssets::requireScript('assets/js/personalization.js');
 }
 \App\Service\PageAssets::requireStyle('assets/css/shop/shop.css');
+// The site's one lightbox, only when the gallery opens it.
+if ($galleryLightbox) {
+    \App\Service\PageAssets::requireScript('assets/js/lightbox.js');
+}
 // The gallery controller first: shop.js hands it the pictures once the
 // product has loaded.
 \App\Service\PageAssets::requireScript('assets/js/shop/product-gallery.js');
@@ -287,7 +301,7 @@ require __DIR__ . '/partials/header.php';
                  the incoming picture during a transition, and is where a
                  swipe is read (assets/js/shop/product-gallery.js). The
                  thumbnails are real buttons and always work too. */ ?>
-        <div class="product-detail__gallery" data-product-gallery data-gallery-transition="<?= htmlspecialchars($galleryTransition, ENT_QUOTES, 'UTF-8') ?>">
+        <div class="product-detail__gallery" data-product-gallery data-gallery-transition="<?= htmlspecialchars($galleryTransition, ENT_QUOTES, 'UTF-8') ?>"<?= $galleryLightbox ? ' data-gallery-lightbox' : '' ?>>
           <div class="product-detail__media" data-product-media></div>
           <div class="product-detail__thumbs" data-product-thumbs hidden></div>
         </div>
@@ -375,6 +389,15 @@ require __DIR__ . '/partials/header.php';
   ?>
 
 </main>
+
+<?php
+// The lightbox the gallery opens, outside every section and at most once per
+// page: a gallery block among the product's content may have printed it
+// already (App\Service\ItemGalleryContent::claimLightboxOverlay()).
+if ($galleryLightbox && \App\Service\ItemGalleryContent::claimLightboxOverlay()) {
+    render_lightbox_overlay();
+}
+?>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>
 

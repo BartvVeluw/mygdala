@@ -97,6 +97,92 @@ final class ShopGalleryContractTest extends TestCase
         $this->assertSame(1, substr_count($script, 'thumbSrcOf(image);'), 'only the thumbnail row uses the small version');
     }
 
+    /**
+     * Product Gallery 2.1: the lightbox is opt-in per page. Without
+     * data-gallery-lightbox (the server's default) the gallery adds no role,
+     * no tab stop and no click; with it, the stage is a button that opens the
+     * site's one lightbox on the pictures on show NOW, at the one on the
+     * stage — so a variant switch decides the sequence, and a picture of
+     * another variant can never be in it.
+     */
+    public function testTheLightboxIsOptInAndOpensThePicturesOnShow(): void
+    {
+        $script = self::source('assets/js/shop/product-gallery.js');
+
+        $this->assertStringContainsString('var lightboxOn = !!(root && root.hasAttribute("data-gallery-lightbox"));', $script);
+        $this->assertMatchesRegularExpression('/function updateOpener\(image\) \{\s*if \(!lightboxOn\) return;/', $script, 'off: the stage gets nothing');
+        $this->assertMatchesRegularExpression('/if \(lightboxOn\) \{\s*stage\.addEventListener\("click"/', $script, 'off: no click handler at all');
+        $this->assertSame(1, substr_count($script, 'stage.setAttribute("role", "button");'));
+        $this->assertStringContainsString('stage.setAttribute("aria-haspopup", "dialog");', $script);
+
+        // The sequence is `images` — the list setImages() was last handed by
+        // shop.js (the variant's, or the product's general pictures) — built
+        // at the moment of opening, and it opens on the current index.
+        $this->assertMatchesRegularExpression(
+            '/function openLightbox\(\) \{[\s\S]*?api\.open\(images\.map\(function \(image\) \{\s*return \{ src: srcOf\(image\), alt: altOf\(image\), caption: "" \};\s*\}\), index, stage\);/',
+            $script
+        );
+        $this->assertStringContainsString('var api = window.VVLLightbox;', $script, 'the site\'s one lightbox, not a second one');
+        $this->assertStringNotContainsString('data-lightbox-trigger', $script, 'no triggers of its own in the page');
+
+        // Enter and Space open it from the keyboard; a swipe is never also a click.
+        $this->assertStringContainsString('event.key !== "Enter" && event.key !== " "', $script);
+        $this->assertMatchesRegularExpression('/swiped = true;\s*step\(dx < 0 \? 1 : -1\);/', $script);
+        $this->assertMatchesRegularExpression('/if \(swiped\) \{\s*swiped = false;\s*return;\s*\}\s*openLightbox\(\);/', $script);
+
+        // Each gallery opens with its own stage as the opener, so several on
+        // one page never share state, and the one place that decides which
+        // pictures a variant shows stays shop.js.
+        $this->assertStringContainsString('text: S.text', self::source('assets/js/shop/shop.js'));
+        $this->assertStringContainsString('.product-detail__media[data-lightbox-opener]{ cursor: zoom-in; }', self::source('assets/css/shop/shop.css'));
+    }
+
+    /**
+     * Product Gallery 2.1: a change the visitor makes is announced in a
+     * visually hidden status region of its own gallery ("Afbeelding 2 van
+     * 5"), in the page's language through the Shop's catalogue; the page
+     * loading is not announced, and a single picture says nothing.
+     */
+    public function testAPictureChangeIsAnnouncedButThePageLoadingIsNot(): void
+    {
+        $script = self::source('assets/js/shop/product-gallery.js');
+
+        $this->assertMatchesRegularExpression(
+            '/status = document\.createElement\("p"\);\s*status\.className = "visually-hidden";\s*status\.setAttribute\("role", "status"\);\s*status\.setAttribute\("aria-atomic", "true"\);/',
+            $script
+        );
+        $this->assertStringContainsString('root.appendChild(status);', $script, 'one region per gallery');
+        $this->assertStringContainsString('text("gallery_position", { index: index + 1, count: images.length })', $script, '1-based for people, 0-based inside');
+        $this->assertMatchesRegularExpression('/function announce\(changed\) \{\s*if \(!status\) return;\s*if \(images\.length < 2\) \{\s*status\.textContent = "";\s*return;\s*\}\s*if \(!changed\) return;/', $script);
+        $this->assertStringContainsString('announce(animate);', $script, 'only a change (animate) is announced: setImages(..., false) on load is not');
+        $this->assertStringNotContainsString('innerHTML = sentence', $script);
+    }
+
+    /**
+     * The shared lightbox keeps its trigger contract and gains only an
+     * optional open() for a script with its own sequence; both end in the
+     * same show().
+     */
+    public function testTheSharedLightboxKeepsItsTriggersAndOnlyAddsOpen(): void
+    {
+        $script = self::source('assets/js/lightbox.js');
+
+        $this->assertStringContainsString('var trigger = event.target.closest ? event.target.closest("[data-lightbox-trigger]") : null;', $script);
+        $this->assertStringContainsString('open(trigger);', $script);
+        $this->assertMatchesRegularExpression('/function open\(trigger\) \{[\s\S]*?show\(triggers\.map\(function \(t\) \{[\s\S]*?\}\), triggers\.indexOf\(trigger\), trigger\);\s*\}/', $script);
+        $this->assertMatchesRegularExpression('/function show\(list, at, from\) \{\s*slides = list;\s*current = at;\s*opener = from;\s*render\(\);/', $script);
+        $this->assertMatchesRegularExpression('/window\.VVLLightbox = \{\s*open: function \(pictures, index, from\) \{/', $script);
+        $this->assertStringContainsString('if (list.length === 0) return false;', $script, 'nothing to show opens nothing');
+        $this->assertStringContainsString('show(list, at >= 0 && at < list.length ? at : 0, from || null);', $script, 'an index out of range opens the first');
+        // Defined inside init(), after the overlay was found: a page without
+        // the overlay has no API to call.
+        $this->assertLessThan(
+            strpos($script, 'window.VVLLightbox = {'),
+            strpos($script, 'if (!overlay) return;')
+        );
+        $this->assertStringNotContainsString('innerHTML', $script);
+    }
+
     public function testMotionIsShortAndRespectsReducedMotion(): void
     {
         $script = self::source('assets/js/shop/product-gallery.js');
@@ -167,7 +253,9 @@ final class ShopGalleryContractTest extends TestCase
         $template = self::source('product.php');
 
         $this->assertStringContainsString('$galleryTransition = \App\Service\ProductGalleryTransition::forProduct($seo !== null ? $productId : 0);', $template);
-        $this->assertStringContainsString('<div class="product-detail__gallery" data-product-gallery data-gallery-transition="<?= htmlspecialchars($galleryTransition, ENT_QUOTES, \'UTF-8\') ?>">', $template);
+        // Plus data-gallery-lightbox only when the Shop's switch is on (Product Gallery 2.1).
+        $this->assertStringContainsString('<div class="product-detail__gallery" data-product-gallery data-gallery-transition="<?= htmlspecialchars($galleryTransition, ENT_QUOTES, \'UTF-8\') ?>"<?= $galleryLightbox ? \' data-gallery-lightbox\' : \'\' ?>>', $template);
+        $this->assertStringContainsString('$galleryLightbox = $seo !== null && \App\Service\ProductGalleryLightbox::enabled();', $template);
         // The controller is asked for before shop.js, which hands it the pictures.
         $this->assertLessThan(
             strpos($template, "requireScript('assets/js/shop/shop.js')"),
@@ -227,9 +315,12 @@ final class ShopGalleryContractTest extends TestCase
         $this->assertStringContainsString('Math.abs(dx) >= SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy) * SWIPE_RATIO', $script);
         $this->assertStringNotContainsString('touchmove', $script);
         $this->assertStringNotContainsString('pointermove', $script);
-        // The one preventDefault() in code is the arrow keys on a thumbnail, not a gesture.
-        $this->assertSame(1, substr_count($script, 'event.preventDefault();'));
+        // The two preventDefault() calls in code are keys, never a gesture:
+        // the arrow keys on a thumbnail, and Enter/Space on the stage that
+        // opens the lightbox (Product Gallery 2.1, only with it switched on).
+        $this->assertSame(2, substr_count($script, 'event.preventDefault();'));
         $this->assertMatchesRegularExpression('/if \(event\.key !== "ArrowRight" && event\.key !== "ArrowLeft"\) return;[\s\S]{0,200}event\.preventDefault\(\);/', $script);
+        $this->assertMatchesRegularExpression('/event\.key !== "Enter" && event\.key !== " "\)\) return;[\s\S]{0,120}event\.preventDefault\(\);\s*openLightbox\(\);/', $script);
     }
 
     /** A change waits for its picture, so the stage never flashes empty or changes size. */

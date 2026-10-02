@@ -20,7 +20,7 @@ use App\Service\Language\SiteText;
  * sentence here reads the default language's, and a third language is one
  * more key per entry, not a branch.
  *
- * {count}, {label} and {max} are filled in by the script; everything else
+ * {count}, {index}, {label} and {max} are filled in by the script; everything else
  * is plain text that a script writes with textContent or escapes.
  */
 final class ShopScriptText
@@ -86,6 +86,11 @@ final class ShopScriptText
         // Op aanvraag (App\Service\PurchaseMode): what a card shows instead
         // of a price, and what a cart line of such a product says.
         'on_request' => ['nl' => 'Op aanvraag', 'en' => 'On request'],
+        // The product gallery (assets/js/shop/product-gallery.js, Product
+        // Gallery 2.1): what a screen reader hears when the picture changes,
+        // and the name of the big picture when it opens the lightbox.
+        'gallery_position' => ['nl' => 'Afbeelding {index} van {count}', 'en' => 'Image {index} of {count}'],
+        'gallery_enlarge' => ['nl' => 'Afbeelding vergroten', 'en' => 'Enlarge image'],
         // Bestelvelden (App\Service\OrderFields\OrderFields): what the product
         // page says next to a question, and how a cart line shows an answer.
         'order_field_required' => ['nl' => 'Vul dit in.', 'en' => 'Please fill this in.'],

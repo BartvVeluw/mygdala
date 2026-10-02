@@ -5,7 +5,9 @@
    Shared, and owned by nobody but its callers: the gallery block and the
    Projecten block ask for it (App\Service\Blocks\ItemGalleryBlock::scripts(),
    ProjectCardsBlock::scripts()), and so does a Portfolio project page
-   (portfolio-detail.php). Portfolio 2.0 replaced the two lightboxes that
+   (portfolio-detail.php), and — only with the Shop's lightbox switch on
+   (App\Service\ProductGalleryLightbox) — product.php and the Uitgelicht
+   product block. Portfolio 2.0 replaced the two lightboxes that
    used to live in assets/js/blocks/item-gallery.js and
    assets/js/portfolio-detail.js with this one.
 
@@ -32,6 +34,12 @@
    pictures, and one gallery never into another's.
 
    It wraps around at both ends, as the project page's lightbox always did.
+
+   A SCRIPT WITH ITS OWN SEQUENCE uses window.VVLLightbox.open(pictures,
+   index, from) instead of triggers: the product gallery (Product Gallery
+   2.1), whose pictures change with the chosen variant and are not buttons
+   in the page. Same overlay and dialog; the trigger contract above is
+   untouched by it.
 
    A DIALOG: role="dialog" and aria-modal on the overlay, focus moved into it
    on open and kept there (Tab and Shift+Tab cycle its buttons), Escape and
@@ -105,15 +113,22 @@
       });
       if (triggers.indexOf(trigger) === -1) triggers = [trigger];
 
-      slides = triggers.map(function (t) {
+      show(triggers.map(function (t) {
         return {
           src: t.getAttribute("data-src") || "",
           alt: t.getAttribute("data-alt") || "",
           caption: t.getAttribute("data-caption") || ""
         };
-      });
-      current = triggers.indexOf(trigger);
-      opener = trigger;
+      }), triggers.indexOf(trigger), trigger);
+    }
+
+    /* Opens the overlay on `list` at `at`; focus goes back to `from` on
+       close. Both the trigger contract above and window.VVLLightbox.open()
+       end here. */
+    function show(list, at, from) {
+      slides = list;
+      current = at;
+      opener = from;
 
       render();
       overlay.classList.add("is-open");
@@ -183,6 +198,31 @@
       touchStartX = null;
       if (Math.abs(dx) >= SWIPE_DISTANCE) step(dx < 0 ? 1 : -1);
     });
+
+    /* For a script that holds its own sequence instead of triggers in the
+       page (the product gallery, assets/js/shop/product-gallery.js, which
+       knows which pictures the chosen variant shows). Same overlay, same
+       dialog: `pictures` is a list of { src, alt, caption } — words are
+       written with textContent / as attributes, never as markup — `index`
+       the one to open on, `from` the element that gets the focus back.
+       Only defined on a page with the overlay. */
+    window.VVLLightbox = {
+      open: function (pictures, index, from) {
+        var list = (Array.isArray(pictures) ? pictures : []).filter(function (p) {
+          return p && typeof p.src === "string" && p.src !== "";
+        }).map(function (p) {
+          return {
+            src: p.src,
+            alt: typeof p.alt === "string" ? p.alt : "",
+            caption: typeof p.caption === "string" ? p.caption : ""
+          };
+        });
+        if (list.length === 0) return false;
+        var at = parseInt(index, 10);
+        show(list, at >= 0 && at < list.length ? at : 0, from || null);
+        return true;
+      }
+    };
   }
 
   if (document.readyState === "loading") {
