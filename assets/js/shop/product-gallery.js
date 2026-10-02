@@ -109,6 +109,13 @@
       return rootPath(image.image_path);
     }
 
+    /* A thumbnail loads the picture's small version when the server sent
+       one (App\Service\ProductDetail::picture()), the picture itself
+       otherwise: an older payload, or the single legacy image_path. */
+    function thumbSrcOf(image) {
+      return rootPath(image.thumbnail_path || image.image_path);
+    }
+
     /* The big picture as an element: built, never parsed from a string, so
        no value of the picture can become markup. */
     function pictureElement(image) {
@@ -293,7 +300,7 @@
         btn.setAttribute("data-image-index", String(i));
         btn.setAttribute("aria-label", altOf(image));
         var img = document.createElement("img");
-        img.src = srcOf(image);
+        img.src = thumbSrcOf(image);
         img.alt = "";
         img.loading = "lazy";
         btn.appendChild(img);

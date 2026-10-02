@@ -578,6 +578,13 @@ Alles wat er ook zou zijn zonder webshop.
     hoek van de foto afsnijden. Staat een foto rechtop of liggend, dan blijft
     de achtergrond van het vak eromheen zichtbaar. De thumbnails vullen hun
     kleine vierkant juist wél (`cover`).
+  - **Een thumbnail laadt de kleine versie** (Product Gallery 2.1). Elke foto
+    in de payload van `ProductDetail` heeft naast `image_path` een
+    `thumbnail_path`: de thumbnail uit de Mediabibliotheek als het item er
+    een heeft, anders de foto zelf. De thumbnailrij gebruikt dat pad, de
+    grote foto blijft het origineel. Een payload zonder `thumbnail_path`
+    (het ene oude `image_path` van een product) valt terug op de foto zelf.
+    Algemene en variant-only foto's volgen dezelfde regel.
   - **Eén controller**, `assets/js/shop/product-gallery.js`
     (`window.VVLProductGallery`), die `shop.js` de foto's geeft. Klik op een
     thumbnail, vegen, ← en → op een thumbnail en een andere variant lopen

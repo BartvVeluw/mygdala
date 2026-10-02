@@ -111,6 +111,51 @@ final class ProductVariantOnlyPicturesTest extends TestCase
         $this->assertSame([], $byVariant[$variants['green']]);
     }
 
+    /**
+     * Product Gallery 2.1: every picture in the payload carries the path of
+     * its small version for the thumbnail row — the library's thumbnail when
+     * the item has one, else the picture itself — and the big picture keeps
+     * the original. General and variant-only pictures alike.
+     */
+    public function testThePayloadCarriesAThumbnailPathWithTheOriginalAsFallback(): void
+    {
+        $productId = $this->product('thumbs');
+        $variant = (new ProductVariantRepository())->create($productId, [], null, true);
+        $withThumb = $this->media('thumbs-with', 'assets/media/thumbs/__test_variant_only_thumbs-with.png');
+        $withoutThumb = $this->media('thumbs-without');
+        $variantOnly = $this->media('thumbs-variant', 'assets/media/thumbs/__test_variant_only_thumbs-variant.png');
+        $legacy = (new ProductImageRepository())->create($productId, 'assets/images/products/__test_vo_thumbs_legacy.webp');
+
+        (new ProductGallery())->save(
+            $productId,
+            ['media:' . $withThumb, 'media:' . $withoutThumb, 'image:' . $legacy],
+            [$variant => ['media:' . $variantOnly, 'media:' . $withThumb]],
+            ['media:' . $variantOnly]
+        );
+
+        $payload = ProductDetail::forPublic($productId, 'nl');
+        $this->assertNotNull($payload);
+
+        $this->assertSame(
+            [
+                ['assets/media/__test_variant_only_thumbs-with.png', 'assets/media/thumbs/__test_variant_only_thumbs-with.png'],
+                ['assets/media/__test_variant_only_thumbs-without.png', 'assets/media/__test_variant_only_thumbs-without.png'],
+                ['assets/images/products/__test_vo_thumbs_legacy.webp', 'assets/images/products/__test_vo_thumbs_legacy.webp'],
+            ],
+            array_map(static fn (array $image): array => [$image['image_path'], $image['thumbnail_path']], $payload['images']),
+            'the library thumbnail when there is one, the original otherwise; the big picture stays the original'
+        );
+
+        $this->assertSame(
+            [
+                ['assets/media/__test_variant_only_thumbs-variant.png', 'assets/media/thumbs/__test_variant_only_thumbs-variant.png'],
+                ['assets/media/__test_variant_only_thumbs-with.png', 'assets/media/thumbs/__test_variant_only_thumbs-with.png'],
+            ],
+            array_map(static fn (array $image): array => [$image['image_path'], $image['thumbnail_path']], $payload['variants'][0]['images']),
+            'a variant\'s pictures, variant-only included, get the same thumbnail rule'
+        );
+    }
+
     public function testAVariantOnlyPictureIsNeverPrimaryWhateverTheCallerSends(): void
     {
         $productId = $this->product('primary');
@@ -375,11 +420,12 @@ final class ProductVariantOnlyPicturesTest extends TestCase
     }
 
     /** A media row for a file that does not exist: nothing here reads the disk. */
-    private function media(string $name): int
+    private function media(string $name, ?string $thumbnailPath = null): int
     {
         $file = '__test_variant_only_' . $name . '.png';
         $id = (new MediaRepository())->create([
             'path' => 'assets/media/' . $file,
+            'thumbnail_path' => $thumbnailPath,
             'original_filename' => $file,
             'mime_type' => 'image/png',
             'width' => 10,

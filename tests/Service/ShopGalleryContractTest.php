@@ -73,6 +73,30 @@ final class ShopGalleryContractTest extends TestCase
         $this->assertStringContainsString('btn.setAttribute("aria-label", altOf(image));', $script);
     }
 
+    /**
+     * Product Gallery 2.1: a thumbnail button loads the picture's small
+     * version (App\Service\ProductDetail::picture()), falling back to the
+     * original for a payload without one; the big picture and the "already
+     * on show" check keep the original.
+     */
+    public function testThumbnailsUseTheSmallVersionAndTheStageTheOriginal(): void
+    {
+        $script = self::source('assets/js/shop/product-gallery.js');
+
+        $this->assertMatchesRegularExpression(
+            '/function thumbSrcOf\(image\) \{\s*return rootPath\(image\.thumbnail_path \|\| image\.image_path\);\s*\}/',
+            $script
+        );
+        $this->assertMatchesRegularExpression(
+            '/function srcOf\(image\) \{\s*return rootPath\(image\.image_path\);\s*\}/',
+            $script,
+            'the big picture is the original'
+        );
+        $this->assertMatchesRegularExpression('/function renderThumbs\(\) \{[\s\S]*?img\.src = thumbSrcOf\(image\);/', $script);
+        $this->assertMatchesRegularExpression('/function pictureElement\(image\) \{[\s\S]*?img\.src = srcOf\(image\);/', $script);
+        $this->assertSame(1, substr_count($script, 'thumbSrcOf(image);'), 'only the thumbnail row uses the small version');
+    }
+
     public function testMotionIsShortAndRespectsReducedMotion(): void
     {
         $script = self::source('assets/js/shop/product-gallery.js');

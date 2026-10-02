@@ -151,16 +151,26 @@ final class ProductDetail
 
     /**
      * One picture as the product page needs it: its id in the product's pool,
-     * the path, and the library's alt text and dimensions when it has them.
+     * the path, the path of its small version for a thumbnail, and the
+     * library's alt text and dimensions when it has them.
+     *
+     * `thumbnail_path` is the library's thumbnail when the item has one, else
+     * the picture itself (the repositories already fall back that way), so a
+     * thumbnail button never needs to load the full-size original. The big
+     * picture keeps using `image_path`.
      *
      * @param array<string, mixed> $row a ProductImageRepository / ProductVariantImageRepository row
      * @return array<string, mixed>
      */
     private static function picture(array $row): array
     {
+        $imagePath = (string) $row['image_path'];
+        $thumbnailPath = (string) ($row['thumbnail_path'] ?? '');
+
         return [
             'id' => (int) $row['id'],
-            'image_path' => (string) $row['image_path'],
+            'image_path' => $imagePath,
+            'thumbnail_path' => $thumbnailPath !== '' ? $thumbnailPath : $imagePath,
             'alt_text' => $row['alt_text'] ?? null,
             'width' => isset($row['width']) ? (int) $row['width'] : null,
             'height' => isset($row['height']) ? (int) $row['height'] : null,
