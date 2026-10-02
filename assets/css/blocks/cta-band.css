@@ -57,7 +57,7 @@
   background:
     radial-gradient(ellipse 900px 360px at 50% 0%, rgba(var(--color-primary-rgb), 0.10), transparent 65%),
     var(--color-surface);
-  border-block: 1.5px solid var(--color-line-strong);
+  border-block: var(--border-width-strong) solid var(--color-line-strong);
   overflow: hidden;
   isolation: isolate;
 }
@@ -110,7 +110,7 @@
    inside a panel that is wider than it. There is no panel-width setting. */
 .cta-band__content--panel{
   padding: var(--sp-5) var(--sp-4);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-strong));
 }

@@ -18,7 +18,9 @@ use PHPUnit\Framework\TestCase;
  * recipe the page prints instead of carrying formulas of its own.
  *
  *   - derive() returns exactly what it returned before the recipe (values
- *     pinned from v0.1.13), so no existing site renders differently;
+ *     pinned from v0.1.13), so no existing site renders differently; the
+ *     one later addition is --color-sheen-rgb (Themes 2.0 phase 1A), the
+ *     text colour's channels, so a light theme's sheen stays visible;
  *   - dependencies() — which ThemeCss uses to emit only what changed — names
  *     exactly the roles each recipe entry reads, directly or through an
  *     earlier property;
@@ -51,6 +53,7 @@ final class ThemePaletteRecipeTest extends TestCase
                 '--color-surface-veil-rgb' => '244, 246, 248',
                 '--color-surface-hover' => '#EBF0F5',
                 '--color-surface-2' => '#FAFBFC',
+                '--color-sheen-rgb' => '26, 32, 44',
             ],
         ];
         yield 'dark orange' => [
@@ -70,6 +73,7 @@ final class ThemePaletteRecipeTest extends TestCase
                 '--color-surface-veil-rgb' => '42, 24, 56',
                 '--color-surface-hover' => '#341C37',
                 '--color-surface-2' => '#22142E',
+                '--color-sheen-rgb' => '253, 244, 227',
             ],
         ];
         yield 'greys at the clamps' => [
@@ -89,6 +93,7 @@ final class ThemePaletteRecipeTest extends TestCase
                 '--color-surface-veil-rgb' => '255, 255, 255',
                 '--color-surface-hover' => '#F4F4F4',
                 '--color-surface-2' => '#808080',
+                '--color-sheen-rgb' => '128, 128, 128',
             ],
         ];
     }

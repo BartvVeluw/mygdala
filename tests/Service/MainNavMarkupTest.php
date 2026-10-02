@@ -356,7 +356,7 @@ final class MainNavMarkupTest extends TestCase
         $this->assertMatchesRegularExpression('/\.main-nav__item\.opens-left > \.main-nav__submenu--level-3\{[^}]*right: 100%;[^}]*border-radius: 10px 0 0 10px;[^}]*clip-path: inset\(-3rem 0 -3rem -3rem\);/', $wide, 'mirrored to the left');
         $this->assertMatchesRegularExpression('/\.main-nav__submenu:has\(> \.main-nav__item\.is-open:not\(\.opens-left\) > \.main-nav__submenu--level-3\)[^{]*\{\s*border-top-right-radius: 0;\s*border-bottom-right-radius: 0;/', $wide, 'the panel squares the corners the flyout meets');
         $this->assertMatchesRegularExpression('/\.main-nav__submenu:has\(> \.main-nav__item\.is-open\.opens-left > \.main-nav__submenu--level-3\)[^{]*\{\s*border-top-left-radius: 0;\s*border-bottom-left-radius: 0;/', $wide);
-        $this->assertStringContainsString('.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row{ background: rgba(255,255,255,0.06); }', $css, 'the row of the open flyout stays lit');
+        $this->assertStringContainsString('.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row{ background: rgba(var(--color-sheen-rgb), 0.06); }', $css, 'the row of the open flyout stays lit');
     }
 
     /**

@@ -129,7 +129,7 @@ a.review__source:focus-visible{ outline: 2px solid var(--review-accent); outline
   flex-direction: column;
   padding: var(--sp-5) var(--sp-4) var(--sp-4);
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
 }
@@ -166,7 +166,7 @@ a.review__source:focus-visible{ outline: 2px solid var(--review-accent); outline
 .review--card .review__meta{
   margin-top: auto;
   padding-top: var(--sp-3);
-  border-top: 1px solid var(--color-line-soft);
+  border-top: var(--border-width) solid var(--color-line-soft);
 }
 
 /* --- Minimal -------------------------------------------------------------- */
@@ -178,7 +178,7 @@ a.review__source:focus-visible{ outline: 2px solid var(--review-accent); outline
 }
 .reviews--minimal > .reviews__item + .reviews__item{
   padding-top: var(--sp-6);
-  border-top: 1px solid var(--color-line-soft);
+  border-top: var(--border-width) solid var(--color-line-soft);
 }
 .review--minimal{ text-align: center; }
 .review--minimal .review__mark{
@@ -220,7 +220,7 @@ a.review__source:focus-visible{ outline: 2px solid var(--review-accent); outline
   padding: clamp(var(--sp-5), 5vw, var(--sp-7));
   overflow: hidden;
   isolation: isolate;
-  border: 1px solid rgba(var(--color-primary-rgb), 0.22);
+  border: var(--border-width) solid rgba(var(--color-primary-rgb), 0.22);
   border-radius: var(--radius-lg);
   background:
     radial-gradient(ellipse 70% 90% at 100% 0%, rgba(var(--color-primary-rgb), 0.14), transparent 70%),
@@ -323,7 +323,7 @@ a.review__source:focus-visible{ outline: 2px solid var(--review-accent); outline
   padding: 0;
   color: var(--color-text);
   background: var(--color-surface);
-  border: 1px solid var(--color-line-strong);
+  border: var(--border-width) solid var(--color-line-strong);
   border-radius: 50%;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);

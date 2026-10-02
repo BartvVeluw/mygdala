@@ -26,7 +26,7 @@
 .block-appearance.block-appearance--bg-subtle{
   background:
     radial-gradient(ellipse 800px 420px at 85% 0%, rgba(var(--color-primary-rgb), 0.07), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0) 40%);
+    linear-gradient(180deg, rgba(var(--color-sheen-rgb), 0.018), rgba(var(--color-sheen-rgb), 0) 40%);
 }
 /* A tint of the accent over the ground, not a solid fill: text, links and the
    filled .btn are designed for the ground and stay readable on it. */
@@ -57,9 +57,9 @@
 }
 /* Every chosen line names its colour class (BlockAppearance::classes()), so
    the fallback is only a safety net. */
-.block-appearance.block-appearance--border-top{ border-top: 1px solid var(--block-appearance-line, var(--color-line-soft)); }
-.block-appearance.block-appearance--border-bottom{ border-bottom: 1px solid var(--block-appearance-line, var(--color-line-soft)); }
-.block-appearance.block-appearance--border-both{ border-block: 1px solid var(--block-appearance-line, var(--color-line-soft)); }
+.block-appearance.block-appearance--border-top{ border-top: var(--border-width) solid var(--block-appearance-line, var(--color-line-soft)); }
+.block-appearance.block-appearance--border-bottom{ border-bottom: var(--border-width) solid var(--block-appearance-line, var(--color-line-soft)); }
+.block-appearance.block-appearance--border-both{ border-block: var(--border-width) solid var(--block-appearance-line, var(--color-line-soft)); }
 
 /* The figures' band draws one more hairline of its own (core.css,
    .bg-forest::before); a chosen border replaces that one too. */

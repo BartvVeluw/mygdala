@@ -37,12 +37,12 @@
   /* .bg-soft's tint would fight the related-products block that usually
      follows it, so this section separates itself with a rule and its own
      surface instead. */
-  border-top: 1px solid var(--color-line);
+  border-top: var(--border-width) solid var(--color-line);
   padding-block: var(--sp-6);
 }
 
 .personalizer{
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
   box-shadow: var(--shadow-soft);
@@ -55,7 +55,7 @@
   margin: 0 0 0.4rem;
   font-size: var(--fs-eyebrow);
   letter-spacing: 0.14em;
-  text-transform: uppercase;
+  text-transform: var(--eyebrow-case);
   color: var(--color-primary);
 }
 
@@ -103,7 +103,7 @@
 }
 
 .personalizer__stages{
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface-2);
@@ -181,8 +181,8 @@
 
 .personalizer__tab{
   padding: 0.45rem 1rem;
-  border: 1.5px solid var(--color-line-strong);
-  border-radius: 999px;
+  border: var(--border-width-strong) solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
   font-family: inherit;
@@ -205,7 +205,7 @@
 /* One fieldset per zone: a real grouping, so a screen reader announces
    "Naam" before the fields that belong to it. */
 .personalizer__zone-fields{
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-md);
   background: var(--color-surface-2);
   padding: var(--sp-3);
@@ -234,9 +234,9 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.15rem 0.5rem;
-  border: 1px solid var(--color-line-strong);
+  border: var(--border-width) solid var(--color-line-strong);
 }
 
 .personalizer__required{ color: var(--color-primary-bright); border-color: var(--color-primary); background: var(--color-primary-wash); }
@@ -246,7 +246,7 @@
   font-size: 0.72rem;
   color: var(--color-primary-bright);
   background: var(--color-primary-wash);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.15rem 0.55rem;
   white-space: nowrap;
 }
@@ -267,7 +267,7 @@
 .personalizer__field select{
   width: 100%;
   padding: 0.7rem 0.8rem;
-  border: 1.5px solid var(--color-line-strong);
+  border: var(--border-width-strong) solid var(--color-line-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
@@ -304,8 +304,8 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.3rem 0.6rem 0.3rem 0.35rem;
-  border: 1.5px solid var(--color-line-strong);
-  border-radius: 999px;
+  border: var(--border-width-strong) solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 0.82rem;
   color: var(--color-text-muted);
@@ -327,7 +327,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 1px solid var(--color-line-strong);
+  border: var(--border-width) solid var(--color-line-strong);
   flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
@@ -395,7 +395,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  border: 1px solid var(--color-line-strong);
+  border: var(--border-width) solid var(--color-line-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   padding: var(--sp-3);
@@ -421,7 +421,7 @@
 .personalizer__price-row strong{ color: var(--color-text); font-variant-numeric: tabular-nums; }
 
 .personalizer__price-row--total{
-  border-top: 1px solid var(--color-line);
+  border-top: var(--border-width) solid var(--color-line);
   padding-top: 0.45rem;
   margin-top: 0.2rem;
   color: var(--color-text);
@@ -436,9 +436,9 @@
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.55;
-  color: #F0897E;
-  border-left: 3px solid #F0897E;
-  background: rgba(240, 137, 126, 0.08);
+  color: var(--color-danger-text);
+  border-left: 3px solid var(--color-danger-text);
+  background: rgba(var(--color-danger-text-rgb), 0.08);
   border-radius: var(--radius-sm);
   padding: 0.6rem 0.75rem;
 }

@@ -19,7 +19,7 @@
 .site-search__toggle{
   width: 44px; height: 44px;
   border-radius: 50%;
-  border: 1.5px solid var(--color-line-strong);
+  border: var(--border-width-strong) solid var(--color-line-strong);
   background: transparent;
   color: var(--color-text);
   display: inline-flex; align-items: center; justify-content: center;
@@ -43,7 +43,7 @@
   background: rgba(var(--color-surface-veil-rgb), 0.98);
   backdrop-filter: blur(16px) saturate(1.1);
   -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  border: 1px solid var(--color-line-strong);
+  border: var(--border-width) solid var(--color-line-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lift);
   padding: var(--sp-2);
@@ -57,8 +57,8 @@
   min-width: 0;
   height: 44px;
   padding: 0 0.9rem;
-  border-radius: 999px;
-  border: 1.5px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+  border: var(--border-width-strong) solid var(--color-line-strong);
   background: var(--color-bg);
   color: var(--color-text);
   font: inherit;
@@ -74,7 +74,7 @@
   flex: 0 0 auto;
   height: 44px;
   padding: 0 1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 0;
   background: var(--color-primary);
   color: var(--color-on-primary);
@@ -131,7 +131,7 @@
   margin-top: var(--sp-1);
   padding: 0.6rem;
   text-align: center;
-  border-top: 1px solid var(--color-line);
+  border-top: var(--border-width) solid var(--color-line);
   color: var(--color-primary-bright);
   font-weight: 600;
 }
@@ -169,7 +169,7 @@
 .search-page__form .site-search__submit{ height: 48px; }
 .search-page__summary{ margin: 0 0 var(--sp-3); color: var(--color-text-muted); }
 .search-page__results{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
-.search-page__results .search-hit{ padding: 0.9rem; border: 1px solid var(--color-line); background: var(--color-surface); }
+.search-page__results .search-hit{ padding: 0.9rem; border: var(--border-width) solid var(--color-line); background: var(--color-surface); }
 .search-page__results .search-hit__picture{ width: 72px; height: 72px; }
 .search-page__empty{ color: var(--color-text-muted); }
 .search-pager{

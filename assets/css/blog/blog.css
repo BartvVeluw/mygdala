@@ -36,7 +36,7 @@
 .blog-card{
   display: flex;
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   overflow: hidden;
   transition: transform var(--dur-base) var(--ease-out),
@@ -45,7 +45,7 @@
               background var(--dur-base) var(--ease-out);
 }
 .blog-card:hover{
-  transform: translateY(-3px);
+  transform: translateY(calc(-3px * var(--hover-lift)));
   border-color: var(--color-line-strong);
   background: var(--color-surface-hover);
   box-shadow: var(--color-glow);
@@ -71,7 +71,7 @@
   object-fit: cover;
   transition: transform var(--dur-slow) var(--ease-out);
 }
-.blog-card:hover .blog-card__media img{ transform: scale(1.04); }
+.blog-card:hover .blog-card__media img{ transform: scale(calc(1 + 0.04 * var(--hover-zoom))); }
 
 .blog-card__body{
   display: flex;
@@ -134,8 +134,8 @@
   display: inline-flex;
   align-items: center;
   padding: 0.45rem 1rem;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
+  border: var(--border-width) solid var(--color-line);
+  border-radius: var(--radius-pill);
   font-size: var(--fs-small);
   color: var(--color-text-muted);
   transition: color var(--dur-fast) var(--ease-out),
@@ -189,7 +189,7 @@
   margin: 0;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
 }
 .blog-post__media img{ display: block; width: 100%; height: auto; }
 
@@ -208,15 +208,15 @@
   gap: 0.5rem;
   margin-top: var(--sp-4);
   padding-top: var(--sp-3);
-  border-top: 1px solid var(--color-line);
+  border-top: var(--border-width) solid var(--color-line);
 }
 
 .blog-chip{
   display: inline-flex;
   align-items: center;
   padding: 0.35rem 0.85rem;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
+  border: var(--border-width) solid var(--color-line);
+  border-radius: var(--radius-pill);
   font-size: var(--fs-small);
   color: var(--color-text-muted);
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
@@ -240,7 +240,7 @@
   flex-direction: column;
   gap: 0.35rem;
   padding: var(--sp-3);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);

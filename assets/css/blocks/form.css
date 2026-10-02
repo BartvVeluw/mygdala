@@ -113,7 +113,7 @@
 .vvl-form .form-field.has-error input,
 .vvl-form .form-field.has-error select,
 .vvl-form .form-field.has-error textarea {
-  border-color: #E2685C;
+  border-color: var(--color-danger);
 }
 
 /* The heading and introduction of the block around the form. */

@@ -10,11 +10,11 @@
 /* Portfolio grid */
 .filter-bar{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: var(--sp-5); }
 .filter-bar button{
-  border: 1.5px solid var(--color-line-strong);
+  border: var(--border-width-strong) solid var(--color-line-strong);
   background: transparent;
   color: var(--color-text-muted);
   padding: 0.5rem 1.1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
@@ -47,14 +47,14 @@
   overflow: hidden;
   aspect-ratio: 4/5;
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
 }
 /* Only a card that does something looks like it: a link, or a photo the
    lightbox enlarges. A plain card keeps the ordinary cursor. */
 a.gallery-item{ cursor: pointer; }
 .gallery-item--wide{ aspect-ratio: 4/5; }
 .gallery-item img{ width: 100%; height: 100%; object-fit: cover; transition: transform 700ms var(--ease-out); }
-.gallery-item:hover img{ transform: scale(1.06); }
+.gallery-item:hover img{ transform: scale(calc(1 + 0.06 * var(--hover-zoom))); }
 .gallery-item:hover{ border-color: var(--color-line-strong); }
 .gallery-item__overlay{
   position: absolute; inset: 0;
@@ -96,7 +96,7 @@ a.gallery-item{ cursor: pointer; }
   gap: 0.4rem;
   margin-top: 0.35rem;
   padding: 0.5rem 0.95rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary);
   color: var(--color-on-primary);
   font-weight: 700;

@@ -34,7 +34,7 @@
   aspect-ratio: auto;
   height: 100%;
   overflow: hidden;
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);

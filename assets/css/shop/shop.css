@@ -23,7 +23,7 @@
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   overflow: hidden;
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out);
@@ -32,7 +32,7 @@
 @media (max-width: 900px){ .product-card--featured{ grid-column: span 2; grid-row: auto; } }
 @media (max-width: 560px){ .product-card--featured{ grid-column: span 1; } }
 
-a.product-card:hover{ transform: translateY(-6px); box-shadow: var(--color-glow); border-color: var(--color-line-strong); background: var(--color-surface-hover); }
+a.product-card:hover{ transform: translateY(calc(-6px * var(--hover-lift))); box-shadow: var(--color-glow); border-color: var(--color-line-strong); background: var(--color-surface-hover); }
 
 .product-card__media{
   position: relative;
@@ -57,7 +57,7 @@ a.product-card:hover{ transform: translateY(-6px); box-shadow: var(--color-glow)
   position: absolute; top: var(--sp-2); left: var(--sp-2);
   background: var(--color-primary); color: var(--color-on-primary);
   font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 0.3rem 0.7rem; border-radius: 999px;
+  padding: 0.3rem 0.7rem; border-radius: var(--radius-pill);
 }
 .product-card__body{ padding: var(--sp-3); display: flex; flex-direction: column; flex: 1; gap: 0.35rem; }
 .product-card--featured .product-card__body{ padding: var(--sp-4); }
@@ -73,7 +73,7 @@ a.product-card:hover{ transform: translateY(-6px); box-shadow: var(--color-glow)
   line-clamp: 3;
   overflow: hidden;
 }
-.product-card__footer{ display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--color-line); }
+.product-card__footer{ display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: 0.6rem; padding-top: 0.6rem; border-top: var(--border-width) solid var(--color-line); }
 .product-card__price{ font-family: var(--font-display); font-size: 1.2rem; color: var(--color-primary-bright); }
 /* Op aanvraag (App\Service\PurchaseMode): the card names the way to buy
    instead of an amount, in the quieter body type. */
@@ -108,7 +108,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   overflow: hidden;
   color: inherit;
@@ -116,7 +116,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out);
 }
 .collection-tile:hover{
-  transform: translateY(-6px);
+  transform: translateY(calc(-6px * var(--hover-lift)));
   box-shadow: var(--color-glow);
   border-color: var(--color-line-strong);
   background: var(--color-surface-hover);
@@ -167,7 +167,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 
 .collection-intro__media{
   margin: 0;
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-surface-2);
@@ -186,7 +186,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   position: relative;
   aspect-ratio: 1;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   background: radial-gradient(circle at 50% 35%, var(--color-surface-hover), var(--color-surface-2));
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow-lift);
@@ -202,7 +202,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
    is then the button that opens it, and the pointer says so. The focus ring
    is the site-wide :focus-visible one. */
 .product-detail__media[data-lightbox-opener]{ cursor: zoom-in; }
-.product-detail__badge{ position: absolute; top: var(--sp-3); left: var(--sp-3); background: var(--color-primary); color: var(--color-on-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.35rem 0.8rem; border-radius: 999px; }
+.product-detail__badge{ position: absolute; top: var(--sp-3); left: var(--sp-3); background: var(--color-primary); color: var(--color-on-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.35rem 0.8rem; border-radius: var(--radius-pill); }
 /* min-width: 0 lets the grid column shrink to its track, so a long row of
    thumbnails wraps inside it instead of widening the whole page on a
    phone. */
@@ -237,7 +237,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__thumb:focus-visible{
   border-color: var(--color-primary-bright);
   box-shadow: 0 0 0 3px var(--color-primary-wash), 0 6px 16px -8px var(--color-primary);
-  transform: translateY(-2px);
+  transform: translateY(calc(-2px * var(--hover-lift)));
 }
 .product-detail__thumb.is-active{
   border-color: var(--color-primary);
@@ -286,7 +286,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__title{ margin: 0 0 0.3rem; font-size: clamp(1.5rem, 1.2vw + 1.1rem, 1.9rem); font-weight: 500; line-height: 1.2; }
 .product-detail__price{ font-family: var(--font-display); font-size: 1.5rem; color: var(--color-primary-bright); margin: 0 0 var(--sp-3); }
 .product-detail__desc{ font-size: 0.95rem; line-height: 1.65; color: var(--color-text-muted); max-width: 52ch; margin: var(--sp-3) 0; }
-.product-detail__meta{ display: flex; gap: var(--sp-4); flex-wrap: wrap; margin: var(--sp-3) 0; padding: var(--sp-3) 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
+.product-detail__meta{ display: flex; gap: var(--sp-4); flex-wrap: wrap; margin: var(--sp-3) 0; padding: var(--sp-3) 0; border-top: var(--border-width) solid var(--color-line); border-bottom: var(--border-width) solid var(--color-line); }
 .product-detail__meta div{ display: flex; flex-direction: column; gap: 0.2rem; }
 .product-detail__meta strong{ font-family: var(--font-display); color: var(--color-primary-bright); font-size: 1rem; }
 .product-detail__meta span{ font-size: 0.72rem; color: var(--color-text-faint); }
@@ -302,13 +302,13 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
    quantity and the button while the chosen unit has none left, and the one
    line that says why an add was refused. The same soft red as a form error,
    always with the words. */
-.product-detail__sold-out{ margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
-.product-detail__stock-status{ margin: 0; font-size: 1rem; color: #F0897E; }
-.product-detail__add-message{ margin: var(--sp-2) 0 0; font-size: 0.88rem; color: #F0897E; }
+.product-detail__sold-out{ margin-top: var(--sp-3); padding: var(--sp-3); border: var(--border-width) solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
+.product-detail__stock-status{ margin: 0; font-size: 1rem; color: var(--color-danger-text); }
+.product-detail__add-message{ margin: var(--sp-2) 0 0; font-size: 0.88rem; color: var(--color-danger-text); }
 
 /* Op aanvraag on the product page: where price, quantity and the cart would
    be, one line and a way to get in touch. */
-.product-detail__inquiry{ margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
+.product-detail__inquiry{ margin-top: var(--sp-3); padding: var(--sp-3); border: var(--border-width) solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface); }
 .product-detail__inquiry p{ margin: 0 0 var(--sp-2); }
 .product-detail__inquiry p:last-child{ margin-bottom: 0; }
 
@@ -338,7 +338,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-order-field select{ width: 100%; max-width: 32rem; box-sizing: border-box; }
 .product-order-field textarea{ min-height: 6.5rem; }
 /* core.css draws invalid inputs and textareas; a dropdown gets the same. */
-.product-order-field select[aria-invalid="true"]{ border-color: #E2685C; }
+.product-order-field select[aria-invalid="true"]{ border-color: var(--color-danger); }
 .product-order-field__group{ margin: 0; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 .product-order-field__group legend{ margin-bottom: 0.35rem; overflow-wrap: anywhere; }
 /* A choice is a whole row to tap (44px), its label wraps beside the box. */
@@ -354,8 +354,8 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-order-field .product-order-field__choice input:focus-visible{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
 /* An unanswered tick box gets the error colour around its box; a radio
    group, whose native circles cannot take a round outline, a line beside it. */
-.product-order-field--choice[data-order-field-invalid] .product-order-field__choice input[type="checkbox"]{ outline: 1.5px solid #E2685C; outline-offset: 2px; }
-.product-order-field--choice[data-order-field-invalid] .product-order-field__group{ border-left: 2px solid #E2685C; padding-left: 0.75rem; }
+.product-order-field--choice[data-order-field-invalid] .product-order-field__choice input[type="checkbox"]{ outline: 1.5px solid var(--color-danger); outline-offset: 2px; }
+.product-order-field--choice[data-order-field-invalid] .product-order-field__group{ border-left: 2px solid var(--color-danger); padding-left: 0.75rem; }
 /* An image question: the native file control stays the focused, announced
    one but is drawn as the site's own ghost button (its second label); a
    chosen picture shows as a small thumbnail with its name and two buttons.
@@ -366,7 +366,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-order-field__pick{ align-self: flex-start; min-height: 44px; }
 .product-order-field__pick[hidden]{ display: none; }
 .product-order-field__file:focus-visible + .product-order-field__upload .product-order-field__pick{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
-.product-order-field__file[aria-invalid="true"] + .product-order-field__upload .product-order-field__pick{ border-color: #E2685C; }
+.product-order-field__file[aria-invalid="true"] + .product-order-field__upload .product-order-field__pick{ border-color: var(--color-danger); }
 .product-order-field__preview{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; min-width: 0; max-width: 32rem; }
 .product-order-field__preview[hidden]{ display: none; }
 .product-order-field__thumb{ width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; }
@@ -377,7 +377,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-order-field__status:empty{ display: none; }
 .product-order-field__rules{ margin: 0; }
 .product-order-field__help{ margin: 0; }
-.product-order-field__error{ margin: 0; font-size: 0.82rem; color: #F0897E; }
+.product-order-field__error{ margin: 0; font-size: 0.82rem; color: var(--color-danger-text); }
 .product-order-field__error[hidden]{ display: none; }
 
 /* A cart line's answers, under its name: dropdown, cart and checkout. */
@@ -390,17 +390,17 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
    narrow phone. Only rows with a value are ever printed. */
 .product-specs{ margin: var(--sp-4) 0 var(--sp-3); }
 .product-specs__heading{ font-size: 1rem; margin: 0 0 var(--sp-2); }
-.product-specs__list{ margin: 0; border-top: 1px solid var(--color-line); }
-.product-specs__row{ display: grid; grid-template-columns: minmax(8rem, 40%) 1fr; gap: var(--sp-3); padding: 0.5rem 0; border-bottom: 1px solid var(--color-line); font-size: 0.9rem; }
+.product-specs__list{ margin: 0; border-top: var(--border-width) solid var(--color-line); }
+.product-specs__row{ display: grid; grid-template-columns: minmax(8rem, 40%) 1fr; gap: var(--sp-3); padding: 0.5rem 0; border-bottom: var(--border-width) solid var(--color-line); font-size: 0.9rem; }
 .product-specs__row dt{ color: var(--color-text-muted); }
 .product-specs__row dd{ margin: 0; color: var(--color-text); overflow-wrap: anywhere; }
 @media (max-width: 420px){
   .product-specs__row{ grid-template-columns: 1fr; gap: 0.1rem; }
 }
 .cart-row__problem,
-.checkout-summary-item__problem{ display: block; margin: 0.25rem 0 0; font-size: 0.8rem; font-weight: 600; color: #F0897E; }
+.checkout-summary-item__problem{ display: block; margin: 0.25rem 0 0; font-size: 0.8rem; font-weight: 600; color: var(--color-danger-text); }
 .cart-row--problem .cart-row__media{ opacity: 0.6; }
-.order-summary__problems{ margin: 0 0 var(--sp-2); font-size: 0.85rem; color: #F0897E; }
+.order-summary__problems{ margin: 0 0 var(--sp-2); font-size: 0.85rem; color: var(--color-danger-text); }
 .btn.is-disabled{ opacity: 0.5; cursor: not-allowed; }
 
 .product-detail__variants{ display: flex; flex-direction: column; gap: var(--sp-3); margin: var(--sp-3) 0; }
@@ -413,7 +413,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-detail__option-btn{
   padding: 0.55rem 1.1rem;
   border-radius: 8px;
-  border: 1.5px solid var(--color-line-strong);
+  border: var(--border-width-strong) solid var(--color-line-strong);
   background: transparent;
   color: var(--color-text);
   font-size: 0.9rem;
@@ -451,10 +451,10 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .order-form__note{ display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.82rem; color: var(--color-text-faint); background: var(--color-primary-wash); border-left: 3px solid var(--color-primary); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); }
 .order-form__note svg{ width: 18px; height: 18px; color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
 
-.qty-stepper{ display: inline-flex; align-items: center; border: 1.5px solid var(--color-line-strong); border-radius: 999px; overflow: hidden; flex-shrink: 0; }
+.qty-stepper{ display: inline-flex; align-items: center; border: var(--border-width-strong) solid var(--color-line-strong); border-radius: var(--radius-pill); overflow: hidden; flex-shrink: 0; }
 .qty-stepper button{ width: 42px; height: 42px; border: none; background: transparent; color: var(--color-text); font-size: 1.1rem; line-height: 1; cursor: pointer; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .qty-stepper button:hover{ background: var(--color-primary-wash); color: var(--color-primary-bright); }
-.qty-stepper input{ width: 46px; height: 42px; border: none; border-left: 1.5px solid var(--color-line-strong); border-right: 1.5px solid var(--color-line-strong); background: transparent; color: var(--color-text); text-align: center; font-weight: 700; font-size: 1rem; -moz-appearance: textfield; }
+.qty-stepper input{ width: 46px; height: 42px; border: none; border-left: var(--border-width-strong) solid var(--color-line-strong); border-right: var(--border-width-strong) solid var(--color-line-strong); background: transparent; color: var(--color-text); text-align: center; font-weight: 700; font-size: 1rem; -moz-appearance: textfield; }
 .qty-stepper input:focus{ outline: none; background: var(--color-primary-wash); }
 .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
 .qty-stepper--sm button{ width: 32px; height: 32px; font-size: 0.95rem; }
@@ -475,7 +475,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   gap: var(--sp-3);
   align-items: center;
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   border-radius: var(--radius-md);
   padding: var(--sp-3);
 }
@@ -498,7 +498,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   width: 76px; height: 76px; flex-shrink: 0;
   border-radius: var(--radius-sm);
   background: radial-gradient(circle at 50% 35%, var(--color-surface-hover), var(--color-surface-2));
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   display: flex; align-items: center; justify-content: center;
   transition: border-color var(--dur-fast);
 }
@@ -507,19 +507,19 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .cart-row__info span{ font-size: 0.8rem; color: var(--color-text-faint); }
 .cart-row__variant{ font-size: 0.8rem; color: var(--color-text-faint); margin: 0; }
 .cart-row__price{ font-family: var(--font-display); font-size: 1.15rem; color: var(--color-primary-bright); white-space: nowrap; }
-.cart-row__remove{ width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--color-line-strong); background: transparent; color: var(--color-text-faint); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast); }
-.cart-row__remove:hover{ color: #F0897E; border-color: #E2685C; background: rgba(226,104,92,0.12); }
+.cart-row__remove{ width: 36px; height: 36px; border-radius: 50%; border: var(--border-width) solid var(--color-line-strong); background: transparent; color: var(--color-text-faint); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast); }
+.cart-row__remove:hover{ color: var(--color-danger-text); border-color: var(--color-danger); background: rgba(var(--color-danger-rgb), 0.12); }
 .cart-row__remove svg{ width: 16px; height: 16px; }
 
-.cart-empty{ text-align: center; padding: var(--sp-7) var(--sp-3); border: 1.5px dashed var(--color-line-strong); border-radius: var(--radius-lg); }
+.cart-empty{ text-align: center; padding: var(--sp-7) var(--sp-3); border: var(--border-width-strong) dashed var(--color-line-strong); border-radius: var(--radius-lg); }
 .cart-empty svg{ width: 56px; height: 56px; color: var(--color-primary-deep); margin: 0 auto var(--sp-3); }
 .cart-empty p{ color: var(--color-text-muted); margin-bottom: var(--sp-3); }
 
-.order-summary{ background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-lg); padding: var(--sp-4); position: sticky; top: 6.5rem; }
+.order-summary{ background: var(--color-surface); border: var(--border-width) solid var(--color-line); border-radius: var(--radius-lg); padding: var(--sp-4); position: sticky; top: 6.5rem; }
 .order-summary h3{ margin-bottom: var(--sp-3); }
 .order-summary__row{ display: flex; justify-content: space-between; font-size: 0.92rem; color: var(--color-text-muted); padding-block: 0.5rem; }
 .order-summary__row strong{ color: var(--color-text); }
-.order-summary__row--total{ border-top: 1px solid var(--color-line); margin-top: 0.5rem; padding-top: var(--sp-3); font-size: 1.05rem; }
+.order-summary__row--total{ border-top: var(--border-width) solid var(--color-line); margin-top: 0.5rem; padding-top: var(--sp-3); font-size: 1.05rem; }
 .order-summary__row--total strong{ font-family: var(--font-display); font-size: 1.4rem; color: var(--color-primary-bright); }
 .order-summary__note{ font-size: 0.78rem; color: var(--color-text-faint); margin-top: var(--sp-2); }
 .order-summary .btn{ margin-top: var(--sp-3); }
@@ -542,10 +542,10 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .checkout-overlay[hidden]{ display: none; }
 .checkout-overlay__box{
   width: 100%; max-width: 360px;
-  background: var(--color-surface); border: 1px solid var(--color-line-strong); border-radius: var(--radius-lg);
+  background: var(--color-surface); border: var(--border-width) solid var(--color-line-strong); border-radius: var(--radius-lg);
   padding: var(--sp-5) var(--sp-4);
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  box-shadow: 0 20px 60px rgba(var(--color-shadow-rgb), 0.45);
 }
 .checkout-overlay__spinner{
   display: inline-block; width: 40px; height: 40px; margin-bottom: var(--sp-3);
@@ -559,11 +559,11 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce){
   .checkout-overlay__spinner{ animation-duration: 1.6s; }
 }
-.checkout-section{ background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-lg); padding: var(--sp-4); margin-bottom: var(--sp-3); }
+.checkout-section{ background: var(--color-surface); border: var(--border-width) solid var(--color-line); border-radius: var(--radius-lg); padding: var(--sp-4); margin-bottom: var(--sp-3); }
 .checkout-section h2{ font-size: 1.2rem; margin-bottom: var(--sp-3); display: flex; align-items: center; gap: 0.6rem; }
-.checkout-section h2 .step-num{ display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--color-primary-wash); border: 1px solid var(--color-line-strong); color: var(--color-primary); font-family: var(--font-display); font-size: 0.95rem; }
+.checkout-section h2 .step-num{ display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--color-primary-wash); border: var(--border-width) solid var(--color-line-strong); color: var(--color-primary); font-family: var(--font-display); font-size: 0.95rem; }
 .radio-card-group{ display: flex; flex-direction: column; gap: 0.6rem; }
-.radio-card{ display: flex; align-items: center; gap: 0.8rem; border: 1.5px solid var(--color-line-strong); border-radius: var(--radius-md); padding: var(--sp-3); cursor: pointer; transition: border-color var(--dur-fast), background var(--dur-fast); }
+.radio-card{ display: flex; align-items: center; gap: 0.8rem; border: var(--border-width-strong) solid var(--color-line-strong); border-radius: var(--radius-md); padding: var(--sp-3); cursor: pointer; transition: border-color var(--dur-fast), background var(--dur-fast); }
 .radio-card:has(input:checked){ border-color: var(--color-primary); background: var(--color-primary-wash); }
 .radio-card input{ accent-color: var(--color-primary); width: 18px; height: 18px; flex-shrink: 0; }
 .radio-card__label{ flex: 1; }
@@ -571,8 +571,8 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .radio-card__label span{ font-size: 0.78rem; color: var(--color-text-faint); }
 .radio-card__price{ font-weight: 700; color: var(--color-primary-bright); font-size: 0.92rem; white-space: nowrap; }
 .payment-icons{ display: flex; gap: 0.4rem; margin-left: auto; flex-wrap: wrap; }
-.payment-icons span{ font-size: 0.66rem; font-weight: 700; padding: 0.25rem 0.5rem; border: 1px solid var(--color-line-strong); border-radius: 4px; color: var(--color-text-faint); }
-.checkout-summary-items{ display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: var(--sp-3); padding-bottom: var(--sp-3); border-bottom: 1px solid var(--color-line); }
+.payment-icons span{ font-size: 0.66rem; font-weight: 700; padding: 0.25rem 0.5rem; border: var(--border-width) solid var(--color-line-strong); border-radius: 4px; color: var(--color-text-faint); }
+.checkout-summary-items{ display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: var(--sp-3); padding-bottom: var(--sp-3); border-bottom: var(--border-width) solid var(--color-line); }
 .checkout-summary-item{ display: flex; gap: 0.6rem; align-items: center; font-size: 0.85rem; }
 .checkout-summary-item .cart-row__media{ width: 42px; height: 42px; }
 .checkout-summary-item__info{ flex: 1; color: var(--color-text-muted); }

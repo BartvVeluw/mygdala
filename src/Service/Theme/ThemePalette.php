@@ -86,6 +86,11 @@ final class ThemePalette
         '--color-surface-veil-rgb' => ['channels', 'surface'],
         '--color-surface-hover' => ['mix', 'surface', 'primary', self::SURFACE_HOVER_TOWARDS_PRIMARY],
         '--color-surface-2' => ['mix', 'surface', 'background', self::SURFACE_2_TOWARDS_BG],
+        // The light a surface catches (a section's sheen, a hover inside a
+        // menu panel) is the text colour at a low alpha: light on a dark
+        // theme, dark on a light one, where pure white would vanish. The
+        // default theme keeps the white core.css declares.
+        '--color-sheen-rgb' => ['channels', 'text'],
     ];
 
     /** The four chosen colours an expression may name. */
@@ -185,6 +190,7 @@ final class ThemePalette
             ],
             'text' => [
                 '--color-text-rgb',
+                '--color-sheen-rgb',
             ],
         ];
     }

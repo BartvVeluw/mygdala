@@ -52,7 +52,7 @@ final class RichContentTypographyTest extends TestCase
     public function testTheBaseRuleStillGivesEveryHeadingTheDisplayFont(): void
     {
         $this->assertMatchesRegularExpression(
-            '/h1, h2, h3, h4\{\s*font-family: var\(--font-display\);\s*font-weight: 500;\s*line-height: 1\.15;/',
+            '/h1, h2, h3, h4\{\s*font-family: var\(--font-display\);\s*font-weight: var\(--fw-heading\);\s*line-height: 1\.15;/',
             self::css()
         );
     }

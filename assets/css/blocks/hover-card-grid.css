@@ -132,7 +132,7 @@
   overflow: hidden;
   /* What shows while the picture loads, and around a picture that does not fill the frame. */
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   box-shadow: var(--shadow-soft);
   /* Its own layer, so the zooming picture stays clipped to the rounded or
      organic edge in every browser while the shape itself changes. */
@@ -199,7 +199,7 @@
   z-index: 3;
   max-width: calc(100% - 2 * var(--sp-2));
   padding: 0.3rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary);
   color: var(--color-on-primary);
   font-size: var(--fs-eyebrow);
@@ -288,8 +288,8 @@
    REACHED: a hover where the device hovers, and keyboard focus everywhere.
    The two selectors of each rule are the same state.
    ========================================================================== */
-.hover-card:focus-within .hover-card__inner{ transform: translateY(var(--hover-card-lift)); }
-.hover-card:focus-within .hover-card__image{ transform: scale(var(--hover-card-zoom)); }
+.hover-card:focus-within .hover-card__inner{ transform: translateY(calc(var(--hover-card-lift) * var(--hover-lift))); }
+.hover-card:focus-within .hover-card__image{ transform: scale(calc(1 + (var(--hover-card-zoom) - 1) * var(--hover-zoom))); }
 .hover-card--swap:focus-within .hover-card__image--hover{ opacity: 1; }
 .hover-card:focus-within .hover-card__frame{
   border-radius: var(--hover-card-radius-reached);
@@ -312,8 +312,8 @@
 .hover-card:focus-within .hover-card__cta--button .btn::after{ transform: translateX(var(--btn-icon-shift)); }
 
 @media (hover: hover){
-  .hover-card:hover .hover-card__inner{ transform: translateY(var(--hover-card-lift)); }
-  .hover-card:hover .hover-card__image{ transform: scale(var(--hover-card-zoom)); }
+  .hover-card:hover .hover-card__inner{ transform: translateY(calc(var(--hover-card-lift) * var(--hover-lift))); }
+  .hover-card:hover .hover-card__image{ transform: scale(calc(1 + (var(--hover-card-zoom) - 1) * var(--hover-zoom))); }
   .hover-card--swap:hover .hover-card__image--hover{ opacity: 1; }
   .hover-card:hover .hover-card__frame{
     border-radius: var(--hover-card-radius-reached);
@@ -400,7 +400,7 @@
   z-index: -1;
   border-radius: var(--hover-card-blob);
   background: var(--color-primary-wash);
-  border: 1px solid var(--color-line);
+  border: var(--border-width) solid var(--color-line);
   transition:
     border-radius var(--hover-card-shape-duration) var(--hover-card-ease),
     rotate var(--hover-card-shape-duration) var(--hover-card-ease);
