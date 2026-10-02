@@ -433,7 +433,8 @@ vormgeving en houden hun rol altijd.
 ### De woorden
 
 Eén woordenlijst. Extra vormgeving had hem al (`BlockAppearance::BACKGROUNDS`);
-deze fase voegt één woord toe dat alleen een blok als standaard gebruikt.
+fase 1B-a voegde `contrast` toe en fase 1B-c `emphasis`: twee woorden die
+alleen een blok als standaard gebruikt, zonder CMS-keuze.
 
 | Woord | Rol | Standaard van | Kies je in Extra vormgeving |
 |---|---|---|---|
@@ -442,6 +443,7 @@ deze fase voegt één woord toe dat alleen een blok als standaard gebruikt.
 | `primary` | een was van het accent | — | *Primaire themakleur* |
 | `secondary` | het tweede vlak van het palet | — | *Secundaire themakleur* |
 | `contrast` | de band die zich het sterkst van de pagina onderscheidt | Cijferbalk | — (geen nieuwe CMS-keuze) |
+| `emphasis` | de band die de lezer tot iets oproept: hij trekt de aandacht naar een actie | Oproep met knop over de volle breedte | — (geen nieuwe CMS-keuze) |
 | `transparent` | geen eigen vlak | — | *Transparant* |
 
 Een woord noemt de rol, nooit de uitvoering: `contrast` is in het
@@ -461,8 +463,15 @@ zijn.
   tekst in `--color-text`, lijnen in `--color-line`, en een haarlijn van het
   accent bovenaan (`::before`). Een gekozen rand vervangt ook die haarlijn;
   een gekozen achtergrond neemt lijnen en haarlijn mee weg.
+- **`.surface-emphasis`**: vulling `--surface-emphasis` (de kaartkleur
+  `--color-surface` met een poel van het accent bovenin het midden), lijnen
+  boven en onder in `--color-line-strong` op `--border-width-strong`, en een
+  accentstreep bovenaan (`::before`, van 10% tot 90% van de breedte). Dat is
+  precies de kaart van een oproep, op de sectie. Een gekozen rand vervangt
+  de lijnen en laat de streep staan, zoals de oproep altijd deed; een gekozen
+  achtergrond neemt alles mee weg.
 
-`--surface-subtle` en `--surface-contrast` zijn tokens in de regel
+`--surface-subtle`, `--surface-contrast` en `--surface-emphasis` zijn tokens in de regel
 `:root, main[data-page-theme]`, omdat ze uit paletkleuren gebouwd zijn: zo
 rekenen ze binnen een paginathema opnieuw met zijn kleuren. Een
 themastylesheet die de vulling verandert, zet ze in diezelfde regel; alleen
@@ -470,8 +479,8 @@ op `:root` zou een paginathema ze weer terugzetten.
 
 ### Wat een thema kan, en wat niet
 
-Een thema stijlt `.surface-subtle` en `.surface-contrast` (vulling, lijnen,
-`::before`, `clip-path`, padding) en kan op de rol de kleurtokens opnieuw
+Een thema stijlt `.surface-subtle`, `.surface-contrast` en `.surface-emphasis`
+(vulling, lijnen, `::before`, `clip-path`, padding) en kan op de rol de kleurtokens opnieuw
 zetten (`--color-text`, `--color-primary-text`, …), zodat de inhoud meekleurt
 zonder één componentselector. Bewezen met een tijdelijke stresstest (niet
 gecommit): een ruw donker profiel en een rustig licht profiel veranderden de
@@ -491,6 +500,75 @@ Eén grens, bewust:
   oppervlak en krijgt geen oppervlak-instelling: de rollen volgen zijn
   kleuren vanzelf.
 
+### Lay-out en oppervlak (fase 1B-c)
+
+Een lay-outkeuze en een oppervlak staan los van elkaar. Het blok en zijn
+lay-out bepalen de structuur, de rol bepaalt welke presentatierol de root
+speelt, en het thema bepaalt hoe die rol eruitziet. Een componentklasse mag
+dus blijven bestaan, maar draagt nooit als enige de identiteit van een vlak.
+
+De **Oproep met knop over de volle breedte** was de laatste uitzondering.
+*Volledige paginabreedte* verplaatst de kaart van de oproep naar de
+`<section>` (CTA 2.0), en `.cta-section--full` droeg daarom zowel de lay-out
+als het vlak. Nu print de partial beide, los:
+
+```html
+<section class="cta-section cta-section--full surface-emphasis">
+```
+
+| Was in `.cta-section--full` | Soort | Staat nu |
+|---|---|---|
+| `background` (accentpoel + `--color-surface`) | vlak | `.surface-emphasis`, via `--surface-emphasis` |
+| `border-block` (sterk, `--color-line-strong`) | vlak | `.surface-emphasis` |
+| `::before`: plaats, maat, verloop van de accentstreep | vlak | `.surface-emphasis::before` |
+| `overflow: hidden`, `isolation: isolate` | lay-out | `.cta-section--full` (knipt afbeelding en zoom af, eigen stapeling) |
+| `::before { z-index: 2 }` | lay-out | `.cta-section--full`: wat het vlak in `::before` tekent, ligt boven de afbeelding en een effect |
+| `> .container { position: relative; z-index }` | lay-out | `.cta-section--full`, nu `z-index: 2` (was 1) |
+| `.cta-band { padding: 0; border-radius: 0 }` | lay-out | `.cta-section--full`: de binnenste band is geen kaart meer |
+
+**Waarom `emphasis`, en geen bestaand woord.** `contrast` is de band die
+zich het sterkst van de pagina onderscheidt; het standaardthema tekent hem
+donker (`--color-bg-deep`) en zet de tekstkleuren, en de Cijferbalk gebruikt
+hem al. De oproep is iets anders: de kaartkleur met het accent erin, sterke
+lijnen en een streep, een vlak dat naar een actie wijst. Op `contrast` zou de
+oproep er in het standaardthema anders uitzien, of een combinatieregel
+(`.cta-section--full.surface-contrast`) nodig hebben, en dat is precies wat
+een thema niet moet hoeven kennen. `secondary` is het tweede vlak van het
+palet; *Secundaire themakleur* in Extra vormgeving is alleen die kleur, en
+dezelfde naam voor een vlak met poel, lijnen en streep zou de regel breken
+dat hetzelfde woord in een rol en in Extra vormgeving hetzelfde betekent.
+`emphasis` past ook buiten de oproep (een nieuwsbriefband, een
+aanbiedingsband), en de kaart van een oproep heeft dezelfde identiteit.
+
+**De stapeling.** `z-index: 2` op de container (was 1) zet de woorden altijd
+boven alles wat een thema in `::before` van de rol tekent. Met 1 bedekte een
+thema dat het hele vlak met `::before` vult de woorden (gemeten: 20 van 20
+koppen). In het standaardthema overlapt niets van de woorden de streep van
+2px bovenaan (gemeten op 1280, 768 en 375), dus het beeld is gelijk; met een
+effect uit Extra vormgeving stond de container al op 2.
+
+**Extra vormgeving** volgt de gewone voorrang: `surface-emphasis` staat in
+`BlockAppearance::SURFACE_ROLES`, dus een gekozen achtergrond haalt de rol
+eraf. Dat is de enige zichtbare wijziging van deze fase: een oproep over de
+volle breedte met een gekozen achtergrond verliest nu ook zijn sterke lijnen
+en de accentstreep, zoals elk ander blok met een rol sinds fase 1B-a.1
+(zijn hoogte wordt 2px kleiner). De ontwikkeldatabases hebben geen enkele
+oproep over de volle breedte; productie is niet nagekeken.
+
+**De kaart** (`.cta-band--card` in `core.css`) blijft zoals hij is: een
+kaart binnen de container, niet de root van het blok, getekend met tokens
+zoals elke andere kaart. Zie *Open punten*.
+
+Bewezen met een tijdelijke stresstest (niet gecommit): een ruw profiel
+(gestreepte vulling, lijnen van 6px, `clip-path`, `::before` over het hele
+vlak, eigen tekstkleuren) en een rustig licht profiel (lichte vulling, dunne
+lijn, geen streep, geen schaduw), allebei alleen op `.surface-emphasis`,
+veranderden elke oproep over de volle breedte en geen enkele kaart of
+oproep met een gekozen achtergrond. Lay-out en plaats van de woorden bleven
+gelijk (behalve dat een dikke rand ruimte neemt binnen een minimale hoogte),
+en de woorden bleven bovenop. Op de oude code had hetzelfde profiel geen
+enkel effect: daar moest een thema `.cta-section--full` kennen.
+
 ### Oude namen
 
 `.bg-soft` en `.bg-forest` zijn de oude namen van `subtle` en `contrast`. Ze
@@ -509,14 +587,20 @@ nooit een eigen regel krijgt.
   historie (de twee oorspronkelijke grids op de homepage en "Over mij"),
   geen regel van het blok. Het blijft zo, zodat bestaande pagina's gelijk
   blijven.
-- **De CTA over de volle breedte** (`.cta-section--full`) heeft nog een
-  eigen vlak onder zijn componentnaam, gekoppeld aan zijn lay-outkeuze. Een
-  thema moet daar nog een componentselector voor gebruiken.
+- **De kaart van een oproep** (`.cta-band--card`) heeft dezelfde identiteit
+  als `surface-emphasis`, maar onder zijn componentnaam, net als de andere
+  kaarten van de site. Een thema dat de kaarten van de oproep anders wil,
+  stijlt nog die klasse (of de tokens die ze leest). De rol op de kaart
+  zetten is een latere, aparte stap: hij heeft rondom een rand en een
+  radius, de rol alleen lijnen boven en onder.
 - `primary` en `secondary` hebben nog geen eigen `--surface-*`-token: geen
   blok gebruikt ze als standaard. Ze lezen hun paletkleuren direct.
 
 `Tests\Service\SurfaceContractTest` (`contract`, `fast`, `cms`) houdt vast:
-de rolklasse op de root van elk blok met een vast oppervlak, geen `bg-soft`
+de rolklasse op de root van elk blok met een vast oppervlak (ook
+`surface-emphasis` naast `cta-section--full`, en geen rol op een kaart),
+geen vulling, lijn of kleur in de regels van `.cta-section--full` en geen
+combinatie van die klasse met een rol, geen `bg-soft`
 of `bg-forest` in een renderer of template, één regel per rol op zijn token,
 dezelfde vulling voor *Subtiele achtergrond*, de voorrang (elke gekozen
 achtergrond haalt de rol weg, op elk blok met Extra vormgeving en een rol;

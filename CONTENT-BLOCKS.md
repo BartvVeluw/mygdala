@@ -1339,9 +1339,11 @@ is geen kleurkiezer: kleuren komen uit Thema & huisstijl.
 
 **Volledige breedte zonder truc.** De `<section>` van elk blok loopt al over
 de hele pagina, met de inhoud in een `.container`. Een oproep over de volle
-breedte schildert zijn lagen daarom op de `<section>` (`.cta-section--full`)
-in plaats van op de kaart, en de woorden blijven in de gewone container. Geen
-`100vw`, geen negatieve marges, geen horizontale scroll. De Mediabanner doet
+breedte schildert zijn lagen daarom op de `<section>` in plaats van op de
+kaart: `.cta-section--full` is alleen de lay-out (afknippen, de stapeling van
+afbeelding, streep en woorden), en het vlak zelf is de rol `surface-emphasis`
+(`THEMING.md`, "Lay-out en oppervlak"). De woorden blijven in de gewone
+container. Geen `100vw`, geen negatieve marges, geen horizontale scroll. De Mediabanner doet
 hetzelfde (zie hieronder): zijn beeld staat dan in de sectie zelf in plaats
 van in de container. De oproep houdt de
 gewone sectieruimte en groeit met zijn woorden mee; een minimale hoogte kan
@@ -1527,7 +1529,7 @@ en de footer liggen buiten de `<main>` en veranderen nooit mee.
 
 | Keuze | Wat het wordt |
 |---|---|
-| Standaard | Het blok zoals het was, inclusief zijn eigen standaardoppervlak (`.surface-subtle`, `.surface-contrast`, de kaart van een oproep; `THEMING.md`, "Oppervlakken") |
+| Standaard | Het blok zoals het was, inclusief zijn eigen standaardoppervlak (`.surface-subtle`, `.surface-contrast`, `.surface-emphasis` van een oproep over de volle breedte, de kaart van een oproep; `THEMING.md`, "Oppervlakken") |
 | Websiteachtergrond | `--color-bg`, effen: de grondkleur van de pagina |
 | Subtiele achtergrond | De vulling van het subtiele oppervlak (`--surface-subtle`, zoals `.surface-subtle`), zonder zijn lijnen (die zijn *Randen*) |
 | Primaire themakleur | Een tint van de accentkleur (`--color-primary-rgb` op 0.14) over de grondkleur. Bewust geen volle vulling: tekst, links en de gevulde `.btn` zijn voor de grondkleur ontworpen en blijven zo leesbaar. Een volle vulling vraagt een `--color-on-primary`-tokenset voor tekst en knoppen die er nog niet is |
@@ -1536,22 +1538,25 @@ en de footer liggen buiten de `<main>` en veranderen nooit mee.
 
 Elke keuze behalve *Standaard*, ook *Transparant*, vervangt het
 standaardoppervlak van het blok helemaal: `apply()` haalt de rolklasse
-(`surface-subtle`, `surface-contrast`) van de root, dus ook haar lijnen,
+(`surface-subtle`, `surface-contrast`, `surface-emphasis`) van de root, dus ook haar lijnen,
 haarlijn en wat een thema er verder op tekent (`THEMING.md`,
 "Oppervlakken", *Voorrang*). Randen, ruimte en effecten laten de rol staan.
 
 Een keuze vervangt de achtergrond van de `<section>` van het blok, niet die
 van kaarten erin. Een oproep als kaart houdt zijn kaart; bij een oproep over
-de volle breedte is de sectie het vlak en wordt dat vervangen. De afbeelding
-en overlay liggen daar gewoon overheen.
+de volle breedte is de sectie het vlak (de rol `surface-emphasis`) en wordt
+dat vervangen, met zijn sterke lijnen en de accentstreep bovenaan. De
+afbeelding en overlay liggen daar gewoon overheen.
 
 ### Randen, ruimte
 
 **Randen**: *Standaard* houdt de eigen lijnen van het blok (de lijnen van
-`.surface-subtle`, `.surface-contrast` met zijn haarlijn, de lijn boven een Detailsectie of
-een oproep over de volle breedte). De lijnen van een rol gaan mee weg met een
-gekozen achtergrond; de lijn boven een Detailsectie of oproep is van het blok
-zelf en blijft. *Geen*, *Alleen boven*, *Alleen onder* en
+`.surface-subtle`, `.surface-contrast` met zijn haarlijn, `.surface-emphasis` van een
+oproep over de volle breedte, de lijn boven een Detailsectie). De lijnen van
+een rol gaan mee weg met een gekozen achtergrond; de lijn boven een
+Detailsectie is van het blok zelf en blijft. De accentstreep bovenaan een
+oproep over de volle breedte hoort bij zijn rol: een gekozen rand laat hem
+staan (zoals altijd), een gekozen achtergrond neemt hem mee weg. *Geen*, *Alleen boven*, *Alleen onder* en
 *Boven en onder* vervangen ze. *Randkleur*: *Subtiel* (`--color-line-soft`),
 *Normaal* (`--color-line`), *Accentkleur* (`--color-primary`), steeds 1px.
 Geen numerieke velden.
