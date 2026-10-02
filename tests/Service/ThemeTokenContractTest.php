@@ -39,7 +39,10 @@ use PHPUnit\Framework\TestCase;
  *     a light one until it reads like it does on the default theme
  *     (phase 1A.2);
  *   - the display titles that set their own weight take it from a heading
- *     token (phase 1A.2).
+ *     token (phase 1A.2);
+ *   - a focus ring and a button label on the ground are never the bright
+ *     highlight either: both take --color-primary-text, which on a light
+ *     palette also clears the 3:1 a ring needs (phase 1A.3).
  *
  * Pure: no database, no web server. Suites contract, fast and cms.
  */
@@ -434,6 +437,32 @@ final class ThemeTokenContractTest extends TestCase
                     $name . ': "' . strtok($rule, '{') . '" sets text in --color-primary-bright, the highlight. '
                         . 'Text in the accent is --color-primary-text, which stays readable on a light ground'
                 );
+            }
+        }
+    }
+
+    public function testAFocusRingAndAButtonLabelAreNotTheHighlight(): void
+    {
+        foreach (self::publicStylesheets() as $name => $css) {
+            foreach (self::rules($name === 'core.css' ? self::coreRules() : $css) as $rule) {
+                $selector = strtok($rule, '{');
+                if (str_contains($selector, ':focus')) {
+                    self::assertDoesNotMatchRegularExpression(
+                        '/(outline|box-shadow)(-color)?\s*:[^;{}]*var\(--color-primary-bright\)/',
+                        $rule,
+                        $name . ': "' . $selector . '" draws focus in --color-primary-bright, the highlight, which falls '
+                            . 'under 3:1 on a light ground. A focus ring is --color-primary-text'
+                    );
+                }
+                // .btn--on-dark stands on a dark band or a photograph, not on
+                // the ground --color-primary-text is measured against.
+                if (!str_contains($selector, '.btn--on-dark')) {
+                    self::assertDoesNotMatchRegularExpression(
+                        '/--btn-(hover-)?fg\s*:[^;{}]*var\(--color-primary-bright\)/',
+                        $rule,
+                        $name . ': "' . $selector . '" sets a button label in --color-primary-bright; on the ground that is --color-primary-text'
+                    );
+                }
             }
         }
     }

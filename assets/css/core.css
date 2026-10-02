@@ -66,8 +66,8 @@
   --color-text-rgb:           245, 239, 228;
 
   /* --- Tint derivations (recomputed server-side; see ThemePalette) ------ */
-  --color-primary-bright:  #E4C78E;           /* highlight: glints, gradients, rings */
-  --color-primary-text:    #E4C78E;           /* the accent as text: prices, numbers, links, hover text */
+  --color-primary-bright:  #E4C78E;           /* highlight: glints, gradients, sparks */
+  --color-primary-text:    #E4C78E;           /* the accent that must read: text, focus ring */
   --color-primary-deep:    #8A6A3E;           /* recessed: numerals, faint marks */
   --color-bg-deep:         #0C0906;           /* footer / capability band */
   --color-bg-gradient-end: #100B07;           /* foot of the fixed body gradient */
@@ -307,7 +307,7 @@ p{ margin: 0; }
 
 /* Focus visibility */
 :focus-visible{
-  outline: 2.5px solid var(--color-primary-bright);
+  outline: 2.5px solid var(--color-primary-text);
   outline-offset: 3px;
   border-radius: 2px;
 }
@@ -411,10 +411,14 @@ p{ margin: 0; }
   --btn-hover-shadow: none;
   --btn-hover-filter: none;
   --btn-hover-bg: var(--color-primary-wash);
-  --btn-hover-fg: var(--color-primary-bright);
+  --btn-hover-fg: var(--color-primary-text);
   --btn-hover-border-color: var(--color-primary);
 }
 
+/* For a dark band or a photograph, not for the ground (no template uses it
+   today). Its hover text stays the bright highlight on purpose:
+   --color-primary-text is measured against the ground, which is not where
+   this button stands. */
 .btn--on-dark{
   --btn-bg: transparent;
   --btn-fg: var(--color-text);
@@ -1401,7 +1405,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
   transition: color var(--dur-fast) var(--ease-out), text-decoration-thickness var(--dur-fast) var(--ease-out);
 }
 .rich-content a:not(.btn):hover{ color: var(--color-primary); text-decoration-thickness: 2px; }
-.rich-content a:not(.btn):focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; border-radius: 2px; text-decoration-thickness: 2px; }
+.rich-content a:not(.btn):focus-visible{ outline: 2px solid var(--color-primary-text); outline-offset: 2px; border-radius: 2px; text-decoration-thickness: 2px; }
 .rich-content strong, .rich-content b{ color: var(--color-text); font-weight: 700; }
 .rich-content--intro{ font-size: var(--fs-lead); max-width: 46ch; }
 /* A Detailsectie's body reuses .rich-content's structure (headings, lists,
@@ -1570,7 +1574,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
    (assets/js/lightbox.js hides them); `display: flex` above must not win
    over the hidden attribute. */
 .lightbox__nav[hidden], .lightbox__counter[hidden], .lightbox__caption[hidden]{ display: none; }
-.lightbox__close:focus-visible, .lightbox__nav:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+.lightbox__close:focus-visible, .lightbox__nav:focus-visible{ outline: 2px solid var(--color-primary-text); outline-offset: 2px; }
 @media (max-width: 640px){
   .lightbox__nav{ width: 40px; height: 40px; }
   .lightbox__nav--prev{ left: var(--sp-1); }

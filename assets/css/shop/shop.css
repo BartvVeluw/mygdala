@@ -243,7 +243,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--color-primary), 0 0 14px -2px var(--color-primary);
 }
-.product-detail__thumb:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 3px; }
+.product-detail__thumb:focus-visible{ outline: 2px solid var(--color-primary-text); outline-offset: 3px; }
 
 /* The big picture is ALWAYS shown whole: `contain` inside the square
    frame, never cropped and never stretched, so a tall or a wide photo
@@ -351,7 +351,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   flex-shrink: 0; accent-color: var(--color-primary); border-radius: 3px; box-shadow: none;
 }
 .product-order-field .product-order-field__choice input[type="radio"]{ border-radius: 50%; }
-.product-order-field .product-order-field__choice input:focus-visible{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
+.product-order-field .product-order-field__choice input:focus-visible{ outline: 2.5px solid var(--color-primary-text); outline-offset: 3px; }
 /* An unanswered tick box gets the error colour around its box; a radio
    group, whose native circles cannot take a round outline, a line beside it. */
 .product-order-field--choice[data-order-field-invalid] .product-order-field__choice input[type="checkbox"]{ outline: 1.5px solid var(--color-danger); outline-offset: 2px; }
@@ -365,7 +365,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 .product-order-field__upload{ display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
 .product-order-field__pick{ align-self: flex-start; min-height: 44px; }
 .product-order-field__pick[hidden]{ display: none; }
-.product-order-field__file:focus-visible + .product-order-field__upload .product-order-field__pick{ outline: 2.5px solid var(--color-primary-bright); outline-offset: 3px; }
+.product-order-field__file:focus-visible + .product-order-field__upload .product-order-field__pick{ outline: 2.5px solid var(--color-primary-text); outline-offset: 3px; }
 .product-order-field__file[aria-invalid="true"] + .product-order-field__upload .product-order-field__pick{ border-color: var(--color-danger); }
 .product-order-field__preview{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; min-width: 0; max-width: 32rem; }
 .product-order-field__preview[hidden]{ display: none; }
@@ -422,7 +422,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 }
 .product-detail__option-btn:hover{ border-color: var(--color-primary-bright); }
 .product-detail__option-btn.is-selected{ border-color: var(--color-primary); background: var(--color-surface-hover); color: var(--color-primary-text); font-weight: 600; }
-.product-detail__option-btn:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+.product-detail__option-btn:focus-visible{ outline: 2px solid var(--color-primary-text); outline-offset: 2px; }
 
 /* Colour option values: circular swatches with a clear ring on selection —
    never colour alone: the value name is always in the group heading and in
@@ -439,7 +439,7 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
 }
 .product-detail__swatch:hover{ border-color: var(--color-primary-bright); }
 .product-detail__swatch.is-selected{ border-color: var(--color-on-primary); box-shadow: 0 0 0 2px var(--color-primary); }
-.product-detail__swatch:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 3px; }
+.product-detail__swatch:focus-visible{ outline: 2px solid var(--color-primary-text); outline-offset: 3px; }
 
 .product-detail__variant-unavailable{ font-size: 0.85rem; color: var(--color-primary-text); }
 

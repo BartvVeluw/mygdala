@@ -286,8 +286,7 @@ Wat daaruit volgt:
   tekst.
 - **Het accent als tekst is `--color-primary-text`, niet
   `--color-primary-bright`** (fase 1A.2). `--color-primary-bright` is de
-  highlight: verlopen, glinsteringen, ringen, de achtergrond van een
-  accentvlak. Hij is per formule *lichter* dan het accent, en op een lichte
+  highlight: verlopen, glinsteringen, de achtergrond van een accentvlak. Hij is per formule *lichter* dan het accent, en op een lichte
   ondergrond betekent lichter: vager. Een prijs, een StatStrip-cijfer of een
   link in lopende tekst haalde daar 1.6 tot 3.4:1. `--color-primary-text` is
   de highlight zolang die leest (het standaardthema en elk donker palet: exact
@@ -297,6 +296,31 @@ Wat daaruit volgt:
   daarover (een actief tabblad, een chip). Zo blijft de highlight vrij te
   kiezen, en is geen tekst afhankelijk van die keuze. Geen `color:` in een
   publieke stylesheet gebruikt nog `--color-primary-bright`.
+- **De focusring en het label van een knop zijn ook geen highlight** (fase
+  1A.3). De site-brede `:focus-visible`-ring en de eigen ringen van de
+  blokken, de zoekfunctie, de lightbox, de Shop en de personalisatie
+  tekenden in `--color-primary-bright`; op een licht palet haalde dat 1.9
+  tot 3.3:1 tegen de ondergrond, onder de 3:1 die een focusindicator nodig
+  heeft. Ze tekenen nu in `--color-primary-text`. Er is geen aparte
+  focusrol: die zou de highlight zijn waar die leest en anders opschuiven
+  tot hij leest, precies wat `--color-primary-text` al doet, en de 4.5:1
+  daarvan dekt de 3:1 van een ring. Op het standaardthema en elk donker
+  palet zijn de twee gelijk, dus daar verandert niets. De hovertekst van de
+  tweede knop (`.btn--ghost`, en de stijl "Secundair") was op de accentwas
+  1.8 tot 2.9:1 en is nu ook `--color-primary-text`; de recepttest meet
+  precies die was. In een knopstijl betekent de kleur "Primair, lichter" als
+  tekst- of hovertekstkleur daarom `--color-primary-text`
+  (`ButtonStyleCss::TEXT_COLORS`); als vlak of rand blijft hij de
+  highlight. Opgeslagen stijlen veranderen niet. `.btn--on-dark` houdt de
+  highlight bewust: die knop hoort op een donkere band of foto, niet op de
+  ondergrond waartegen `--color-primary-text` gemeten is (geen sjabloon
+  gebruikt hem nu). Wat níet veranderd is: vier ringen in `--color-primary`
+  (de submenuknop, de galerij en pijlen van de Detailsectie, de reviews) en
+  de focusrand van een invoerveld. Die halen 3:1 zolang het accent zelf dat
+  op de ondergrond doet; een licht palet met een licht accent (goud op
+  crème: 2.8:1) haalt het niet, maar daar valt ook de rand van een gevulde
+  knop weg. Ze naar `--color-primary-text` zetten verandert het
+  standaardthema zichtbaar, dus dat is een eigen beslissing.
 - **Zachte tekst houdt zijn contrast** (fase 1A.2). `--color-text-faint` is
   de tekstkleur op alfa `0.46`. Op het standaardthema is dat 4.2:1, op een
   lichte ondergrond met dezelfde alfa maar 2.7 tot 3.0:1. Bijna elk gebruik is
@@ -339,9 +363,12 @@ Wat daaruit volgt:
   (`0 20px 60px`, 0.45). Hun kleur volgt `--color-shadow-rgb` al; hun vorm en
   sterkte horen bij het component. Geen van de vier is zonder zichtbaar
   verschil te schrijven als `--shadow-soft` of `--shadow-lift`, dus ze
-  reageren niet op een thema dat die twee zachter of harder zet. Wil een thema
-  ze toch dempen, dan is één dieptefactor de kleinste uitbreiding; die is er
-  nog niet.
+  reageren niet op een thema dat die twee zachter of harder zet. Dat is een
+  geaccepteerde beperking, geen open fout: de vier zijn verschillende
+  componentfuncties, en één globale dieptefactor zou ze kunstmatig aan
+  elkaar koppelen. Een themastylesheet kan ze gericht aanpassen. Pas als een
+  tweede echt thema laat zien dat dezelfde diepteregeling structureel nodig
+  is, komt er een token.
 - **Een paginathema** zet nooit een vorm-, rand-, schaduw- of
   bewegingstoken: alleen kleuren en lettertypen.
 - **Wat bewust literal blijft**: kleuren op een foto of productbeeld (het
@@ -355,9 +382,9 @@ vast: de standaardwaarden, geen letterlijke kleur buiten de tokens (op een
 genoemde uitzonderingslijst na), geen statuskleur, randdikte of pil-radius
 uitgeschreven, geen hover die met een vaste afstand beweegt, geen paneel op
 `--color-on-primary`, een paginathema zonder vormtokens, geen tekst in
-`--color-primary-bright`, leesbare accent- en zachte tekst op een licht palet
-met de geleverde waarden op een donker, en de eigen titelgewichten op een
-kop-token.
+`--color-primary-bright`, geen focusring of knoplabel in de highlight,
+leesbare accent- en zachte tekst op een licht palet met de geleverde waarden
+op een donker, en de eigen titelgewichten op een kop-token.
 
 ## Nieuwe thema-instelling toevoegen
 
@@ -1230,7 +1257,7 @@ letter:
 | Rand, en bij hover | `--color-line`, `--color-line-strong` |
 | Kaarttitel | `--color-text`, de letter van de kop zelf (`--font-display`, Font Library) |
 | Korte tekst | `--color-text-muted` |
-| Toetsenbordfocus | `--color-primary-bright` (een ring, geen tekst) |
+| Toetsenbordfocus | `--color-primary-text` (een ring die op elke ondergrond 3:1 haalt) |
 | Een kaart zonder beeld | een verloop van `--color-surface-hover` naar `--color-surface-2` |
 | Ruimte en afronding | `--sp-*`, `--radius-md` |
 

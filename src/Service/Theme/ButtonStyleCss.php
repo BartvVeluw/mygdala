@@ -58,6 +58,18 @@ final class ButtonStyleCss
         'line_strong' => 'var(--color-line-strong)',
     ];
 
+    /**
+     * Where a colour word is the label (text and hover text) rather than a
+     * fill or a border, the bright highlight is the accent as text: the
+     * same colour wherever the highlight reads (the default theme, any dark
+     * palette), and on a light palette the shade that does read, on the
+     * ground and on the accent wash a hover lays over it
+     * (--color-primary-text in assets/css/core.css).
+     */
+    public const TEXT_COLORS = [
+        'primary_bright' => 'var(--color-primary-text)',
+    ] + self::COLORS;
+
     /** Shape => border-radius. `pill` and `rounded` were the old Knopvorm. */
     public const SHAPES = [
         'square' => '0px',
@@ -175,7 +187,7 @@ final class ButtonStyleCss
         '--btn-hover-shadow' => 'none',
         '--btn-hover-filter' => 'none',
         '--btn-hover-bg' => 'var(--color-primary-wash)',
-        '--btn-hover-fg' => 'var(--color-primary-bright)',
+        '--btn-hover-fg' => 'var(--color-primary-text)',
         '--btn-hover-border-color' => 'var(--color-primary)',
     ];
 
@@ -196,7 +208,7 @@ final class ButtonStyleCss
 
         $out = [];
         $out['--btn-bg'] = $appearance === 'filled' ? self::fill((string) $style['fill_color'], (bool) $style['fill_gradient']) : 'transparent';
-        $out['--btn-fg'] = self::color((string) $style['text_color']);
+        $out['--btn-fg'] = self::textColor((string) $style['text_color']);
 
         if ($isText) {
             $out['--btn-border-width'] = '0px';
@@ -226,7 +238,7 @@ final class ButtonStyleCss
         $out['--btn-hover-shadow'] = $hoverShadow ?? $shadow;
         $out['--btn-hover-filter'] = $filter;
         $out['--btn-hover-bg'] = self::optionalColor($style['hover_fill_color'] ?? null, 'var(--btn-bg)');
-        $out['--btn-hover-fg'] = self::optionalColor($style['hover_text_color'] ?? null, 'var(--btn-fg)');
+        $out['--btn-hover-fg'] = self::optionalColor($style['hover_text_color'] ?? null, 'var(--btn-fg)', true);
         $out['--btn-hover-border-color'] = $isText ? 'var(--btn-border-color)' : self::optionalColor($style['hover_border_color'] ?? null, 'var(--btn-border-color)');
 
         $icon = (string) $style['icon'];
@@ -306,6 +318,7 @@ final class ButtonStyleCss
 
         return [
             'colors' => self::COLORS,
+            'textColors' => self::TEXT_COLORS,
             'shapes' => self::SHAPES,
             'sizes' => self::SIZES,
             'textPadding' => self::TEXT_PADDING,
@@ -335,9 +348,19 @@ final class ButtonStyleCss
         return ThemeColor::normalise($value) ?? self::COLORS['primary'];
     }
 
-    private static function optionalColor(mixed $value, string $unchanged): string
+    /** A colour word or a fixed #RRGGBB as the colour of the label. */
+    public static function textColor(string $value): string
     {
-        return is_string($value) && $value !== '' ? self::color($value) : $unchanged;
+        return self::TEXT_COLORS[$value] ?? self::color($value);
+    }
+
+    private static function optionalColor(mixed $value, string $unchanged, bool $isText = false): string
+    {
+        if (!is_string($value) || $value === '') {
+            return $unchanged;
+        }
+
+        return $isText ? self::textColor($value) : self::color($value);
     }
 
     /**

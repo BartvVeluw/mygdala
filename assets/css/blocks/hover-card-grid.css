@@ -280,7 +280,7 @@
 }
 .hover-card__link:focus-visible{ outline: none; }
 .hover-card__link:focus-visible::after{
-  outline: 2.5px solid var(--color-primary-bright);
+  outline: 2.5px solid var(--color-primary-text);
   outline-offset: 4px;
 }
 

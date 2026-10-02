@@ -87,7 +87,7 @@ a.gallery-item{ cursor: pointer; }
   background: none;
   cursor: zoom-in;
 }
-.gallery-item__zoom:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: -4px; }
+.gallery-item__zoom:focus-visible{ outline: 2px solid var(--color-primary-text); outline-offset: -4px; }
 .gallery-item--zoom .gallery-item__overlay{ pointer-events: none; }
 .gallery-item__cta{
   pointer-events: auto;

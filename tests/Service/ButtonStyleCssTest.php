@@ -212,7 +212,7 @@ final class ButtonStyleCssTest extends TestCase
 
         self::assertMatchesRegularExpression('/\.btn:hover\{[^}]*transform: translateY\(var\(--btn-hover-lift\)\)[^}]*background: var\(--btn-hover-bg\)[^}]*border-color: var\(--btn-hover-border-color\)/s', $css);
         self::assertMatchesRegularExpression('/\.btn:disabled\{ opacity: 0\.5; cursor: not-allowed; transform: none;/', $css);
-        self::assertMatchesRegularExpression('/:focus-visible\{\s*outline: 2\.5px solid var\(--color-primary-bright\);/', $css);
+        self::assertMatchesRegularExpression('/:focus-visible\{\s*outline: 2\.5px solid var\(--color-primary-text\);/', $css);
         self::assertMatchesRegularExpression('/@media \(prefers-reduced-motion: reduce\)\{[^@]*\.btn:hover,\s*\.btn:hover::before,\s*\.btn:hover::after,\s*\.btn:hover svg\{ transform: none; \}/s', $css);
 
         // No style can switch the focus ring off: the model has no outline.
@@ -231,6 +231,30 @@ final class ButtonStyleCssTest extends TestCase
         self::assertSame('var(--color-bg)', ButtonStyleCss::color('background'));
         self::assertSame('#0F766E', ButtonStyleCss::color('#0f766e'));
         self::assertSame('var(--color-primary)', ButtonStyleCss::color('red;}body{x'), 'never printed as typed');
+    }
+
+    public function testTheBrightAccentAsALabelIsTheAccentAsText(): void
+    {
+        // As text and hover text the highlight is --color-primary-text: the
+        // same colour where the highlight reads, readable where it does not.
+        $outline = ['appearance' => 'outline', 'border_width' => 'normal', 'text_color' => 'primary_bright', 'border_color' => 'primary_bright',
+            'hover_fill_color' => 'primary_bright', 'hover_text_color' => 'primary_bright', 'hover_border_color' => 'primary_bright'] + self::PRIMARY;
+        $css = ButtonStyleCss::declarations($outline);
+        self::assertSame(['var(--color-primary-text)', 'var(--color-primary-text)'], [$css['--btn-fg'], $css['--btn-hover-fg']]);
+
+        // As a fill or a border it stays the free highlight.
+        self::assertSame(['var(--color-primary-bright)', 'var(--color-primary-bright)', 'var(--color-primary-bright)'],
+            [$css['--btn-border-color'], $css['--btn-hover-bg'], $css['--btn-hover-border-color']]);
+        self::assertSame('var(--color-primary-bright)', ButtonStyleCss::declarations(['fill_color' => 'primary_bright', 'fill_gradient' => false] + self::PRIMARY)['--btn-bg']);
+
+        // Every other word, and a fixed colour, is the same as a label.
+        foreach (array_keys(ButtonStyleCss::COLORS) as $word) {
+            if ($word !== 'primary_bright') {
+                self::assertSame(ButtonStyleCss::color($word), ButtonStyleCss::textColor($word), $word);
+            }
+        }
+        self::assertSame('#0F766E', ButtonStyleCss::textColor('#0f766e'));
+        self::assertEqualsCanonicalizing(array_keys(ButtonStyleCss::COLORS), array_keys(ButtonStyleCss::TEXT_COLORS), 'no word of its own');
     }
 
     public function testTheFontFollowsTheThemeAndTheFontLibrary(): void
@@ -336,6 +360,7 @@ final class ButtonStyleCssTest extends TestCase
         $recipe = ButtonStyleCss::recipe();
 
         self::assertSame(ButtonStyleCss::COLORS, $recipe['colors']);
+        self::assertSame(ButtonStyleCss::TEXT_COLORS, $recipe['textColors']);
         self::assertSame(ButtonStyleCss::SHAPES, $recipe['shapes']);
         self::assertSame(ButtonStyleCss::HOVERS, $recipe['hovers']);
         self::assertSame(ButtonStyleCss::PRIMARY_GRADIENT, $recipe['primaryGradient']);

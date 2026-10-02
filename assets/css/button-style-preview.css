@@ -71,7 +71,7 @@
 
 /* :focus-visible, forced (assets/css/core.css). */
 .button-preview .btn.is-preview-focus{
-  outline: 2.5px solid var(--color-primary-bright);
+  outline: 2.5px solid var(--color-primary-text);
   outline-offset: 3px;
 }
 

@@ -47,7 +47,7 @@
 }
 /* A card that is one link shows its keyboard focus on the whole card. */
 .card-presentation a.card-presentation__card:focus-visible{
-  outline: 2px solid var(--color-primary-bright);
+  outline: 2px solid var(--color-primary-text);
   outline-offset: 2px;
 }
 
@@ -73,7 +73,7 @@
 }
 /* The zoom button is the frame: its own focus ring stays inside the card. */
 .card-presentation button.card-presentation__media:focus-visible{
-  outline: 2px solid var(--color-primary-bright);
+  outline: 2px solid var(--color-primary-text);
   outline-offset: -4px;
 }
 

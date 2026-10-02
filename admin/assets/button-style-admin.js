@@ -74,6 +74,11 @@
     return recipe.colors[value] || hex(value) || recipe.colors.primary;
   }
 
+  /** ButtonStyleCss::textColor(): a colour as the label, not a fill or a border. */
+  function textCss(value) {
+    return recipe.textColors[value] || css(value);
+  }
+
   /** ButtonStyleCss::declarations(), for the form's current values. */
   function declarations() {
     var appearance = word('appearance', 'filled');
@@ -90,7 +95,7 @@
     } else {
       out['--btn-bg'] = fill === 'primary' ? recipe.primaryGradient : recipe.sheen + ', ' + css(fill);
     }
-    out['--btn-fg'] = css(colour('text_color') || 'text');
+    out['--btn-fg'] = textCss(colour('text_color') || 'text');
 
     var border = word('border_width', 'none');
     if (isText) {
@@ -126,7 +131,7 @@
     var hoverText = colour('hover_text_color');
     var hoverBorder = colour('hover_border_color');
     out['--btn-hover-bg'] = hoverFill ? css(hoverFill) : 'var(--btn-bg)';
-    out['--btn-hover-fg'] = hoverText ? css(hoverText) : 'var(--btn-fg)';
+    out['--btn-hover-fg'] = hoverText ? textCss(hoverText) : 'var(--btn-fg)';
     out['--btn-hover-border-color'] = !isText && hoverBorder ? css(hoverBorder) : 'var(--btn-border-color)';
 
     var icon = recipe.icons[word('icon', 'none')] || recipe.icons.none;
