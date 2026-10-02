@@ -29,6 +29,15 @@ CSS-overrideblok.
   standaarden en één regel per gekozen stijl. Een kleur is een themakleurwoord
   (`var(--color-…)`, volgt palet en paginathema) of een vaste `#RRGGBB`. Een
   partial vraagt `ButtonStyles::classes()`, nooit eigen knop-CSS.
+- **Global Theme** (`ThemeDefinition`, `ThemeRegistry`): declaratief, een
+  gesloten lijst in code. De sleutel in `theme_settings.active_theme` wordt
+  alleen met die lijst vergeleken, nooit een pad, klasse of attribuut;
+  onbekend = `legacy` (geen stylesheet), en de rij blijft staan. Een thema
+  zet geen paletkleur of afgeleide, geen `--font-display`/`--font-body`,
+  geen `--btn-*`/`--button-radius` en geen `!important`: `site-theme` en
+  `site-buttons` schrijven alleen verschillen. Paginathema's blijven kleur
+  en lettertype. Wisselen verandert alleen `active_theme`, en
+  `active_theme` staat nooit in `ThemeSettings::DEFAULTS`.
 - Core, nadrukkelijk geen module. Een module mag de tokens gebruiken maar
   krijgt nooit een eigen instelling in de vormgeving.
 

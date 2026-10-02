@@ -41,9 +41,12 @@
       <style id="site-theme"> block that App\Service\PageAssets prints
       after this file.
 
-   The values here ARE the default theme: the exact Van Veluw Laserdesign
-   palette. A site that has changed nothing emits no override block at all,
-   so this file alone renders it — unchanged, as it always was.
+   The values here are the Core baseline, the legacy-compatible appearance:
+   the exact Van Veluw Laserdesign palette. A site that has changed nothing
+   emits no override block at all, and the Global Theme `legacy` adds no
+   stylesheet, so this file alone renders it — unchanged, as it always was.
+   It is a baseline, not a Global Theme: a theme's stylesheet comes after
+   it (THEMING.md, "Global Theme").
 
    The two font families come from the selected pairing
    (App\Service\Theme\ThemeFonts). The @import that used to sit at the top
@@ -948,7 +951,7 @@ section{ position: relative; padding-block: var(--sp-7); }
 /* --- Surfaces: the role a block's own root plays on the page -------------
    A block prints the role (`surface-subtle`, `surface-contrast`,
    `surface-emphasis`) as one class on its root, never a colour; this is
-   how the default theme draws each role. A background chosen in Extra vormgeving takes the role off
+   how the Core baseline draws each role. A background chosen in Extra vormgeving takes the role off
    the root (BlockAppearance::apply()); lines, room and effects are two
    classes (block-appearance.css) and win over the role. THEMING.md,
    "Oppervlakken".

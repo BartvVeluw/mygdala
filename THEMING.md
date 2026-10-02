@@ -12,7 +12,7 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 | Tabel | `site_settings` | `color_palettes` (kleuren), `theme_settings` en `theme_font_roles` (eigen lettertype per rol, uit de Font Library), `button_styles` en `button_style_defaults` (knopstijlen) |
 | Scherm | Instellingen | Instellingen → Vormgeving |
 | Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | kleurenpaletten (elk vijf kleuren, één actief), lettertypecombinatie, een eigen lettertype voor koppen en voor lopende tekst, knopstijlen (twee daarvan de standaard) |
-| Terugzetten | nooit automatisch | één knop (kleuren van het actieve palet, lettertypecombinatie, eigen lettertypen per rol, knopvorm), en die raakt de linkerkolom niet aan; de Font Library zelf blijft staan |
+| Terugzetten | nooit automatisch | één knop (kleuren van het actieve palet, lettertypecombinatie, eigen lettertypen per rol, knopvorm), en die raakt de linkerkolom niet aan; de Font Library zelf blijft staan, en het Global Theme (`active_theme`) ook |
 
 Twee tabellen en niet één met een prefix, precies omdat "standaardvormgeving
 herstellen" nooit een bedrijfsadres, een logo of een knoptekst mag meenemen.
@@ -150,9 +150,11 @@ button_shape            pill
 Dat zijn exact de waarden die `assets/css/core.css` zelf declareert. Daar
 draait het hele mechanisme op:
 
-- **`core.css` is het standaardthema.** Een site die niets heeft gewijzigd
-  slaat geen rijen op, krijgt géén `<style id="site-theme">`-blok, en rendert
-  dus letterlijk zoals hij altijd deed.
+- **`core.css` is de Core-basis**, de legacy-compatibele vormgeving. Een
+  site die niets heeft gewijzigd slaat geen rijen op, krijgt géén
+  `<style id="site-theme">`-blok, en rendert dus letterlijk zoals hij altijd
+  deed. Het Global Theme `legacy` voegt daar geen stylesheet aan toe (zie
+  "Global Theme"); `core.css` is een basis, geen Global Theme.
 - **Ontbrekende rij = standaard.** Een verse installatie is meteen coherent,
   en de publieke site blijft goed staan als de database onbereikbaar is. Voor
   de kleuren geldt hetzelfde op waarde: een actief palet dat gelijk is aan de
@@ -185,11 +187,25 @@ publieke pagina
   → App\Service\PageAssets::renderStyles()
       1. <style id="site-fonts">: @font-face van de Font Library-families die
          deze pagina gebruikt (anders niets), en de stylesheet van de
-         combinatie zolang een rol die nog gebruikt (ThemeTypography)
-      2. core.css + blok- en modulestylesheets
-      3. <style id="site-theme">  — alleen wat afwijkt (ThemeCss)
+         combinatie (en die van een paginathema) zolang een rol die nog
+         gebruikt (ThemeTypography)
+      2. de verzamelde stylesheets, in deze volgorde: core.css, de
+         shellstylesheets van ingeschakelde modules, zoeken (als dat aan
+         staat), de route, de blokken, Extra vormgeving, kaartweergave
+      3. het Global Theme: één <link> op een vaste plek, of niets
+         (`legacy`) — ThemeRegistry::active(), zie "Global Theme"
+      4. <style id="site-theme">   — alleen wat afwijkt (ThemeCss)
+      5. <style id="site-buttons"> — knopstijlen, alleen wat afwijkt
+         (ButtonStyleCss)
+      6. <style id="page-theme">   — het paginathema, op <main> (PageThemeCss)
+      daarna in de pagina zelf: inline stijl op een element (bijvoorbeeld
+      de focus of hoogte van een afbeelding)
   → partials/head-branding.php            theme-color + favicon
 ```
+
+Elke laag wint van de lagen erboven. Het Global Theme wint dus van Core en
+van elke blok- of modulestylesheet, en de eigen keuzes van de eigenaar
+(palet, lettertypen, knopstijlen, paginathema) winnen van het Global Theme.
 
 `ThemeCss::declarations()` levert per gewijzigde instelling het bijbehorende
 token én de tokens die daarvan zijn afgeleid (`ThemePalette::dependencies()`).
@@ -704,6 +720,167 @@ opgeslagen keuze van de redacteur. Die naam blijft.
 `Tests\Service\HeroDecorationContractTest` (`contract`, `fast`, `cms`) houdt
 dit vast.
 
+## Global Theme (Themes 2.0, fase 2B)
+
+Een **Global Theme** geeft de hele website een presentatie: vorm, diepte,
+oppervlakken, ornament, beweging. Eén actief thema voor de site. Het is geen
+instelling uit "De negen instellingen" en geen stijlset: het kiest geen
+kleur, geen lettertype en geen knopstijl, die blijven van de eigenaar.
+
+Fase 2B bouwde alleen de runtime. Er is nog geen tweede thema, geen keuze in
+het CMS, geen preview en geen schrijver (zie *Nog niet*).
+
+### Het model
+
+| | |
+|---|---|
+| `App\Service\Theme\ThemeDefinition` | één thema: `key`, `label`, `stylesheet` (of `null`). Alleen gegevens, geen PHP die iets tekent |
+| `App\Service\Theme\ThemeRegistry` | de **gesloten** lijst in code: `all()`, `find()`, `fallback()`, `active()`. Geen mapscan, geen reflectie, geen thema uit de database |
+| `theme_settings.active_theme` | de sleutel van het actieve thema. Geen migratie: `theme_settings` is al key/value. Geen rij = `legacy` |
+| `ThemeSettings::activeThemeKey()` | leest die rij, ruw en gecachet met de rest; resolveert niets |
+| `PageAssets::renderStyles()` | één vaste plek voor de `<link>` van het actieve thema |
+
+Een sleutel is een technisch woord: `^[a-z][a-z0-9-]{1,39}$`. Geen punt,
+slash, backslash, spatie of hoofdletter, dus nooit iets dat op een pad lijkt.
+Een stylesheet is `null` of een lokaal `.css`-pad onder `assets/` in de vorm
+die `PageAssets` print (`PageAssets::isAssetPath()`): geen `..`, geen
+protocol, geen query of fragment. Of het bestand er echt staat controleert
+`PageAssets` bij het printen, niet de definitie. Het pad staat altijd
+uitgeschreven in de definitie en wordt nooit uit de sleutel afgeleid. Een
+first-party thema staat volgens afspraak in `assets/css/themes/`; die
+afspraak zit bewust niet in `ThemeDefinition`, zodat een latere Client
+Extension een stylesheet in zijn eigen map kan meebrengen.
+
+### `legacy`
+
+`legacy` (label *Klassiek*) is een echt geregistreerd thema **zonder
+stylesheet**: Core en de eigen instellingen alleen, byte voor byte wat de
+site voor `ThemeRegistry` printte. Er is geen leeg `legacy.css`. Het is de
+blijvende terugval: een ontbrekende, lege of onbekende sleutel wordt
+`legacy`, nu en later. Het is geen tweede naam voor "de standaard": een
+echte first-party standaard krijgt later een eigen sleutel, en pas dan
+schrijft de installatiewizard die sleutel bij een verse installatie. Tot die
+tijd schrijft niets `active_theme`, ook de wizard niet.
+
+### Van sleutel naar stylesheet
+
+```text
+ThemeSettings::activeThemeKey()     ruwe rij, '' als die er niet is
+  → ThemeRegistry::active()         vergelijkt alleen met de lijst
+      bekend          → die definitie
+      leeg/onbekend   → ThemeRegistry::fallback() = legacy
+  → PageAssets::themeStylesheet()   pad uit de definitie, PageAssets::isLoadable(),
+                                    AssetVersion::url(), of '' voor legacy
+```
+
+De databasewaarde wordt nooit een pad, klassenaam, include, CSS-selector of
+attribuut. Er komt ook geen `body.theme-…`, `data-theme` of klasse op
+`<html>`: de stylesheet is genoeg, en zo kan geen CSS stiekem van een
+databasewaarde afhangen. Een onbekende sleutel (`kobold`, `../../evil.css`)
+geeft `legacy` en **blijft opgeslagen**: een extensie die even ontbreekt komt
+vanzelf terug, en een automatische reparatie zou de keuze van de eigenaar
+weggooien. Een waarschuwing daarover in het CMS komt met de keuze (fase 2D).
+
+Een geregistreerd thema waarvan de stylesheet ontbreekt is een kapotte
+deploy: geen `<link>`, een regel in de errorlog, de pagina rendert op de
+basis. Geen ander thema, geen databasewijziging.
+
+### Foutafhandeling
+
+Twee soorten, bewust uit elkaar gehouden:
+
+- **Geen geldige themakeuze** (geen rij, lege rij, onbekende of verwijderde
+  sleutel): een gewone toestand, geen fout. Wordt `legacy`, zonder log.
+- **Een kapotte lijst** (dubbele sleutel, ongeldige definitie, geen
+  `legacy`): een programmeerfout waar `ThemeRegistry` eigenaar van is. Buiten
+  productie gooit `active()` die door, zodat ontwikkeling en tests het zien;
+  in productie logt het en rendert `legacy`, zodat de publieke site niet wit
+  wordt. Alleen een `\LogicException` wordt gevangen, nooit `\Throwable`.
+
+Een onbereikbare database vangt `ThemeRegistry` niet. Dat doet
+`ThemeSettings::all()` al, met de regel die voor de hele vormgeving geldt:
+loggen en de meegeleverde vormgeving tonen. `activeThemeKey()` volgt die
+regel (geen rij gelezen = `''` = `legacy`), en de log maakt de storing
+zichtbaar. Al het andere dat de settings-laag gooit gaat door: dat is een
+echte fout en mag niet doorgaan voor "geen thema gekozen".
+
+### Wat een Global Theme wel en niet mag
+
+Wel, met `var(--color-…)` voor elke kleur:
+
+- niet-paletgebonden tokens: randen, radius, schaduwen en diepte, glans,
+  lijnen, ruimte;
+- koppen: gewicht en letterspatiëring;
+- hover en beweging;
+- de semantische oppervlakken (`.surface-*`, zie "Oppervlakken"), de
+  decoratie van de homepage-opening, sectiekoppen;
+- generieke componentselectors, header en footer.
+
+Niet:
+
+- de vijf paletkleuren (`ThemeCss::DIRECT`) en wat daaruit is afgeleid
+  (`ThemePalette::dependencies()`);
+- `--font-display` en `--font-body`;
+- `--btn-*` op `.btn`/`.btn--ghost`, en `--button-radius`;
+- vaste merkkleuren binnen een component;
+- `!important`.
+
+Waarom zo streng: `site-theme` en `site-buttons` printen alleen wat
+**afwijkt** van de meegeleverde standaard. Een eigenaar die bewust de
+standaardwaarde gebruikt print dus niets, en zou van een thema verliezen
+dat diezelfde token zet. Fase 2C bewaakt dit met een CSS-contracttest zodra
+er een echte themastylesheet is.
+
+Tokens die met `var()` zijn opgebouwd (oppervlakken, schaduwen, lijnen) en
+de ondergrond staan in `core.css` op `:root, main[data-page-theme]`. Een
+thema dat ze herdefinieert doet dat op datzelfde paar, anders valt een
+`<main>` met paginathema terug op de Core-waarden.
+
+### Paginathema, eigen instellingen, wisselen
+
+- **Paginathema**: blijft kleur en lettertype voor één pagina. Het Global
+  Theme blijft vorm, diepte, oppervlak, ornament en beweging. Ze kiezen
+  niets voor elkaar; het paginathema staat in de cascade na het Global
+  Theme.
+- **Eigen instellingen**: palet, lettertypen en knopstijlen staan na het
+  Global Theme en winnen dus altijd.
+- **Wisselen is niet-destructief**: een wissel verandert straks uitsluitend
+  `theme_settings.active_theme`. Paletten, lettertypen, knopstijlen,
+  paginathema's, blokken, inhoud, navigatie, Shop en moduledata blijven
+  onaangeraakt.
+- **"Standaardvormgeving herstellen"** raakt `active_theme` niet:
+  `ThemeSettings::reset()` verwijdert alleen de sleutels uit `DEFAULTS`, en
+  `active_theme` staat daar bewust niet in. Daardoor zien ook `isDefault()`,
+  `changedKeys()`, `keys()` en de installatiewizard het thema niet.
+- **`<meta name="theme-color">`** blijft de achtergrondkleur van het palet
+  (`partials/head-branding.php`); een thema geeft de browserbalk geen eigen
+  kleur.
+
+### Nog niet
+
+- Fase 2C: een eerste lichte, minimale first-party theme met een echte
+  stylesheet, de CSS-contracttest voor themastylesheets en de
+  ownership-/updatertest voor `assets/css/themes/`. Pas dan bewijst een
+  test het positieve pad van `active()` tot `<link>` van begin tot eind.
+- Fase 2D: kiezen in het CMS (de schrijver, het endpoint) met een preview en
+  een waarschuwing bij een onbekende sleutel.
+- Fase 2E: expliciete suggesties van een thema voor palet, lettertypen en
+  knoppen.
+- Een first-party standaardthema (en de wizard die het schrijft) en Client
+  Extension-thema's.
+
+### Testen
+
+`ThemeDefinitionTest` en `ThemeRegistryTest` (`unit`, `fast`, `cms`): de
+vorm van sleutel en stylesheet, de gesloten lijst, `legacy` als terugval,
+elke onbekende of padachtige opgeslagen waarde, de dubbele-sleutelbewaking,
+en dat `active_theme` geen vormgevingsinstelling is. `ThemeRenderingTest`
+(`contract`, `fast`, `cms`): niets in de themaplek bij `legacy`,
+`collected()` ongewijzigd, de volgorde van de lagen in `renderStyles()`, een
+stylesheet uit een expliciete definitie met cache-buster, een ontbrekend
+bestand gelogd en niet gelinkt. `ThemePersistenceTest` (`cms`): de echte
+rij, ruw gelezen, onbekend niet gerepareerd, herstellen laat hem staan.
+
 ## Nieuwe thema-instelling toevoegen
 
 Dit recept geldt voor een instelling die geen kleur is (zoals lettertype en
@@ -883,9 +1060,11 @@ Nog niet gebouwd, wel voorbereid:
 - **Font Library 1.0** (gebouwd, zie "Font Library") en **Button Styles 2.0**
   (gebouwd, zie "Knopstijlen") horen niet in een palet. Een palet is kleur, en `theme_settings` en
   `theme_font_roles` houden lettertype en knopvorm juist apart van het palet:
-  een ander palet activeren verandert nooit een lettertype. Wordt het later
-  een benoemde "stijlset" (kleur + letter + knop), dan komt die als eigen
-  record naast `color_palettes`, niet als extra kolommen erin.
+  een ander palet activeren verandert nooit een lettertype. Een benoemde
+  "stijlset" (kleur + letter + knop) komt, als die er ooit komt, als eigen
+  record naast `color_palettes`, niet als extra kolommen erin. Een **Global
+  Theme** is iets anders: dat schrijft nooit een palet, lettertype of
+  knopstijl (zie "Global Theme").
 - De preview drukt al het lettertype en de knopvorm van de site af, en
   `ThemeSettings::all()` is al de enige lezer, dus een nieuwe bron hoeft maar
   op één plek aan te haken.
@@ -1332,17 +1511,21 @@ zet de vorm van beide standaarden terug op volledig rond. De migratie
 `20261005100000` gaf "Primair" en "Secundair" de vorm die de site had en
 verwijderde de rij uit `theme_settings`.
 
-### Later: een Global Theme
+### Knopstijlen en het Global Theme
 
-Een toekomstig **Global Theme** ("stijlset": palet + lettertypen + knoppen)
-hoeft dit model niet te dupliceren. Het is een record dat naar bestaande
-dingen verwijst: een `color_palettes.id`, twee Font Library-families en twee
-`button_styles.id`'s voor de rollen. Een thema activeren schrijft
-`button_style_defaults` (en het actieve palet, en `theme_font_roles`); meer
-standaardknoppen per thema (bijvoorbeeld een derde rol voor
-"op een donkere foto") zijn een extra rolwoord in
-`ButtonStyleRepository::ROLES` met een eigen `.btn--…`-klasse, nooit een
-tweede CSS-generator. Nog niet gebouwd.
+Een **Global Theme** (zie "Global Theme") raakt de knopstijlen niet aan. Een
+thema activeren schrijft geen `button_style_defaults`, geen
+`button_styles`, geen palet en geen `theme_font_roles`: wisselen verandert
+alleen `theme_settings.active_theme`. Een thema declareert ook geen
+`--btn-*` op `.btn`/`.btn--ghost` en geen `--button-radius`: `site-buttons`
+schrijft alleen het verschil met de standaard, dus een eigenaar die bewust
+de standaard koos zou anders van het thema verliezen.
+
+Een *suggestie* van een thema voor knopstijlen (fase 2E) wordt een
+expliciete actie van de eigenaar, nooit een bijwerking van wisselen. Meer
+standaardknoppen (bijvoorbeeld een derde rol voor "op een donkere foto")
+blijven een extra rolwoord in `ButtonStyleRepository::ROLES` met een eigen
+`.btn--…`-klasse, nooit een tweede CSS-generator.
 
 ## Paginathema's
 
@@ -1616,6 +1799,8 @@ geen favicon-link en geen `og:image`.
 docker compose exec php      php vendor/bin/phpunit --testsuite fast
 docker compose exec php_test php vendor/bin/phpunit --testsuite cms
 ```
+
+Het Global Theme: zie "Global Theme", *Testen*.
 
 `fast` bevat `ThemeSettingsTest`, `ThemeRenderingTest`, `BrandingTest`,
 `SiteIdentityTest`, `AdminThemeTest` en `AdminThemeContractTest` en heeft

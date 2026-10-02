@@ -146,8 +146,8 @@
    The markup only offers hooks: the canvas `.hero-decoration`, two empty
    `.hero-decoration__layer`s, and the `.hero-decoration__particle`s that
    homepage-hero.js adds to the canvas. Everything they look like below is
-   the default theme's choice (two glowing lines and falling points), and a
-   theme stylesheet may replace it or hide all of it with `display: none`;
+   the Core baseline's choice (two glowing lines and falling points), and a
+   Global Theme stylesheet may replace it or hide all of it with `display: none`;
    the script then adds no particles. The canvas never takes a click.
    ========================================================================== */
 .hero-decoration{ position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
