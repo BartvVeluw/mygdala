@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\ThemeSettingRepository;
 use App\Service\SiteSettings;
 use App\Service\Theme\ButtonStyles;
+use App\Service\Theme\ThemeRegistry;
 use App\Service\Theme\ThemeSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\ButtonStyleFixture;
@@ -47,6 +48,7 @@ final class ThemePersistenceTest extends TestCase
         parent::setUp();
 
         $this->before = (new ThemeSettingRepository())->findAll();
+        (new ThemeSettingRepository())->deleteKeys([ThemeSettings::ACTIVE_THEME_KEY]);
         $this->palettes = ColorPaletteFixture::snapshot();
         ColorPaletteFixture::only();
         $this->buttonStyles = ButtonStyleFixture::snapshot();
@@ -57,7 +59,7 @@ final class ThemePersistenceTest extends TestCase
     protected function tearDown(): void
     {
         $repository = new ThemeSettingRepository();
-        $repository->deleteKeys(ThemeSettings::keys());
+        $repository->deleteKeys([...ThemeSettings::keys(), ThemeSettings::ACTIVE_THEME_KEY]);
 
         if ($this->before !== []) {
             $repository->upsertMany($this->before);
@@ -203,6 +205,76 @@ final class ThemePersistenceTest extends TestCase
         SiteSettings::clearCache();
 
         $this->assertSame($identityBefore, SiteSettings::all());
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The Global Theme key (ThemeRegistry)                                */
+    /* ------------------------------------------------------------------ */
+
+    public function testNoActiveThemeRowReadsAsEmptyAndResolvesToLegacy(): void
+    {
+        ThemeSettings::clearCache();
+
+        $this->assertSame('', ThemeSettings::activeThemeKey());
+        $this->assertSame('legacy', ThemeRegistry::active()->key);
+    }
+
+    public function testTheStoredActiveThemeIsReadRawAndCachedWithTheRest(): void
+    {
+        $repository = new ThemeSettingRepository();
+        $repository->upsertMany([ThemeSettings::ACTIVE_THEME_KEY => 'Kobold']);
+        ThemeSettings::clearCache();
+
+        $this->assertSame('Kobold', ThemeSettings::activeThemeKey());
+
+        $repository->upsertMany([ThemeSettings::ACTIVE_THEME_KEY => 'legacy']);
+        $this->assertSame('Kobold', ThemeSettings::activeThemeKey(), 'read once per request, like every theme row');
+
+        ThemeSettings::clearCache();
+        $this->assertSame('legacy', ThemeSettings::activeThemeKey());
+    }
+
+    /**
+     * An unknown key renders legacy and stays stored: the theme may come
+     * back (an extension deployed later), and a repair would throw away
+     * what the owner chose.
+     */
+    public function testAnUnknownStoredThemeRendersLegacyAndIsNotRepaired(): void
+    {
+        foreach (['kobold', '../../evil.css'] as $stored) {
+            (new ThemeSettingRepository())->upsertMany([ThemeSettings::ACTIVE_THEME_KEY => $stored]);
+            ThemeSettings::clearCache();
+
+            $this->assertSame('legacy', ThemeRegistry::active()->key);
+            $this->assertNull(ThemeRegistry::active()->stylesheet);
+            $this->assertSame($stored, (new ThemeSettingRepository())->findAll()[ThemeSettings::ACTIVE_THEME_KEY] ?? null);
+        }
+    }
+
+    /** "Standaardvormgeving herstellen" is not a theme switch. */
+    public function testResetLeavesTheActiveThemeAlone(): void
+    {
+        (new ThemeSettingRepository())->upsertMany([ThemeSettings::ACTIVE_THEME_KEY => 'kobold']);
+        ThemeSettings::save(['primary_color' => '#2F6FED', 'font_pairing' => 'lora-montserrat']);
+
+        ThemeSettings::reset();
+        ThemeSettings::clearCache();
+
+        $this->assertTrue(ThemeSettings::isDefault());
+        $this->assertSame([ThemeSettings::ACTIVE_THEME_KEY => 'kobold'], (new ThemeSettingRepository())->findAll());
+        $this->assertSame('kobold', ThemeSettings::activeThemeKey());
+    }
+
+    public function testAStoredThemeLeavesTheAppearanceDefaultAndUnchanged(): void
+    {
+        (new ThemeSettingRepository())->deleteKeys(ThemeSettings::keys());
+        (new ThemeSettingRepository())->upsertMany([ThemeSettings::ACTIVE_THEME_KEY => 'legacy']);
+        ThemeSettings::clearCache();
+
+        $this->assertTrue(ThemeSettings::isDefault());
+        $this->assertSame([], ThemeSettings::changedKeys());
+        $this->assertSame(ThemeSettings::defaults(), ThemeSettings::all());
+        $this->assertNotContains(ThemeSettings::ACTIVE_THEME_KEY, ThemeSettings::keys());
     }
 
     public function testTheThemeTableIsSeparateFromTheSiteSettingsTable(): void

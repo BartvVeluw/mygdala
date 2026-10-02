@@ -99,8 +99,19 @@ final class ThemeSettings
         'button_shape' => 'pill',
     ];
 
+    /**
+     * The row holding the Global Theme's key (App\Service\Theme\ThemeRegistry).
+     * Deliberately NOT one of DEFAULTS: the theme is a design choice of its
+     * own, not an appearance value — reset(), isDefault(), changedKeys(),
+     * keys() and the Setup Wizard never see it.
+     */
+    public const ACTIVE_THEME_KEY = 'active_theme';
+
     /** @var array<string, string>|null */
     private static ?array $cache = null;
+
+    /** The stored Global Theme key, read with the rest; null = not read yet. */
+    private static ?string $activeTheme = null;
 
     /**
      * Every known key: the stored value where there is a valid one, the code
@@ -122,6 +133,7 @@ final class ThemeSettings
         } catch (\Throwable $e) {
             error_log('[ThemeSettings] falling back to defaults: ' . $e->getMessage());
         }
+        self::$activeTheme = $stored[self::ACTIVE_THEME_KEY] ?? '';
 
         // The colours: the active palette. Only when the palettes cannot be
         // read at all do the pre-palette colour rows count (see above).
@@ -180,6 +192,19 @@ final class ThemeSettings
         }
 
         return self::$cache = $settings;
+    }
+
+    /**
+     * The stored Global Theme key exactly as it is in the row, '' when there
+     * is none. Read with every other row and cached with them, so it costs
+     * no query of its own. It resolves nothing: what the key means is
+     * ThemeRegistry::active()'s job, and an unknown key is returned as it is.
+     */
+    public static function activeThemeKey(): string
+    {
+        self::all();
+
+        return self::$activeTheme ?? '';
     }
 
     /**
@@ -372,7 +397,8 @@ final class ThemeSettings
      * go back to the pairing; the Font Library itself keeps every family. The
      * two default button styles get the shipped shape back
      * (ButtonStyles::saveDefaultShape()); every other part of every style
-     * stays as it is.
+     * stays as it is. The Global Theme (ACTIVE_THEME_KEY) is not part of the
+     * appearance this restores and is left exactly as it is.
      */
     public static function reset(): void
     {
@@ -387,6 +413,7 @@ final class ThemeSettings
     public static function clearCache(): void
     {
         self::$cache = null;
+        self::$activeTheme = null;
         ColorPaletteService::forgetActive();
         FontLibrary::forget();
         ButtonStyles::clearCache();
@@ -399,7 +426,8 @@ final class ThemeSettings
      * App\Module\ModuleRegistry::overrideForTests().
      *
      * Values still go through validation, so a test cannot set a colour the
-     * application itself would refuse.
+     * application itself would refuse. ACTIVE_THEME_KEY is passed through raw,
+     * like the stored row: resolving it is ThemeRegistry's job.
      *
      * @param array<string, string>|null $values
      */
@@ -412,6 +440,7 @@ final class ThemeSettings
         }
 
         self::$cache = array_merge(self::DEFAULTS, self::validate($values)['values']);
+        self::$activeTheme = (string) ($values[self::ACTIVE_THEME_KEY] ?? '');
     }
 
     /**

@@ -8,6 +8,8 @@ use App\Service\Theme\ButtonStyles;
 use App\Service\Theme\FontLibrary;
 use App\Service\Theme\PageThemeCss;
 use App\Service\Theme\ThemeCss;
+use App\Service\Theme\ThemeDefinition;
+use App\Service\Theme\ThemeRegistry;
 
 /**
  * The frontend assets ONE request needs: collected while the page is put
@@ -137,10 +139,19 @@ final class PageAssets
             echo '<link rel="stylesheet" href="/' . self::href($path) . '">' . "\n";
         }
 
-        // The theme override goes LAST so it wins over core.css and over
-        // any block or Shop stylesheet in between. For a site still on
-        // the default theme it prints nothing at all, not even an empty
-        // <style> tag. See App\Service\Theme\ThemeCss.
+        // The Global Theme: its own fixed slot, after every collected
+        // stylesheet (Core, module shell, search, route, blocks) so its
+        // presentation wins over them, and before the owner's own settings
+        // below so those win over it. Not in $styles, so collected() and
+        // the asset ownership lists stay what they are. `legacy` has no
+        // stylesheet and prints nothing at all. See
+        // App\Service\Theme\ThemeRegistry.
+        echo self::themeStylesheet(ThemeRegistry::active());
+
+        // The theme override goes after every stylesheet so it wins over
+        // core.css, any block or Shop stylesheet and the Global Theme. For
+        // a site still on the shipped appearance it prints nothing at all,
+        // not even an empty <style> tag. See App\Service\Theme\ThemeCss.
         ThemeCss::renderStyleBlock();
 
         // The button styles (Button Styles 2.0): the default buttons where
@@ -154,6 +165,29 @@ final class PageAssets
         // the site theme, scoped to its <main>. Nothing at all for every
         // other page. See App\Service\Theme\PageThemeCss.
         PageThemeCss::renderStyleBlock();
+    }
+
+    /**
+     * The <link> of a Global Theme's stylesheet, or '' for a theme without
+     * one (legacy). The path comes from the trusted definition only, never
+     * from the stored key, and is printed only when PageAssets would print
+     * it anywhere else (isLoadable(): local, under assets/, present). A
+     * missing file is a broken deploy: logged, and the page renders on its
+     * baseline rather than with a link that 404s.
+     */
+    public static function themeStylesheet(ThemeDefinition $theme): string
+    {
+        if ($theme->stylesheet === null) {
+            return '';
+        }
+
+        if (!self::isLoadable($theme->stylesheet)) {
+            error_log('[PageAssets] stylesheet of theme "' . $theme->key . '" is not loadable: ' . $theme->stylesheet);
+
+            return '';
+        }
+
+        return '<link rel="stylesheet" href="/' . self::href($theme->stylesheet) . '">' . "\n";
     }
 
     /**
@@ -276,15 +310,22 @@ final class PageAssets
      */
     public static function isLoadable(string $path): bool
     {
+        return self::isAssetPath($path) && is_file(self::projectRoot() . '/' . $path);
+    }
+
+    /**
+     * The shape half of isLoadable(), without touching the disk: a
+     * project-relative .css or .js path under assets/, no traversal, no
+     * protocol, no query or fragment. App\Service\Theme\ThemeDefinition
+     * holds a theme's stylesheet to it.
+     */
+    public static function isAssetPath(string $path): bool
+    {
         if (str_contains($path, '..')) {
             return false;
         }
 
-        if (preg_match('#^assets/[A-Za-z0-9_/-]+\.(css|js)$#', $path) !== 1) {
-            return false;
-        }
-
-        return is_file(self::projectRoot() . '/' . $path);
+        return preg_match('#^assets/[A-Za-z0-9_/-]+\.(css|js)\z#', $path) === 1;
     }
 
     /**
