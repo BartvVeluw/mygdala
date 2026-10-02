@@ -34,14 +34,16 @@ use App\Service\AppEnvironment;
  * row would destroy what the owner chose.
  *
  * ## The first-party themes
-
-`legacy` and `minimal` (THEMING.md, "First-party themes"). Registering a
-theme never activates it: only the stored key does, and nothing writes that
-key yet, so a site without one stays on legacy.
-
-## What it deliberately is not
  *
- * No writer: choosing a theme is a later phase (THEMING.md). No CRUD, no
+ * `legacy` and `minimal` (THEMING.md, "First-party themes"). Registering a
+ * theme never activates it: only the stored key does, and only the theme
+ * picker on Vormgeving writes that key (api/admin/save-active-theme.php,
+ * after find() said yes, through ThemeSettings::saveActiveThemeKey()), so a
+ * site without one stays on legacy.
+ *
+ * ## What it deliberately is not
+ *
+ * Not a writer: the registry only answers what exists. No CRUD, no
  * repository. A theme never writes palettes, fonts or button styles; see
  * THEMING.md, "Global Theme".
  */

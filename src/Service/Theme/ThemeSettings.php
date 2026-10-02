@@ -208,6 +208,32 @@ final class ThemeSettings
     }
 
     /**
+     * Stores the Global Theme key: one row, `active_theme`, and nothing else
+     * — no palette, font, button style or other appearance value moves when
+     * the theme does. `legacy` is written like any other key rather than
+     * deleting the row, so a deliberate choice of Klassiek stays visible as
+     * one and survives whatever a later default becomes.
+     *
+     * Whether the key names a REGISTERED theme is the caller's check
+     * (ThemeRegistry::find(), api/admin/save-active-theme.php): this class is
+     * the storage under the registry and does not ask it back, so there is no
+     * ThemeSettings → ThemeRegistry → ThemeSettings loop. What it does refuse
+     * is a value that could never be a key at all (ThemeDefinition::isValidKey()):
+     * a path, a URL or markup never reaches the table, whoever calls this.
+     *
+     * @throws \InvalidArgumentException when the value has no theme key's shape
+     */
+    public static function saveActiveThemeKey(string $key): void
+    {
+        if (!ThemeDefinition::isValidKey($key)) {
+            throw new \InvalidArgumentException('Not a theme key: ' . json_encode($key));
+        }
+
+        (new ThemeSettingRepository())->upsertMany([self::ACTIVE_THEME_KEY => $key]);
+        self::clearCache();
+    }
+
+    /**
      * A role key's value as a family id, or null for "the pairing's font".
      */
     public static function familyId(string $value): ?int

@@ -321,6 +321,46 @@ final class ThemePersistenceTest extends TestCase
         $this->assertStringNotContainsString('/assets/css/themes/', $html);
     }
 
+    /**
+     * The writer of the theme picker: one row, the key as given, the cache
+     * cleared — and `legacy` stored like any other key, not as a deletion.
+     */
+    public function testSaveActiveThemeKeyWritesOnlyThatRowAndClearsTheCache(): void
+    {
+        $repository = new ThemeSettingRepository();
+        ThemeSettings::save(['font_pairing' => 'lora-montserrat']);
+        $others = $repository->findAll();
+        $this->assertSame('', ThemeSettings::activeThemeKey());
+
+        ThemeSettings::saveActiveThemeKey('minimal');
+        $this->assertSame('minimal', ThemeSettings::activeThemeKey(), 'the request cache is cleared');
+        $this->assertSame('minimal', ThemeRegistry::active()->key);
+        $this->assertSame($others + [ThemeSettings::ACTIVE_THEME_KEY => 'minimal'], $repository->findAll());
+
+        ThemeSettings::saveActiveThemeKey('legacy');
+        $this->assertSame('legacy', $repository->findAll()[ThemeSettings::ACTIVE_THEME_KEY] ?? null, 'Klassiek is stored, not deleted');
+        $this->assertSame('legacy', ThemeRegistry::active()->key);
+        $this->assertSame('lora-montserrat', ThemeSettings::get('font_pairing'));
+    }
+
+    /**
+     * Membership is the caller's check (ThemeRegistry::find()); the writer
+     * only refuses what could never be a key, so no path, URL or markup
+     * reaches the table whoever calls it.
+     */
+    public function testSaveActiveThemeKeyRefusesWhatCanNeverBeAKey(): void
+    {
+        foreach (['', 'LEGACY', 'minimal.css', '../../evil', 'https://evil.test/x.css', '<style>', 'a'] as $bad) {
+            try {
+                ThemeSettings::saveActiveThemeKey($bad);
+                $this->fail('stored ' . json_encode($bad));
+            } catch (\InvalidArgumentException) {
+            }
+        }
+
+        $this->assertArrayNotHasKey(ThemeSettings::ACTIVE_THEME_KEY, (new ThemeSettingRepository())->findAll());
+    }
+
     /** "Standaardvormgeving herstellen" is not a theme switch. */
     public function testResetLeavesTheActiveThemeAlone(): void
     {
