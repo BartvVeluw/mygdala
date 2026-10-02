@@ -727,8 +727,9 @@ oppervlakken, ornament, beweging. Eén actief thema voor de site. Het is geen
 instelling uit "De negen instellingen" en geen stijlset: het kiest geen
 kleur, geen lettertype en geen knopstijl, die blijven van de eigenaar.
 
-Fase 2B bouwde alleen de runtime. Er is nog geen tweede thema, geen keuze in
-het CMS, geen preview en geen schrijver (zie *Nog niet*).
+Fase 2B bouwde de runtime, fase 2C het eerste echte thema, `minimal` (zie
+*First-party themes* hieronder). Er is nog geen keuze in het CMS, geen
+preview en geen schrijver (zie *Nog niet*).
 
 ### Het model
 
@@ -825,8 +826,11 @@ echte fout en mag niet doorgaan voor "geen thema gekozen".
 
 Wel, met `var(--color-…)` voor elke kleur:
 
-- niet-paletgebonden tokens: randen, radius, schaduwen en diepte, glans,
-  lijnen, ruimte;
+- niet-paletgebonden tokens: randdikte, de schaduwtint, glans, ruimte, de
+  vullingen van de oppervlakken;
+- vorm en diepte per component: radius en schaduw op de componentselector
+  (niet door de gedeelde schaal `--radius-*`/`--shadow-*` te verschalen, zie
+  hieronder);
 - koppen: gewicht en letterspatiëring;
 - hover en beweging;
 - de semantische oppervlakken (`.surface-*`, zie "Oppervlakken"), de
@@ -839,14 +843,17 @@ Niet:
   (`ThemePalette::dependencies()`);
 - `--font-display` en `--font-body`;
 - `--btn-*` op `.btn`/`.btn--ghost`, en `--button-radius`;
+- elke token waar een knopstijl naar verwijst: `--radius-sm`, `--radius-md`,
+  `--radius-lg`, `--shadow-soft`, `--shadow-lift` en `--color-glow` (zie
+  *Het CSS-contract*);
 - vaste merkkleuren binnen een component;
 - `!important`.
 
 Waarom zo streng: `site-theme` en `site-buttons` printen alleen wat
 **afwijkt** van de meegeleverde standaard. Een eigenaar die bewust de
 standaardwaarde gebruikt print dus niets, en zou van een thema verliezen
-dat diezelfde token zet. Fase 2C bewaakt dit met een CSS-contracttest zodra
-er een echte themastylesheet is.
+dat diezelfde token zet. `ThemeStylesheetContractTest` bewaakt dit (zie
+*First-party themes*, *Het CSS-contract*).
 
 Tokens die met `var()` zijn opgebouwd (oppervlakken, schaduwen, lijnen) en
 de ondergrond staan in `core.css` op `:root, main[data-page-theme]`. Een
@@ -875,10 +882,6 @@ thema dat ze herdefinieert doet dat op datzelfde paar, anders valt een
 
 ### Nog niet
 
-- Fase 2C: een eerste lichte, minimale first-party theme met een echte
-  stylesheet, de CSS-contracttest voor themastylesheets en de
-  ownership-/updatertest voor `assets/css/themes/`. Pas dan bewijst een
-  test het positieve pad van `active()` tot `<link>` van begin tot eind.
 - Fase 2D: kiezen in het CMS (de schrijver, het endpoint) met een preview en
   een waarschuwing bij een onbekende sleutel.
 - Fase 2E: expliciete suggesties van een thema voor palet, lettertypen en
@@ -896,8 +899,217 @@ en dat `active_theme` geen vormgevingsinstelling is. `ThemeRenderingTest`
 (`contract`, `fast`, `cms`): niets in de themaplek bij `legacy`,
 `collected()` ongewijzigd, de volgorde van de lagen in `renderStyles()`, een
 stylesheet uit een expliciete definitie met cache-buster, een ontbrekend
-bestand gelogd en niet gelinkt. `ThemePersistenceTest` (`cms`): de echte
-rij, ruw gelezen, onbekend niet gerepareerd, herstellen laat hem staan.
+bestand gelogd en niet gelinkt, en het positieve pad met `minimal`: zijn
+link direct na de verzamelde stylesheets en vóór `site-theme` en
+`page-theme`, en verder byte voor byte de head van `legacy`.
+`ThemePersistenceTest` (`cms`): de echte rij, ruw gelezen, onbekend niet
+gerepareerd, herstellen laat hem staan, en de echte rij `minimal` tot de
+`<link>` vóór `site-theme`, `site-buttons` en `page-theme`.
+`ThemeStylesheetContractTest` (`contract`, `fast`, `cms`): zie *Het
+CSS-contract*.
+
+## First-party themes (Themes 2.0, fase 2C)
+
+Core levert twee Global Themes, in deze volgorde:
+
+| Sleutel | Label | Stylesheet | Wat het is |
+|---|---|---|---|
+| `legacy` | *Klassiek* | geen | de blijvende terugval: `core.css` en de eigen instellingen alleen |
+| `minimal` | *Minimal* | `assets/css/themes/minimal.css` | een rustige presentatie, het eerste echte thema |
+
+Een thema registreren activeert niets. Alleen de rij
+`theme_settings.active_theme` doet dat, en niets schrijft die rij nog (geen
+scherm, geen wizard). Een bestaande of verse installatie zonder rij blijft
+dus op `legacy`, byte voor byte.
+
+### Waarom "Minimal", en geen "Licht" of "Standaard"
+
+Een Global Theme kiest het palet niet, dus het kan niet beloven dat een site
+licht wordt. `minimal` beschrijft het karakter: rustig, weinig diepte, dunne
+lijnen, weinig beweging, sobere decoratie. Het werkt op het donkere
+standaardpalet, op een licht palet en onder een licht of donker paginathema
+(gemeten, zie *Bewezen*). Het is geen standaardthema: of het later de basis
+van een Mygdala Default wordt, is een eigen beslissing.
+
+### Wat Minimal stijlt
+
+| Haak | Wat Minimal doet |
+|---|---|
+| `--fw-heading`, `--fw-h1`, `--tracking-heading` | koppen 400, de h1 300, geen extra letterspatiëring |
+| `--eyebrow-*` | bovenkopje 600, kleine letters, smalle spatiëring, geen streepje |
+| `--border-width-strong` | 1px: velden, pillen en de oproepkaart even licht als een gewone lijn |
+| `--hover-lift`, `--hover-zoom` | 0 en 0.4: kaarten blijven staan, een beeld zoomt nauwelijks |
+| `--dur-base`, `--dur-slow`, `--dur-premium` | korter en rustiger (260 tot 420 ms) |
+| `--surface-subtle`, `--surface-contrast`, `--surface-emphasis` | vlak: de tweede vlakkleur, de kaartkleur, en de kaartkleur met de accentwas (op `:root, main[data-page-theme]`) |
+| `body`, `main[data-page-theme]` | de ondergrond is de paletkleur zelf, zonder accentpoelen |
+| `.surface-contrast`, `.surface-emphasis` | zachte lijnen; de band van een oproep krijgt één accentlijn bovenaan in plaats van de streep |
+| `.hero-decoration` | `display: none`: geen lijnen, geen deeltjes |
+| `.hero__media-frame`, `.hero__badge` | kleine hoeken, geen schaduw, geen blur |
+| kaarten: feature-, product-, collectie-, blog-, artikel-, contact- en reviewkaart, de carrouselkaart, het beeld van Tekst met afbeelding | `--radius-sm` en geen schaduw; bij hover alleen de sterkere lijn |
+| `.cta-band--card` | dezelfde identiteit als `surface-emphasis`, als kaart |
+| `.site-header`, `.main-nav__*`, `.site-footer` | geen schaduw onder de gescrolde header, een dunne navigatielijn, een licht submenu, een footer op de ondergrond met één lijn |
+| `.stat strong` | de cijfers van de Cijferbalk in het kopgewicht |
+
+### Wat Minimal bewust niet bezit
+
+Het palet (de vijf kleuren, alles wat `ThemePalette` afleidt en elke andere
+kleurtoken), de lettertypen (`--font-display`, `--font-body`, elke
+`font-family`), de knopstijlen (`--btn-*`, `--button-radius` en de schaal
+waar een knopstijl naar verwijst), de markup, de inhoud, de lay-out en de
+responsive structuur. Een paginathema blijft kleur en lettertype van zijn
+`<main>`; *Extra vormgeving* blijft de keuze van de redacteur.
+
+### Het CSS-contract
+
+`Tests\Service\ThemeStylesheetContractTest` (`contract`, `fast`, `cms`) houdt
+elke stylesheet in de registry eraan. De verboden lijsten worden berekend uit
+de klassen die de waarden bezitten, niet uitgeschreven: een nieuwe paletrol of
+een nieuw knopwoord is meteen verboden.
+
+- **Eigenaarschap**: elke first-party stylesheet is
+  `assets/css/themes/<sleutel>.css`, bestaat, en hoort bij precies één thema;
+  er staat geen wees in de map; geen sjabloon, partial, scherm, script of
+  andere klasse noemt het pad in code (alleen `ThemeRegistry`).
+- **Meegeleverd**: `Ownership::classify()` is `RELEASE`, het bestand wordt
+  meegeleverd en door de updater vervangen, de verse kopie neemt het mee
+  (`FreshSiteCopyPolicy`), het is tekst met LF (`LineEndings`). Dat volgt al uit
+  `assets/css/**`; de test pint het voor de themamap. De updater is niet
+  aangepast.
+- **Geen palettoken**: niets uit `ThemeCss::DIRECT`, `ThemePalette::derive()`
+  of `ThemePalette::dependencies()`, en geen enkele `--color-*` behalve
+  `--color-shadow-rgb`. Elke kleur is `var(--color-…)`: geen hex, geen
+  letterlijke `rgb()`/`hsl()`, geen kleurnaam.
+- **Geen lettertype**: geen `--font-display`/`--font-body`, geen `@font-face`,
+  een `font-family` alleen als `var(--font-display|body)` of `inherit`.
+- **Geen knop**: geen `--btn-*`, geen `--button-radius`, geen regel op `.btn`,
+  en geen token waar een knopstijl naar verwijst. Die lijst komt uit
+  `ButtonStyleCss` (de woorden en de meegeleverde knoppen): `--radius-sm`,
+  `--radius-md`, `--radius-lg`, `--shadow-soft`, `--shadow-lift`,
+  `--color-glow` en de kleur- en lettertokens. Waarom: de standaardknop
+  hovert met `var(--color-glow)`, en een knopstijl met de vorm *Zacht* is
+  `var(--radius-sm)`. Gemeten: een thema dat `--radius-sm` op 2px zet, maakt
+  de tweede knop van de eigenaar van 6 naar 2px. Een thema verandert vorm en
+  diepte daarom per component, op de componentselector.
+- **Geen escalatie, geen import, geen vreemde bron**: geen `!important`, geen
+  `@import`; een `url()` alleen relatief, in de eigen map
+  `assets/css/themes/<sleutel>/`, en het bestand moet er staan. Minimal heeft
+  er geen.
+- **Geen eigen beweging**: geen `transition`, `animation` of `@keyframes`.
+  Beweging gaat via de tokens, zodat de `prefers-reduced-motion`-regels van
+  Core blijven gelden.
+- **Geen site en geen instantie**: geen naam uit de reviewlijst van de verse
+  kopie, geen id, geen paginathema bij naam (`data-page-theme="…"`), geen
+  attribuut met `id`, geen genummerde klasse, geen `block-appearance`, geen
+  oude naam (`spark`, `laser`, `bg-soft`, `bg-forest`).
+- **Geen nieuwe token**: een thema zet alleen tokens die `core.css` al
+  declareert.
+- **Oppervlakken op één klasse**: een selector met een rol als onderwerp is
+  precies `.surface-<woord>` (een pseudo-element daargelaten), en een selector
+  in een rol begint bij die ene klasse. Zo wint *Extra vormgeving* (twee
+  klassen) altijd.
+- **De paginathema-regel**: een token die `core.css` op
+  `:root, main[data-page-theme]` declareert, zet een thema op datzelfde paar;
+  een thema dat `body` overschildert, neemt `main[data-page-theme]` mee.
+- **Echte regels**: commentaartekens zijn in evenwicht en elke selector bestaat
+  uit elementnamen, klassen, attributen en pseudoklassen. Een `*` met een `/`
+  erachter in een commentaar sluit het te vroeg af, en de tekst erna slikt de
+  volgende regel zonder foutmelding. Dat gebeurde tijdens de bouw van Minimal
+  (de hele `:root`-regel viel weg); deze controle vangt het.
+
+`ThemeTokenContractTest` leest de themamap ook (`assets/css/*/*.css`) en houdt
+Minimal dus aan dezelfde regels als elke publieke stylesheet: geen letterlijke
+kleur, randdikte of pilradius, geen hover over een vaste afstand.
+
+### Runtime
+
+```text
+theme_settings.active_theme = 'minimal'
+  → ThemeSettings::activeThemeKey()
+  → ThemeRegistry::active()           de definitie `minimal`
+  → PageAssets::themeStylesheet()     isLoadable(), AssetVersion::url()
+  → <link rel="stylesheet" href="/assets/css/themes/minimal.css?v=…">
+```
+
+De `<link>` staat direct na de laatste verzamelde stylesheet (Core,
+modulehuls, zoeken, route, blokken, Extra vormgeving, kaartweergave) en vóór
+`site-theme`, `site-buttons` en `page-theme`. Getest op de echte rij
+(`ThemePersistenceTest`) en in het geheugen (`ThemeRenderingTest`). Verder is
+de head byte voor byte die van `legacy`: geen klasse, geen attribuut, geen
+tweede vermelding van de sleutel.
+
+### Bewezen (fase 2C)
+
+Gemeten in een wegwerpkopie van de ontwikkeldatabase, met `php -S` op de
+worktree. Niets daarvan staat in de repository.
+
+- **De rij**: geen rij, `minimal` en een onbekende sleutel op vier echte
+  pagina's. Geen rij en een onbekende sleutel geven dezelfde bytes; `minimal`
+  voegt precies één `<link>` toe; de onbekende rij blijft staan.
+- **Markup**: de echte blokvoorbeelden (BlockSamples: 15 bloktypen met een
+  voorbeeld en een oproep over de volle breedte), Extra vormgeving op drie blokken, en Blog-,
+  Artikel- en productkaarten, met header en footer: dezelfde HTML voor
+  `legacy` en `minimal` op de `<link>` na, in zes kleurcontexten.
+- **Berekende stijl**: elk element van die pagina (1591) vergeleken tussen
+  `legacy` en `minimal`, in rust en bij hover, op 1280, 768 en 375 pixels, in
+  zes contexten: het standaardpalet, een licht websitepalet, een andere
+  lettertypecombinatie, een licht en een donker paginathema, en een licht
+  websitepalet met een donker paginathema. Verwachte verschillen: radius,
+  randkleur, schaduw, vulling van oppervlak, ondergrond en footer,
+  kopgewicht, letterspatiëring en hoofdletters van het bovenkopje,
+  `::before` van rol en kaart, hover zonder optilling, de decoratie weg.
+  Verboden verschillen: **geen**. Geen `color`, `font-family`, `font-size` of
+  `line-height` anders, en geen enkele eigenschap van een knop anders, in rust
+  of bij hover, ook niet met knopstijlen van de eigenaar die
+  `--radius-sm`, `--shadow-soft`, `--shadow-lift` en `--color-glow` lezen.
+  Breedtes veranderen alleen bij het bovenkopje (zonder hoofdletters), het
+  accent in de openingstitel (lichter gewicht) en de verborgen decoratie.
+  Geen horizontale scroll.
+- **Paginathema**: binnen `<main>` blijven kleur en lettertype van het
+  paginathema; Minimal's vlakke vullingen rekenen met zijn kleuren (de subtiele
+  band is de tweede vlakkleur van het paginathema, niet die van de site).
+- **Extra vormgeving**: een gekozen *Websiteachtergrond*, *Primaire* en
+  *Secundaire themakleur* en *Transparant* zijn onder beide thema's identiek;
+  een gekozen rand en ruimte ook. Alleen *Subtiele achtergrond* volgt de
+  subtiele vulling van het thema, zoals de gedeelde woordenlijst bedoelt.
+- **Opening**: canvas `display: none`, geen ruimte, geen deeltjes (14 → 0, op
+  een telefoon 6 → 0), inhoud en media op dezelfde plek. Eén kanttekening:
+  de eenmalige intekenbeweging van de twee lagen (`scaleX`, 0.9 s, in de
+  openingstijdlijn van `homepage-hero.js`) loopt nog op de onzichtbare lagen.
+  Niets daarvan wordt getekend, en er loopt niets door; zie *Open punten*.
+- **Beweging**: kaarten tillen niet meer op (feature −8px → 0, blog −3px →
+  0), duur korter. Met `prefers-reduced-motion` blijven de regels van Core
+  gelden; het thema voegt nergens een overgang toe.
+
+### Open punten (fase 2C)
+
+- **De schaal is gedeeld met de knopstijlen.** `--radius-*`, `--shadow-*` en
+  `--color-glow` zijn tegelijk de vormschaal van de site en de waarden van
+  knopwoorden. Een thema kan ze daarom niet verschalen zonder knoppen van de
+  eigenaar te veranderen, en zet vorm en diepte per component. Dat werkt (zie
+  de tabel), maar een thema wordt er langer van. Of een knopstijl later eigen
+  waarden krijgt, of "Afgerond" bewust "de afronding van het thema" betekent,
+  is een eigen beslissing. Geen blokkade.
+- **De intekenbeweging van de decoratie** (zie *Bewezen*): onzichtbaar, maar
+  een thema dat de decoratie verbergt start hem nog. Klein en generiek op te
+  lossen in `homepage-hero.js` (de stap overslaan met dezelfde tijdlijn), als
+  een aparte stap.
+- **De oproepkaart** (`.cta-band--card`) liet zich zonder hogere specificiteit
+  overschrijven: één klasse, na Core. De rol op de kaart blijft een latere
+  keuze.
+- **De vier lokale schaduwen**: het submenu (gemeten) en de gescrolde header
+  (dezelfde selectorlijst als Core) zwakt Minimal gericht af op hun
+  componentselector; de feature-kaart verloor haar hover-gloed
+  op `.feature-card:hover:hover` (dezelfde specificiteit als Core). Geen
+  dieptetoken nodig gebleken. De checkout-overlay is niet gestijld.
+- **De edelsteen** in een kaart zonder beeld (Kaarten-carrousel) is onder
+  Minimal een dunne lijnpictogram in het accent op een vlak kaartvlak: niet
+  storend, geen thema-blokkade. Een neutralere vorm blijft backlog.
+- **Al bestaand, niet door het thema**: in `legacy` tillen productkaarten bij
+  hover nog 6px op met `prefers-reduced-motion` (geen reduced-motionregel in
+  `shop.css`). De vier focusringen in `--color-primary` halen op het geteste
+  lichte palet (`#B07A3A` op `#FAF7F2`) 3.45:1 op de ondergrond en 3.69:1 op
+  een kaart: genoeg voor een focusring; een lichter accent haalt het niet, in
+  elk thema.
 
 ## Nieuwe thema-instelling toevoegen
 
@@ -1537,7 +1749,10 @@ thema activeren schrijft geen `button_style_defaults`, geen
 alleen `theme_settings.active_theme`. Een thema declareert ook geen
 `--btn-*` op `.btn`/`.btn--ghost` en geen `--button-radius`: `site-buttons`
 schrijft alleen het verschil met de standaard, dus een eigenaar die bewust
-de standaard koos zou anders van het thema verliezen.
+de standaard koos zou anders van het thema verliezen. Het zet ook geen token
+waar een knopwoord naar verwijst (`--radius-sm/-md/-lg`, `--shadow-soft`,
+`--shadow-lift`, `--color-glow`): die zou een gekozen knopstijl net zo goed
+veranderen (zie "First-party themes", *Het CSS-contract*).
 
 Een *suggestie* van een thema voor knopstijlen (fase 2E) wordt een
 expliciete actie van de eigenaar, nooit een bijwerking van wisselen. Meer

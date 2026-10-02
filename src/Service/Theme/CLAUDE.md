@@ -38,6 +38,14 @@ CSS-overrideblok.
   `site-buttons` schrijven alleen verschillen. Paginathema's blijven kleur
   en lettertype. Wisselen verandert alleen `active_theme`, en
   `active_theme` staat nooit in `ThemeSettings::DEFAULTS`.
+- **Een themastylesheet** (first-party: `assets/css/themes/<sleutel>.css`,
+  nu `minimal`) volgt `ThemeStylesheetContractTest`: geen `--color-*` behalve
+  `--color-shadow-rgb`, geen token waar een knopstijl naar verwijst
+  (`--radius-sm/-md/-lg`, `--shadow-soft/-lift`, `--color-glow`: vorm en
+  diepte dus per component), geen transition/animation, alleen tokens die
+  `core.css` al heeft, een rol op zijn ene klasse, en een `var()`-token van
+  `:root, main[data-page-theme]` op datzelfde paar. Geen `*` gevolgd door
+  `/` in een commentaar: dat sluit het af en slikt de volgende regel.
 - Core, nadrukkelijk geen module. Een module mag de tokens gebruiken maar
   krijgt nooit een eigen instelling in de vormgeving.
 
