@@ -210,6 +210,11 @@ zonder buildstap, en `rgba()` werkt in elke browser die dit project bedient.
 --color-text-muted: rgba(var(--color-text-rgb), 0.70);
 ```
 
+Eén alfa-afleiding staat óók in het recept: `--color-text-faint` (zie
+"Presentatietokens"). `core.css` levert hem als `0.46` op het tekstkanaal; een
+palet met een lichte ondergrond krijgt een hogere alfa, omdat dezelfde alfa
+daar veel minder leest.
+
 **2. Tint-afleidingen — PHP.** Een lichter accent, een hover-vlak, een
 diepere ondergrond. Die zijn in CSS niet te schrijven zonder `color-mix()` of
 relatieve kleuren, en dit project wil geen browserondergrens waar het niet op
@@ -219,9 +224,9 @@ ze in het overrideblok. Voor het standaardthema draaien die formules nooit —
 
 De formules staan **één keer, als data**: `ThemePalette::RECIPE`, per
 afgeleide eigenschap een uitdrukking (`lighten`, `mix`, `channels`,
-`readable` op een gekozen kleur, een eerdere eigenschap of een vaste kleur).
-`derive()` voert dat recept uit; `recipe()` geeft het aan de live preview van
-de paletteneditor, die het met dezelfde vier bewerkingen uitvoert
+`readable`, `fade` op een gekozen kleur, een eerdere eigenschap of een vaste
+kleur). `derive()` voert dat recept uit; `recipe()` geeft het aan de live
+preview van de paletteneditor, die het met dezelfde vijf bewerkingen uitvoert
 (`MygdalaTheme.tokens()` in `admin/assets/theme-admin.js`). Zo kan de preview
 geen tint tonen die de website niet krijgt. `ThemePaletteRecipeTest` pint de
 uitkomst op die van v0.1.13 en houdt `dependencies()` gelijk aan wat het
@@ -251,7 +256,9 @@ die niets verandert rendert exact zoals vóór deze tokens.
 | `--color-danger-on-wash` | `#F5B4AC` | tekst op de foutwas | `.form-error-summary`, `.form-status--error` |
 | `--color-success`, `-rgb` | `#78B482` | het merkteken van een geslaagde melding: was en rand | `.form-status--ok` |
 | `--color-success-on-wash` | `#B7E0C0` | tekst op de succeswas | `.form-status--ok` |
-| `--fw-heading`, `--fw-h1` | `500`, `400` | gewicht van de koppen, en van de h1 | `h1–h4` |
+| `--color-primary-text` | `#E4C78E` | het accent als tekst: prijzen, cijfers, links, labels, hovertekst | elke `color:` die het accent draagt (fase 1A.2) |
+| `--color-text-faint` | `rgba(tekst, 0.46)` | stille, ondersteunende tekst die nog gelezen wordt: metaregels, notities, de footer | metaregels, hints, footer, winkelwagen, personalisatie |
+| `--fw-heading`, `--fw-h1` | `500`, `400` | gewicht van de koppen, en van de h1 | `h1–h4`; `--fw-heading` ook de producttitel en de personalisatietitel, `--fw-h1` ook de titel van een bericht of artikel in een lijst (fase 1A.2) |
 | `--tracking-heading` | `0.01em` | letterafstand van de koppen | `h1–h4` |
 | `--eyebrow-weight`, `--eyebrow-tracking`, `--eyebrow-case` | `700`, `0.18em`, `uppercase` | karakter van het bovenkopje | `.eyebrow` (hoofdletters ook `.article-eyebrow`, `.personalizer__eyebrow`) |
 | `--eyebrow-rule-display` | `inline-block` | het streepje vóór een bovenkopje (`none` laat het weg) | `.eyebrow::before` |
@@ -277,6 +284,32 @@ Wat daaruit volgt:
   waarin ondergrond en kaart tegengesteld zijn (licht en donker) kan niet
   op beide tegelijk voldoen; de paletteneditor waarschuwt daar al voor de
   tekst.
+- **Het accent als tekst is `--color-primary-text`, niet
+  `--color-primary-bright`** (fase 1A.2). `--color-primary-bright` is de
+  highlight: verlopen, glinsteringen, ringen, de achtergrond van een
+  accentvlak. Hij is per formule *lichter* dan het accent, en op een lichte
+  ondergrond betekent lichter: vager. Een prijs, een StatStrip-cijfer of een
+  link in lopende tekst haalde daar 1.6 tot 3.4:1. `--color-primary-text` is
+  de highlight zolang die leest (het standaardthema en elk donker palet: exact
+  `#E4C78E`, of wat het palet als highlight afleidt) en schuift alleen op een
+  lichte ondergrond langs de lichtheid tot hij 4.5:1 haalt, gemeten op de
+  ondergrond, een kaart, de footer (`--color-bg-deep`) en de accentwas
+  daarover (een actief tabblad, een chip). Zo blijft de highlight vrij te
+  kiezen, en is geen tekst afhankelijk van die keuze. Geen `color:` in een
+  publieke stylesheet gebruikt nog `--color-primary-bright`.
+- **Zachte tekst houdt zijn contrast** (fase 1A.2). `--color-text-faint` is
+  de tekstkleur op alfa `0.46`. Op het standaardthema is dat 4.2:1, op een
+  lichte ondergrond met dezelfde alfa maar 2.7 tot 3.0:1. Bijna elk gebruik is
+  tekst die gelezen moet worden (metaregels, hints, footerlinks, varianten in
+  de winkelwagen), dus het token zelf hield zijn betekenis niet vast, niet de
+  componenten. Het recept (`fade`) houdt `0.46` waar dat minstens 4:1 haalt
+  op de ondergrond, een kaart en de footer, en verhoogt de alfa per honderdste
+  tot het dat wel doet (een licht palet: rond `0.58`). Hij blijft stiller dan
+  `--color-text-muted` (`0.70`). Het standaardthema en een donker palet met een
+  bijna zwarte ondergrond houden exact `0.46`. Bewust geen 4.5:1: dat zou ook het standaardthema veranderen.
+  Kleine tekst die écht AA moet halen hoort op `--color-text-muted`; dat is
+  een keuze per component die het standaardthema zichtbaar verandert, en dus
+  een eigen beslissing (de breadcrumb ging zo, zie `core.css`).
 - **De glans volgt de tekstkleur.** `--color-sheen-rgb` staat in het recept
   (`ThemePalette`, `['channels', 'text']`): een ander palet of een
   paginathema krijgt de kanalen van zijn tekstkleur, dus op een licht thema
@@ -291,6 +324,24 @@ Wat daaruit volgt:
   ontwerpafstand (8, 6, 4, 3 of 2 px; zoom 1.035 tot 1.07), `0` zet alles
   stil, `1.5` beweegt de helft meer. De knop heeft zijn eigen optilling in
   de knopstijl (`--btn-hover-lift`) en volgt deze factor niet.
+- **Titels met een eigen gewicht** (fase 1A.2) nemen dat van een kop-token.
+  De producttitel (een `h1` op de productpagina, een `h2` in Uitgelicht
+  product) en de personalisatietitel wegen als een kop: `--fw-heading`. De
+  titel van een bericht of artikel in een lijst (Blog-kaart, Artikelrij,
+  "Meer lezen" boven gerelateerde berichten) weegt als de `h1` van zijn eigen
+  pagina: `--fw-h1`. Een derde kopgewicht is niet nodig gebleken. Een thema
+  met zware koppen (800/900) of lichte (300) verandert deze titels nu mee;
+  lopende tekst, knoppen en bovenkopjes niet.
+- **Vier schaduwen met een eigen recept** blijven bewust lokaal (fase 1A.2):
+  de haarlijn onder de gescrolde header (`0 1px 0`, 0.3), het submenu
+  (`0 12px 30px`, 0.35), de derde laag van de feature-kaart-hover
+  (`0 10px 26px -12px`, 0.55) en het venster van de checkout-overlay
+  (`0 20px 60px`, 0.45). Hun kleur volgt `--color-shadow-rgb` al; hun vorm en
+  sterkte horen bij het component. Geen van de vier is zonder zichtbaar
+  verschil te schrijven als `--shadow-soft` of `--shadow-lift`, dus ze
+  reageren niet op een thema dat die twee zachter of harder zet. Wil een thema
+  ze toch dempen, dan is één dieptefactor de kleinste uitbreiding; die is er
+  nog niet.
 - **Een paginathema** zet nooit een vorm-, rand-, schaduw- of
   bewegingstoken: alleen kleuren en lettertypen.
 - **Wat bewust literal blijft**: kleuren op een foto of productbeeld (het
@@ -303,7 +354,10 @@ Wat daaruit volgt:
 vast: de standaardwaarden, geen letterlijke kleur buiten de tokens (op een
 genoemde uitzonderingslijst na), geen statuskleur, randdikte of pil-radius
 uitgeschreven, geen hover die met een vaste afstand beweegt, geen paneel op
-`--color-on-primary`, en een paginathema zonder vormtokens.
+`--color-on-primary`, een paginathema zonder vormtokens, geen tekst in
+`--color-primary-bright`, leesbare accent- en zachte tekst op een licht palet
+met de geleverde waarden op een donker, en de eigen titelgewichten op een
+kop-token.
 
 ## Nieuwe thema-instelling toevoegen
 
@@ -1176,7 +1230,7 @@ letter:
 | Rand, en bij hover | `--color-line`, `--color-line-strong` |
 | Kaarttitel | `--color-text`, de letter van de kop zelf (`--font-display`, Font Library) |
 | Korte tekst | `--color-text-muted` |
-| Toetsenbordfocus | `--color-primary-bright` |
+| Toetsenbordfocus | `--color-primary-bright` (een ring, geen tekst) |
 | Een kaart zonder beeld | een verloop van `--color-surface-hover` naar `--color-surface-2` |
 | Ruimte en afronding | `--sp-*`, `--radius-md` |
 
