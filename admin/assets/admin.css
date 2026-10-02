@@ -3924,8 +3924,10 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 /* Global Theme preview (Vormgeving -> Thema, admin/theme-preview.php;
    THEMING.md "Preview"): the website's start page in a frame, tall enough
    to show the header, the hero and what follows. The page scrolls inside
-   it. The frame only; nothing of the theme styles this screen. */
-.admin-theme-preview{
+   it. The frame only; nothing of the theme styles this screen. On the
+   iframe alone: the setup wizard's colour preview (admin/setup.php) is a
+   <div> with the same class and keeps its own height. */
+iframe.admin-theme-preview{
   display: block;
   width: 100%;
   height: min(42rem, 75vh);

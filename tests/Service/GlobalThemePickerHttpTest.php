@@ -314,6 +314,32 @@ final class GlobalThemePickerHttpTest extends TestCase
         self::assertStringContainsString('PageAssets::renderStyles($theme)', $preview);
     }
 
+    public function testTheFrameSizeLeavesTheSetupWizardPreviewAlone(): void
+    {
+        // The setup wizard's Vormgeving step has a <div class="admin-theme-preview">
+        // of its own (admin/setup.php), older than this frame. The frame's size
+        // belongs to the iframe only: on the bare class it stretched the
+        // wizard's colour preview to the frame's height on every fresh install.
+        $root = dirname(__DIR__, 2);
+        self::assertStringContainsString('<div class="admin-theme-preview" data-theme-preview>', (string) file_get_contents($root . '/admin/setup.php'));
+
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', (string) file_get_contents($root . '/admin/assets/admin.css'));
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        $frame = 0;
+        foreach ($rules as [, $selectors, $declarations]) {
+            foreach (array_map('trim', explode(',', $selectors)) as $selector) {
+                if ($selector === '.admin-theme-preview') {
+                    self::assertDoesNotMatchRegularExpression('/(^|;)\s*(height|width|display|margin)\s*:/', trim($declarations), 'the bare class also styles the wizard preview');
+                }
+                if ($selector === 'iframe.admin-theme-preview') {
+                    $frame++;
+                    self::assertStringContainsString('height: min(42rem, 75vh)', $declarations);
+                }
+            }
+        }
+        self::assertSame(1, $frame, 'the frame keeps one rule of its own');
+    }
+
     // ------------------------------------------------------------ helpers
 
     private function server(): BuiltInServer
