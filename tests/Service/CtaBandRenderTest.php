@@ -158,7 +158,7 @@ final class CtaBandRenderTest extends TestCase
     public function testFullWidthPaintsTheSectionAndKeepsTheWordsInTheContainer(): void
     {
         $colour = $this->render(['full_width' => true] + $this->legacy());
-        self::assertStringContainsString('<section class="cta-section cta-section--full">', $colour, 'full width works without a picture');
+        self::assertStringContainsString('<section class="cta-section cta-section--full surface-emphasis">', $colour, 'full width works without a picture; its look is its surface role');
         self::assertStringNotContainsString('cta-band--card', $colour, 'no card inside a full-width band');
         self::assertStringContainsString('<div class="container">', $colour);
 

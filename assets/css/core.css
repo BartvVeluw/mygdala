@@ -206,6 +206,9 @@ main[data-page-theme]{
     radial-gradient(ellipse 800px 420px at 85% 0%, rgba(var(--color-primary-rgb), 0.07), transparent 60%),
     linear-gradient(180deg, rgba(var(--color-sheen-rgb), 0.018), rgba(var(--color-sheen-rgb), 0) 40%);
   --surface-contrast: var(--color-bg-deep);
+  --surface-emphasis:
+    radial-gradient(ellipse 900px 360px at 50% 0%, rgba(var(--color-primary-rgb), 0.10), transparent 65%),
+    var(--color-surface);
 }
 
 *, *::before, *::after{ box-sizing: border-box; }
@@ -943,9 +946,9 @@ section{ position: relative; padding-block: var(--sp-7); }
 .section-head .eyebrow + h2{ margin-top: var(--sp-2); }
 
 /* --- Surfaces: the role a block's own root plays on the page -------------
-   A block prints the role (`surface-subtle`, `surface-contrast`) as one
-   class on its root, never a colour; this is how the default theme draws
-   each role. A background chosen in Extra vormgeving takes the role off
+   A block prints the role (`surface-subtle`, `surface-contrast`,
+   `surface-emphasis`) as one class on its root, never a colour; this is
+   how the default theme draws each role. A background chosen in Extra vormgeving takes the role off
    the root (BlockAppearance::apply()); lines, room and effects are two
    classes (block-appearance.css) and win over the role. THEMING.md,
    "Oppervlakken".
@@ -978,6 +981,21 @@ section{ position: relative; padding-block: var(--sp-7); }
 .bg-forest h2, .bg-forest h3, .bg-forest p{ color: var(--color-text); }
 .surface-contrast .lead, .bg-forest .lead{ color: var(--color-text-muted); }
 .surface-contrast .eyebrow, .bg-forest .eyebrow{ color: var(--color-primary); }
+/* The band that calls the reader to act: the card colour with a pool of the
+   accent, strong lines and an accent stroke along the top. The full-width
+   CTA prints it; its layout (cta-band.css) only decides which box it is. */
+.surface-emphasis{
+  position: relative;
+  background: var(--surface-emphasis);
+  border-block: var(--border-width-strong) solid var(--color-line-strong);
+}
+.surface-emphasis::before{
+  content: "";
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), var(--color-primary-bright), var(--color-primary), transparent);
+}
 
 /* Value props / features */
 .feature-grid{

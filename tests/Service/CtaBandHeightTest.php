@@ -75,7 +75,7 @@ final class CtaBandHeightTest extends TestCase
     {
         $html = $this->render($this->height(['min_height' => $preset]) + ['full_width' => true] + $this->band());
 
-        self::assertStringContainsString('<section class="cta-section cta-section--full cta-height cta-height--' . $preset . ' cta-height-phone--auto">', $html);
+        self::assertStringContainsString('<section class="cta-section cta-section--full cta-height cta-height--' . $preset . ' cta-height-phone--auto surface-emphasis">', $html);
         self::assertStringContainsString('<div class="cta-band cta-band--align-center cta-band--lead-narrow" data-reveal>', $html);
     }
 

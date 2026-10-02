@@ -103,7 +103,10 @@ function render_section_cta_band(array $cta): void
         <?php
     };
 
-    $sectionClass = 'cta-section' . ($fullWidth ? ' cta-section--full' : '') . ($fullWidth && $background !== null ? ' cta-section--has-media' : '') . ($fullWidth ? $heightClass : '');
+    // A full-width band is a layout (cta-section--full) and a surface role
+    // (surface-emphasis, THEMING.md "Oppervlakken"): the role, last, is what
+    // a theme draws and what an Extra vormgeving background takes off.
+    $sectionClass = 'cta-section' . ($fullWidth ? ' cta-section--full' : '') . ($fullWidth && $background !== null ? ' cta-section--has-media' : '') . ($fullWidth ? $heightClass . ' surface-emphasis' : '');
     $bandClass = 'cta-band'
         . ($fullWidth ? '' : ' cta-band--card')
         . ' cta-band--align-' . $align

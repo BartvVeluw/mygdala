@@ -12,10 +12,9 @@
    its own classes, never on a wrapper. They are written as two classes
    (`.block-appearance.block-appearance--…`) so a chosen look wins over a
    block's own one-class surface (.surface-subtle, .surface-contrast,
-   .cta-section--full)
-   whatever the order of the stylesheets. An inline `padding-top:0` of a
-   block right under a page header still wins over a chosen room: that tight
-   top belongs to the header above it.
+   .surface-emphasis) whatever the order of the stylesheets. An inline
+   `padding-top:0` of a block right under a page header still wins over a
+   chosen room: that tight top belongs to the header above it.
    ========================================================================== */
 
 /* --- Background: replaces the block's own surface ------------------------

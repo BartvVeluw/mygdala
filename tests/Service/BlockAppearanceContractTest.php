@@ -408,7 +408,7 @@ final class BlockAppearanceContractTest extends TestCase
             $html = (string) ob_get_clean();
         }
 
-        $this->assertMatchesRegularExpression('/<section class="cta-section cta-section--full cta-height cta-height--custom cta-height-phone--tall" style="--cta-min-height: 480px;">/', $html);
+        $this->assertMatchesRegularExpression('/<section class="cta-section cta-section--full cta-height cta-height--custom cta-height-phone--tall surface-emphasis" style="--cta-min-height: 480px;">/', $html);
 
         $styled = BlockAppearance::apply($html, ['background' => 'secondary', 'decoration' => 'sparks'] + BlockAppearance::defaults());
         $this->assertMatchesRegularExpression('/<section class="cta-section cta-section--full cta-height cta-height--custom cta-height-phone--tall block-appearance block-appearance--bg-secondary block-appearance--decor-sparks" style="--cta-min-height: 480px;"><div class="block-decor block-decor--sparks"/', $styled);
@@ -439,7 +439,7 @@ final class BlockAppearanceContractTest extends TestCase
     {
         $css = self::stripComments(self::css(BlockAppearance::STYLESHEET));
 
-        // Two classes against the one class of .surface-subtle, .surface-contrast and .cta-section--full.
+        // Two classes against the one class of a surface role (.surface-subtle, .surface-contrast, .surface-emphasis).
         preg_match_all('/([^{}]+)\{/', $css, $selectors);
         foreach ($selectors[1] as $selector) {
             foreach (explode(',', $selector) as $one) {

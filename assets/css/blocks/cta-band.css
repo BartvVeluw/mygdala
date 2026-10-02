@@ -6,7 +6,8 @@
    band without any CTA 2.0 choice looks exactly as it always did.
 
    THE LAYERS, from the back (partials/section-cta-band.php):
-     1. the band's theme colour: the card, or the full-width <section>
+     1. the band's theme colour: the card, or the full-width <section>'s
+        surface role (.surface-emphasis, core.css)
      2. the picture (.cta-band__media img), object-fit: cover
      3. the overlay (.cta-band__media::after), the theme's scrim colour
      4. the text panel (.cta-band__content--panel), the theme's surface
@@ -53,23 +54,23 @@
 }
 
 /* --- 1. The full-width band: the section is the box -------------------- */
+/* Layout only. What the box looks like is its surface role, which the
+   partial prints beside this class (surface-emphasis, core.css; THEMING.md,
+   "Oppervlakken"): a theme restyles that role and never needs this class.
+   An Extra vormgeving background takes the role off, and with it the fill,
+   the lines and the stroke.
+
+   The stacking, from the back: the picture (z-index 0), an effect's layer
+   (z-index 1), whatever the surface draws in ::before (the accent stroke,
+   z-index 2), the words (z-index 2, later in the tree, so always on top).
+   The section clips all of it and is its own stacking context, so nothing
+   escapes the band. */
 .cta-section--full{
-  background:
-    radial-gradient(ellipse 900px 360px at 50% 0%, rgba(var(--color-primary-rgb), 0.10), transparent 65%),
-    var(--color-surface);
-  border-block: var(--border-width-strong) solid var(--color-line-strong);
   overflow: hidden;
   isolation: isolate;
 }
-.cta-section--full::before{
-  content: "";
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 2px;
-  z-index: 2;
-  background: linear-gradient(90deg, transparent, var(--color-primary), var(--color-primary-bright), var(--color-primary), transparent);
-}
-.cta-section--full > .container{ position: relative; z-index: 1; }
+.cta-section--full::before{ z-index: 2; }
+.cta-section--full > .container{ position: relative; z-index: 2; }
 /* The card's padding goes: the section's own padding is the room now, and
    the words line up with every other block's container. */
 .cta-section--full .cta-band{ padding: 0; border-radius: 0; }

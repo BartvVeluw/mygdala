@@ -70,11 +70,11 @@ final class BlockAppearance
 
     /**
      * The surface roles a block may print on its root as its own default
-     * (THEMING.md, "Oppervlakken"): the backgrounds above, plus `contrast`,
-     * which only a block chooses. apply() takes them off when a background
-     * is chosen.
+     * (THEMING.md, "Oppervlakken"): the backgrounds above, plus `contrast`
+     * and `emphasis`, which only a block chooses. apply() takes them off when
+     * a background is chosen.
      */
-    public const SURFACE_ROLES = ['surface-page', 'surface-subtle', 'surface-primary', 'surface-secondary', 'surface-contrast', 'surface-transparent'];
+    public const SURFACE_ROLES = ['surface-page', 'surface-subtle', 'surface-primary', 'surface-secondary', 'surface-contrast', 'surface-emphasis', 'surface-transparent'];
 
     /** The stylesheet for background, lines and room. */
     public const STYLESHEET = 'assets/css/block-appearance.css';

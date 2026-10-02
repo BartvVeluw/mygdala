@@ -25,6 +25,9 @@ use PHPUnit\Framework\TestCase;
  *     under it; Standaard, and a choice of lines, room or effect only, keep
  *     the role, and no stylesheet resets a role per chosen background;
  *   - the old names stay only as aliases inside those same rules;
+ *   - a layout class is never a surface (phase 1B-c): the full-width CTA is
+ *     a layout (cta-section--full) plus a role (surface-emphasis), and its
+ *     layout rules draw no fill, line or colour of their own;
  *   - nothing here knows a site or a theme by name.
  *
  * Pure: no database, no web server. Suites contract, fast and cms.
@@ -39,6 +42,7 @@ final class SurfaceContractTest extends TestCase
         'partials/related-products.php' => 'surface-subtle',
         'partials/section-detail-section.php' => 'surface-subtle',
         'partials/section-item-gallery.php' => 'surface-subtle',
+        'partials/section-cta-band.php' => 'surface-emphasis',
     ];
 
     /** @return array<string, array{0: string, 1: string}> */
@@ -95,10 +99,12 @@ final class SurfaceContractTest extends TestCase
         $this->assertMatchesRegularExpression('/\.surface-subtle,\s*\.bg-soft\{[^}]*background: var\(--surface-subtle\);/', $css, 'one rule, the alias beside it');
         $this->assertMatchesRegularExpression('/\.surface-contrast,\s*\.bg-forest\{[^}]*background: var\(--surface-contrast\);/', $css);
         $this->assertMatchesRegularExpression('/\.surface-contrast::before,\s*\.bg-forest::before\{/', $css, 'the hairline belongs to the role');
+        $this->assertMatchesRegularExpression('/(^|\})\s*\.surface-emphasis\{[^}]*background: var\(--surface-emphasis\);/', $css, 'a role without an old name has no alias');
+        $this->assertMatchesRegularExpression('/(^|\})\s*\.surface-emphasis::before\{/', $css, 'the accent stroke belongs to the role');
 
         // The fills are built from palette tokens, so they live in the rule a
         // page theme recomputes inside its <main> (PageThemeCssContractTest).
-        $this->assertMatchesRegularExpression('/:root,\s*main\[data-page-theme\]\{[^}]*--surface-subtle:\s*radial-gradient[^}]*--surface-contrast: var\(--color-bg-deep\);/s', $css);
+        $this->assertMatchesRegularExpression('/:root,\s*main\[data-page-theme\]\{[^}]*--surface-subtle:\s*radial-gradient[^}]*--surface-contrast: var\(--color-bg-deep\);[^}]*--surface-emphasis:\s*radial-gradient/s', $css);
 
         // An alias never has a rule of its own: it can only ever be the role.
         $this->assertDoesNotMatchRegularExpression('/(^|\})\s*\.bg-(soft|forest)[^,{]*\{/', $css);
@@ -127,6 +133,7 @@ final class SurfaceContractTest extends TestCase
             'Feature grid with a heading' => ['feature_grid', 'surface-subtle'],
             'Detailsectie, every second one' => ['detail_section_odd', 'surface-subtle'],
             'Galerij with the old soft background' => ['item_gallery_soft', 'surface-subtle'],
+            'Oproep met knop over de volle breedte' => ['cta_band_full', 'surface-emphasis'],
         ];
     }
 
@@ -194,8 +201,9 @@ final class SurfaceContractTest extends TestCase
             BlockAppearance::apply($html, ['border' => 'none'] + BlockAppearance::defaults())
         );
 
-        // The vocabulary of THEMING.md: every background word plus contrast.
-        $expected = array_map(static fn (string $word): string => 'surface-' . $word, array_merge(array_diff(BlockAppearance::BACKGROUNDS, ['default']), ['contrast']));
+        // The vocabulary of THEMING.md: every background word plus contrast
+        // and emphasis, the two roles only a block chooses.
+        $expected = array_map(static fn (string $word): string => 'surface-' . $word, array_merge(array_diff(BlockAppearance::BACKGROUNDS, ['default']), ['contrast', 'emphasis']));
         $roles = BlockAppearance::SURFACE_ROLES;
         sort($expected);
         sort($roles);
@@ -218,6 +226,45 @@ final class SurfaceContractTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/[\'"](stat_strip|card_carousel|feature_grid|detail_section|item_gallery)[\'"]/', self::file('src/Service/Blocks/BlockAppearance.php'), 'no block type in the shared code');
     }
 
+    /**
+     * Phase 1B-c: "Volledige paginabreedte" is a layout, not a look. The
+     * full-width band prints the emphasis role beside its layout class, a
+     * card prints none (its card is not the block's root), and the layout's
+     * own rules keep only geometry, clipping and stacking, so a theme
+     * restyles the band through the role without knowing it is a CTA.
+     */
+    public function testTheFullWidthCtaIsALayoutWithASurfaceRole(): void
+    {
+        $content = (array) BlockDefinitions::get('cta_band')->sampleContent(new BlockSamples());
+
+        $full = self::rootClasses(self::render('cta_band', ['full_width' => true] + $content));
+        $this->assertContains('cta-section--full', $full, 'the layout');
+        $this->assertContains('surface-emphasis', $full, 'and the role beside it');
+
+        $card = self::rootClasses(self::render('cta_band', ['full_width' => false] + $content));
+        $this->assertSame([], array_values(array_filter($card, static fn (string $class): bool => str_starts_with($class, 'surface-'))), 'a card band leaves the page surface alone');
+
+        $css = self::stripComments(self::file('assets/css/blocks/cta-band.css'));
+        preg_match_all('/([^{}]+)\{([^}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        $layoutRules = 0;
+        foreach ($rules as [, $selector, $body]) {
+            // The band's own box and its pseudo-elements; a descendant rule
+            // (the inner .cta-band losing its card padding) is layout anyway.
+            if (preg_match('/\.cta-section--full(::?[a-z-]+)?\s*$/', trim($selector)) !== 1) {
+                continue;
+            }
+            $layoutRules++;
+            $this->assertDoesNotMatchRegularExpression('/(^|;)\s*(background|border|box-shadow|color|clip-path|outline)(-[a-z-]+)?\s*:/', $body, trim($selector) . ': layout only, the look is the role\'s');
+            $this->assertDoesNotMatchRegularExpression('/gradient|var\(--color-|var\(--surface-/', $body, trim($selector));
+        }
+        $this->assertGreaterThan(0, $layoutRules, 'the full-width layout still has its own rules');
+
+        // No layout-and-role pair anywhere: a theme never has to know both.
+        foreach (['assets/css/core.css', 'assets/css/blocks/cta-band.css', BlockAppearance::STYLESHEET] as $path) {
+            $this->assertDoesNotMatchRegularExpression('/cta-section--full[^,{]*\.surface-|\.surface-[a-z]+[^,{]*cta-section--full/', self::stripComments(self::file($path)), $path);
+        }
+    }
+
     public function testNoSiteOrThemeIsKnownByName(): void
     {
         $surfaces = self::file('assets/css/core.css');
@@ -237,10 +284,16 @@ final class SurfaceContractTest extends TestCase
 
     private static function sample(string $type): string
     {
+        return self::render($type, (array) BlockDefinitions::get($type)->sampleContent(new BlockSamples()));
+    }
+
+    /** @param array<string, mixed> $content */
+    private static function render(string $type, array $content): string
+    {
         $definition = BlockDefinitions::get($type);
         ob_start();
         try {
-            $definition->renderSample((array) $definition->sampleContent(new BlockSamples()), $type . '-1');
+            $definition->renderSample($content, $type . '-1');
         } finally {
             $html = (string) ob_get_clean();
         }
@@ -274,6 +327,10 @@ final class SurfaceContractTest extends TestCase
             }
 
             return $html;
+        }
+
+        if ($block === 'cta_band_full') {
+            return self::render('cta_band', ['full_width' => true] + (array) BlockDefinitions::get('cta_band')->sampleContent(new BlockSamples()));
         }
 
         return self::sample($block);
