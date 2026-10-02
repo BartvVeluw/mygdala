@@ -224,6 +224,7 @@
             <file>tests/Service/ProductEditorTabsTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
             <file>tests/Service/ThemeTokenContractTest.php</file>
+            <file>tests/Service/ThemeStylesheetContractTest.php</file>
             <file>tests/Service/SurfaceContractTest.php</file>
             <file>tests/Service/HeroDecorationContractTest.php</file>
             <file>tests/Module/PageThemesModuleTest.php</file>
@@ -420,6 +421,7 @@
             <file>tests/Service/ButtonStyleBlocksTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
             <file>tests/Service/ThemeTokenContractTest.php</file>
+            <file>tests/Service/ThemeStylesheetContractTest.php</file>
             <file>tests/Service/SurfaceContractTest.php</file>
             <file>tests/Service/HeroDecorationContractTest.php</file>
             <file>tests/Module/PageThemesModuleTest.php</file>
@@ -931,6 +933,7 @@
             <file>tests/Service/ThemeColorTest.php</file>
             <file>tests/Service/PageThemeCssContractTest.php</file>
             <file>tests/Service/ThemeTokenContractTest.php</file>
+            <file>tests/Service/ThemeStylesheetContractTest.php</file>
             <file>tests/Service/SurfaceContractTest.php</file>
             <file>tests/Service/HeroDecorationContractTest.php</file>
             <file>tests/Service/ThemePaletteRecipeTest.php</file>

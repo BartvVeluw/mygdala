@@ -8,6 +8,8 @@ use App\Module\ModuleRegistry;
 use App\Service\AssetVersion;
 use App\Service\PageAssets;
 use App\Service\SiteSettings;
+use App\Service\Theme\PageAppearance;
+use App\Service\Theme\PageThemeCss;
 use App\Service\Theme\ThemeDefinition;
 use App\Service\Theme\ThemeRegistry;
 use App\Service\Theme\ThemeSettings;
@@ -22,6 +24,15 @@ use PHPUnit\Framework\TestCase;
  */
 final class ThemeRenderingTest extends TestCase
 {
+    /** A page theme's five colours, for the cascade order only. */
+    private const PAGE_THEME_COLORS = [
+        'primary_color' => '#FF7518',
+        'on_primary_color' => '#111111',
+        'background_color' => '#1A0F1F',
+        'surface_color' => '#2A1A30',
+        'text_color' => '#F7F1E8',
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -285,9 +296,9 @@ final class ThemeRenderingTest extends TestCase
     }
 
     /**
-     * The positive path, on the rendering half with an explicit definition:
-     * the registry ships no theme with a stylesheet yet (phase 2C), and no
-     * fixture theme goes into the release for a test.
+     * The rendering half on its own, with an explicit definition: any
+     * definition's stylesheet is printed through AssetVersion, whichever
+     * theme it belongs to. The registry's own path is the test below.
      */
     public function testAThemeStylesheetIsPrintedCacheBustedFromItsDefinition(): void
     {
@@ -297,6 +308,61 @@ final class ThemeRenderingTest extends TestCase
             '<link rel="stylesheet" href="/' . htmlspecialchars(AssetVersion::url('assets/css/core.css'), ENT_QUOTES, 'UTF-8') . '">' . "\n",
             PageAssets::themeStylesheet($theme)
         );
+    }
+
+    /**
+     * The whole positive path: the stored key, ThemeSettings, the registry,
+     * the definition, PageAssets, and minimal's link in its slot — after the
+     * last collected stylesheet, before the site theme and the page theme.
+     * The site buttons sit between those two; with no database here they
+     * print nothing, so their place is ThemePersistenceTest's.
+     */
+    public function testAStoredMinimalIsLinkedAfterTheCollectedStylesAndBeforeTheOwnersSettings(): void
+    {
+        ThemeSettings::overrideForTests(['primary_color' => '#2F6FED', ThemeSettings::ACTIVE_THEME_KEY => 'minimal']);
+        PageAssets::requireStyle('assets/css/shop/shop.css');
+        PageThemeCss::declare(PageAppearance::fromTheme('zomer', self::PAGE_THEME_COLORS, 'system'));
+
+        $html = $this->renderStyles();
+        $link = $this->minimalLink();
+
+        $this->assertSame(1, substr_count($html, $link));
+        $this->assertStringContainsString($this->collectedLinks() . $link . '<style id="site-theme">', $html);
+        $this->assertGreaterThan(strpos($html, '<style id="site-theme">'), (int) strpos($html, '<style id="page-theme">'));
+        $this->assertGreaterThan(strpos($html, $link), (int) strpos($html, '<style id="page-theme">'));
+    }
+
+    /**
+     * Minimal adds exactly one thing to the head: its link. No class, no
+     * attribute, no second mention of its key, and every other byte is what
+     * legacy prints.
+     */
+    public function testMinimalAddsItsLinkAndNothingElseToTheHead(): void
+    {
+        ThemeSettings::overrideForTests(['primary_color' => '#2F6FED']);
+        PageAssets::requireStyle('assets/css/shop/shop.css');
+        $legacy = $this->renderStyles();
+
+        ThemeSettings::overrideForTests(['primary_color' => '#2F6FED', ThemeSettings::ACTIVE_THEME_KEY => 'minimal']);
+        $minimal = $this->renderStyles();
+
+        $this->assertSame($legacy, str_replace($this->minimalLink(), '', $minimal));
+        $this->assertSame(1, substr_count($minimal, 'minimal'));
+        $this->assertStringNotContainsString('minimal', $legacy);
+    }
+
+    /** Every site without a stored key, existing or fresh: no theme link at all. */
+    public function testWithoutAStoredKeyMinimalIsNeverLinked(): void
+    {
+        foreach ([[], [ThemeSettings::ACTIVE_THEME_KEY => ''], [ThemeSettings::ACTIVE_THEME_KEY => 'Minimal'], [ThemeSettings::ACTIVE_THEME_KEY => 'kobold']] as $settings) {
+            PageAssets::reset();
+            ThemeSettings::overrideForTests($settings);
+
+            $html = $this->renderStyles();
+
+            $this->assertStringNotContainsString('themes/', $html);
+            $this->assertStringEndsWith($this->collectedLinks(), $html);
+        }
     }
 
     public function testAThemeWithoutAStylesheetPrintsNothing(): void
@@ -390,6 +456,12 @@ final class ThemeRenderingTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+
+    /** minimal's <link>, as PageAssets prints a stylesheet. */
+    private function minimalLink(): string
+    {
+        return '<link rel="stylesheet" href="/' . htmlspecialchars(AssetVersion::url('assets/css/themes/minimal.css'), ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    }
 
     /** The <link> lines of the collected stylesheets, as renderStyles() prints them. */
     private function collectedLinks(): string

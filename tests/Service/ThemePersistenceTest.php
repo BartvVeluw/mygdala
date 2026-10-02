@@ -6,8 +6,11 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Repository\ThemeSettingRepository;
+use App\Service\PageAssets;
 use App\Service\SiteSettings;
 use App\Service\Theme\ButtonStyles;
+use App\Service\Theme\PageAppearance;
+use App\Service\Theme\PageThemeCss;
 use App\Service\Theme\ThemeRegistry;
 use App\Service\Theme\ThemeSettings;
 use PHPUnit\Framework\TestCase;
@@ -249,6 +252,73 @@ final class ThemePersistenceTest extends TestCase
             $this->assertNull(ThemeRegistry::active()->stylesheet);
             $this->assertSame($stored, (new ThemeSettingRepository())->findAll()[ThemeSettings::ACTIVE_THEME_KEY] ?? null);
         }
+    }
+
+    /**
+     * The whole positive path on the real row: theme_settings.active_theme
+     * → ThemeSettings → ThemeRegistry::active() → the definition →
+     * PageAssets → minimal's <link>, after the collected stylesheets and
+     * before every layer the owner controls: the site theme, the site
+     * buttons and a page theme.
+     */
+    public function testAStoredMinimalIsLinkedBeforeEveryLayerTheOwnerControls(): void
+    {
+        (new ThemeSettingRepository())->upsertMany([ThemeSettings::ACTIVE_THEME_KEY => 'minimal']);
+        ThemeSettings::save(['primary_color' => '#2F6FED']);
+        $this->assertTrue(ButtonStyles::setDefault('primary', ButtonStyles::create(ButtonStyleFixture::values('ZZ Thema', ['size' => 'large']))));
+        ThemeSettings::clearCache();
+        ButtonStyles::clearCache();
+
+        PageAssets::reset();
+        PageAssets::requireStyle('assets/css/shop/shop.css');
+        PageThemeCss::declare(PageAppearance::fromTheme('zomer', [
+            'primary_color' => '#FF7518',
+            'on_primary_color' => '#111111',
+            'background_color' => '#F7F1E8',
+            'surface_color' => '#FFFFFF',
+            'text_color' => '#1A0F1F',
+        ], 'system'));
+
+        try {
+            ob_start();
+            PageAssets::renderStyles();
+            $html = (string) ob_get_clean();
+        } finally {
+            PageAssets::reset();
+        }
+
+        $order = [
+            'shop.css' => '/assets/css/shop/shop.css',
+            'minimal' => '/assets/css/themes/minimal.css?v=',
+            'site-theme' => '<style id="site-theme">',
+            'site-buttons' => '<style id="site-buttons">',
+            'page-theme' => '<style id="page-theme">',
+        ];
+        $positions = [];
+        foreach ($order as $name => $needle) {
+            $this->assertSame(1, substr_count($html, $needle), $name . ' must be in the head exactly once');
+            $positions[$name] = strpos($html, $needle);
+        }
+        asort($positions);
+
+        $this->assertSame(array_keys($order), array_keys($positions));
+        $this->assertSame('minimal', ThemeRegistry::active()->key);
+    }
+
+    public function testWithoutTheRowNoThemeStylesheetIsLinked(): void
+    {
+        ThemeSettings::clearCache();
+        PageAssets::reset();
+
+        try {
+            ob_start();
+            PageAssets::renderStyles();
+            $html = (string) ob_get_clean();
+        } finally {
+            PageAssets::reset();
+        }
+
+        $this->assertStringNotContainsString('/assets/css/themes/', $html);
     }
 
     /** "Standaardvormgeving herstellen" is not a theme switch. */
