@@ -160,8 +160,9 @@ draait het hele mechanisme op:
 - **Herstellen is verwijderen** voor lettertype en knopvorm; de kleuren van
   het actieve palet worden de standaard. Andere paletten blijven staan.
 
-Meldingskleuren (fout, gelukt, waarschuwing) zijn geen thema-instelling en
-staan als vaste waarden in de stylesheets. Het adminpaneel heeft zijn eigen,
+Meldingskleuren (fout, gelukt) zijn geen thema-instelling, maar wel tokens
+op `:root` (`--color-danger…`, `--color-success…`, zie "Presentatietokens").
+Het adminpaneel heeft zijn eigen,
 volledig losstaande tokens (`--admin-*` in `admin/assets/admin.css`) en
 verandert nooit mee.
 
@@ -227,6 +228,64 @@ recept leest.
 Er is **geen aparte instelling** voor een rand, zachte tekst, een glow of een
 hoverkleur, en die moet er ook niet komen. Klein instellingenoppervlak,
 afgeleide rest.
+
+## Presentatietokens (Themes 2.0, fase 1A)
+
+Naast de kleuren zijn er tokens voor de vorm en het karakter van de site.
+Geen beheerder kiest ze, er is geen scherm en geen opslag: ze staan op
+`:root` in `core.css` met de waarden van het standaardthema, zodat een
+latere thema-laag (een ThemeRegistry) ze op één plek kan zetten. Een site
+die niets verandert rendert exact zoals vóór deze tokens.
+
+| Token | Standaard | Betekenis | Gebruikt door |
+|---|---|---|---|
+| `--border-width` | `1px` | gewone rand of scheidingslijn | elke `border…: … solid` in de publieke stylesheets |
+| `--border-width-strong` | `1.5px` | sterke rand: velden, pillen, een benadrukt paneel | formuliervelden, taalkeuze, filterchips, stepper, CTA-kaart |
+| `--radius-pill` | `999px` | volledig ronde uiteinden | tags, chips, badges, taalkeuze, stepper (niet `.btn`: dat is `--button-radius`) |
+| `--color-shadow-rgb` | `0, 0, 0` | kleur van elke schaduw | `--shadow-soft`, `--shadow-lift`, header, submenu, kaart-hover, checkout |
+| `--color-sheen-rgb` | `255, 255, 255` | het licht dat een vlak vangt | glans van `.bg-soft` en *Subtiele achtergrond*, hover en open rij in het submenu |
+| `--color-danger`, `-rgb` | `#E2685C` | het merkteken van een fout: rand, outline, was | ongeldige velden, foutmeldingen, verwijderknoppen |
+| `--color-danger-text`, `-rgb` | `#F0897E` | foutmelding op de ondergrond | `.form-error`, Shop-meldingen, personalisatie |
+| `--color-danger-on-wash` | `#F5B4AC` | tekst op de foutwas | `.form-error-summary`, `.form-status--error` |
+| `--color-success-rgb`, `--color-success-on-wash` | `120, 180, 130`, `#B7E0C0` | was en tekst van een geslaagde melding | `.form-status--ok` |
+| `--fw-heading`, `--fw-h1` | `500`, `400` | gewicht van de koppen, en van de h1 | `h1–h4` |
+| `--tracking-heading` | `0.01em` | letterafstand van de koppen | `h1–h4` |
+| `--eyebrow-weight`, `--eyebrow-tracking`, `--eyebrow-case` | `700`, `0.18em`, `uppercase` | karakter van het bovenkopje | `.eyebrow` (hoofdletters ook `.article-eyebrow`, `.personalizer__eyebrow`) |
+| `--eyebrow-rule-display` | `inline-block` | het streepje vóór een bovenkopje (`none` laat het weg) | `.eyebrow::before` |
+| `--hover-lift` | `1` | factor op elke hover-optilling van een kaart | feature-, product-, collectie-, blog-, hover-kaart, projectbeeld, productminiatuur |
+| `--hover-zoom` | `1` | factor op elke zoom van een beeld in zijn kader | galerij, blogkaart, projectbeeld, projectgalerij, hover-kaart, feature-icoon |
+
+Wat daaruit volgt:
+
+- **Schaduwen** zijn opgebouwd uit `--color-shadow-rgb` en staan daarom in
+  de regel `:root, main[data-page-theme]` (zie "Paginathema's").
+- **De glans volgt de tekstkleur.** `--color-sheen-rgb` staat in het recept
+  (`ThemePalette`, `['channels', 'text']`): een ander palet of een
+  paginathema krijgt de kanalen van zijn tekstkleur, dus op een licht thema
+  wordt de glans een lichte schaduw in plaats van onzichtbaar wit. Het
+  standaardthema houdt het witte van `core.css`.
+- **Het submenu** is een paneel en heeft dus `--color-surface`, niet meer
+  `--color-on-primary` (dat is de tekst óp een primaire vulling). Met een
+  licht palet en een licht accent werd het paneel donker en de tekst erop
+  onleesbaar; dat is hiermee opgelost. In het standaardpalet scheelt het één
+  stap per kanaal (`#1B140D` → `#1C150E`), niet te zien.
+- **Hover** is een factor, geen afstand: elke kaart houdt haar eigen
+  ontwerpafstand (8, 6, 4, 3 of 2 px; zoom 1.035 tot 1.07), `0` zet alles
+  stil, `1.5` beweegt de helft meer. De knop heeft zijn eigen optilling in
+  de knopstijl (`--btn-hover-lift`) en volgt deze factor niet.
+- **Een paginathema** zet nooit een vorm-, rand-, schaduw- of
+  bewegingstoken: alleen kleuren en lettertypen.
+- **Wat bewust literal blijft**: kleuren op een foto of productbeeld (het
+  bijschrift in een Detailsectie, het graveervoorbeeld van de personalisatie,
+  de rand van een kleurstaal), de maskers van de blokeffecten, en de
+  donkere achtergrond van de checkout-overlay. Losse lettergroottes (ruim 150)
+  zijn niet getokeniseerd; alleen `--fs-*` bestaat.
+
+`Tests\Service\ThemeTokenContractTest` (`contract`, `fast`, `cms`) houdt dit
+vast: de standaardwaarden, geen letterlijke kleur buiten de tokens (op een
+genoemde uitzonderingslijst na), geen statuskleur, randdikte of pil-radius
+uitgeschreven, geen hover die met een vaste afstand beweegt, geen paneel op
+`--color-on-primary`, en een paginathema zonder vormtokens.
 
 ## Nieuwe thema-instelling toevoegen
 
