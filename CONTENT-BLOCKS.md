@@ -1480,7 +1480,8 @@ kaarten, foto's, vragen die open- en dichtklappen of een formulier concurreert
 met wat de bezoeker daar doet: kijken, kiezen, klikken, typen. Een stilstaande
 gloed of een patroon doet dat niet. Bolletjes zijn er voor blokken met
 woorden waar het oog even op rust. De homepage-opening krijgt geen paneel: zij
-heeft haar eigen bolletjes en laserlijnen al. De vaste en dynamische blokken
+heeft haar eigen decoratie al, en die is van het thema (THEMING.md,
+"Decoratie van de homepage-opening"). De vaste en dynamische blokken
 (contact, snelnavigatie, productgrid) hebben een vaste plek en een vaste
 bovenruimte.
 
@@ -1568,7 +1569,8 @@ Drie effecten, puur CSS (`assets/css/block-decorations.css`), zonder script,
 bibliotheek of animatiecontroller per blok:
 
 - **Vallende bolletjes**: het effect van de homepage-opening
-  (`homepage-hero.css` `.spark`, `homepage-hero.js` met GSAP) nagebouwd als
+  (de deeltjes van het standaardthema, `homepage-hero.css`
+  `.hero-decoration__particle`, `homepage-hero.js` met GSAP) nagebouwd als
   CSS-animatie. Het uiterlijk is hetzelfde: 4px, `--color-primary-bright`
   met gloed, oplichten, 24–54px vallen en uitdoven, rusten. Het zijn 14
   punten, en op een telefoon 6, zoals in de opening. De opening zelf is niet

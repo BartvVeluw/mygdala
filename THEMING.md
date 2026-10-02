@@ -524,6 +524,102 @@ achtergrond haalt de rol weg, op elk blok met Extra vormgeving en een rol;
 voor een rol met een gekozen achtergrond, geen bloktype in `BlockAppearance`,
 en geen site- of themanaam in deze code.
 
+## Decoratie van de homepage-opening (Themes 2.0, fase 1B-b)
+
+De homepage-opening (`partials/section-homepage-hero.php`) heeft decoratie
+die alleen karakter geeft: in het standaardthema twee gloeiende lijnen en
+vallende puntjes. Tot deze fase stond die uitvoering in de markup
+(`spark-field`, twee `laser-line`s met hun positie in een `style`-attribuut)
+en in het script. Nu levert de renderer alleen neutrale haakjes, en bepaalt
+de stylesheet of en hoe ze getekend worden.
+
+### Drie dingen in de opening
+
+| Soort | Wat | Wie beslist |
+|---|---|---|
+| Inhoud | eyebrow, titel met accent, inleiding, twee knoppen, kengetallen, afbeelding of video met alt-tekst, badge | de redacteur |
+| Lay-out | media rechts, media links, media als achtergrond (met donkere sluier), zonder media; grootte van het accent | de redacteur |
+| Decoratie | het canvas, de twee lagen, de deeltjes, hun beweging | het thema |
+
+### De haakjes
+
+```html
+<div class="hero-decoration" data-hero-decoration aria-hidden="true">
+  <div class="hero-decoration__layer" data-decoration-layer="1"></div>
+  <div class="hero-decoration__layer" data-decoration-layer="2"></div>
+</div>
+```
+
+- **Het canvas** `.hero-decoration` ligt over de hele opening (`inset: 0`,
+  `overflow: hidden`, `z-index: 0`) en neemt nooit een klik
+  (`pointer-events: none`, ook voor alles erin).
+- **Twee lagen** `.hero-decoration__layer`: lege elementen zonder betekenis.
+  Een thema stijlt ze met `:nth-child(1)` en `:nth-child(2)`, plus hun
+  `::before` en `::after` en die van het canvas. Dat zijn tot negen vlakken.
+- **Deeltjes** `.hero-decoration__particle`: `homepage-hero.js` voegt ze na
+  de lagen aan het canvas toe (14, op een scherm smaller dan 640px 6) en laat
+  ze met GSAP oplichten en vallen. De lagen staan erboven (`z-index: 1`).
+
+Waarom twee lagen en niet alleen `::before`/`::after`: het script tekent de
+twee lijnen elk apart in (`scaleX` van 0 naar 1, kort na elkaar). Een
+pseudo-element kan GSAP niet bewegen, en het canvas moet ook de deeltjes
+kunnen bevatten. Meer lagen zijn er niet zonder bewijs dat een thema ze
+nodig heeft.
+
+### Wat een thema kan
+
+Alles wat zichtbaar is: vorm, kleur, verloop, masker, rand, textuur,
+transform, opacity, en eigen CSS-animaties op de lagen en de
+pseudo-elementen. Zonder PHP, zonder voorwaarde op een themanaam, zonder
+CMS-instelling.
+
+- **Geen decoratie**: `.hero-decoration{ display: none; }`. Het canvas neemt
+  dan geen ruimte in, en het script voegt geen deeltjes toe.
+- **Geen deeltjes**: `.hero-decoration__particle{ display: none; }`. Het
+  script meet het eerste deeltje, haalt het weer weg en start geen enkele
+  animatie.
+- **Andere beweging**: een CSS-animatie op een laag wint van de inline
+  transform die GSAP na het intekenen laat staan.
+
+Wat een thema niet kan: het aantal deeltjes of hun val veranderen (dat is de
+GSAP-code van het standaardthema), en de lagen buiten het canvas leggen. In
+de lay-out *media als achtergrond* ligt de media boven het canvas, zoals de
+lijnen en puntjes daar altijd al onder de foto lagen.
+
+Een thema bezit alleen de uitvoering. Inhoud, markup, blokregistratie en
+logica blijven van Core. Er is bewust geen CMS-keuze *Decoratie*: de
+redacteur kiest inhoud en lay-out, het thema de identiteit. De opening heeft
+ook geen Extra vormgeving (zie *Extra vormgeving van een blok*), dus er is
+geen voorrang tussen een gekozen effect en de decoratie van het thema.
+
+### Beweging en toegankelijkheid
+
+- Het canvas staat vóór de inhoud in de DOM, is `aria-hidden`, heeft geen
+  tekst, alt of kop en kan geen focus krijgen.
+- Met `prefers-reduced-motion: reduce` (of zonder GSAP) beweegt niets: de
+  lagen staan meteen getekend, er komen geen deeltjes.
+- Er is geen bewegings-API en geen nieuwe token. De bestaande `--dur-*` en
+  `--ease-*` zijn voor overgangen van de interface; de decoratie van het
+  standaardthema heeft eigen vaste tijden in het script. Een thema dat
+  rustiger wil, zet de deeltjes uit (zie hierboven).
+- Het script start per `.hero` op de pagina en zoekt binnen die opening,
+  niet in het hele document.
+
+### Oude namen
+
+`spark-field`, `laser-line` en `spark` zijn weg, zonder alias. Ze bestonden
+alleen in deze renderer, deze stylesheet en dit script, die samen met één
+cachebuster (`?v=<mtime>`) worden uitgeleverd. Opgeslagen inhoud kan ze niet
+bevatten: rich text verliest elke `class` (`RichTextSanitizer`), en er is geen
+blok met vrije HTML. De ontwikkel- en testdatabases bevatten ze niet.
+
+Het effect *Vallende bolletjes* van Extra vormgeving (`sparks`,
+`.block-decor--sparks` in `block-decorations.css`) is iets anders: een
+opgeslagen keuze van de redacteur. Die naam blijft.
+
+`Tests\Service\HeroDecorationContractTest` (`contract`, `fast`, `cms`) houdt
+dit vast.
+
 ## Nieuwe thema-instelling toevoegen
 
 Dit recept geldt voor een instelling die geen kleur is (zoals lettertype en
